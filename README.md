@@ -32,6 +32,8 @@ a real project supplies one.
 - `docs/FEATURE_INTAKE.md`: tiny, normal, and high-risk work classification.
 - `docs/ARCHITECTURE.md`: generic architecture discovery and boundary rules.
 - `docs/HARNESS_BACKLOG.md`: proposed harness improvements.
+- `docs/playbooks/`: reusable recipes for recurring tooling, environment, and
+  workflow problems. Read before fighting a familiar symptom.
 - `docs/templates/`: reusable spec-intake, story, decision, and validation
   templates.
 
@@ -50,6 +52,7 @@ project/
     product/
     stories/
     decisions/
+    playbooks/
     templates/
   scripts/
     README.md

@@ -51,8 +51,12 @@ The app is what users touch. The harness is what agents touch.
 Every task has two possible outputs:
 
 1. Product delta: app code, tests, API shape, data model, or product docs.
-2. Harness delta: docs, templates, validation expectations, backlog items, or
-   decision records that make the next task easier.
+2. Harness delta: docs, templates, validation expectations, backlog items,
+   decision records, or **playbook entries** that make the next task easier.
+
+Playbooks are the cross-project memory layer of the harness — each entry
+turns a one-time fix into a portable recipe, so a sibling project running the
+same Harness installer inherits the answer instead of re-deriving it.
 
 ## Harness v0 Scope
 
@@ -66,6 +70,7 @@ Harness v0 includes:
 - Validation report template.
 - Test matrix placeholder.
 - Harness growth backlog.
+- Playbooks folder for reusable cross-project recipes.
 
 Harness v0 deliberately excludes:
 

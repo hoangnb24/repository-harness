@@ -368,6 +368,10 @@ docs/decisions/0001-harness-first-development.md
 docs/decisions/0002-post-spec-product-lifecycle.md
 docs/decisions/0003-generic-spec-intake-harness.md
 docs/decisions/README.md
+docs/playbooks/README.md
+docs/playbooks/template.md
+docs/playbooks/headless-browser-blank-screenshot.md
+docs/playbooks/landing-page-saas-ai-noti-style.md
 docs/product/README.md
 docs/stories/README.md
 docs/stories/backlog.md
