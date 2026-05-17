@@ -1,6 +1,8 @@
 # Plan D — Quality + Closure Tools
 
-**Date:** 2026-05-17 · **Branch:** main · **Status:** Awaiting Plan C completion (per decision 0005)
+**Date:** 2026-05-17 · **Branch:** main · **Status:** completed 2026-05-17
+
+**Plan status:** completed 2026-05-17. All 7 grep validation checks passed.
 
 ## Goal
 
@@ -32,12 +34,12 @@ Sequential after Plan C. Execute when:
 Phase file detail intentionally deferred per decision 0005 § Alternatives 3.
 Sketch below is for visibility.
 
-| # | Phase | Output (sketch) |
-|---|-------|-----------------|
-| 1 | Code review scoring playbook | `docs/playbooks/code-review-scoring.md` — X/10 rubric (correctness 3pt + security 2pt + quality 2pt + performance 1pt + maintainability 1pt + tests 1pt). Pass/fail gate ≥7. Per-tier application matches Plan A token tier rule. |
-| 2 | Canonical E2E flow + seed data pattern playbooks | `docs/playbooks/canonical-e2e-flow-playbook.md` (phase-typed: form / workflow / readonly / mixed; each test cites TC token). `docs/playbooks/seed-data-pattern.md` (deterministic FK-valid demo data; no locale data). |
-| 3 | Project closure story template | `docs/templates/project-closure-story/` mirroring `delivery-closure-story/` shape but scoped to end-of-project: README index, decisions index, credentials handover (encrypted reference, no secrets in git), training resource index. |
-| 4 | Project status snapshot playbook | `docs/playbooks/project-status-snapshot.md` — read-only SDLC state detector. Agent inspects `docs/stories/`, `docs/TEST_MATRIX.md`, `docs/decisions/` and reports "where are we now". No write side. |
+| # | Phase | Output | Status |
+|---|-------|--------|--------|
+| 1 | [Code review scoring playbook](phase-01-code-review-scoring-playbook.md) | `docs/playbooks/code-review-scoring.md` — X/10 rubric (3+2+2+1+1+1). Pass gate ≥7. ClaudeKit weights copied verbatim; recalibration deferred. | completed (commit `a05143e`) |
+| 2 | [Canonical E2E flow + seed data pattern](phase-02-canonical-e2e-flow-and-seed-pattern.md) | `docs/playbooks/canonical-e2e-flow-playbook.md` (4 flow types) + `docs/playbooks/seed-data-pattern.md` (DB seed only, no locale data). | completed (commit `9785fdc`) |
+| 3 | [Project closure story template](phase-03-project-closure-story-template.md) | `docs/templates/project-closure-story/` — 4 files mirroring delivery-closure-story shape, scoped to end-of-project handover. | completed (commit `0846f5f`) |
+| 4 | [Project status snapshot playbook](phase-04-project-status-snapshot-playbook.md) | `docs/playbooks/project-status-snapshot.md` — read-only agent-read snapshot. Playbook, NOT script (decision 0005 § 6). | completed (commit `e437b30`) |
 
 **Estimated effort when work begins:** ~5-8h.
 
