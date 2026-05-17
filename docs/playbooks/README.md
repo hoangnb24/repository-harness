@@ -51,6 +51,7 @@ kind of problem you have first, then scan the matching group.
 | [ui-design-system-contract.md](ui-design-system-contract.md) | Single living style guide per project — code is source of truth, markdown is contract. 12-section skeleton, 7 token groups, ~90-component Coverage Matrix, Style Intake (5 sources), verification gate. |
 | [PATCH-EXTENSION-PROTOCOL.md](PATCH-EXTENSION-PROTOCOL.md) | Non-destructive `HARNESS:EXT` marker pattern for adding org-specific extensions to playbooks and templates without forking the harness. Operating-model docs stay read-only. |
 | [bilingual-delivery-template-pattern.md](bilingual-delivery-template-pattern.md) | Fork pattern for localizing client-facing templates while keeping IDs, automation, and grep targets in English. Locale-agnostic; ship pattern, not locale. |
+| [code-review-scoring.md](code-review-scoring.md) | Six-dimension X/10 review rubric (correctness 3 + security 2 + quality 2 + performance 1 + maintainability 1 + tests 1). Pass gate ≥7; any 0 auto-blocks. Per-tier application (tiny optional / normal 1 reviewer / high-risk 2). |
 | [playbook-composition-pattern.md](playbook-composition-pattern.md) | When to wrap multiple playbooks into a meta-playbook (and when NOT to). Hand-off contract, idempotency `.meta.json`, `--regenerate` flag convention. |
 
 ### Surface recipe — patterns for a specific product surface
