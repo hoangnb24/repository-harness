@@ -68,14 +68,32 @@ product validation and harness maintenance expectations.
 
 ## Greenfield Bootstrap (from raw inputs)
 
-For a brand-new project, four commands take you from empty folder to
-ready-for-intake. Raw inputs (client-provided spec, brainstorm notes
-written with ChatGPT/Claude, meeting transcripts, mockup screenshots,
-sample data) all land under `docs/discovery/` per
+For a brand-new project, raw inputs (client-provided spec, brainstorm
+notes written with ChatGPT/Claude, meeting transcripts, mockup
+screenshots, sample data) all land under `docs/discovery/` per
 `docs/decisions/0009-discovery-input-folder-convention.md`. There is no
 special `SPEC.md` at repo root — the "spec" is the aggregate of
 discovery inputs plus the vendor-produced intake artifacts under
 `docs/intake/`.
+
+### One-liner (recommended)
+
+If you have a single spec file ready:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/huunghiaish/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" \
+  | bash -s -- --bootstrap --spec /path/to/your-spec.md ./my-new-project
+```
+
+This: creates the target dir, copies the harness, runs `git init`,
+places your spec at `docs/discovery/YYYY-MM-DD-initial-spec.md`, and
+prints the next-step prompt for Claude Code. See
+`docs/decisions/0011-bootstrap-installer-mode.md` for details.
+
+### Multi-file or manual path
+
+When you have multiple input artifacts (mockups, meeting notes, sample
+data), the four-step manual path remains:
 
 ```bash
 # 1. Empty folder for the new project

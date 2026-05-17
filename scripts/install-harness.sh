@@ -10,6 +10,12 @@ Apply the Harness v0 files and folders to a target project directory.
 Options:
   -d, --directory <path>  Target directory. Defaults to the current directory.
   -y, --yes              Accept defaults and skip prompts.
+      --bootstrap        Greenfield bootstrap: git init (if needed) + force-copy
+                         all harness files (no merge prompts). Combine with
+                         --spec <path> to place an initial spec into
+                         docs/discovery/.
+      --spec <path>      With --bootstrap, copy the given file into
+                         docs/discovery/YYYY-MM-DD-initial-spec.<ext>.
       --merge            On protected-path conflict, keep existing files and
                          install only missing Harness files.
       --override         On protected-path conflict, back up and replace
@@ -22,13 +28,17 @@ Safety:
   If AGENTS.md, docs/, or scripts/ already exist, interactive installs ask
   whether to merge missing files, override after backup, or stop. Non-
   interactive installs stop unless --merge or --override is provided.
+  --bootstrap implies --override (with backups) and accepts the protected
+  path warning automatically.
 
 Examples:
   scripts/install-harness.sh
   scripts/install-harness.sh --directory /path/to/project --yes
   scripts/install-harness.sh ./my-project --force
+  scripts/install-harness.sh --bootstrap --spec /path/to/spec.md ./my-new-project
   curl -fsSL https://raw.githubusercontent.com/huunghiaish/harness-experimental/main/scripts/install-harness.sh | bash -s -- --yes
   curl -fsSL https://raw.githubusercontent.com/huunghiaish/harness-experimental/main/scripts/install-harness.sh | bash -s -- --merge --yes
+  curl -fsSL https://raw.githubusercontent.com/huunghiaish/harness-experimental/main/scripts/install-harness.sh | bash -s -- --bootstrap --yes
 EOF
 }
 
@@ -231,6 +241,8 @@ TARGET_INPUT="${HARNESS_TARGET_DIR:-$PWD}"
 YES=0
 FORCE=0
 DRY_RUN=0
+BOOTSTRAP=0
+SPEC_PATH=""
 REQUESTED_CONFLICT_ACTION=""
 POSITIONAL_TARGET=""
 
@@ -248,6 +260,15 @@ while [ "$#" -gt 0 ]; do
     --force)
       FORCE=1
       shift
+      ;;
+    --bootstrap)
+      BOOTSTRAP=1
+      shift
+      ;;
+    --spec)
+      [ "$#" -ge 2 ] || fail "$1 requires a path"
+      SPEC_PATH="$2"
+      shift 2
       ;;
     --merge)
       REQUESTED_CONFLICT_ACTION="merge"
@@ -283,6 +304,20 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+if [ "$BOOTSTRAP" -eq 1 ]; then
+  YES=1
+  REQUESTED_CONFLICT_ACTION="override"
+  FORCE=1
+fi
+
+if [ -n "$SPEC_PATH" ] && [ "$BOOTSTRAP" -eq 0 ]; then
+  fail "--spec requires --bootstrap"
+fi
+
+if [ -n "$SPEC_PATH" ]; then
+  [ -f "$SPEC_PATH" ] || fail "Spec file not found: $SPEC_PATH"
+fi
 
 if [ "$#" -gt 0 ]; then
   [ -z "$POSITIONAL_TARGET" ] || fail "Only one target path is supported"
@@ -375,6 +410,7 @@ docs/decisions/0007-solo-dev-client-delivery-templates.md
 docs/decisions/0008-visual-behavioral-modeling-stage.md
 docs/decisions/0009-discovery-input-folder-convention.md
 docs/decisions/0010-gap-analysis-stage.md
+docs/decisions/0011-bootstrap-installer-mode.md
 docs/decisions/README.md
 docs/discovery/README.md
 docs/intake/README.md
@@ -404,7 +440,10 @@ docs/stories/backlog.md
 docs/stories/epics/README.md
 docs/stories/US-001-install-harness.md
 docs/templates/README.md
+docs/templates/code-standards.md
 docs/templates/decision.md
+docs/templates/decisions/stack-selection.md
+docs/templates/deployment-guide.md
 docs/templates/spec-intake.md
 docs/templates/story.md
 docs/templates/validation-report.md
@@ -452,4 +491,52 @@ fi
 
 if [ "$FORCE" -eq 1 ] && [ "$UPDATED" -gt 0 ] && [ "$DRY_RUN" -eq 0 ]; then
   log "Backups were written to: $BACKUP_DIR"
+fi
+
+if [ "$BOOTSTRAP" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
+  log ""
+  log "Bootstrap mode active."
+
+  if [ ! -d "$TARGET_DIR/.git" ]; then
+    if command -v git >/dev/null 2>&1; then
+      (cd "$TARGET_DIR" && git init -q)
+      log "  git init: initialised empty repo at $TARGET_DIR/.git"
+    else
+      log "  git not found — skipping git init (run it manually)"
+    fi
+  else
+    log "  git init: skipped (.git already exists)"
+  fi
+
+  if [ -n "$SPEC_PATH" ]; then
+    spec_dir="$TARGET_DIR/docs/discovery"
+    mkdir -p "$spec_dir"
+    spec_basename="$(basename "$SPEC_PATH")"
+    spec_ext="${spec_basename##*.}"
+    case "$spec_ext" in
+      "$spec_basename") spec_ext="md" ;;
+    esac
+    spec_target="$spec_dir/$(date +%Y-%m-%d)-initial-spec.$spec_ext"
+    if [ -e "$spec_target" ]; then
+      log "  spec copy: SKIPPED — target already exists: ${spec_target#$TARGET_DIR/}"
+    else
+      cp -p "$SPEC_PATH" "$spec_target"
+      log "  spec copy: ${SPEC_PATH} → ${spec_target#$TARGET_DIR/}"
+    fi
+  fi
+
+  today="$(date +%Y-%m-%d)"
+  cat <<NEXT
+
+Next step — paste this prompt into Claude Code (or any AGENTS.md-aware agent):
+
+  Read all files under docs/discovery/. Run Phase 1 Spec Intake per
+  docs/FEATURE_INTAKE.md § Spec Approval Gate. Create
+  docs/intake/${today}-spec-intake.md. Stop after intake for
+  human review.
+
+After human approval, Phase 2 will derive docs/product/*, the
+stack-selection decision (use docs/templates/decisions/stack-selection.md),
+and the first story packets. See docs/QUICKSTART.md for the first 3 hours.
+NEXT
 fi

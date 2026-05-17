@@ -345,6 +345,7 @@ Decisions authorising the workflow's shape:
 | 0008 | Stage 6 Visual & Behavioral Modeling insertion |
 | 0009 | Discovery input folder convention (`docs/discovery/` + naming) |
 | 0010 | Stage 3.B Gap Analysis (BA technique) insertion |
+| 0011 | Bootstrap mode for `install-harness.sh` (`--bootstrap` + `--spec`) |
 
 ## Quick Links
 
