@@ -403,9 +403,50 @@ Replace dev jargon in `narrate()` strings. Audit checklist:
 
 Rule: if a viewer with NO programming background would not understand the word, it does not belong in the subtitle.
 
+## Output format — always ship `.mp4`, not `.webm`
+
+Playwright records video as `.webm` by default. **Always convert to
+`.mp4` before sharing or archiving.** User-guide videos are customer-
+facing artifacts:
+
+- Slack, email, GitHub, Notion, and most CMS thumbnails work with `.mp4`,
+  silently fail or skip preview for `.webm`.
+- macOS QuickTime + iOS Photos play `.mp4` natively, need extra codec
+  install for `.webm`.
+- Sales / training teams paste recordings into Keynote / PowerPoint —
+  `.mp4` embed works, `.webm` does not.
+
+Convert with `ffmpeg` immediately after the spec finishes:
+
+```bash
+# Single file
+ffmpeg -i recordings/flow.webm -c:v libx264 -preset fast -crf 20 \
+  -movflags +faststart recordings/flow.mp4 && rm recordings/flow.webm
+
+# Batch the whole recording folder, then drop the .webm originals
+for src in recordings/*.webm; do
+  dst="${src%.webm}.mp4"
+  ffmpeg -y -i "$src" -c:v libx264 -preset fast -crf 20 \
+    -movflags +faststart "$dst" && rm "$src"
+done
+```
+
+Notes:
+- `-preset fast -crf 20` is a good default: ~70% smaller than the source,
+  visually lossless for screen recordings, encodes faster than realtime
+  on a laptop.
+- `-movflags +faststart` moves the moov atom to the start so the video
+  plays before fully downloaded (matters for web previews).
+- Wire the conversion into the Playwright `globalTeardown` or a CI step
+  so no `.webm` leaks past the recording boundary.
+
+The rest of this playbook references `.mp4` as the artifact format.
+
 ## Acceptance gate — automated vision audit
 
-Treat user-guide quality as a **measurable** property, not a vibe. Run each rendered `.webm` through a vision model with a fixed rubric and gate on the score.
+Treat user-guide quality as a **measurable** property, not a vibe. Run
+each rendered `.mp4` through a vision model with a fixed rubric and gate
+on the score.
 
 ### Recipe — Gemini Vision audit
 
@@ -420,9 +461,9 @@ Score 1-5 in EACH dimension and explain in 1 sentence:
 5. Customer learning (could a non-technical viewer learn the flow?)
 Return JSON: {"realism":N,"sync":N,"ui":N,"copy":N,"learning":N,"issues":[...]}'
 
-for video in recordings/*.webm; do
+for video in recordings/*.mp4; do
   gemini-vision analyze "$video" --prompt "$PROMPT" --json \
-    > "audits/$(basename "$video" .webm).json"
+    > "audits/$(basename "$video" .mp4).json"
 done
 ```
 
@@ -496,3 +537,9 @@ Never let the user-guide video display "Missing query parameter `X`" — it's th
   could not learn the product from the videos. Fix recipe extracted from the cleanup plan that
   rewrote helpers, refactored 86 occurrences of legacy CSS, and added an automated vision
   acceptance gate.
+- `2026-05-17`: added § "Output format — always ship `.mp4`, not `.webm`"
+  with an ffmpeg conversion recipe. Playwright records `.webm` by
+  default; customer-facing artifacts must be `.mp4` so Slack / email /
+  QuickTime / Keynote previews and embeds work. Sibling playbook
+  `e2e-qa-field-by-field-verify-with-report.md` updated to reference
+  this section and use `.mp4` for handoff artifacts.

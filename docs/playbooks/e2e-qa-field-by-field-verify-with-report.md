@@ -468,7 +468,7 @@ Run with `E2E_RECORD=1 E2E_SLOWMO=350` for video; with `E2E_SLOWMO=0` for fast C
 Every successful run leaves:
 
 - `plans/reports/verification-<runId>.md` — auto-generated, one per run.
-- `plans/reports/<persona>-<runId>.webm` — copied from `test-results/.../video.webm` so artifacts live alongside the report (dev clicks one folder).
+- `plans/reports/<persona>-<runId>.mp4` — converted from Playwright's `test-results/.../video.webm` via ffmpeg (see [e2e-recording-user-guide-quality.md § Output format](./e2e-recording-user-guide-quality.md#output-format--always-ship-mp4-not-webm)) so artifacts live alongside the report (dev clicks one folder, plays in any tool).
 - `plans/reports/<persona>-handoff.md` — hand-written summary linking the above + listing P0/P1/P2 findings (wiring gaps, env drift, route renames the auto-report cannot detect).
 
 ## One-shot `/goal` prompt template (preferred)
@@ -536,8 +536,9 @@ Exit the loop ONLY when ALL hold:
    has full context.
 
 ### Step 5 — Ship
-- Copy final `.webm` to `plans/reports/<feature>-<runId>.webm` (do not commit
-  if `*.webm` is gitignored; reference path in PR body instead).
+- Convert Playwright's `.webm` to `.mp4` (see [e2e-recording-user-guide-quality.md § Output format](./e2e-recording-user-guide-quality.md#output-format--always-ship-mp4-not-webm))
+  and copy to `plans/reports/<feature>-<runId>.mp4`. Do not commit if
+  `*.mp4` / `*.webm` are gitignored; reference path in PR body instead.
 - Open PR from feature branch → integration branch (check `git log` to see
   the project's convention). Title ≤ 70 chars. Body sections: `## Summary`
   (3 bullets), `## Test plan` (run command + expected counts), `## Findings
@@ -548,7 +549,7 @@ Exit the loop ONLY when ALL hold:
 - NEVER `Locator.check()` for React-controlled checkboxes. Always label click.
 - NEVER paraphrase findings into the handoff doc — quote artifact paths.
 - NEVER weaken `expect(incorrect).toEqual([])` to force pass. Fix the cause.
-- NEVER commit `.webm` if gitignored (copy elsewhere or reference in PR).
+- NEVER commit `.webm` or `.mp4` if gitignored (copy elsewhere or reference in PR).
 - NEVER touch helpers/specs marked stable in prior PRs.
 - NEVER `--no-verify`, `--amend`, force-push.
 
@@ -587,7 +588,7 @@ verify run promotes them to correct.
 
 1. plans/reports/<persona>-handoff.md      — P0/P1/P2 with rationale.
 2. plans/reports/verification-<runId>.md   — 34-row matrix expected vs actual.
-3. plans/reports/<persona>-<runId>.webm    — UI behaviour for manual rows.
+3. plans/reports/<persona>-<runId>.mp4     — UI behaviour for manual rows.
 
 ## Tasks (priority order)
 
@@ -648,7 +649,7 @@ If any of those fails, fix the spec / catalog rather than weakening the assertio
 - [e2e-recording-user-guide-quality.md](./e2e-recording-user-guide-quality.md) — fill / navigation grammar, narrate-pin-after, visible cursor overlay.
 - [headless-browser-blank-screenshot.md](./headless-browser-blank-screenshot.md) — when the video itself is blank.
 - `/ck:web-testing` — Playwright wrapper with project / slowMo defaults.
-- `/ck:ai-multimodal` — Gemini Vision audit on the produced `.webm` if you want an automated gate on video quality.
+- `/ck:ai-multimodal` — Gemini Vision audit on the produced `.mp4` if you want an automated gate on video quality.
 - `/ck:chrome-devtools` — manual single-spec debugging when one row stays `not-found`.
 
 ## History

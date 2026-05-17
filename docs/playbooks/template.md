@@ -2,6 +2,22 @@
 
 > One-sentence problem statement an agent can grep for.
 
+> **Shape variants** — this template is the canonical shape for a
+> **Tooling fix** playbook. Other shapes exist in this folder:
+>
+> - **Structural framework** (e.g. `ui-design-system-contract.md`) —
+>   opens with "When this fits" + "What this means", then a contract
+>   skeleton + token taxonomy + verification gate. No Symptoms section.
+> - **Surface recipe** (e.g. `landing-page-saas-ai-noti-style.md`) —
+>   opens with "When this fits" + "When NOT to use", then numbered
+>   patterns in priority order + token sketches + anti-patterns.
+> - **Workflow recipe** (e.g. `e2e-recording-user-guide-quality.md`) —
+>   keeps Symptoms + Root Cause but Fix expands to a recipe with helper
+>   modules, multiple sections, and an acceptance gate.
+>
+> Pick the shape matching your purpose. Don't force a fix recipe into a
+> framework, or vice versa.
+
 ## Symptoms
 
 How does the problem present? List concrete signals an agent will see:
