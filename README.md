@@ -64,6 +64,36 @@ Implementation prompts do not go straight to code. They first pass through
 feature intake, become story-sized work when needed, and then carry both
 product validation and harness maintenance expectations.
 
+## Greenfield Bootstrap (from a SPEC.md)
+
+For a brand-new project starting from a written specification:
+
+```bash
+# 1. Clone the harness skeleton into a fresh directory
+git clone https://github.com/hoangnb24/harness-experimental.git my-project
+cd my-project
+rm -rf .git && git init
+
+# 2. Place the spec at the canonical greenfield location
+cp /path/to/your-spec.md ./SPEC.md
+```
+
+3. Open Claude Code (or any agent that reads `AGENTS.md`) and prompt:
+
+   > Read SPEC.md. Run Phase 1 Spec Intake per docs/FEATURE_INTAKE.md.
+   > Create docs/spec-intake.md. Stop after intake for human review.
+
+4. Approve the intake (see `docs/FEATURE_INTAKE.md` § Spec Approval
+   Gate). Only then does the agent derive `docs/product/*`, architecture
+   decisions, design-direction decisions, and first story packets.
+
+5. From there, the agent follows the full Task Loop in `AGENTS.md` per
+   story.
+
+The `--bootstrap` mode of `install-harness.sh` is not yet implemented;
+see `docs/HARNESS_BACKLOG.md`. Until then, the manual clone above is
+the supported greenfield path.
+
 ## Install Harness Into A Project
 
 From a target project directory, run:

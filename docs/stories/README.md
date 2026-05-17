@@ -41,3 +41,17 @@ planned -> in_progress -> implemented
                   v
                retired
 ```
+
+## Story Selection
+
+When multiple stories are `planned`, follow the **Ordering Rule** in
+`backlog.md`: lowest sequence number among epics whose dependencies are
+satisfied. Within an epic, take stories in `US-NNN` numeric order
+unless the story packet explicitly notes a dependency on another story.
+
+## Sync Requirement
+
+Whenever a story's `Status` changes, the corresponding row in
+`docs/TEST_MATRIX.md` must be updated in the same change. The two are
+the same fact in two views — drift between them silently invalidates
+the proof column.

@@ -41,7 +41,13 @@ For every task:
 5. Before fighting any tooling, environment, or workflow problem, scan
    `docs/playbooks/README.md` for a matching recipe. Apply the recipe before
    re-deriving a fix.
-6. If the work touches UI / visual surfaces (web, mobile, desktop, any
+6. If this is the first story to touch implementation in a new spec
+   buildout, confirm the **runtime stack** has been recorded in
+   `docs/decisions/`. If not, apply `docs/ARCHITECTURE.md` § Discovery
+   Before Shape and write a stack-selection decision before writing any
+   code. Architecture drift after the first 2-3 stories is far costlier
+   than picking now and adjusting later via a superseding decision.
+7. If the work touches UI / visual surfaces (web, mobile, desktop, any
    user-visible interface):
    - Check `docs/design-guidelines.md` exists. If not:
      1. First run **Style Intake** (see playbook § Style Intake): pick
@@ -56,18 +62,22 @@ For every task:
      or implement) before building the screen.
    - Update §8 Component Inventory whenever a component file is added,
      renamed, or removed.
-7. Work only inside the selected lane: tiny, normal, or high-risk.
-8. Before finishing, ask:
+8. Work only inside the selected lane: tiny, normal, or high-risk.
+9. Before finishing, ask:
    - Did product truth change?
    - Did validation expectations change?
    - Did architecture rules change?
+   - Did story status change? If yes, update the matching row in
+     `docs/TEST_MATRIX.md` in the same commit. Story status and matrix
+     row are the same fact in two views — drift between them silently
+     invalidates the proof column.
    - Did we discover a repeated failure pattern?
    - Did the next agent need a clearer instruction?
    - Did we just solve a non-obvious tooling or environment problem that is
      likely to recur on this or another project? If yes, add or update a file
      in `docs/playbooks/` using `docs/playbooks/template.md`.
-9. Update routine harness files directly, or add a proposal to
-   `docs/HARNESS_BACKLOG.md` when the change is structural.
+10. Update routine harness files directly, or add a proposal to
+    `docs/HARNESS_BACKLOG.md` when the change is structural.
 
 ## Harness Change Policy
 

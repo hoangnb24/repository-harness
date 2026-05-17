@@ -123,6 +123,28 @@ Hard gates:
 - External provider behavior.
 - Removing or weakening validation requirements.
 
+## Spec Approval Gate (New Spec input type only)
+
+A new spec is the highest-leverage input — misinterpretation propagates
+across every story, decision, and component that follows. For the
+**New Spec** input type only, intake is **two phases with a human gate
+between them**:
+
+1. **Phase 1 — Read + restate.** Complete `docs/spec-intake.md` from
+   `docs/templates/spec-intake.md`: project summary, candidate product
+   docs, candidate epics, architecture questions, validation shape,
+   first story candidates.
+2. **Stop.** Present the intake doc to the human. Do NOT start
+   deriving `docs/product/*`, architecture decisions, design-direction
+   decisions, or story packets yet.
+3. **Phase 2 — Derive.** Only after human approves the intake (any of:
+   "approved", "looks good", "proceed", or specific corrections then
+   approval), proceed to derive product docs, architecture decision,
+   design-direction decision, and first story packets.
+
+Other input types (spec slice, change request, maintenance, etc.) skip
+this gate — they're bounded enough to proceed straight to lane work.
+
 ## Output
 
 At the end of intake, the agent should be able to say:
