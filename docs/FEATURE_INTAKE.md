@@ -81,6 +81,7 @@ Requirements:
 - Ask for human confirmation before implementation if direction is ambiguous.
 - Record a decision when behavior or architecture changes meaningfully.
 - For release-time closure (any lane), reach for `docs/templates/delivery-closure-story/` (overview + UAT plan + signoff + client update).
+- For end-of-project handover (ownership change), reach for `docs/templates/project-closure-story/` (overview + handover docs + credentials handover + knowledge transfer).
 
 ## Risk Checklist
 
