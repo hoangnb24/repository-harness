@@ -14,6 +14,10 @@ This is the post-fill counterpart to [e2e-recording-user-guide-quality.md](./e2e
 - After a "verify on detail page" run, the spec fails on a sub-assertion like `getByText('XX', { exact: true })` looking for the initials fallback — because, ironically, now the logo actually uploaded the initials are no longer rendered.
 - Dev gets "test failed" but no consolidated report of WHICH fields are wrong vs which are merely unverifiable vs which are known wiring gaps. They re-derive triage every time.
 - Route renamed (`/m/ca-nhan` → `/m/cong-ty`) months ago but the verify spec still navigates to the old path, which now serves a different page that happens to share enough text to keep loose assertions green.
+- Catalog row marked `manualOnly: true` because "the edit form can't change this field" (seed-locked MST, server-default flag, sub-resource managed elsewhere) — but verify doesn't need the form to set the field, just needs to compare DOM vs a known expected value. The row hides behind manual when it could auto-compare against a seed constant.
+- View component renders rows with `hideEmpty` semantics; the persona's seed leaves the field `null`; catalog probe reports `(không tìm thấy element)` → status `not-found`. Looks like a render bug. Root cause is incomplete seed.
+- BE adds a field to the GET projection (read path) but the matching PATCH DTO still drops it (write path forgotten). Verify report shows the cert / sub-resource rows look correct after one save, but a fresh API call shows the persisted entity stayed empty — the values rendered were leftovers from an earlier seed.
+- Fix lands as a commit on a worktree branch; `docker compose up` in the main project keeps serving the previous image because the build context defaulted to main-project source. Verify "fails" with no spec error — running stack ≠ latest build.
 
 ## When This Hits
 
@@ -25,17 +29,18 @@ This is the post-fill counterpart to [e2e-recording-user-guide-quality.md](./e2e
 
 ## Root Cause
 
-Five compounding patterns:
+Six compounding patterns:
 
 1. **`Locator.check()` ≠ user click on a React controlled input.** Playwright's `.check()` sets `input.checked` via the DOM property, then a fast `dispatchEvent('change')`. React's synthetic event system reconciles its controlled state from the `checked` PROP, not the `checked` DOM property, so the parent `onChange` may not actually run the setter. For a CheckboxGroup whose `toggle` reads stale `value` to compute `next`, the second click in quick succession then writes a state that *omits* the first item. Net effect: 2nd item silently dropped from submit, but spec passes because the test never re-reads the actual array.
 2. **Outer-wrapper label trap.** A "Field" component renders `<label class="block"><span>Field Title</span>{children}</label>`. If children include checkbox option pill labels with text like "OptionA", "OptionB", a Playwright lookup like `page.locator('label').filter({ hasText: 'OptionA' }).first()` matches the **outer** Field label (whose `innerText` contains all options as substrings), and `.first()` walks the DOM-order ancestor — clicking near the center of the wrapper hits the wrong pill (or nothing). The fix needs scoping to "labels that directly contain `<input type='checkbox'>`" or to an exact-text match.
 3. **Verify reads aggregated DOM, not per-field DOM.** `await expect(page.getByText(value)).toBeVisible()` matches any element whose innerText contains `value`. For a list of 30 fields with shared substrings ("Khác" appears in 3 sections), this masks per-field correctness. Solution: locator scoped per-field (`dt:has-text('Label') + dd`) + an explicit comparator + an explicit per-field status.
 4. **No artifact for dev handoff.** A failing CI step shows `expect(...).toEqual([])` and a screenshot. The dev has to re-run the spec themselves to know what is broken. Spec must emit a markdown report (table per section, `correct | incorrect | manual | not-found` columns) and reference it in the test annotation.
 5. **Test-stack env drift.** Test infra lacks env that dev infra has (R2, mail backend, search index). Production-shape behavior never gets exercised → upload code path is "tested" but never actually uploads. Once you light up real upload in test stack, downstream assumptions (initials fallback rendering) break — these are real findings worth surfacing, not flakes to suppress.
+6. **Un-scoped `.last()` / `.first()` against repeated card sections.** Forms with multiple repeater sections (e.g. Products, Machines, Credentials) render cards in DOM order. A fill helper resolving a row via `page.locator('label').filter({ hasText: 'Tên' }).last()` un-scoped picks the DOM-last occurrence — whichever section renders last in source. A new section appended later silently shifts the target; cert fields end up overwritten with machine data, and the verify report blames the cert wiring. Sibling of #2, but the trigger is repeated-section count, not nested label nesting. Fix: scope every list-item lookup via a `cardForSection("<heading>")` filter before `.first()` / `.last()`.
 
 ## Fix
 
-Three deliverables: a **field-catalog**, a **verify+report driver**, and a **per-field inspect overlay**. Spec calls them in that order.
+Three deliverables: a **field-catalog**, a **verify+report driver**, and a **per-field inspect overlay**. Spec calls them in that order. Image cells get a fourth piece (Section 8, "Image-field auto-verification") so they auto-check wiring + delivery without falling back to human eyeball.
 
 ### 1. Field catalog
 
@@ -72,10 +77,16 @@ export const PROFILE_FIELDS: FieldProbe[] = [
     expected: () => 'Domestic, Direct export, Other',
     locator: (page) => chipsIn('Markets & Customers')(page) },
   { label: 'Logo', section: 'Hero', kind: 'image',
-    expected: () => 'Logo background-image visible (color present)',
+    expected: () => 'Logo background-image set + 2xx delivery',
+    locator: (page) => page.getByTestId('logo-preview'),
+    resolve: verifyBgImage(/companies\/\d+\/logo-/) },
+  // Fall back to manualOnly ONLY for checks a URL+HTTP probe can't cover:
+  // pixel color, animation, layout cropping. Wiring + delivery are auto.
+  { label: 'Logo pixel color', section: 'Hero', kind: 'image',
+    expected: () => 'logo renders blue, not initials fallback',
     locator: (page) => page.getByTestId('logo-preview'),
     manualOnly: true,
-    manualNote: 'Verify color X visible vs initials fallback in video.' },
+    manualNote: 'Eyeball blue swatch around 02:14 in video.' },
 ];
 ```
 
@@ -262,7 +273,159 @@ environment:
   R2_PUBLIC_URL: http://localhost:9000/hasi-dev
 ```
 
-### 8. Tolerant assertions for legitimately-conditional UI
+### 7b. Test stack image freshness when fixing from a worktree
+
+`docker compose up` in the main project directory uses the **main project's** source as build context. Fixes made inside a worktree only ship into the test stack when you rebuild explicitly:
+
+```bash
+# from inside the worktree
+docker buildx build \
+  --tag hasi-web-test \
+  --build-arg INTERNAL_API_URL=http://api-test:3000 \
+  --build-arg NEXT_PUBLIC_R2_PUBLIC_URL=http://localhost:9000/hasi-dev \
+  -f apps/web/Dockerfile .
+```
+
+Skip this and `compose up` happily serves the previous image with your old code — the verify report fails for reasons that look like spec bugs but are actually stale-image bugs. Quick check: `docker exec <container> cat <path-to-known-fixed-file>` before debugging spec-side.
+
+### 7c. Dockerfile `ARG` discipline for Next.js public env
+
+`NEXT_PUBLIC_*` env vars must be available at **build time** (compile-time inlined into the JS bundle), not just runtime. The compose `build.args` block only takes effect when the Dockerfile declares the matching `ARG`:
+
+```dockerfile
+ARG NEXT_PUBLIC_R2_PUBLIC_URL
+ENV NEXT_PUBLIC_R2_PUBLIC_URL=${NEXT_PUBLIC_R2_PUBLIC_URL}
+```
+
+Missing `ARG`? compose silently passes the value to a layer that doesn't read it. `keyToPublicUrl()` returns `null` → image cells fall back to the gradient placeholder → `verifyBgImage` reads `(no background-image set)` → looks like an upload bug, is actually a build-args plumbing bug.
+
+### 7d. Persona seeds outside the main entry
+
+If `prisma/seed.ts` (or equivalent main seed entry) does NOT call `seedPersonas` (or whatever module owns role-specific test users), the persona's row never lands in the test DB. Spec logs the test user in, the form fills, the verify probe inspects a different account's stale state — passes on the wrong row entirely. Every persona test needs an explicit seed invocation when its data lives outside the main entry:
+
+```bash
+docker exec <api-test-container> \
+  npx tsx prisma/seed/seed-personas.ts
+```
+
+Pair this with the seed-completeness rule in Section 9c: every catalog row that probes a field needs a corresponding non-null seed value.
+
+### 8. Image-field auto-verification (URL pattern + HTTP 200)
+
+Image fields rendered via `background-image: url(...)` have no DOM text to compare. Default to `manualOnly: true` is the **wrong** answer for wiring + delivery — those are checkable. Reserve manual for what humans uniquely judge (pixel color, animation, crop).
+
+Auto-coverage tiers:
+
+| Tier | Catches | Misses |
+|------|---------|--------|
+| URL pattern only | wiring (banner key ≠ logo key), null fallback (gradient) | broken bucket policy (404), corrupted bytes |
+| URL pattern + HTTP 200 | + delivery (bucket policy, CDN, key existence) | pixel color, render glitches |
+| URL + HTTP + byte hash | + content integrity | layout / animation only |
+
+Reach for the middle tier by default. The helper:
+
+```ts
+// e2e/fixtures/image-verify.ts
+import type { Locator } from '@playwright/test';
+
+/**
+ * Field-catalog `resolve` builder for image cells rendered via
+ * `background-image: url(...)`. Verifies (a) URL is set (not the gradient
+ * fallback), (b) URL matches the expected key pattern (so a wrong-kind key
+ * wired into the wrong slot still fails), (c) URL serves HTTP 2xx.
+ *
+ * Returns the canonical "ok" string ONLY when all three hold; the verifier's
+ * default string-equality matcher then classifies the row as correct.
+ *
+ * Pair with: `expected: () => '<exact label-text + 2xx delivery>'` so the
+ * matcher compares like-for-like. Substring fallback in `matches()` will
+ * accept the longer ok string too if you prefer a shorter expected.
+ */
+export function verifyBgImage(keyPattern: RegExp) {
+  return async (locator: Locator): Promise<string> => {
+    const page = locator.page();
+    const style = await locator
+      .first()
+      .evaluate((el) => getComputedStyle(el).backgroundImage)
+      .catch(() => '');
+    const url = style.match(/url\(['"]?(http[^'"\)]+)['"]?\)/)?.[1];
+    if (!url) return '(no background-image set)';
+    if (!keyPattern.test(url)) return `(wrong key path: ${url})`;
+    const resp = await page.request.get(url).catch(() => null);
+    if (!resp) return `(fetch failed: ${url})`;
+    if (resp.status() < 200 || resp.status() >= 300) return `(HTTP ${resp.status()} at ${url})`;
+    // Canonical ok string — keep stable so report diffs are quiet.
+    const label = String(keyPattern).replace(/^\/|\/$|\\d\\+|\\\//g, '').trim();
+    return `${label} background-image set + 2xx delivery`;
+  };
+}
+```
+
+Catalog entry shape:
+
+```ts
+{ label: 'Banner', section: 'Hero', kind: 'image',
+  expected: () => 'companies/banner- background-image set + 2xx delivery',
+  locator: (page) => page.getByTestId('banner-preview'),
+  resolve: verifyBgImage(/companies\/\d+\/banner-/) },
+```
+
+The verifier's `matches()` does `a === e || a.includes(e)` so making `expected` a substring of the helper's canonical ok-string works without adding regex support to the matcher. If a regex matcher is preferable, extend `matches()` instead — but the substring approach keeps the report column readable for humans.
+
+**When still `manualOnly`** (correctly): pixel-color regression ("banner is green not red"), animation timing ("logo fades in within 200ms"), layout cropping ("16:6 ratio respected on mobile"). These are content checks beyond URL+delivery.
+
+### 9. Verifiability ≠ editability — catalog hygiene rules
+
+Section 8 (image auto-verify) extends a wider principle: **manual is the wrong default for everything except what humans uniquely judge.** Three rules for non-image rows that frequently get mis-classified as manual.
+
+#### 9a. EDIT constraint ≠ VERIFY constraint
+
+If a field cannot be changed by the edit form (seed-locked MST, server-default flag, sub-resource owned by a separate endpoint), the catalog still needs to verify the **persisted value**. The form's inability to *change* the field has no bearing on the spec's ability to *compare* it against a known constant.
+
+```ts
+// Wrong — manual because EDIT can't change it
+{ label: 'MST', section: 'Hero', kind: 'text',
+  expected: (d) => d.mst,             // form input — never sent on PATCH
+  manualOnly: true,                   // row classified manual for the wrong reason
+  manualNote: 'PATCH /companies/:id không thay đổi được MST' }
+
+// Right — verify against the known-fixed value
+{ label: 'MST', section: 'Hero', kind: 'text',
+  expected: () => SEED_LOCKED_MST,    // constant from the seed file
+  locator: (page) => dlValue('MST')(page) }
+  // no manualOnly; row auto-compares; status = correct
+```
+
+#### 9b. Comparator hygiene: form-input ≠ persisted value
+
+The `expected` derivation must come from what the **server actually stores**, not what the form happened to send. Diverge cases:
+
+| Field shape | `expected` source | Why |
+|-------------|-------------------|-----|
+| Free text, form-controlled | `data.field` (form input) | round-trip parity |
+| Seed-locked / server-fixed | seed constant | form value ignored on save |
+| Server-derived (slug, runId-based) | derive same way as server | spec's data may not predict it |
+| Sub-resource round-tripped via separate endpoint | normalize from saved row | form value may carry blob URL not persisted key |
+
+The driver's `matches()` is forgiving (substring fallback), but feeding it the wrong `expected` produces false-positive `correct` rows OR false-negative `incorrect` rows that mask real bugs.
+
+#### 9c. `hideEmpty` + incomplete seed → false `not-found`
+
+Common DL-grid pattern: the view renders a row only when the field is non-empty (`hideEmpty: true`). Persona's seed leaves the field `null` → the row never paints → catalog probe reports `(không tìm thấy element)` → status `not-found`. Two paths:
+
+1. **Seed completeness (preferred):** add the missing fields to the persona's seed file. Catalog round-trips against the seeded value. This is almost always what you want — the persona is meant to exercise the field, so the seed should set it.
+2. **Surface move:** if the field genuinely lives on a different page (e.g. only `/m/danh-ba/<slug>`, not `/m/cong-ty`), move the probe to the right surface. Don't add render to the wrong view.
+
+Do NOT dual-render the field across surfaces to make a probe pass. Render lives where the product wants it; the spec adapts.
+
+**Audit rule.** Every catalog row's `expected` must be reachable from one of:
+- (a) form input — `data.xxx`,
+- (b) a seed / fixture constant,
+- (c) a server-derived computation.
+
+If none can produce the value, the row is genuinely manual — but write a precise `manualNote` (pixel color, animation timing, layout crop). Never use "the form can't change it" as a manual reason; that's an EDIT statement, not a VERIFY statement.
+
+### 10. Tolerant assertions for legitimately-conditional UI
 
 When lighting up real services exposes assertions that were only true under the broken state (e.g. "initials avatar visible" was only true because no logo ever uploaded), wrap them in `.catch(() => {})` rather than deleting — keeps the intent legible:
 
@@ -279,7 +442,7 @@ The verify report **must** discriminate spec bugs from product bugs. Use the `st
 - `correct` — actual matches expected exactly.
 - `incorrect` — matched element found, value differs. **Real product bug. Fail the test.**
 - `not-found` — element not present at expected selector. **Usually a spec drift** (renamed component, moved section) OR a real rendering bug. Investigate but DO NOT block on it by default.
-- `manual` — `manualOnly: true` rows. Surface a `manualNote` explaining what to eyeball in the video. **Never fails the test.**
+- `manual` — `manualOnly: true` rows. Surface a `manualNote` explaining what to eyeball in the video. **Never fails the test.** Reserve for checks no probe can cover (pixel color, animation, crop). Wiring + delivery for image cells go through `verifyBgImage()` (Section 8), not manual.
 
 Spec assertion gates only on `incorrect`. `not-found` produces a yellow-amber row in the report ("element missing — please confirm"). Manual rows produce a checklist at the bottom of the report dev/QA can tick off after watching the video.
 
@@ -364,8 +527,9 @@ Exit the loop ONLY when ALL hold:
 1. Spec passes 3 consecutive runs (real flakes will surface).
 2. Final report: 0 incorrect, 0 unexplained not-found (each remaining
    not-found has a `manualNote` explaining why).
-3. Manual rows are genuinely human-eyeball-only (image rendering, animation,
-   layout) — NOT a stand-in for "wiring gap I gave up fixing".
+3. Manual rows are genuinely human-eyeball-only (pixel color, animation,
+   layout crop) — NOT a stand-in for "wiring gap I gave up fixing". Image
+   cells use `verifyBgImage()` for wiring + delivery (Section 8).
 4. Video plays comfortably at 1×, subtitles sync action, cursor visible,
    no 404 / empty states / dev jargon.
 5. Handoff doc lists every P0/P1/P2 (resolved + outstanding) so reviewer
@@ -489,4 +653,6 @@ If any of those fails, fix the spec / catalog rather than weakening the assertio
 
 ## History
 
+- `2026-05-17` (much later): added Symptoms entries for manual-mis-classification, `hideEmpty` + null seed, GET/PATCH asymmetry, and worktree image staleness. Added Root Cause #6 (un-scoped `.last()` on repeated cards). Added Section 7b (worktree image freshness), 7c (Dockerfile `ARG` discipline for `NEXT_PUBLIC_*`), 7d (persona seeds outside the main entry). Added Section 9 "Verifiability ≠ editability — catalog hygiene rules" with three sub-rules (EDIT vs VERIFY, `expected` source, `hideEmpty` + seed). Tolerant assertions renumbered 9 → 10. Discovered while upgrading persona 09 (`owner cập nhật toàn bộ hồ sơ DN`) from 20 correct / 14 manual → 34 correct / 0 manual. The 14 manual rows split: 2 image rows (Section 8 absorbed them), 2 MST rows (mis-classified via `d.mst` form input vs seed constant), 6 survey rows (`hideEmpty` + null seed in the ACME persona). Side fixes that became playbook material: `INTERNAL_API_URL` build-arg drift between worktree CLI builds and main-project compose builds; missing Dockerfile `ARG` for `NEXT_PUBLIC_R2_PUBLIC_URL` silently dropped at compile; `fillFullProfileEdit` un-scoped `.last()` overwriting cert fields with machine/product data because Credentials card renders DOM-last among the repeater sections.
+- `2026-05-17` (later): added Section 8 "Image-field auto-verification (URL pattern + HTTP 200)" with `verifyBgImage()` helper. Discovered while resolving the 3 manual image rows from persona 02 — none of them needed human eyeball for wiring or delivery (only pixel color does, and the test fixtures already pin known colors). Trimmed `manualOnly` to its real domain. Acceptance gate updated.
 - `2026-05-17`: created. Discovered while upgrading `persona 02 — đăng ký mới` on the HASI monorepo to (a) fill every form field including logo/banner/credential uploads, (b) verify each field on `/m/cong-ty` with a markdown report, (c) record a slow video as user-guide, and (d) hand off P0/P1/P2 findings to dev. Took 8 spec iterations to land green; root causes: `Locator.check()` silently dropping React-controlled CheckboxGroup values (2 sub-bugs masked by lenient `getByText` assertions), `Field` wrapper label trap on substring lookups, test stack missing R2 env (presign 500 masked by FE stub fallback), tolerant-assertion regressions when real upload lit up. Final spec: 34 verified fields, 29 correct / 0 incorrect / 5 manual / 0 not-found, 3.6m runtime headless, video 8MB.
