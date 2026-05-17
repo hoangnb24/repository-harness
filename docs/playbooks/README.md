@@ -52,6 +52,7 @@ kind of problem you have first, then scan the matching group.
 | [PATCH-EXTENSION-PROTOCOL.md](PATCH-EXTENSION-PROTOCOL.md) | Non-destructive `HARNESS:EXT` marker pattern for adding org-specific extensions to playbooks and templates without forking the harness. Operating-model docs stay read-only. |
 | [bilingual-delivery-template-pattern.md](bilingual-delivery-template-pattern.md) | Fork pattern for localizing client-facing templates while keeping IDs, automation, and grep targets in English. Locale-agnostic; ship pattern, not locale. |
 | [code-review-scoring.md](code-review-scoring.md) | Six-dimension X/10 review rubric (correctness 3 + security 2 + quality 2 + performance 1 + maintainability 1 + tests 1). Pass gate ≥7; any 0 auto-blocks. Per-tier application (tiny optional / normal 1 reviewer / high-risk 2). |
+| [seed-data-pattern.md](seed-data-pattern.md) | Deterministic FK-valid demo data shape for DEV/TEST only. Symbolic ID convention, scoped cleanup, no locale master data. DB seed only; unit fixtures out of scope. Never run in production. |
 | [playbook-composition-pattern.md](playbook-composition-pattern.md) | When to wrap multiple playbooks into a meta-playbook (and when NOT to). Hand-off contract, idempotency `.meta.json`, `--regenerate` flag convention. |
 
 ### Surface recipe — patterns for a specific product surface
@@ -68,6 +69,7 @@ Run in sequence — second composes on top of first.
 |------|------------------|
 | [discovery-interview-playbook.md](discovery-interview-playbook.md) | Turn a new spec, change request, or brownfield mystery into a REQ list + decisions log + open questions list using 5 personas × 3 question modes. Feeds the rest of the discovery → delivery loop. |
 | [scenario-taxonomy-playbook.md](scenario-taxonomy-playbook.md) | Turn a requirement (REQ token) into a 12-dimension edge-case list (SC tokens). Each row becomes a TEST_MATRIX candidate. Required for normal + high-risk lanes. |
+| [canonical-e2e-flow-playbook.md](canonical-e2e-flow-playbook.md) | Phase-typed E2E test design (form / workflow / readonly / mixed). One journey per file; ≤ 8 assertions. Each test cites its TC token. Consumes seed-data-pattern symbolic IDs. |
 | [e2e-recording-user-guide-quality.md](e2e-recording-user-guide-quality.md) | E2E recording tests PASS green but cannot serve as customer user-guide videos — API mutations bypass UI, subtitles desync from action, no F5 readback verify. |
 | [e2e-qa-field-by-field-verify-with-report.md](e2e-qa-field-by-field-verify-with-report.md) | One-shot `/goal` recipe taking a feature from "smoke spec" to "DONE 100% + tutorial-quality video + zero-incorrect verify report". Auto-spawns dev sub-agent on product bugs, loops until acceptance gate or 3-strikes escalate. |
 | [session-retrospective.md](session-retrospective.md) | Multi-task session is ending — capture cross-task insight (friction, playbook UX, lifecycle promotion candidates, backlog candidates, decisions) before session memory disappears. Triggered by AGENTS.md Task Loop step 9. |
