@@ -169,6 +169,37 @@ Where: `docs/visuals/diagrams/status-flow-<entity>.md` from `docs/templates/stat
 Shape: Mermaid stateDiagram-v2 + transition table with role / pre-condition / side-effect columns.
 Catches: "user got stuck in 'in-review' because no transition leads back to 'pending'" before production tickets pile up.
 
+#### Strict Rule (high-risk lane)
+
+For the high-risk lane, **every stateful entity MUST have a status-flow file**. Strict, no exceptions short of a `docs/decisions/NNNN-*.md` documenting the skip.
+
+An entity is **stateful** when ANY of the following is true:
+
+- The entity's row in the ERD has a `status`, `state`, `phase`, or similarly-named enum column.
+- The entity has ≥ 2 distinct states that gate downstream behavior (visibility, permissions, side-effects).
+- Different roles take different actions depending on which state the entity is in.
+- The state of the entity is recorded in an audit log on transition.
+
+Examples of stateful entities to cover (project-specific — pick from the ERD): `order`, `payment`, `subscription`, `user`, `kyc_application`, `support_ticket`, `vendor_application`, `invoice`, `refund`, `dispute`.
+
+Examples that are NOT stateful (skip): purely-read entities (e.g. `country`, `currency`), join tables (`order_items`), append-only audit rows.
+
+If unsure: write the file. The cost of a 30-minute status-flow doc is far below the cost of a production state-machine bug.
+
+##### Coverage check before freeze
+
+Before stage 6 freeze, run:
+
+```text
+For each entity in docs/visuals/diagrams/erd-draft.md:
+  If entity has a `status` / `state` column OR ≥ 2 states OR is in the
+  "stateful entity list" of the design intake:
+    → docs/visuals/diagrams/status-flow-<entity>.md MUST exist.
+    → File MUST be referenced from docs/stories/backlog.md or a story.
+```
+
+Surface any miss as a freeze blocker — stage 7 (Story slicing) cannot start until the gap is closed (file exists OR a decision doc records the explicit skip).
+
 ### Freeze Gate For Diagrams
 
 Before stage 7 (Story slicing) begins:
@@ -205,7 +236,7 @@ Before stage 7 (Story slicing) begins:
 | --- | --- |
 | Tiny | Skip whole stage. |
 | Normal | Sub-step A + at least sitemap + user flow + 1 prototype screen for any client-visible surface. RPM + Status Flow optional. |
-| High-risk | All sub-steps required. RPM + Status Flow per stateful entity required. |
+| High-risk | All sub-steps required. RPM + Status Flow **strict** — every stateful entity per § C.6 Strict Rule must have a file, or a decision documenting the skip. |
 
 ## Variant Section
 

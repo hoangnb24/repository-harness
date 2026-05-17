@@ -417,9 +417,12 @@ docs/intake/README.md
 docs/playbooks/README.md
 docs/playbooks/template.md
 docs/playbooks/PATCH-EXTENSION-PROTOCOL.md
+docs/playbooks/ai-feature-integration.md
 docs/playbooks/bilingual-delivery-template-pattern.md
+docs/playbooks/build-execution.md
 docs/playbooks/canonical-e2e-flow-playbook.md
 docs/playbooks/code-review-scoring.md
+docs/playbooks/payment-integration.md
 docs/playbooks/discovery-interview-playbook.md
 docs/playbooks/gap-analysis.md
 docs/playbooks/e2e-qa-field-by-field-verify-with-report.md

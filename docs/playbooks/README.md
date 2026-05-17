@@ -61,6 +61,14 @@ kind of problem you have first, then scan the matching group.
 |------|------------------|
 | [landing-page-saas-ai-noti-style.md](landing-page-saas-ai-noti-style.md) | Reusable structure for SaaS / AI / digital-product landing pages, "noti.vn" style. Not for gov / edu / enterprise. |
 
+### Stack-specific recipe — applies when a particular capability is in scope
+
+| File | One-line problem |
+|------|------------------|
+| [build-execution.md](build-execution.md) | Stage-8 build discipline: trunk-based branching, commit cadence, token-citation commit-msg hook, pre-commit recipe per stack (Node/Python/Go), `.env` policy, secret-scan hook, `validate:quick` bootstrap shape. Pairs with `docs/templates/story.md § Implementation Guardrails`. |
+| [ai-feature-integration.md](ai-feature-integration.md) | Prompt versioning + model decision shape + cost/latency budget + prompt-injection defence (OWASP LLM Top 10) + eval suite + fallback strategy + audit log shape. Provider-agnostic (Anthropic / OpenAI / Google). |
+| [payment-integration.md](payment-integration.md) | Webhook idempotency + signature verify + refund/dispute flow + daily reconciliation + PCI scope minimization (SAQ-A) + provider abstraction + test-mode discipline + 7-year audit retention. Provider-agnostic (Stripe / SePay / Paddle / Polar). |
+
 ### Workflow recipe — multi-step procedures composed of several actions
 
 Run in sequence — second composes on top of first.
