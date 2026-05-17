@@ -37,7 +37,7 @@ Vendor-internal one-pager: should we take this project?
 
 - **Artifact:** `docs/templates/client-intake-brief.md` (`locale-vi/` fork if client-facing).
 - **Decide:** proceed-to-discovery / proceed-with-conditions / park / decline.
-- **Output (vendor-produced):** a saved brief at `docs/intake/YYYY-MM-DD-<client-slug>.md`.
+- **Output (vendor-produced):** a saved brief at `docs/intake/YYYY-MM-DD-intake-brief.md` per `docs/intake/README.md`.
 - **Inputs (raw, from client):** any source docs, emails, prior proposals — file under `docs/discovery/YYYY-MM-DD-<slug>.{ext}` per `docs/discovery/README.md`.
 
 If declining, send the polite reply (§ 15 of the brief) and stop.
@@ -47,7 +47,7 @@ If declining, send the polite reply (§ 15 of the brief) and stop.
 Structured conversation to surface REQs, decisions, and open questions before pricing.
 
 - **Artifact:** `docs/playbooks/discovery-interview-playbook.md` (5 personas × 3 modes).
-- **Output (vendor-produced):** REQ list, decisions log, open questions list. Save to `docs/intake/YYYY-MM-DD-<client-slug>-discovery.md`.
+- **Output (vendor-produced):** REQ list, decisions log, open questions list. Save to `docs/intake/YYYY-MM-DD-discovery-summary.md` per `docs/intake/README.md`.
 - **Inputs (raw, from session):** meeting recording / notes / screenshots → `docs/discovery/YYYY-MM-DD-<slug>.{ext}`.
 - **Time-box:** 60-90 min for spec intake; 20-30 min for change requests.
 

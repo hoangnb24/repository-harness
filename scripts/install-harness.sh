@@ -375,6 +375,7 @@ docs/decisions/0008-visual-behavioral-modeling-stage.md
 docs/decisions/0009-discovery-input-folder-convention.md
 docs/decisions/README.md
 docs/discovery/README.md
+docs/intake/README.md
 docs/playbooks/README.md
 docs/playbooks/template.md
 docs/playbooks/PATCH-EXTENSION-PROTOCOL.md
