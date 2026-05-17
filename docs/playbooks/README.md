@@ -47,6 +47,7 @@ When an agent hits a tooling, environment, or workflow problem:
 | [e2e-recording-user-guide-quality.md](e2e-recording-user-guide-quality.md) | E2E recording tests PASS green but cannot serve as customer user-guide videos — API mutations bypass UI, subtitles desync from action, no F5 readback verify. |
 | [headless-browser-blank-screenshot.md](headless-browser-blank-screenshot.md) | Headless-browser tool returns a blank/white PNG even though the page rendered. |
 | [landing-page-saas-ai-noti-style.md](landing-page-saas-ai-noti-style.md) | Reusable structure for SaaS / AI / digital-product landing pages, "noti.vn" style. Not for gov / edu / enterprise. |
+| [ui-design-system-contract.md](ui-design-system-contract.md) | Single living style guide per project — code is source of truth, markdown is contract. 10-section skeleton, 7 token groups, primitives kit, verification gate. |
 
 Add new entries above in alphabetical order.
 
