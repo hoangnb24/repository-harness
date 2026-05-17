@@ -44,12 +44,27 @@ If declining, send the polite reply (§ 15 of the brief) and stop.
 
 ### 3. Discovery
 
-Structured conversation to surface REQs, decisions, and open questions before pricing.
+Two sub-steps. 3.A surfaces what the client said; 3.B structures what it means.
 
-- **Artifact:** `docs/playbooks/discovery-interview-playbook.md` (5 personas × 3 modes).
+#### 3.A — Discovery interview
+
+Structured conversation to surface REQs, decisions, and open questions.
+
+- **Playbook:** `docs/playbooks/discovery-interview-playbook.md` (5 personas × 3 modes).
 - **Output (vendor-produced):** REQ list, decisions log, open questions list. Save to `docs/intake/YYYY-MM-DD-discovery-summary.md` per `docs/intake/README.md`.
 - **Inputs (raw, from session):** meeting recording / notes / screenshots → `docs/discovery/YYYY-MM-DD-<slug>.{ext}`.
 - **Time-box:** 60-90 min for spec intake; 20-30 min for change requests.
+
+#### 3.B — Gap analysis (BA technique)
+
+Compare As-Is vs To-Be, identify gaps, propose solutions. Outputs feed SOW § 4 in-scope decisions directly.
+
+- **Playbook:** `docs/playbooks/gap-analysis.md` (4-step BA technique).
+- **Template:** `docs/templates/gap-analysis.md` (`locale-vi/` fork for client-facing).
+- **Output (vendor-produced):** `docs/intake/YYYY-MM-DD-gap-analysis.md` with To-Be / As-Is / Gap (6 categories) / Plan of Action (MoSCoW).
+- **Gate:** vendor-draft round 1 → client review → freeze before SOW § 4 finalizes.
+- **Per-tier:** tiny = skip; normal = required when client has existing systems or processes being replaced; high-risk = required + stakeholder validation round.
+- **Skip when:** greenfield (no As-Is) or pure refactor / migration (technical, document in a decision instead).
 
 ### 4. Proposal & SOW
 
@@ -188,7 +203,8 @@ The harness wins. This playbook is a *commercial wrapper around* the harness —
 
 - `docs/playbooks/playbook-composition-pattern.md` — composition rules this playbook honors.
 - `docs/playbooks/bilingual-delivery-template-pattern.md` — locale fork pattern used by the client-facing artifacts above.
-- `docs/playbooks/discovery-interview-playbook.md` — stage 3.
+- `docs/playbooks/discovery-interview-playbook.md` — stage 3.A.
+- `docs/playbooks/gap-analysis.md` — stage 3.B.
 - `docs/playbooks/ui-design-system-contract.md` — stage 5 (UI projects).
 - `docs/playbooks/visual-and-behavioral-modeling.md` — stage 6.
 - `docs/playbooks/scenario-taxonomy-playbook.md` — stage 7.
@@ -196,7 +212,9 @@ The harness wins. This playbook is a *commercial wrapper around* the harness —
 - `docs/playbooks/canonical-e2e-flow-playbook.md` — stage 10.
 - `docs/playbooks/session-retrospective.md` — end-of-session capture.
 - `docs/templates/proposal-sow.md`, `client-intake-brief.md`, `maintenance-proposal.md`, `release-note.md`, `change-request-log.md` — commercial templates this playbook chains.
+- `docs/templates/gap-analysis.md` — stage-3.B template.
 - `docs/templates/role-permission-matrix.md`, `status-flow.md` — stage-6 templates.
 - `docs/templates/delivery-closure-story/`, `project-closure-story/` — closure templates this playbook chains.
 - `docs/decisions/0007-solo-dev-client-delivery-templates.md` — original commercial-wrapper decision.
 - `docs/decisions/0008-visual-behavioral-modeling-stage.md` — stage-6 insertion decision.
+- `docs/decisions/0010-gap-analysis-stage.md` — stage-3.B gap analysis decision.

@@ -14,6 +14,14 @@ Reusable scaffolds for the artifacts the harness expects. Copy or stub into the 
 | [decision.md](decision.md) | Architectural / contract decisions | Numbered `docs/decisions/NNNN-*.md`. |
 | [validation-report.md](validation-report.md) | After validation | Evidence + proof status for a story. |
 
+### Discovery & analysis templates — used at stage 3 of solo-dev-client-delivery
+
+Composed by `docs/playbooks/gap-analysis.md` and consumed by SOW (`proposal-sow.md`). `locale-vi/` fork available (client-facing during gap review).
+
+| File | Stage | Notes |
+| --- | --- | --- |
+| [gap-analysis.md](gap-analysis.md) | Stage 3.B | BA 4-step gap analysis (To-Be / As-Is / Gap with 6 categories / Plan of Action with MoSCoW). Tokens `GAP-NNN` trace forward to REQ tokens in stories. |
+
 ### Visual & behavioral modeling templates — used at stage 6 of solo-dev-client-delivery
 
 Composed by `docs/playbooks/visual-and-behavioral-modeling.md`. Both have `locale-vi/` forks (client-facing during prototype review and UAT).

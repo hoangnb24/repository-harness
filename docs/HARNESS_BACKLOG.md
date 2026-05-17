@@ -500,3 +500,61 @@ Claude Design availability.
 
 accepted (implemented 2026-05-17 — see `docs/decisions/0008-visual-behavioral-modeling-stage.md`)
 
+## Missing Harness Capability
+
+### Title
+
+BA Gap Analysis (As-Is vs To-Be) stage for solo-dev client delivery
+
+### Discovered While
+
+Same-day follow-up to decisions 0007-0009. Solo-dev VN e-commerce / dashboard
+project preparing to start; user flagged that the meta-playbook stage 3
+Discovery had no structured BA gap analysis sub-step. Existing
+discovery-interview-playbook (5 personas × 3 modes) asks some As-Is and
+To-Be questions but does not structure them.
+
+### Current Pain
+
+Without structured As-Is / To-Be / Gap / Plan-of-Action:
+
+- SOW § 4 in-scope list becomes opinion-driven; no traceback to a
+  specific gap analysis.
+- Scope creep is hard to defend — clients can argue "we discussed it"
+  with no anchor.
+- BRD / FRD writing starts from a blank page; gap-to-solution mapping
+  missing.
+- MoSCoW priority is voted, not analyzed.
+- Out-of-scope is implicit, not documented with reason.
+
+Acute for projects replacing or integrating with existing client systems
+(exactly the upcoming VN e-commerce project's shape).
+
+### Suggested Improvement
+
+Insert stage 3.B Gap Analysis as sub-step in solo-dev-client-delivery
+meta-playbook. Ship:
+- `docs/playbooks/gap-analysis.md` (4-step BA technique).
+- `docs/templates/gap-analysis.md` + `locale-vi/` fork (6 gap categories,
+  MoSCoW Plan of Action, GAP-NNN tokens trace to REQ).
+- Decision 0010.
+- Meta-playbook edit; index updates; install heredoc sync.
+
+### Demand Evidence
+
+- 2026-05-17 — user surfaced gap based on prior client-work pain pattern.
+- 2026-05-17 — same VN e-commerce project cited in 0007 / 0008 will run
+  stage 3.B in next 1-2 weeks during pre-sale phase. Single project but
+  the gap blocks SOW § 4 anchoring without it.
+
+### Risk
+
+Normal — 3 new files + meta-playbook edit + heredoc sync + decision.
+Mitigated by: playbook composes existing pieces (consumes
+discovery-interview output, feeds SOW § 4); templates are shape-only;
+per-tier skip rules limit ceremony cost.
+
+### Status
+
+accepted (implemented 2026-05-17 — see `docs/decisions/0010-gap-analysis-stage.md`)
+

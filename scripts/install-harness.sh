@@ -373,6 +373,7 @@ docs/decisions/0006-session-retrospective-mechanic.md
 docs/decisions/0007-solo-dev-client-delivery-templates.md
 docs/decisions/0008-visual-behavioral-modeling-stage.md
 docs/decisions/0009-discovery-input-folder-convention.md
+docs/decisions/0010-gap-analysis-stage.md
 docs/decisions/README.md
 docs/discovery/README.md
 docs/intake/README.md
@@ -383,6 +384,7 @@ docs/playbooks/bilingual-delivery-template-pattern.md
 docs/playbooks/canonical-e2e-flow-playbook.md
 docs/playbooks/code-review-scoring.md
 docs/playbooks/discovery-interview-playbook.md
+docs/playbooks/gap-analysis.md
 docs/playbooks/e2e-qa-field-by-field-verify-with-report.md
 docs/playbooks/e2e-recording-user-guide-quality.md
 docs/playbooks/headless-browser-blank-screenshot.md
@@ -407,6 +409,7 @@ docs/templates/story.md
 docs/templates/validation-report.md
 docs/templates/change-request-log.md
 docs/templates/client-intake-brief.md
+docs/templates/gap-analysis.md
 docs/templates/maintenance-proposal.md
 docs/templates/proposal-sow.md
 docs/templates/release-note.md
@@ -425,6 +428,7 @@ docs/templates/project-closure-story/01-handover-docs.md
 docs/templates/project-closure-story/02-credentials-handover.md
 docs/templates/project-closure-story/03-knowledge-transfer.md
 docs/templates/locale-vi/client-intake-brief.md
+docs/templates/locale-vi/gap-analysis.md
 docs/templates/locale-vi/proposal-sow.md
 docs/templates/locale-vi/change-request-log.md
 docs/templates/locale-vi/release-note.md
