@@ -10,8 +10,10 @@ references.
 
 Use this pattern when:
 
-- Client-facing deliverables (UAT, signoff, handover, sign-off doc) must be
-  in a locale.
+- Client-facing deliverables (UAT, signoff, handover, client update) must be
+  in a locale. The canonical English defaults live in
+  `docs/templates/delivery-closure-story/` — fork from those, never invent
+  a parallel shape.
 - Internal automation, IDs, tokens, and file paths should stay English so
   that cross-region teams can still read and `grep` them.
 
