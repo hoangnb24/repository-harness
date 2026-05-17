@@ -114,6 +114,14 @@ specification, treat it as input material, not as a permanent operating manual.
 Use it to populate product docs, story packets, architecture decisions, and
 validation expectations during the first buildout.
 
+If the spec ships **UI surfaces** (web, mobile, desktop, or any visual
+interface), the first buildout must also produce `docs/design-guidelines.md`
+following `docs/playbooks/ui-design-system-contract.md`. The contract file
+is a first-class derived artifact alongside product docs — without it,
+every page re-invents the visual layer and drift compounds quickly. Stub
+the §3 Component Coverage Matrix from day one even if most rows are TODO;
+the gap should be visible.
+
 After the specification has been decomposed, do not keep extending it as the
 living product plan. Ongoing work should update the smaller product docs,
 stories, test matrix, and decision records.

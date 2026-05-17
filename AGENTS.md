@@ -41,8 +41,18 @@ For every task:
 5. Before fighting any tooling, environment, or workflow problem, scan
    `docs/playbooks/README.md` for a matching recipe. Apply the recipe before
    re-deriving a fix.
-6. Work only inside the selected lane: tiny, normal, or high-risk.
-7. Before finishing, ask:
+6. If the work touches UI / visual surfaces (web, mobile, desktop, any
+   user-visible interface):
+   - Check `docs/design-guidelines.md` exists. If not, apply
+     `docs/playbooks/ui-design-system-contract.md` to create it before
+     writing any component code.
+   - Check the §3 Component Coverage Matrix covers every component the
+     work will touch. If a needed component is missing, add the row (stub
+     or implement) before building the screen.
+   - Update §8 Component Inventory whenever a component file is added,
+     renamed, or removed.
+7. Work only inside the selected lane: tiny, normal, or high-risk.
+8. Before finishing, ask:
    - Did product truth change?
    - Did validation expectations change?
    - Did architecture rules change?
@@ -51,7 +61,7 @@ For every task:
    - Did we just solve a non-obvious tooling or environment problem that is
      likely to recur on this or another project? If yes, add or update a file
      in `docs/playbooks/` using `docs/playbooks/template.md`.
-8. Update routine harness files directly, or add a proposal to
+9. Update routine harness files directly, or add a proposal to
    `docs/HARNESS_BACKLOG.md` when the change is structural.
 
 ## Harness Change Policy
