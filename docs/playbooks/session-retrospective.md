@@ -1,6 +1,6 @@
 # Session Retrospective Playbook
 
-**Lifecycle:** experimental · **First use:** TBD · **Verified by:** none
+**Lifecycle:** verified · **First use:** 2026-05-17 (claudekit-custom port retro) · **Verified by:** plans/reports/retro-260517-1527-plan-d-execution.md (3 uses without Variant amendment)
 
 > Structured checklist an agent runs at the end of a multi-task session
 > to capture cross-task insight before the session memory disappears.
