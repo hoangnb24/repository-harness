@@ -1,5 +1,7 @@
 # Playbook Title
 
+**Lifecycle:** experimental · **First use:** TBD · **Verified by:** none
+
 > One-sentence problem statement an agent can grep for.
 
 > **Shape variants** — this template is the canonical shape for a

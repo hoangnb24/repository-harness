@@ -58,6 +58,36 @@ Playbooks are the cross-project memory layer of the harness — each entry
 turns a one-time fix into a portable recipe, so a sibling project running the
 same Harness installer inherits the answer instead of re-deriving it.
 
+## Independence Principle
+
+The harness operating model must function with only:
+
+- An agent capable of reading and writing files plus running shell commands
+  (Claude Code, Cursor, Continue, or a human reading the docs).
+- Git and bash (for `scripts/install-harness.sh`).
+
+ClaudeKit (CK), `claudekit-custom`, and any other skill layer are **optional
+convenience** that may speed up execution but must never be a hard runtime
+dependency. References to those skills are tooling hints, not requirements.
+
+Specifically:
+
+- `AGENTS.md`, `HARNESS.md`, `FEATURE_INTAKE.md`, `ARCHITECTURE.md`, and
+  `scripts/install-harness.sh` MUST NOT reference an external skill as a
+  required step.
+- Playbooks and templates MAY recommend external skills (e.g.
+  `/ck:web-testing`, `/ck:ai-multimodal`) as optional tooling hints. The
+  core logic of every playbook must be executable without those skills —
+  the recommendation is enrichment, not gating.
+- Plans and phase files MAY reference skim research in external repos
+  (e.g. `~/Projects/claudekit-custom/skills/...`). Each phase must include
+  a draft skeleton sufficient for execution without skim. The skim is
+  enrichment, never a blocker.
+
+When an agent finds a playbook, template, or plan that violates this
+principle (e.g. mandates a skill install before execution), treat it as a
+defect — refactor the file or open a `docs/HARNESS_BACKLOG.md` entry.
+
 ## Harness v0 Scope
 
 Harness v0 includes:
@@ -143,6 +173,37 @@ Per-lane application:
 
 Reject `STR-` and `DEC-` prefixes — `US-` and 4-digit decision numbering
 already cover those concepts.
+
+## Playbook Lifecycle
+
+Every playbook carries a lifecycle status so readers know whether the
+guidance has been exercised on real work or is still a paper proposal.
+Status appears as a single line near the top of the playbook (under the
+title, before the first section).
+
+```markdown
+**Lifecycle:** experimental · **First use:** TBD · **Verified by:** none
+```
+
+States:
+
+| State | Meaning |
+| --- | --- |
+| `experimental` | Shipped but not yet exercised on a real story. Treat as proposal. |
+| `verified` | Used on at least one real story with no Variant amendment required. Safe to follow as-is. |
+| `deprecated` | Superseded by a newer playbook, or accumulated 2+ Variant amendments without convergence. Do not start new work from it. |
+
+Promotion / demotion:
+
+- `experimental` → `verified`: 1 story used the playbook successfully
+  without needing a Variant section, OR 2 stories used it (Variant
+  sections may exist if they describe minor edge cases).
+- `verified` → `deprecated`: superseded by a newer file, OR 2+ Variant
+  sections accumulated that point to systemic issues.
+
+Update the `First use` and `Verified by` fields when promoting. Keep the
+line as a single grep-able sentence so `grep -l "experimental" docs/playbooks/`
+returns the current candidate set.
 
 ## Spec Lifecycle
 
