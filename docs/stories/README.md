@@ -49,6 +49,10 @@ When multiple stories are `planned`, follow the **Ordering Rule** in
 satisfied. Within an epic, take stories in `US-NNN` numeric order
 unless the story packet explicitly notes a dependency on another story.
 
+## Examples
+
+Reference stories live under `docs/stories/examples/`. They demonstrate story shape and are NOT active work — ignore them when starting a new project.
+
 ## Sync Requirement
 
 Whenever a story's `Status` changes, the corresponding row in

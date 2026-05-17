@@ -397,6 +397,7 @@ docs/FEATURE_INTAKE.md
 docs/GLOSSARY.md
 docs/HARNESS.md
 docs/HARNESS_BACKLOG.md
+docs/QUICKSTART.md
 docs/README.md
 docs/TEST_MATRIX.md
 docs/WORKFLOW.md
@@ -441,7 +442,8 @@ docs/product/README.md
 docs/stories/README.md
 docs/stories/backlog.md
 docs/stories/epics/README.md
-docs/stories/US-001-install-harness.md
+docs/stories/examples/README.md
+docs/stories/examples/US-001-install-harness.md
 docs/templates/README.md
 docs/templates/code-standards.md
 docs/templates/decision.md

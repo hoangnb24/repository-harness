@@ -40,6 +40,17 @@ packet yet.
 - Deployment target:
 - Security model:
 
+## Data Inventory (PII)
+
+What personal data does this product collect, on what lawful basis, and how long is it kept? Required when the product touches user accounts, payments, or any identifiable individual. If clearly zero PII, write `none — public/anonymous content only` and skip the table.
+
+| Field | Lawful basis | Retention | Deletion on request |
+| --- | --- | --- | --- |
+| `<e.g. email>` | `<contract / consent / legitimate interest>` | `<duration>` | `<yes / no — reason>` |
+| `<e.g. payment method last4>` | contract | 7 years (tax) | no (legal hold) |
+
+Jurisdictions to consider: project country (e.g. VN), client country, end-user country. For EU users, GDPR applies; for VN users, Nghị định 13/2023/NĐ-CP applies.
+
 ## Validation Shape
 
 What proof will this project eventually need?

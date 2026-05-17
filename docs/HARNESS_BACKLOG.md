@@ -121,7 +121,7 @@ proposed
 
 ### Title
 
-Bootstrap mode for `install-harness.sh`
+Bootstrap mode for `install-harness.sh` (accepted)
 
 ### Discovered While
 
@@ -142,9 +142,17 @@ Add a `--bootstrap` flag that:
 1. Initializes a fresh git repo in the target directory.
 2. Copies all harness files unconditionally (no merge prompts).
 3. Optionally accepts `--spec <path>` to copy the user's spec to
-   `./SPEC.md` in one step.
+   `docs/discovery/YYYY-MM-DD-initial-spec.<ext>` in one step (per
+   decision 0009, not `./SPEC.md` as originally proposed).
 4. Prints the "next prompt" (the Claude Code prompt that runs Phase 1
    intake) so the user can copy-paste straight in.
+
+### Demand Evidence
+
+- 2026-05-17 — Pre-flight audit for first real paid client project
+  (`plans/reports/review-260517-1728-pre-flight-workflow-audit.md` § C3)
+  flagged as Critical fix before opening the project. Single-project
+  sustained-pain trigger per decision 0005 § 5.
 
 ### Risk
 
@@ -152,7 +160,7 @@ Normal.
 
 ### Status
 
-proposed
+accepted (implemented 2026-05-17 — see `docs/decisions/0011-bootstrap-installer-mode.md`)
 
 ## Missing Harness Capability
 
@@ -226,8 +234,9 @@ cover this and make the playbook redundant.
 
 ### Demand Evidence
 
-None. Defer at minimum until Plan C ships and we can see whether the
-discovery interview output is enough.
+None. `docs/playbooks/discovery-interview-playbook.md` shipped with
+5-persona × 3-mode coverage; no project has hit the "need a separate
+persona artifact" gap.
 
 ### Risk
 
@@ -235,7 +244,7 @@ Tiny.
 
 ### Status
 
-proposed
+rejected (2026-05-17 — pre-flight audit: discovery-interview-playbook covers it; revisit only if 2+ distinct projects hit a real gap)
 
 ## Missing Harness Capability
 
@@ -272,7 +281,7 @@ Tiny.
 
 ### Status
 
-proposed
+rejected (2026-05-17 — pre-flight audit: zero demand evidence; reopen if 2+ projects request)
 
 ## Missing Harness Capability
 
