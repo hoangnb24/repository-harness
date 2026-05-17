@@ -93,6 +93,12 @@ a new file.
 - Full porting of ck:custom skills (we lift patterns; we do not adopt
   skills wholesale).
 
+## Trigger Evaluations
+
+| Date | Trigger 1 (2+ gaps from C/D) | Trigger 2 (explicit XRE ask) | Trigger 3 (6-month revisit) | Outcome |
+|------|---|---|---|---|
+| 2026-05-17 | NOT fired. `plan-e-trigger-evidence.md` does not exist. Plan D retro (lines 100-117) walked all 4 phases against Tier A items; outcome: "0 capability gaps observed". Plan C + claudekit-port retros: no Tier A mentions. | NOT fired. No downstream project has consumed the harness; the only consumer is the harness itself. No ask in any retro or report. | N/A. Plan C + Plan D shipped 2026-05-17 (today). 6-month revisit due 2026-11-17. | Awaiting trigger. No phase drafting or execution performed. Re-evaluate in 30 days or when next C/D retro lands. |
+
 ## Closure Path
 
 If at the 6-month time-box no trigger has fired and no team gut feeling
