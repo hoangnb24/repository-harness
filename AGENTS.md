@@ -100,6 +100,26 @@ For every task:
 10. Update routine harness files directly, or add a proposal to
     `docs/HARNESS_BACKLOG.md` when the change is structural.
 
+## Manual Checkpoint Signaling
+
+Several workflow stages require the human to do offline work the agent cannot do — open `claude.ai/design` for the prototype, sign a SOW, review a gap analysis, run UAT, hand over credentials. When you reach one of these handoffs, end the turn with a `MANUAL_CHECKPOINT` block so the human sees a structured alert (Telegram / IDE notification / log) and knows exactly what to do and when to come back.
+
+Format (write in the last assistant message of the turn that ends in handoff):
+
+```
+MANUAL_CHECKPOINT: <one-line action — start with a verb>
+- URL: <link if any>
+- Reference: <file or spec the human reads first>
+- Save to: <where the output lands, if applicable>
+- Return condition: <what the human says/does when finished>
+
+<blank line ends the block>
+```
+
+Use this at stage 3.B (gap analysis review round), 4 (SOW signoff), 5 (Spec Approval Gate Phase 1→2), 6 sub-step B (prototype generation in claude.ai/design or fallback tool), 6 client review round, 11 (UAT signoff), 13 (credentials handover), and any change-request review. Anywhere `docs/WORKFLOW.md` says "client review round", "human approves", or "signoff" is a manual checkpoint.
+
+If multiple manual steps are pending, list each as its own `MANUAL_CHECKPOINT` block separated by a blank line. The parser captures from the first `MANUAL_CHECKPOINT` line to the end of the assistant message, so blank lines between blocks are fine and trailing prose ("I'll resume once you confirm") is included as context.
+
 ## Harness Change Policy
 
 Agents may update directly:

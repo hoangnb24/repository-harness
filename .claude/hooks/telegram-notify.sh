@@ -40,23 +40,52 @@ dir: ${cwd}
 ${msg}"
     ;;
   Stop)
-    # Try to grab the last assistant text from the transcript for context.
+    # Pull the most recent assistant message in full so we can scan it for
+    # the MANUAL_CHECKPOINT convention (a richer signal than the generic
+    # "turn finished" — used when Claude hands off to the human for offline
+    # work like opening claude.ai/design, reviewing a SOW, etc.).
+    #
+    # Convention (write this in the assistant turn that ends with manual handoff):
+    #   MANUAL_CHECKPOINT: <one-line what the human must do>
+    #   <optional follow-up lines: URLs, return condition>
+    #   <blank line ends the block>
     tpath=$(printf '%s' "$payload" | jq -r '.transcript_path // ""')
-    last=""
+    last_full=""
     if [[ -n "$tpath" && -f "$tpath" ]]; then
-      last=$(tac "$tpath" 2>/dev/null \
-        | jq -rR 'fromjson? | select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' 2>/dev/null \
-        | head -n 1 \
-        | cut -c1-300)
+      last_json=$(tac "$tpath" 2>/dev/null | while IFS= read -r ln; do
+        if printf '%s' "$ln" | jq -e '.type=="assistant"' >/dev/null 2>&1; then
+          printf '%s' "$ln"
+          break
+        fi
+      done)
+      if [[ -n "$last_json" ]]; then
+        last_full=$(printf '%s' "$last_json" \
+          | jq -r '.message.content // [] | map(select(.type=="text") | .text) | join("\n\n")' 2>/dev/null)
+      fi
     fi
-    text="[Claude] turn finished
+
+    if [[ -n "$last_full" ]] && printf '%s' "$last_full" | grep -q 'MANUAL_CHECKPOINT'; then
+      # Capture from the first MANUAL_CHECKPOINT line to end of assistant text.
+      # Blocks separated by blank lines stay together; trailing prose is
+      # included (it usually clarifies what the human should do next).
+      block=$(printf '%s' "$last_full" | awk '/MANUAL_CHECKPOINT/{p=1} p{print}' | head -c 3500)
+      text="[MANUAL CHECKPOINT] Claude is waiting on offline work
+host: ${host}
+session: ${session}
+dir: ${cwd}
+
+${block}"
+    else
+      last_line=$(printf '%s' "$last_full" | head -n 1 | cut -c1-300)
+      text="[Claude] turn finished
 host: ${host}
 session: ${session}
 dir: ${cwd}"
-    if [[ -n "$last" ]]; then
-      text="${text}
+      if [[ -n "$last_line" ]]; then
+        text="${text}
 
-last: ${last}"
+last: ${last_line}"
+      fi
     fi
     ;;
   *)
