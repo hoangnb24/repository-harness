@@ -495,6 +495,7 @@ scripts/README.md
 .claude/.gitignore
 .claude/agents/stage-runner.md
 .claude/commands/stage-next.md
+.claude/hooks/context-monitor.sh
 .claude/hooks/qa-deliver.sh
 .claude/hooks/stage-deliver.sh
 .claude/hooks/telegram-notify.sh
@@ -610,6 +611,16 @@ if [ "$BOOTSTRAP" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/context-monitor.sh\""
+          }
+        ]
+      }
     ]
   }
 }
@@ -671,11 +682,14 @@ when configured, or a generic "Harness Bootstrap" identity as fallback
 Smart-harness extras (already wired into .claude/):
   - Subagent: stage-runner (Task subagent_type) + slash /stage-next
     delegate stage execution so the main session stays small.
-  - Telegram hooks (Notification / Stop / PostToolUse) for offline alerts.
-    To activate: copy .claude/.env.example to .claude/.env and fill
-    TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID. Settings registered already.
+  - Telegram hooks (Notification / Stop / PostToolUse / UserPromptSubmit)
+    for offline alerts. To activate: copy .claude/.env.example to
+    .claude/.env and fill TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID.
   - stage-deliver.sh pushes stage artifacts + next /goal text to Telegram
     after each stage-boundary commit.
+  - context-monitor.sh warns at 40/60/80/95% context fill, writes
+    .claude/PENDING_NEXT_SESSION.md as a clean handoff at 80%+. Tune
+    via CONTEXT_WINDOW_TOKENS in .claude/.env (default 1000000 = 1M tier).
 
 Goal templates require Claude Code v2.1.139+. On older versions, paste
 the condition body without the leading \`/goal\` and run as a plain

@@ -1,3 +1,5 @@
 .env
 settings.local.json
 .qa-telegram-sent
+.context-warned
+PENDING_NEXT_SESSION.md
