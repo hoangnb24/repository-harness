@@ -100,6 +100,25 @@ For every task:
 10. Update routine harness files directly, or add a proposal to
     `docs/HARNESS_BACKLOG.md` when the change is structural.
 
+## Stage Orchestration
+
+To keep the main session's context small, **delegate stage execution to the `stage-runner` subagent** instead of running the stage inline. The subagent reads `docs/STAGE_GOALS.md` + the relevant playbook in isolation, writes the stage artifacts, updates `STAGE.md`, and returns a compact summary (≤200 words) — the main agent only sees the summary, not the 10-30k tokens of stage work.
+
+How to invoke:
+
+- Slash command: `/stage-next` (preferred, auto-detects next stage from STAGE.md).
+- Direct: `Task({ subagent_type: "stage-runner", prompt: "Run stage <N> per goal: …" })`.
+
+When NOT to delegate:
+
+- The user explicitly asks to do a stage inline (review-as-you-go).
+- A non-stage task (refactor, bugfix, harness tweak) that doesn't map to a WORKFLOW.md row.
+- A change-request flow — the always-on layer is not a "stage" and has no goal template.
+
+The subagent returns a `**Status:**` block with one of `DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT | MANUAL_CHECKPOINT_PENDING`. Handle per `~/.claude/rules/orchestration-protocol.md` § Subagent Status Protocol. Never silently retry on `BLOCKED` — change context, simplify, or escalate.
+
+The `.claude/hooks/stage-deliver.sh` Telegram hook fires on the subagent's stage-boundary commit, so the human gets the artifact and the next stage's `/goal` text in their phone without the main agent needing to do anything extra.
+
 ## Manual Checkpoint Signaling
 
 Several workflow stages require the human to do offline work the agent cannot do — open `claude.ai/design` for the prototype, sign a SOW, review a gap analysis, run UAT, hand over credentials. When you reach one of these handoffs, end the turn with a `MANUAL_CHECKPOINT` block so the human sees a structured alert (Telegram / IDE notification / log) and knows exactly what to do and when to come back.

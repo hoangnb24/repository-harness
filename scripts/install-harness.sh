@@ -159,6 +159,7 @@ check_protected_target_paths() {
   [ -e "$TARGET_DIR/AGENTS.md" ] && conflicts+=("AGENTS.md")
   [ -e "$TARGET_DIR/docs" ] && conflicts+=("docs/")
   [ -e "$TARGET_DIR/scripts" ] && conflicts+=("scripts/")
+  [ -e "$TARGET_DIR/.claude" ] && conflicts+=(".claude/")
 
   [ "${#conflicts[@]}" -gt 0 ] || return 0
 
@@ -224,7 +225,7 @@ check_protected_target_paths() {
 override_protected_target_paths() {
   local protected
 
-  for protected in AGENTS.md docs scripts; do
+  for protected in AGENTS.md docs scripts .claude; do
     [ -e "$TARGET_DIR/$protected" ] || continue
 
     if [ "$DRY_RUN" -eq 1 ]; then
@@ -400,6 +401,7 @@ docs/HARNESS.md
 docs/HARNESS_BACKLOG.md
 docs/QUICKSTART.md
 docs/README.md
+docs/STAGE_GOALS.md
 docs/TEST_MATRIX.md
 docs/WORKFLOW.md
 docs/decisions/0001-harness-first-development.md
@@ -489,7 +491,21 @@ docs/templates/locale-vi/delivery-closure-story/02-signoff.md
 docs/templates/locale-vi/delivery-closure-story/03-client-update.md
 docs/templates/locale-vi/project-closure-story/01-handover-docs.md
 scripts/README.md
+.claude/.env.example
+.claude/.gitignore
+.claude/agents/stage-runner.md
+.claude/commands/stage-next.md
+.claude/hooks/qa-deliver.sh
+.claude/hooks/stage-deliver.sh
+.claude/hooks/telegram-notify.sh
+.claude/scripts/telegram-send.sh
 EOF
+
+# Restore executable bit on any shell scripts under .claude/ (curl -o strips it
+# in remote mode; cp -p preserves it in local mode but a no-op chmod is cheap).
+if [ -d "$TARGET_DIR/.claude" ] && [ "$DRY_RUN" -eq 0 ]; then
+  find "$TARGET_DIR/.claude" -type f -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+fi
 
 log ""
 log "Done. Created: $CREATED, updated: $UPDATED, skipped: $SKIPPED."
@@ -550,6 +566,57 @@ if [ "$BOOTSTRAP" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
     log "  STAGE.md: SKIPPED — template not found at docs/templates/STAGE.md"
   fi
 
+  # .claude/settings.local.json — pre-register the Telegram + stage hooks so a
+  # fresh bootstrap is one .env fill away from being fully wired. File is
+  # gitignored (per .claude/.gitignore) so it stays local.
+  settings_local="$TARGET_DIR/.claude/settings.local.json"
+  if [ -e "$settings_local" ]; then
+    log "  .claude/settings.local.json: SKIPPED — already exists"
+  elif [ -d "$TARGET_DIR/.claude" ]; then
+    cat > "$settings_local" <<'SETTINGSJSON'
+{
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/telegram-notify.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/telegram-notify.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/qa-deliver.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/stage-deliver.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
+SETTINGSJSON
+    log "  .claude/settings.local.json: created with Telegram hooks pre-registered (fill .claude/.env to activate)"
+  fi
+
   if [ "$GIT_INIT_DONE" -eq 1 ]; then
     if (cd "$TARGET_DIR" && git rev-parse --verify HEAD >/dev/null 2>&1); then
       log "  initial commit: SKIPPED — HEAD already exists"
@@ -600,6 +667,15 @@ provided) is already committed. Run \`cat STAGE.md\` at any time to see
 which stage this repo is at. The commit uses your global git identity
 when configured, or a generic "Harness Bootstrap" identity as fallback
 (check with: git log -1 --pretty=fuller).
+
+Smart-harness extras (already wired into .claude/):
+  - Subagent: stage-runner (Task subagent_type) + slash /stage-next
+    delegate stage execution so the main session stays small.
+  - Telegram hooks (Notification / Stop / PostToolUse) for offline alerts.
+    To activate: copy .claude/.env.example to .claude/.env and fill
+    TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID. Settings registered already.
+  - stage-deliver.sh pushes stage artifacts + next /goal text to Telegram
+    after each stage-boundary commit.
 
 Goal templates require Claude Code v2.1.139+. On older versions, paste
 the condition body without the leading \`/goal\` and run as a plain
