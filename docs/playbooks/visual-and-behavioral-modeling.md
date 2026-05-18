@@ -88,9 +88,18 @@ Rank 1-2 are recommended for solo-dev projects. Higher ranks generate faster, le
 
 ### Outputs
 
-- One HTML or PNG export per screen under `docs/visuals/prototype/screens/`.
-- A flow walkthrough (recording or live URL) per primary user journey under `docs/visuals/prototype/flows/`.
-- `docs/visuals/prototype/README.md` recording tool, URL, version, freeze date, and any known limitations.
+The harness ships the prototype folder skeleton ready to fill:
+
+```text
+docs/visuals/prototype/
+├── README.md      # pre-filled template — replace placeholders, do not recreate
+├── screens/       # one HTML or PNG export per screen lands here
+└── flows/         # one recording or live-URL stub per primary journey
+```
+
+- Fill `docs/visuals/prototype/README.md` (tool, URL, version, freeze date, screen coverage table, flow coverage table, known limitations). Do **NOT** delete the placeholder rows before filling — overwrite them.
+- Drop one HTML or PNG export per screen into `docs/visuals/prototype/screens/`.
+- Drop one flow walkthrough (recording or live URL stub) per primary user journey into `docs/visuals/prototype/flows/`.
 
 ### Client Review Loop
 
