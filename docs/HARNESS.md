@@ -208,7 +208,8 @@ For every task:
 6. Before finishing, ask whether product truth, validation expectations,
    architecture rules, repeated failure patterns, or next-agent instructions
    changed.
-7. Record a trace with `scripts/bin/harness-cli trace`.
+7. Record a trace with `scripts/bin/harness-cli trace`, using
+   `docs/TRACE_SPEC.md` for the expected trace tier and field depth.
 8. If harness friction was found, either fix it directly or record it with
    `scripts/bin/harness-cli backlog add`.
 

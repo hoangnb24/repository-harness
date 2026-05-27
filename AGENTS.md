@@ -11,6 +11,7 @@ This repo uses Harness. Before work, read:
 - `docs/HARNESS.md`
 - `docs/FEATURE_INTAKE.md`
 - `docs/ARCHITECTURE.md`
+- `docs/CONTEXT_RULES.md`
 - `scripts/harness query matrix`
 
 Use the Rust Harness CLI as the main operational tool. Run it through the

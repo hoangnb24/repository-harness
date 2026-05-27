@@ -24,6 +24,33 @@ docs, design notes, and validation expectations for a feature.
 The classification step that turns a prompt into tiny, normal, or high-risk
 work before implementation begins.
 
+## Component Taxonomy
+
+A map from Harness files and capabilities to the responsibilities they serve,
+used to evaluate coverage, attribute failures, and identify missing harness
+capabilities.
+
+## Maturity Level
+
+A verifiable stage in Harness capability, from H0 bare environment through H5
+self-improving harness. Each level has required files, criteria, and benchmark
+indicators.
+
+## Trace Quality Tier
+
+The expected depth of a task trace: minimal for tiny work, standard for normal
+work, and detailed for high-risk work.
+
+## Context Phase
+
+A phase of an agent task that changes what context should be read, such as
+intake, planning, implementation, validation, or trace recording.
+
+## Retrieval Trigger
+
+A condition that tells an agent to fetch additional context, such as touching a
+database schema, changing a public contract, or discovering missing validation.
+
 ## Harness Delta
 
 A documentation, template, validation, backlog, or decision update that makes
@@ -45,4 +72,3 @@ documentation.
 A structured record of what an agent did during a task: actions taken, files
 read, files changed, decisions made, errors encountered, outcome, and any
 harness friction discovered.
-
