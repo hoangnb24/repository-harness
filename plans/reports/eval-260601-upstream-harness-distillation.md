@@ -103,11 +103,14 @@ measurable harness."
 
 ## Unresolved Questions
 
-1. **Hard enforcement later?** The verify gate is instruction-level. Options:
-   A keep as-is, B soft non-blocking warn hook, C hard blocking
-   `pre-commit`/`pre-push` hook — see `0014` § Hard Enforcement. Deferred as
-   off-goal default for solo; pending user choice.
+1. ~~Hard enforcement?~~ **Resolved 2026-06-01: Option C chosen** (new data —
+   2-person team, autonomous goals, recurring lint-leak + done-but-not-done).
+   Shipped a blocking `pre-commit`/`pre-push` hook (`scripts/hooks/
+   harness-verify-gate.sh`) + agent no-bypass rule. See `0014` § Hard
+   Enforcement. Residual: `git --no-verify` skips client-side hooks → a CI /
+   server-side backstop is the next step if humans also bypass.
 2. ~~Propagate to bootstrapped projects?~~ **Resolved 2026-06-01:** the 4 new
-   docs + decision 0014 added to `scripts/install-harness.sh` HARNESS_FILES list.
+   docs + decision 0014 + verify-gate hooks added to `scripts/install-harness.sh`
+   (HARNESS_FILES + `core.hooksPath` activation).
 3. **Merge target.** Work is on `merge/upstream-eval`. Merge to `main`, open a
    PR, or leave on the branch for review first?

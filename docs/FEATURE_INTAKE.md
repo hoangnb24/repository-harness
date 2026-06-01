@@ -245,11 +245,15 @@ Per lane:
 | Normal / Self-review | Required. Verify command run + `pass`, or recorded reason. The human-as-customer uses this as the comprehension gate. |
 | High-risk | Required + a `docs/decisions/NNNN-*.md` record when the change touched architecture, auth, data ownership, API shape, or validation rules. |
 
-This gate is enforced by instruction, not by a binary — there is no commit hook
-that blocks the push. The enforcement points are the `AGENTS.md` Done
-Definition, this section, and the human reviewing `STAGE.md` + the Verification
-Register. If a project later needs hard enforcement, that is a deliberate move
-toward the "harness as product" path this fork declined (`0014`).
+This gate is enforced **mechanically** by a git hook (`.githooks/pre-commit` +
+`pre-push`, core `scripts/hooks/harness-verify-gate.sh`, activated via
+`core.hooksPath` by the installer). The hook runs the project's lint/validate
+command and blocks any `Result: fail` in the Verification Register — and
+`never-run` on a stage-close commit. Agents must not bypass it with
+`--no-verify`; that override is human-only with a stated reason
+(`AGENTS.md` § Verify Gate — No Bypass). The human reviewing `STAGE.md` + the
+Register remains the second line. See
+`docs/decisions/0014-distill-upstream-observability-concepts.md`.
 
 ## Output
 

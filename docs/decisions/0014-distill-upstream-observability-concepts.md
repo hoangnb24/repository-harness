@@ -109,17 +109,50 @@ measurable harness," re-open these — that is the boundary, and it is explicit.
   `AGENTS.md` (Source Of Truth pointers + Done Definition),
   `docs/HARNESS.md` (§ Growth Rule → trace link),
   `docs/playbooks/session-retrospective.md` (§ Trace),
-  `scripts/install-harness.sh` (HARNESS_FILES list — the 4 new docs + this
-  decision now propagate to bootstrapped projects).
+  `AGENTS.md` (§ Verify Gate — No Bypass),
+  `scripts/install-harness.sh` (HARNESS_FILES list + `core.hooksPath`
+  activation — the 4 new docs, this decision, and the verify-gate hooks now
+  propagate to bootstrapped projects).
+- Added (hook): `scripts/hooks/harness-verify-gate.sh`, `.githooks/pre-commit`,
+  `.githooks/pre-push`.
 
-## Hard Enforcement: Deferred
+## Hard Enforcement: Adopted (Option C)
 
-The Pre-Close Verification Gate is enforced by instruction + human review, not a
-git hook. A `pre-commit`/`pre-push` hook that blocks closing a story with
-`Result: never-run` was considered and **deferred**: at solo scale the
-human-as-customer already reviews `STAGE.md` + the Verification Register at each
-gate, bash-parsing the markdown register is fragile (false positives drive
-`--no-verify` habits that hollow the gate), and a maintained script contradicts
-the markdown-first goal. Re-open when a second contributor or a CI need appears.
-A non-blocking "soft" warning hook is the cheap middle option if a nudge is
-wanted later.
+Initially this gate was proposed as instruction-only, with a hard git hook
+deferred as off-goal for solo use. **Reversed 2026-06-01 — user supplied new
+data that changes the threat model**, so the deferral no longer holds:
+
+1. The project is now a **2-person team**, not solo — the "human already
+   reviews every gate themselves" assumption is gone.
+2. Work runs as **autonomous `/goal` sessions** where the human does not watch
+   each commit, so the verify gate is easy to miss in practice.
+3. Recurring real failures: **agents report "done" when work is not actually
+   done**, and **lint errors get committed/pushed** anyway.
+
+These are exactly the conditions named for re-opening C. Decision: ship a
+**hard, blocking** git hook (Option C).
+
+Implementation:
+- `scripts/hooks/harness-verify-gate.sh` — shared core. Gate 1: auto-detected
+  lint/validate (npm/pnpm/yarn script, Makefile target, or `cargo clippy`),
+  blocks on failure. Gate 2: parses `docs/TEST_MATRIX.md` § Verification
+  Register, blocks any `Result: fail`; on a stage-close commit (STAGE.md staged)
+  also blocks `Result: never-run`.
+- `.githooks/pre-commit` + `.githooks/pre-push` — thin wrappers; pre-push is the
+  backstop before sharing.
+- `scripts/install-harness.sh` activates it via `git config core.hooksPath
+  .githooks` (existing-repo installs and bootstrap after `git init`).
+- `AGENTS.md` § Verify Gate — No Bypass: agents must not use `--no-verify`/`-n`
+  or unset `core.hooksPath`; `--no-verify` is a human-only override with a
+  stated reason.
+
+False-positive guard (the original fragility worry): the parser skips the `TBD`
+placeholder/header/separator rows; `fail` blocks always (unambiguous), but
+`never-run` blocks **only at stage-close**, so normal WIP commits of
+not-yet-verified stories are not blocked. Verified by `pre-commit`/`pre-push`
+integration tests across clean / fail / never-run / stage-close cases.
+
+Residual limit: `git --no-verify` skips client-side hooks entirely, so the
+no-bypass guarantee for **agents** is the `AGENTS.md` instruction, not the hook.
+A true server-side backstop (CI check / pre-receive) is the next step if humans
+also bypass; deferred until that is observed.

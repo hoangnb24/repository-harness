@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Harness pre-push gate. Wired via `git config core.hooksPath .githooks`
+# (set by scripts/install-harness.sh). Last backstop before sharing work:
+# runs lint + blocks any committed `Result: fail` row in the Verify Register.
+exec bash "$(git rev-parse --show-toplevel)/scripts/hooks/harness-verify-gate.sh" pre-push

@@ -505,12 +505,30 @@ scripts/README.md
 .claude/hooks/stage-deliver.sh
 .claude/hooks/telegram-notify.sh
 .claude/scripts/telegram-send.sh
+scripts/hooks/harness-verify-gate.sh
+.githooks/pre-commit
+.githooks/pre-push
 EOF
 
 # Restore executable bit on any shell scripts under .claude/ (curl -o strips it
 # in remote mode; cp -p preserves it in local mode but a no-op chmod is cheap).
 if [ -d "$TARGET_DIR/.claude" ] && [ "$DRY_RUN" -eq 0 ]; then
   find "$TARGET_DIR/.claude" -type f -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+fi
+
+# Harness verify gate — restore executable bit on the git hooks + shared core,
+# then activate them via core.hooksPath when the target is already a git repo.
+# (Bootstrap mode runs git init later and sets core.hooksPath there.)
+if [ "$DRY_RUN" -eq 0 ] && [ -d "$TARGET_DIR/.githooks" ]; then
+  chmod +x "$TARGET_DIR/.githooks/"* 2>/dev/null || true
+  [ -d "$TARGET_DIR/scripts/hooks" ] && \
+    find "$TARGET_DIR/scripts/hooks" -type f -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+  if [ "$BOOTSTRAP" -eq 0 ] && [ -d "$TARGET_DIR/.git" ] && command -v git >/dev/null 2>&1; then
+    (cd "$TARGET_DIR" && git config core.hooksPath .githooks)
+    log "git hooks: core.hooksPath set to .githooks (harness verify gate active)"
+  elif [ "$BOOTSTRAP" -eq 0 ]; then
+    log "git hooks: .githooks shipped — run 'git config core.hooksPath .githooks' after 'git init'"
+  fi
 fi
 
 log ""
@@ -534,6 +552,10 @@ if [ "$BOOTSTRAP" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
       (cd "$TARGET_DIR" && git init -q)
       log "  git init: initialised empty repo at $TARGET_DIR/.git"
       GIT_INIT_DONE=1
+      if [ -d "$TARGET_DIR/.githooks" ]; then
+        (cd "$TARGET_DIR" && git config core.hooksPath .githooks)
+        log "  git hooks: core.hooksPath set to .githooks (harness verify gate active)"
+      fi
     else
       log "  git not found — skipping git init (run it manually)"
     fi

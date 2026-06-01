@@ -169,6 +169,21 @@ Agents should ask for human confirmation before:
 - Changing risk classification rules.
 - Replacing the feature workflow.
 
+## Verify Gate — No Bypass
+
+A git hook (`.githooks/`, core `scripts/hooks/harness-verify-gate.sh`) enforces
+the Pre-Close Verification Gate mechanically on every commit and push: it runs
+the project's lint/validate command and blocks any `Result: fail` in
+`docs/TEST_MATRIX.md` § Verification Register (and `never-run` on a stage-close
+commit). See `docs/decisions/0014-distill-upstream-observability-concepts.md`.
+
+Agents **MUST NOT** bypass it. Do not run `git commit --no-verify`, `git commit
+-n`, or `git push --no-verify`, and do not unset `core.hooksPath`, to get past a
+blocked gate. A red gate means real work remains — fix the lint error or run and
+record the Verify command. `--no-verify` is reserved for the **human**, who must
+state an explicit reason; an agent may use it only when the human authorizes
+that specific commit in the conversation.
+
 ## Done Definition
 
 A task is done only when:

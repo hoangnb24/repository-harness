@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Harness pre-commit gate. Wired via `git config core.hooksPath .githooks`
+# (set by scripts/install-harness.sh). Delegates to the shared verify gate.
+exec bash "$(git rev-parse --show-toplevel)/scripts/hooks/harness-verify-gate.sh" pre-commit

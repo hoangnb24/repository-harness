@@ -27,7 +27,7 @@ Status values:
 | 5 | Task state | Covered | `STAGE.md` (current stage), `docs/TEST_MATRIX.md` (proof status), story status, stage-boundary commits (`0012`) | No lifecycle alarm if a project stalls mid-stage. |
 | 6 | Observability | Partial | `docs/TRACE_SPEC.md` (trace shape), `docs/playbooks/session-retrospective.md`, stage-boundary commits as an audit timeline, Telegram delivery hooks | Traces are markdown, not queryable; no dashboard. Acceptable for solo scale. |
 | 7 | Failure attribution | Partial | `session-retrospective.md` (friction → root cause → recurrence), `HARNESS_BACKLOG.md`, this component map | Attribution is manual; no automated link from a failed gate to a component. |
-| 8 | Verification | Covered | `docs/TEST_MATRIX.md` (Verify + Last verified columns, `0014`), `docs/FEATURE_INTAKE.md` § Pre-Close Verification Gate, stage 9/10 gates in `docs/WORKFLOW.md`, `AGENTS.md` Done Definition | Gate is instruction-enforced, not tool-enforced (deliberate, `0014`). |
+| 8 | Verification | Covered | `docs/TEST_MATRIX.md` (Verify + Last verified columns, `0014`), `docs/FEATURE_INTAKE.md` § Pre-Close Verification Gate, `.githooks/*` + `scripts/hooks/harness-verify-gate.sh` (blocking git hook), stage 9/10 gates in `docs/WORKFLOW.md`, `AGENTS.md` Done Definition | Hook is client-side; `git --no-verify` still skips it (agent no-bypass is instruction-level). |
 | 9 | Permissions | Partial | `AGENTS.md` § Harness Change Policy (update-directly vs ask-first lists), Manual Checkpoint signaling, `~/.claude/rules/*` | Policy is instruction-level; no enforced allowlist. |
 | 10 | Entropy auditing | Partial | `docs/HARNESS_BACKLOG.md` + Growth Rule, Playbook Lifecycle (`experimental`→`verified`→`deprecated`), `docs/HARNESS_MATURITY.md`, STAGE.md drift-is-a-bug rule | No automated stale-doc or drift detector. |
 | 11 | Intervention recording | Covered | `docs/decisions/*`, `MANUAL_CHECKPOINT` blocks, change-request log template, session retrospectives | Human checkpoints are captured; not separated into a distinct review-event schema (not needed solo). |
@@ -40,10 +40,12 @@ Status values:
   permissions, entropy auditing)
 - **Missing:** 0/11
 
-The five Partials are all "manual / instruction-level rather than enforced."
-For a solo human-as-customer harness that is the intended shape — enforcement
-binaries are the upstream "harness as product" path this fork declined
-(`docs/decisions/0014`). The honest gaps worth watching:
+The five Partials are mostly "manual / instruction-level rather than enforced."
+The exception is **Verification**, now backed by a blocking git hook
+(`docs/decisions/0014`, Option C) — chosen after the project moved to a 2-person
+team running autonomous goals, where instruction-level proved insufficient. The
+other surfaces stay instruction-level by design; promote them only when a real
+failure mode justifies the maintenance. The honest gaps worth watching:
 
 1. **Entropy auditing** — no drift/stale detector. Mitigated today by the
    Playbook Lifecycle line and the "STAGE.md drift is a bug" rule, both manual.

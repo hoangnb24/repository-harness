@@ -93,17 +93,20 @@ Criteria:
 - The Done Definition in `AGENTS.md` enforces "validation commands were run
   when they exist."
 
-Status: **Partial.** The gate convention and columns are in place (this
-distillation). It is **instruction-enforced**, not tool-enforced — there is no
-binary that blocks a commit. For a solo human-as-customer this is the
-intended ceiling; a compiled gate is explicitly out of scope (see
-`docs/decisions/0014`).
+Status: **Achieved (client-side).** The gate convention and columns are in
+place, and a git hook (`.githooks/` + `scripts/hooks/harness-verify-gate.sh`,
+activated via `core.hooksPath`) enforces it mechanically on commit and push —
+lint must pass and no `Result: fail` (or stage-close `never-run`) may be
+committed (`docs/decisions/0014`). The one gap is that `git --no-verify` skips
+client-side hooks, so the no-bypass guarantee for agents is instruction-level
+(`AGENTS.md`); a server-side/CI backstop would close it.
 
 ## Current Position
 
-**This fork sits at H3, entering H4.** The observation and context layers are
-complete; mechanical verification exists as a discipline convention rather than
-an enforced binary — a deliberate choice to stay markdown-first for solo use.
+**This fork sits at H4 (client-side enforcement).** Observation, context, and
+mechanical verification layers are all in place. The remaining ceiling is
+server-side enforcement (CI / pre-receive) to stop human `--no-verify` bypass —
+deferred until that bypass is actually observed.
 
 ## What This Fork Deliberately Does NOT Pursue
 
