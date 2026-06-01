@@ -101,6 +101,14 @@ If everything ran smoothly, write "none — session ran clean" and stop.
 Items the session did not close. Each links to where they live now
 (plan dir, backlog entry, decision draft) so the next agent picks
 them up.
+
+## Trace
+
+One trace block per `docs/TRACE_SPEC.md`, self-scored to the highest
+lane the session touched. This is the durable evidence record for the
+session — files read/changed, verify command + result, friction,
+outcome. For a multi-task session, one consolidated trace covering the
+session is enough; cite the main story and list the rest in notes.
 ```
 
 ## Steps To Run

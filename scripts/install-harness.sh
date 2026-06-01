@@ -395,14 +395,18 @@ done <<'EOF'
 AGENTS.md
 README.md
 docs/ARCHITECTURE.md
+docs/CONTEXT_RULES.md
 docs/FEATURE_INTAKE.md
 docs/GLOSSARY.md
 docs/HARNESS.md
 docs/HARNESS_BACKLOG.md
+docs/HARNESS_COMPONENTS.md
+docs/HARNESS_MATURITY.md
 docs/QUICKSTART.md
 docs/README.md
 docs/STAGE_GOALS.md
 docs/TEST_MATRIX.md
+docs/TRACE_SPEC.md
 docs/WORKFLOW.md
 docs/decisions/0001-harness-first-development.md
 docs/decisions/0002-post-spec-product-lifecycle.md
@@ -417,6 +421,7 @@ docs/decisions/0010-gap-analysis-stage.md
 docs/decisions/0011-bootstrap-installer-mode.md
 docs/decisions/0012-stage-boundary-commits.md
 docs/decisions/0013-self-review-lane-and-stage-tracker.md
+docs/decisions/0014-distill-upstream-observability-concepts.md
 docs/decisions/README.md
 docs/discovery/README.md
 docs/intake/README.md

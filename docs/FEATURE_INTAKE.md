@@ -215,6 +215,42 @@ The agent reads all of the above as Phase 1 input.
 Other input types (spec slice, change request, maintenance, etc.) skip
 this gate — they're bounded enough to proceed straight to lane work.
 
+## Pre-Close Verification Gate
+
+The Spec Approval Gate guards the **front** of the work (did we understand the
+request?). This gate guards the **back** (did the work actually meet its
+contract?). It is the mechanical half of "done" — adapted from the upstream
+story-verify concept, kept instruction-level for this fork
+(`docs/decisions/0014-distill-upstream-observability-concepts.md`).
+
+A story, stage, or change cannot be marked **done / closed** until one of:
+
+1. Its **Verify command** in `docs/TEST_MATRIX.md` § Verification Register was
+   run and `Result` is `pass`, recorded with today's date; **or**
+2. The story packet (or TEST_MATRIX row) explains why no command exists —
+   pure-docs, design-only, or a `MANUAL:` checkpoint the human signed off
+   (cite the signoff: UAT row, `delivery-closure-story/02-signoff.md`, or a
+   checkpoint date).
+
+When a stage boundary closes (`docs/decisions/0012`), the `Last verified` +
+`Result` update lands in the **same commit** as the stage artifact and the
+`STAGE.md` row move. Closing a story with `Result: never-run` and no recorded
+reason is a gate violation — fix before reporting done.
+
+Per lane:
+
+| Lane | Gate behavior |
+| --- | --- |
+| Tiny | Soft. Inline narrative proof is enough; a `MANUAL:` note is acceptable. |
+| Normal / Self-review | Required. Verify command run + `pass`, or recorded reason. The human-as-customer uses this as the comprehension gate. |
+| High-risk | Required + a `docs/decisions/NNNN-*.md` record when the change touched architecture, auth, data ownership, API shape, or validation rules. |
+
+This gate is enforced by instruction, not by a binary — there is no commit hook
+that blocks the push. The enforcement points are the `AGENTS.md` Done
+Definition, this section, and the human reviewing `STAGE.md` + the Verification
+Register. If a project later needs hard enforcement, that is a deliberate move
+toward the "harness as product" path this fork declined (`0014`).
+
 ## Output
 
 At the end of intake, the agent should be able to say:

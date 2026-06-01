@@ -262,6 +262,12 @@ When an agent is confused, repeats manual reasoning, needs a new validation
 command, discovers a missing rule, or sees a recurring failure pattern, it must
 either improve the harness directly or add a proposal to `HARNESS_BACKLOG.md`.
 
+The capture mechanism is the trace: the **Friction** field in every session
+trace (`docs/TRACE_SPEC.md` § Friction Capture Protocol) is where this signal
+is named concretely before it evaporates. Friction that should become work
+graduates from the trace into a `HARNESS_BACKLOG.md` item; the backlog
+promotion rule then decides when it becomes a decision or plan.
+
 ## Project Doc Mapping
 
 Some agent-orchestration setups (e.g. user-level `~/.claude/CLAUDE.md`) expect a fixed set of project docs at the root of `docs/`. Harness organises the same information differently. The table below maps the expected docs to the harness-equivalent source(s). Agents working under both rules should follow the harness layout — the mapped harness docs ARE the project doc.

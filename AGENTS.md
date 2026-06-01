@@ -27,6 +27,15 @@ Read in this order:
     template / decision / gate per stage, plus folder, token chain, and
     per-tier matrix.
 
+After the entrypoints above, retrieve by need (not in fixed order):
+
+- `docs/CONTEXT_RULES.md` — what to read per stage and lane (pairs with the
+  `context-monitor.sh` token-budget warnings). Read this when unsure what
+  context a stage needs.
+- `docs/TRACE_SPEC.md` — how to record the session trace before reporting done.
+- `docs/HARNESS_MATURITY.md` / `docs/HARNESS_COMPONENTS.md` — self-position the
+  harness and audit coverage; read only for harness-improvement work.
+
 This harness does not ship with a project-specific `SPEC.md`. When the human
 provides a spec for a new project, treat that spec as input material for the
 first buildout. Derive product docs, story packets, architecture decisions, and
@@ -167,5 +176,12 @@ A task is done only when:
 - The requested change is completed or the blocker is documented.
 - Relevant docs, stories, and test matrix entries remain current.
 - Validation commands were run when they exist.
+- The **Pre-Close Verification Gate** is satisfied: the story's Verify command
+  in `docs/TEST_MATRIX.md` § Verification Register ran with `Result: pass`, or
+  a recorded reason explains why none exists (`docs/FEATURE_INTAKE.md`
+  § Pre-Close Verification Gate).
+- A **session trace** is recorded per `docs/TRACE_SPEC.md` (inline for a single
+  task, or in the retro report for a multi-task session) and self-scored to the
+  lane's required tier.
 - Missing harness capabilities were added to `docs/HARNESS_BACKLOG.md`.
 - The final response says what changed and what was not attempted.

@@ -35,3 +35,29 @@ Tokens. Tiny-lane rows may use inline narrative instead.
   behavior that cannot be proven in lower layers.
 - A story can be implemented without every proof column if the story packet
   explains why.
+
+## Verification Register
+
+Each story that ships behavior carries a **runnable proof command** and the
+**result of the last run**. This is the mechanical half of "done": the proof
+columns above say *which kinds* of proof exist; this register says *the exact
+command that re-checks the contract* and *when it last passed*. Adapted from
+the upstream story-verify concept (`docs/decisions/0014-...`), markdown-first —
+the command is run by a human or agent in the shell, not by a binary.
+
+| Story | Verify command | Last verified | Result |
+| --- | --- | --- | --- |
+| TBD | The single command that re-proves this story (e.g. `npm test -- roles`, `pnpm e2e auth.spec`, or a manual `MANUAL:` step). | YYYY-MM-DD or `never` | pass / fail / never-run |
+
+Rules:
+
+- A story is not closeable until its Verify command was run and `Result` is
+  `pass`, **or** the story packet explains why no command exists (pure-docs,
+  design-only, or a `MANUAL:` checkpoint the human signed off).
+- `Last verified` + `Result` update in the same commit that closes the story
+  or its stage — drift between this register and the proof columns is a bug.
+- For a `MANUAL:` verify step, the result is the human's signoff reference
+  (UAT row, `delivery-closure-story/02-signoff.md`, or a checkpoint date).
+
+See the enforcement rule in `docs/FEATURE_INTAKE.md` § Pre-Close Verification
+Gate and the Done Definition in `AGENTS.md`.
