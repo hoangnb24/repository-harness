@@ -103,6 +103,19 @@ added Harness files without moving the existing `AGENTS.md`, `docs/`, or
 `scripts/` paths into backup. Existing files stay untouched; only missing
 Harness files are created.
 
+`--merge` also keeps an existing `scripts/bin/harness-cli` or
+`scripts/bin/harness-cli.exe` in place. If a repo already has an older CLI
+binary and you want the installer to replace it, remove the old binary first or
+re-run the installer with `-Force` on PowerShell or `--force` on Bash.
+
+For Windows-first updates to an existing repo, prefer this command:
+
+```powershell
+$env:HARNESS_SOURCE_BASE_URL = "https://raw.githubusercontent.com/vantanminh/harness/refs/heads/main"
+$env:HARNESS_CLI_BASE_URL = "https://github.com/vantanminh/harness/releases/latest/download"
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/vantanminh/harness/refs/heads/main/scripts/install-harness.ps1"))) -Merge -RefreshAgentShim -Yes
+```
+
 For older Harness installs whose `AGENTS.md` still contains the full generated
 operating guide, refresh it into the small stable shim:
 

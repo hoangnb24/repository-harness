@@ -96,6 +96,11 @@ On Windows, run the same repo-local commands through
 every `scripts/bin/harness-cli ...` example in this doc maps directly to
 `.\scripts\bin\harness-cli.exe ...`.
 
+When updating an existing Harness repo, `--merge` preserves an existing CLI
+binary too. If Windows needs a newer `.\scripts\bin\harness-cli.exe`, remove
+the old file first or use the installer's force mode instead of expecting
+`--merge` to replace it.
+
 This separation keeps policy docs stable and human-readable while giving agents
 a structured, queryable record of operational state. It also prepares the
 harness for future observability and automated evolution without adding more
