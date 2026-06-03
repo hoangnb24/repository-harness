@@ -53,7 +53,7 @@ scripts, CI, tests, or product implementation.
 ## Design Notes
 
 - Commands: `scripts/install-harness.sh [--directory path] [--yes] [--force] [--merge] [--refresh-agent-shim] [--dry-run]`
-- Remote install: `curl -fsSL "https://raw.githubusercontent.com/vantanminh/harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes`
+- Remote install: `curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes`
 - Queries: none.
 - API: none.
 - Tables: none.
