@@ -211,11 +211,118 @@ These responsibilities belong to the agent following Harness docs:
 Symphony observes outcomes (agent exit code, session events) but does not
 participate in any of these processes.
 
-## 4. Core Domain Model
+## 4. Project Structure and Build Strategy
 
-### 4.1 Entities
+Symphony lives inside the `repository-harness` monorepo as an optional Cargo
+workspace crate. This keeps the spec, CLI, and daemon in a single versioned
+unit while allowing teams that don't need orchestration to skip it entirely.
 
-#### 4.1.1 Work Item
+### 4.1 Crate Layout
+
+```
+repository-harness/
+  crates/
+    harness-core/              ← shared library (types, db access, config)
+      src/
+        lib.rs
+        db.rs                  ← harness.db reader (rusqlite)
+        types.rs               ← WorkItem, IntakeRecord, TraceRecord, etc.
+        config.rs              ← WORKFLOW.md parser, typed config
+    harness-cli/               ← existing CLI binary
+      src/
+        main.rs
+      Cargo.toml               ← depends on harness-core
+    harness-symphony/          ← daemon binary (optional)
+      src/
+        main.rs                ← CLI entry (start, --tui, --port)
+        orchestrator.rs        ← poll loop, dispatch, reconciliation
+        source/
+          mod.rs               ← WorkSource trait
+          linear.rs            ← Linear adapter
+        intake_router.rs       ← inline vs dedicated routing
+        agent_runner.rs        ← Codex app-server client
+        session.rs             ← live session tracking
+      Cargo.toml               ← depends on harness-core
+  scripts/bin/
+    harness-cli                ← always shipped
+    harness-symphony           ← shipped when built with symphony feature
+  Cargo.toml                   ← workspace root
+```
+
+### 4.2 Dependency Graph
+
+```
+harness-symphony ──→ harness-core ←── harness-cli
+       │                   │
+       │                   ├── rusqlite (harness.db access)
+       │                   └── serde, serde_yaml (config/types)
+       │
+       ├── tokio (async runtime, poll loop, timers)
+       ├── reqwest (Linear API, future HTTP adapters)
+       └── ratatui (optional, TUI dashboard)
+```
+
+`harness-core` is the shared library that both CLI and Symphony depend on.
+It contains the types, database access, and config parsing that both need.
+This prevents Symphony from reimplementing harness.db reading or duplicating
+type definitions.
+
+### 4.3 Feature Gating
+
+The workspace `Cargo.toml` uses a feature flag so Symphony is opt-in:
+
+```toml
+[workspace]
+members = ["crates/harness-core", "crates/harness-cli", "crates/harness-symphony"]
+default-members = ["crates/harness-core", "crates/harness-cli"]
+```
+
+Build commands:
+
+```bash
+# Standard build (CLI only, no Symphony)
+cargo build --release
+
+# Full build (CLI + Symphony)
+cargo build --release --workspace
+
+# Symphony only
+cargo build --release -p harness-symphony
+```
+
+### 4.4 Installation
+
+The existing `scripts/install-harness.sh` gains an optional flag:
+
+```bash
+# Standard install (CLI + docs + templates)
+./scripts/install-harness.sh
+
+# Full install (CLI + docs + templates + Symphony daemon)
+./scripts/install-harness.sh --with-symphony
+```
+
+When `--with-symphony` is passed, the installer also copies
+`harness-symphony` to `scripts/bin/` and creates an example
+`WORKFLOW.md` if one does not exist.
+
+### 4.5 Future Extraction
+
+If Symphony outgrows the monorepo (different release cadence, much larger
+dependency tree, separate team), extracting it is straightforward:
+
+1. Move `crates/harness-symphony/` to a new repo.
+2. Point its `Cargo.toml` at `harness-core` as a git dependency.
+3. The spec remains in `repository-harness/docs/SYMPHONY_SPEC.md` as the
+   contract.
+
+This is a one-way door that can be opened later — no need to decide now.
+
+## 5. Core Domain Model
+
+### 5.1 Entities
+
+#### 5.1.1 Work Item
 
 Normalized work record used by scheduling, prompt rendering, and observability.
 
@@ -237,19 +344,19 @@ Fields:
 - `created_at` (timestamp or null)
 - `updated_at` (timestamp or null)
 
-#### 4.1.2 Workflow Definition
+#### 5.1.2 Workflow Definition
 
 Parsed `WORKFLOW.md` payload:
 
 - `config` (map) — YAML front matter root object.
 - `prompt_template` (string) — Markdown body after front matter, trimmed.
 
-#### 4.1.3 Service Config (Typed View)
+#### 5.1.3 Service Config (Typed View)
 
 Typed runtime values derived from `WorkflowDefinition.config` plus environment
-resolution. See Section 5.3 for the full schema.
+resolution. See Section 6.3 for the full schema.
 
-#### 4.1.4 Run Attempt
+#### 5.1.4 Run Attempt
 
 One execution attempt for one work item.
 
@@ -264,7 +371,7 @@ Fields:
 - `status`
 - `error` (OPTIONAL)
 
-#### 4.1.5 Live Session (Agent Session Metadata)
+#### 5.1.5 Live Session (Agent Session Metadata)
 
 State tracked while a Codex subprocess is running:
 
@@ -277,7 +384,7 @@ State tracked while a Codex subprocess is running:
 - `codex_input_tokens`, `codex_output_tokens`, `codex_total_tokens` (integers)
 - `turn_count` (integer)
 
-#### 4.1.6 Retry Entry
+#### 5.1.6 Retry Entry
 
 - `item_id`
 - `identifier`
@@ -286,7 +393,7 @@ State tracked while a Codex subprocess is running:
 - `timer_handle`
 - `error` (string or null)
 
-#### 4.1.7 Orchestrator Runtime State
+#### 5.1.7 Orchestrator Runtime State
 
 Single authoritative in-memory state:
 
@@ -297,15 +404,15 @@ Single authoritative in-memory state:
 - `completed` (set of item IDs, bookkeeping only)
 - `codex_totals` (aggregate tokens + runtime seconds)
 
-### 4.2 Stable Identifiers
+### 5.2 Stable Identifiers
 
 - `Item ID` — Use for source lookups and internal map keys.
 - `Item Identifier` — Use for human-readable logs.
 - `Session ID` — `<thread_id>-<turn_id>`.
 
-## 5. Workflow Specification (Repository Contract)
+## 6. Workflow Specification (Repository Contract)
 
-### 5.1 File Discovery
+### 6.1 File Discovery
 
 Workflow file path precedence:
 
@@ -314,7 +421,7 @@ Workflow file path precedence:
 
 If the file cannot be read, return `missing_workflow_file` error.
 
-### 5.2 File Format
+### 6.2 File Format
 
 `WORKFLOW.md` is a Markdown file with OPTIONAL YAML front matter.
 
@@ -325,7 +432,7 @@ Parsing rules (identical to [Symphony §5.2]):
 - YAML front matter MUST decode to a map.
 - Prompt body is trimmed.
 
-### 5.3 Front Matter Schema
+### 6.3 Front Matter Schema
 
 Top-level keys:
 
@@ -338,7 +445,7 @@ Top-level keys:
 
 Unknown keys SHOULD be ignored for forward compatibility.
 
-#### 5.3.1 `source` (object)
+#### 6.3.1 `source` (object)
 
 Fields:
 
@@ -353,11 +460,11 @@ Fields:
 - `terminal_states` (list of strings) —
   Default: `["Closed", "Cancelled", "Canceled", "Duplicate", "Done"]`.
 
-#### 5.3.2 `polling` (object)
+#### 6.3.2 `polling` (object)
 
 - `interval_ms` (integer) — Default: `30000`.
 
-#### 5.3.3 `agent` (object)
+#### 6.3.3 `agent` (object)
 
 - `max_turns` (positive integer) — Default: `20`.
 - `max_retry_backoff_ms` (integer) — Default: `300000` (5 minutes).
@@ -365,7 +472,7 @@ Fields:
 Note: `max_concurrent_agents` is omitted in v1 (single agent). It will be
 added when concurrency support is introduced.
 
-#### 5.3.4 `codex` (object)
+#### 6.3.4 `codex` (object)
 
 - `command` (string) — Default: `codex app-server`.
 - `approval_policy` — Implementation-defined.
@@ -373,7 +480,7 @@ added when concurrency support is introduced.
 - `read_timeout_ms` (integer) — Default: `5000`.
 - `stall_timeout_ms` (integer) — Default: `300000` (5 minutes).
 
-#### 5.3.5 `hooks` (object)
+#### 6.3.5 `hooks` (object)
 
 - `before_run` (shell script string, OPTIONAL) — Runs before each attempt.
 - `after_run` (shell script string, OPTIONAL) — Runs after each attempt.
@@ -382,7 +489,7 @@ added when concurrency support is introduced.
 Note: `after_create` and `before_remove` from original Symphony are omitted
 because v1 does not create per-issue workspaces.
 
-#### 5.3.6 `intake` (object)
+#### 6.3.6 `intake` (object)
 
 - `dedicated_types` (list of strings) —
   Default: `["new_spec", "new_initiative"]`.
@@ -396,7 +503,7 @@ because v1 does not create per-issue workspaces.
 - `default_mode` (string) — `inline` | `dedicated`. Default: `inline`.
   Used when a work item doesn't match either list.
 
-### 5.4 Prompt Template Contract
+### 6.4 Prompt Template Contract
 
 The Markdown body of `WORKFLOW.md` is the per-item prompt template.
 
@@ -438,16 +545,16 @@ This is retry attempt {{ attempt }}. Check your previous work and continue.
 {% endif %}
 ```
 
-### 5.5 Dynamic Reload
+### 6.5 Dynamic Reload
 
 REQUIRED (identical to [Symphony §6.2]):
 
 - Detect `WORKFLOW.md` changes and re-apply without restart.
 - Invalid reloads keep last known good config and emit an error.
 
-## 6. Work Source Adapter Contract
+## 7. Work Source Adapter Contract
 
-### 6.1 Adapter Interface
+### 7.1 Adapter Interface
 
 Every work source adapter MUST implement:
 
@@ -458,7 +565,7 @@ Every work source adapter MUST implement:
 3. `fetch_terminal_items()` → list of WorkItem
    - Used for startup cleanup (if applicable).
 
-### 6.2 Linear Adapter
+### 7.2 Linear Adapter
 
 The Linear adapter follows the original Symphony's tracker integration
 contract [Symphony §11]:
@@ -469,7 +576,7 @@ contract [Symphony §11]:
   priority as integer, timestamps parsed from ISO-8601.
 - Candidate query filters by `active_states` and `required_labels`.
 
-### 6.3 Future Adapters
+### 7.3 Future Adapters
 
 - `GitHubAdapter` — Read from GitHub Issues/Projects.
 - `HarnessBacklogAdapter` — Read dispatchable stories and accepted backlog
@@ -478,21 +585,21 @@ contract [Symphony §11]:
 These are NOT specified in v1 but the adapter interface MUST be designed to
 accommodate them.
 
-### 6.4 Error Handling
+### 7.4 Error Handling
 
 - Candidate fetch failure → skip dispatch for this tick.
 - State refresh failure → keep running agents, retry next tick.
 - Terminal fetch failure → log warning, continue startup.
 
-## 7. Intake Router
+## 8. Intake Router
 
-### 7.1 Purpose
+### 8.1 Purpose
 
 The intake router examines each candidate work item and decides whether it
 should be dispatched directly (inline intake) or requires a dedicated intake
 session first (for complex inputs that generate multiple stories).
 
-### 7.2 Routing Logic
+### 8.2 Routing Logic
 
 ```text
 function route_intake(item, config):
@@ -508,7 +615,7 @@ function route_intake(item, config):
   return config.intake.default_mode
 ```
 
-### 7.3 Dedicated Intake Sessions
+### 8.3 Dedicated Intake Sessions
 
 When a work item is routed to `dedicated` mode:
 
@@ -525,7 +632,7 @@ When a work item is routed to `dedicated` mode:
    stories become dispatchable work items. Otherwise, the operator manually
    creates tracker tickets for generated stories.
 
-### 7.4 Inline Intake
+### 8.4 Inline Intake
 
 When a work item is routed to `inline` mode:
 
@@ -533,9 +640,9 @@ When a work item is routed to `inline` mode:
 2. The agent does intake as its first step (classify, record, then work).
 3. This is the default Harness model — one session handles everything.
 
-## 8. Orchestrator State Machine
+## 9. Orchestrator State Machine
 
-### 8.1 Work Item Orchestration States
+### 9.1 Work Item Orchestration States
 
 Internal claim states (not tracker states):
 
@@ -545,7 +652,7 @@ Internal claim states (not tracker states):
 4. `RetryQueued` — Retry timer pending.
 5. `Released` — Claim removed (terminal, ineligible, or retries exhausted).
 
-### 8.2 Run Attempt Lifecycle
+### 9.2 Run Attempt Lifecycle
 
 1. `BuildingPrompt`
 2. `LaunchingAgent`
@@ -558,7 +665,7 @@ Internal claim states (not tracker states):
 9. `Stalled`
 10. `CanceledByReconciliation`
 
-### 8.3 Transition Triggers
+### 9.3 Transition Triggers
 
 Identical semantics to [Symphony §7.3]:
 
@@ -570,9 +677,9 @@ Identical semantics to [Symphony §7.3]:
 - `Reconciliation Refresh` → stop runs whose items are terminal/inactive.
 - `Stall Timeout` → kill worker, schedule retry.
 
-## 9. Polling, Scheduling, and Reconciliation
+## 10. Polling, Scheduling, and Reconciliation
 
-### 9.1 Poll Loop
+### 10.1 Poll Loop
 
 At startup: validate config, schedule immediate tick, repeat every
 `polling.interval_ms`.
@@ -586,7 +693,7 @@ Tick sequence:
 5. Dispatch eligible items while slots remain (v1: 1 slot).
 6. Emit logs.
 
-### 9.2 Candidate Selection Rules
+### 10.2 Candidate Selection Rules
 
 A work item is dispatch-eligible only if:
 
@@ -600,14 +707,14 @@ A work item is dispatch-eligible only if:
 Sorting: `priority` ascending → `created_at` oldest first → `identifier`
 lexicographic.
 
-### 9.3 Retry and Backoff
+### 10.3 Retry and Backoff
 
 Identical to [Symphony §8.4]:
 
 - Normal continuation: `1000 ms` fixed delay.
 - Failure: `min(10000 * 2^(attempt - 1), max_retry_backoff_ms)`.
 
-### 9.4 Reconciliation
+### 10.4 Reconciliation
 
 Identical to [Symphony §8.5]:
 
@@ -615,9 +722,9 @@ Identical to [Symphony §8.5]:
 - Part B: State refresh via adapter — terminal → stop + cleanup,
   active → update snapshot, other → stop without cleanup.
 
-## 10. Agent Runner Protocol (Codex Integration)
+## 11. Agent Runner Protocol (Codex Integration)
 
-### 10.1 Launch Contract
+### 11.1 Launch Contract
 
 - Command: `codex.command` (default `codex app-server`).
 - Invocation: `bash -lc <command>`.
@@ -627,7 +734,7 @@ Identical to [Symphony §8.5]:
 Note: v1 runs the agent in the repository root, NOT in a per-issue workspace
 directory. The agent operates on the single repo clone.
 
-### 10.2 Session Startup
+### 11.2 Session Startup
 
 Follows the targeted Codex app-server protocol [Symphony §10.2].
 
@@ -638,7 +745,7 @@ Symphony MUST:
 - Start continuation turns with continuation guidance (not the full prompt).
 - Extract `thread_id` and `turn_id` for session tracking.
 
-### 10.3 Streaming Turn Processing
+### 11.3 Streaming Turn Processing
 
 Identical to [Symphony §10.3]:
 
@@ -647,27 +754,27 @@ Identical to [Symphony §10.3]:
   subprocess exit.
 - Continuation: start another turn on the same thread if still eligible.
 
-### 10.4 Emitted Events
+### 11.4 Emitted Events
 
 Key events forwarded to orchestrator:
 
 - `session_started`, `turn_completed`, `turn_failed`, `turn_cancelled`
 - `turn_input_required`, `notification`, `malformed`
 
-### 10.5 Approval and Tool Policy
+### 11.5 Approval and Tool Policy
 
 Implementation-defined [Symphony §10.5]. Each implementation MUST document its
 posture. Runs MUST NOT stall indefinitely on approval or input requests.
 
-### 10.6 Timeouts
+### 11.6 Timeouts
 
 - `codex.read_timeout_ms` — startup/sync timeout.
 - `codex.turn_timeout_ms` — per-turn timeout.
 - `codex.stall_timeout_ms` — enforced by orchestrator on event inactivity.
 
-## 11. Observability
+## 12. Observability
 
-### 11.1 Logging
+### 12.1 Logging
 
 REQUIRED context fields for item-related logs:
 
@@ -677,7 +784,7 @@ REQUIRED context for session logs:
 
 - `session_id`
 
-### 11.2 Token Accounting
+### 12.2 Token Accounting
 
 Identical to [Symphony §13.5]:
 
@@ -685,7 +792,7 @@ Identical to [Symphony §13.5]:
 - Track deltas to avoid double-counting.
 - Accumulate in orchestrator state.
 
-### 11.3 TUI Dashboard (OPTIONAL, future)
+### 12.3 TUI Dashboard (OPTIONAL, future)
 
 When `--tui` flag is provided:
 
@@ -693,7 +800,7 @@ When `--tui` flag is provided:
 - Keyboard controls for pause/resume/force-retry.
 - Driven from orchestrator state only — MUST NOT affect correctness.
 
-### 11.4 HTTP API (OPTIONAL, future)
+### 12.4 HTTP API (OPTIONAL, future)
 
 When `--port <N>` is provided:
 
@@ -701,9 +808,9 @@ When `--port <N>` is provided:
 - `GET /api/v1/<identifier>` — item-specific debug details.
 - `POST /api/v1/refresh` — trigger immediate poll.
 
-## 12. Failure Model and Recovery
+## 13. Failure Model and Recovery
 
-### 12.1 Failure Classes
+### 13.1 Failure Classes
 
 1. `Workflow/Config` — Missing `WORKFLOW.md`, invalid YAML, missing source
    credentials.
@@ -712,14 +819,14 @@ When `--port <N>` is provided:
 3. `Work Source` — API errors, auth failures, malformed payloads.
 4. `Observability` — Log sink failure (non-fatal).
 
-### 12.2 Recovery Behavior
+### 13.2 Recovery Behavior
 
 - Config failures → skip dispatch, keep service alive.
 - Agent failures → retry with exponential backoff.
 - Source failures → skip this tick, retry next.
 - Observability failures → do not crash orchestrator.
 
-### 12.3 Restart Recovery
+### 13.3 Restart Recovery
 
 State is in-memory. After restart:
 
@@ -727,32 +834,32 @@ State is in-memory. After restart:
 - No running sessions assumed recoverable.
 - Recovery by: fresh polling + re-dispatch of eligible items.
 
-## 13. Security and Safety
+## 14. Security and Safety
 
-### 13.1 Trust Boundary
+### 14.1 Trust Boundary
 
 Implementation-defined [Symphony §15.1]. Each implementation MUST document
 whether it targets trusted or restrictive environments.
 
-### 13.2 Filesystem Safety
+### 14.2 Filesystem Safety
 
 - Agent cwd MUST be the repository root.
 - Repository path MUST be validated as a real directory before agent launch.
 
-### 13.3 Secret Handling
+### 14.3 Secret Handling
 
 - Support `$VAR` indirection in workflow config.
 - Do not log API tokens or secret values.
 
-### 13.4 Hook Safety
+### 14.4 Hook Safety
 
 - Hooks are trusted config from `WORKFLOW.md`.
 - Hooks run in the repo directory.
 - Hook timeouts are REQUIRED.
 
-## 14. Reference Algorithms
+## 15. Reference Algorithms
 
-### 14.1 Service Startup
+### 15.1 Service Startup
 
 ```text
 function start_service():
@@ -773,7 +880,7 @@ function start_service():
   event_loop(state)
 ```
 
-### 14.2 Poll-and-Dispatch Tick
+### 15.2 Poll-and-Dispatch Tick
 
 ```text
 on_tick(state):
@@ -797,7 +904,7 @@ on_tick(state):
   return state
 ```
 
-### 14.3 Dispatch One Item
+### 15.3 Dispatch One Item
 
 ```text
 function dispatch_item(item, state, attempt, mode):
@@ -817,7 +924,7 @@ function dispatch_item(item, state, attempt, mode):
   return state
 ```
 
-### 14.4 Worker Attempt
+### 15.4 Worker Attempt
 
 ```text
 function run_agent(item, attempt, mode):
@@ -853,7 +960,7 @@ function run_agent(item, attempt, mode):
   exit_normal()
 ```
 
-### 14.5 Worker Exit Handling
+### 15.5 Worker Exit Handling
 
 ```text
 on_worker_exit(item_id, reason, state):
@@ -869,14 +976,16 @@ on_worker_exit(item_id, reason, state):
   return state
 ```
 
-## 15. Implementation Checklist
+## 16. Implementation Checklist
 
-### 15.1 REQUIRED for v1 Conformance
+### 16.1 REQUIRED for v1 Conformance
 
+- [ ] `harness-core` crate with shared types, db access, config parsing
+- [ ] `harness-symphony` crate as optional workspace member
 - [ ] Workflow file loader with YAML front matter + prompt body
 - [ ] Config layer with defaults and `$VAR` resolution
 - [ ] Dynamic `WORKFLOW.md` watch/reload
-- [ ] Work source adapter interface
+- [ ] Work source adapter trait (`WorkSource`)
 - [ ] Linear adapter (candidate fetch + state refresh + terminal fetch)
 - [ ] Intake router (inline vs dedicated mode dispatch)
 - [ ] Polling orchestrator with single-authority state
@@ -887,8 +996,9 @@ on_worker_exit(item_id, reason, state):
 - [ ] Reconciliation (stall detection + state refresh)
 - [ ] Structured logs with `item_id`, `item_identifier`, `session_id`
 - [ ] `before_run` and `after_run` hooks with timeout
+- [ ] `install-harness.sh --with-symphony` flag
 
-### 15.2 RECOMMENDED Extensions (v2+)
+### 16.2 RECOMMENDED Extensions (v2+)
 
 - [ ] Multi-agent concurrency with shared-state strategy
 - [ ] TUI dashboard (`--tui`)
@@ -898,19 +1008,19 @@ on_worker_exit(item_id, reason, state):
 - [ ] SSH worker extension for remote execution
 - [ ] Persistent retry queue across restarts
 
-### 15.3 Operational Validation
+### 16.3 Operational Validation
 
 - [ ] Run with valid Linear credentials end-to-end
 - [ ] Verify hook execution on target OS
 - [ ] Verify `WORKFLOW.md` reload applies without restart
 
-## 16. Interaction with Harness Lifecycle
+## 17. Interaction with Harness Lifecycle
 
 This section documents how the Harness protocol plays out inside a
 Symphony-launched agent session, for implementor reference. Symphony does NOT
 enforce any of these steps — the agent follows them autonomously.
 
-### 16.1 Inline Mode Session
+### 17.1 Inline Mode Session
 
 ```text
 Agent starts in repo with rendered prompt containing work item.
@@ -925,7 +1035,7 @@ Agent starts in repo with rendered prompt containing work item.
   9. Agent exits.
 ```
 
-### 16.2 Dedicated Intake Mode Session
+### 17.2 Dedicated Intake Mode Session
 
 ```text
 Agent starts in repo with intake-mode prompt.
@@ -943,7 +1053,7 @@ Agent starts in repo with intake-mode prompt.
 The scheduler picks up generated stories on the next cycle (if using a
 Harness backlog adapter) or the operator creates tracker tickets for them.
 
-### 16.3 Cross-Run Intelligence
+### 17.3 Cross-Run Intelligence
 
 After N agent runs, accumulated data in `harness.db` supports:
 
