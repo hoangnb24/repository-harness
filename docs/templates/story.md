@@ -4,6 +4,9 @@
 
 planned
 
+Valid durable statuses: `planned`, `in_progress`, `implemented`, `changed`,
+`retired`. Keep this section and `story update --status` in agreement.
+
 ## Lane
 
 tiny | normal | high-risk

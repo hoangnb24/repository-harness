@@ -21,6 +21,10 @@ Restate as work item
 Find affected product docs and stories
     |
     v
+Run impact analysis when the
+blast-radius plugin is active
+    |
+    v
 Run risk checklist
     |
     v
@@ -94,6 +98,19 @@ Requirements:
   `docs/decisions/NNNN-*.md` file from `docs/templates/decision.md`, then add
   or refresh the durable row with `scripts/bin/harness-cli decision add`.
   Decision text in a trace is not a durable decision record.
+
+## Impact Analysis
+
+On normal and high-risk work, when the blast-radius plugin is active (gitnexus
+or c3 registered in the tool registry), run the impact analysis described in
+`docs/IMPACT_ANALYSIS.md` before completing the risk checklist. Its output
+feeds the `Existing behavior`, `Multi-domain`, and `Public contracts` flags,
+the validation re-run set, and the implementation reading list. Tiny-lane work
+skips it. When neither tool is registered, the plugin is inactive: skip the
+step and note the skip in the trace. A registered tool that is missing, stale,
+or drifted is not a skip: degrade per the Degraded Modes table in
+`docs/IMPACT_ANALYSIS.md` and set the `Weak proof` flag. If the analysis
+escalates the lane, re-classify before proceeding.
 
 ## Risk Checklist
 
