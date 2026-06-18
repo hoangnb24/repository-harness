@@ -33,6 +33,7 @@ def build_chart_specs(
         "issue_counts_by_type.json": _issue_counts_by_type_spec(dataset_verdict, issues),
         "missingness_by_table.json": _missingness_by_table_spec(profile_summary),
         "missingness_top_columns.json": _missingness_top_columns_spec(profile_summary, top_n),
+        "outliers_top_columns.json": _outliers_top_columns_spec(profile_summary, top_n),
         "relationship_fk_health.json": _relationship_fk_health_spec(relationship_graph),
         "dataset_verdict_risk_summary.json": _dataset_verdict_risk_spec(dataset_verdict),
     }
@@ -146,6 +147,31 @@ def _missingness_top_columns_spec(profile_summary: dict[str, Any], top_n: int) -
         source_artifacts=["profile_summary.json"],
         data=rows,
         summary={"top_n": top_n, "column_count": len(rows)},
+    )
+
+
+def _outliers_top_columns_spec(profile_summary: dict[str, Any], top_n: int) -> dict[str, Any]:
+    rows = _outlier_column_rows(profile_summary)
+    rows.sort(
+        key=lambda row: (
+            -row["outlier_count"],
+            -row["outlier_rate"],
+            row["table"],
+            row["column"],
+        )
+    )
+    rows = rows[:top_n]
+    return _base_spec(
+        chart_id="outliers_top_columns",
+        title=f"Top {top_n} Numeric Columns by IQR Outliers",
+        chart_type="horizontal_bar",
+        source_artifacts=["profile_summary.json"],
+        data=rows,
+        summary={
+            "top_n": top_n,
+            "column_count": len(rows),
+            "outlier_count": sum(row["outlier_count"] for row in rows),
+        },
     )
 
 
@@ -311,6 +337,34 @@ def _missingness_column_rows(profile_summary: dict[str, Any]) -> list[dict[str, 
     return rows
 
 
+def _outlier_column_rows(profile_summary: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for table_name, table in sorted((profile_summary.get("tables") or {}).items()):
+        row_count = _to_int(table.get("row_count"))
+        for column_name, column in sorted((table.get("columns") or {}).items()):
+            outliers = column.get("outliers") or {}
+            outlier_count = _to_int(outliers.get("outlier_count"))
+            if outlier_count <= 0:
+                continue
+            rows.append(
+                {
+                    "table": table_name,
+                    "column": column_name,
+                    "field": f"{table_name}.{column_name}",
+                    "method": str(outliers.get("method") or "iqr"),
+                    "row_count": row_count,
+                    "outlier_count": outlier_count,
+                    "outlier_rate": _round_float(outliers.get("outlier_rate")),
+                    "q1": _round_nullable_float(outliers.get("q1")),
+                    "q3": _round_nullable_float(outliers.get("q3")),
+                    "iqr": _round_nullable_float(outliers.get("iqr")),
+                    "lower_fence": _round_nullable_float(outliers.get("lower_fence")),
+                    "upper_fence": _round_nullable_float(outliers.get("upper_fence")),
+                }
+            )
+    return rows
+
+
 def _status_sort_order(status: str) -> int:
     return STATUS_ORDER.get(status, 99)
 
@@ -326,6 +380,15 @@ def _round_float(value: Any) -> float:
         return round(float(value or 0.0), 6)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _round_nullable_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return round(float(value), 6)
+    except (TypeError, ValueError):
+        return None
 
 
 def _to_int(value: Any) -> int:

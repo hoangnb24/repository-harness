@@ -25,6 +25,7 @@ REQUIRED_CHARTS = [
     "charts/issue_counts_by_type.json",
     "charts/missingness_by_table.json",
     "charts/missingness_top_columns.json",
+    "charts/outliers_top_columns.json",
     "charts/relationship_fk_health.json",
 ]
 EXPECTED_ARTIFACT_PATHS = {
@@ -44,6 +45,7 @@ EXPECTED_ARTIFACT_PATHS = {
     "chart_issue_counts_by_type": "charts/issue_counts_by_type.json",
     "chart_missingness_by_table": "charts/missingness_by_table.json",
     "chart_missingness_top_columns": "charts/missingness_top_columns.json",
+    "chart_outliers_top_columns": "charts/outliers_top_columns.json",
     "chart_relationship_fk_health": "charts/relationship_fk_health.json",
     "schema_diagram_json": "schema_diagram.json",
     "schema_diagram_dbml": "schema_diagram.dbml",

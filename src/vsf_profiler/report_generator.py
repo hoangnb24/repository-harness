@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -275,6 +276,10 @@ def _schema_evaluation_context(schema_evaluation: dict[str, Any] | None) -> dict
     if not schema_evaluation:
         return {"available": False}
     summary = schema_evaluation.get("summary") or {}
+    method_counts = Counter(
+        str(table.get("mapping_method") or table.get("status") or "unknown")
+        for table in schema_evaluation.get("tables", [])
+    )
     return {
         "available": True,
         "path": "schema_evaluation.json",
@@ -282,6 +287,7 @@ def _schema_evaluation_context(schema_evaluation: dict[str, Any] | None) -> dict
         "missing_table_count": summary.get("missing_table_count", 0),
         "extra_csv_count": summary.get("extra_csv_count", 0),
         "schema_issue_count": summary.get("schema_issue_count", 0),
+        "mapping_method_counts": dict(sorted(method_counts.items())),
     }
 
 
@@ -462,6 +468,10 @@ def _chart_specs_context(chart_specs: dict[str, dict[str, Any]] | None) -> dict[
         "missingness_columns": _chart_data_context(
             chart_specs.get("missingness_top_columns.json"),
             value_key="null_rate",
+        ),
+        "outlier_columns": _chart_data_context(
+            chart_specs.get("outliers_top_columns.json"),
+            value_key="outlier_count",
         ),
         "relationship_health": _chart_data_context(
             chart_specs.get("relationship_fk_health.json"),

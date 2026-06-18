@@ -98,6 +98,16 @@ EDA readiness metadata was not provided for this report.
 | none | 0 | 0.00% | `....................` |
 {% endfor %}
 
+### Top Numeric Outliers by Column
+
+| Field | Method | Outliers | Rate | IQR Fence | Visual |
+| --- | --- | ---: | ---: | --- | --- |
+{% for row in chart_specs.outlier_columns.data -%}
+| {{ row.field }} | {{ row.method }} | {{ row.outlier_count }} | {{ row.outlier_rate | pct }} | {{ row.lower_fence }} to {{ row.upper_fence }} | `{{ row.bar_text }}` |
+{% else -%}
+| none | iqr | 0 | 0.00% | none | `....................` |
+{% endfor %}
+
 ### Relationship FK Health
 
 | Status | Count | Visual |
@@ -200,6 +210,7 @@ Relationship graph artifact was not provided.
 - Missing tables: {{ schema_evaluation.missing_table_count }}
 - Extra CSV files: {{ schema_evaluation.extra_csv_count }}
 - Schema issue references: {{ schema_evaluation.schema_issue_count }}
+- Mapping methods: {% for method, count in schema_evaluation.mapping_method_counts.items() %}{{ method }}={{ count }}{% if not loop.last %}, {% endif %}{% else %}none{% endfor %}
 {% endif %}
 
 {% if connector_metadata.available -%}
@@ -266,13 +277,13 @@ Runtime execution metadata was not provided for this report.
 - dbdiagram.io link: {% if schema_diagram.dbdiagram_url_available %}{{ schema_diagram.dbdiagram_url }}{% else %}unavailable because the schema is too large for a safe URL{% endif %}
 - Note: {{ schema_diagram.dbdiagram_note }}
 
-| Status | DBML Table | CSV File | Primary Key | Foreign Keys |
-| --- | --- | --- | --- | --- |
+| Status | Method | Confidence | DBML Table | CSV File | Matched Columns | Missing Columns | Extra Columns | Primary Key | Foreign Keys |
+| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |
 {% for table in schema_diagram.tables -%}
-| {{ table.status }} | {{ table.table }} | {{ table.csv_path or "missing" }} | {{ table.primary_key | join(", ") if table.primary_key else "none" }} | {% for fk in table.foreign_keys %}{{ fk.column }} -> {{ fk.parent_table }}.{{ fk.parent_column }}{% if not loop.last %}; {% endif %}{% else %}none{% endfor %} |
+| {{ table.status }} | {{ table.mapping_method or table.status }} | {{ "%.2f"|format(table.confidence or 0) }} | {{ table.table }} | {{ table.csv_path or table.selected_csv or "missing" }} | {{ table.matched_columns | join(", ") if table.matched_columns else "none" }} | {{ table.missing_columns | join(", ") if table.missing_columns else "none" }} | {{ table.extra_columns | join(", ") if table.extra_columns else "none" }} | {{ table.primary_key | join(", ") if table.primary_key else "none" }} | {% for fk in table.foreign_keys %}{{ fk.column }} -> {{ fk.parent_table }}.{{ fk.parent_column }}{% if not loop.last %}; {% endif %}{% else %}none{% endfor %} |
 {% endfor -%}
 {% for extra in schema_diagram.extra_csvs -%}
-| {{ extra.status }} | {{ extra.table }} | {{ extra.csv_path }} | n/a | n/a |
+| {{ extra.status }} | extra | 0.00 | {{ extra.table }} | {{ extra.csv_path }} | n/a | n/a | n/a | n/a | n/a |
 {% endfor %}
 
 ## 10. Table Profiles

@@ -32,6 +32,7 @@ const state = {
   relationships: [],
   csvFiles: [],
   mapping: new Map(),
+  manualMappings: new Set(),
 };
 
 const els = {
@@ -185,6 +186,7 @@ const dashboardChartPaths = {
   type: "charts/issue_counts_by_type.json",
   missingTable: "charts/missingness_by_table.json",
   missingColumns: "charts/missingness_top_columns.json",
+  outliers: "charts/outliers_top_columns.json",
   relationship: "charts/relationship_fk_health.json",
   influence: "charts/influence_top_features.json",
 };
@@ -507,6 +509,10 @@ async function startProfilerRun() {
   if (target) {
     form.append("target", target);
   }
+  const mappingOverrides = mappingOverridesForRun();
+  if (Object.keys(mappingOverrides).length) {
+    form.append("mapping_overrides", JSON.stringify(mappingOverrides));
+  }
 
   state.runEvents = [];
   state.currentJob = { status: "queued", artifacts: [] };
@@ -555,6 +561,10 @@ async function startPathRun() {
   }
   if (target) {
     payload.target = target;
+  }
+  const mappingOverrides = mappingOverridesForRun();
+  if (Object.keys(mappingOverrides).length) {
+    payload.mapping_overrides = mappingOverrides;
   }
 
   state.runEvents = [];
@@ -868,6 +878,7 @@ function pushRelationship(relationships, rel) {
 
 function autoLinkCsvs() {
   state.mapping = new Map();
+  state.manualMappings = new Set();
   state.tables.forEach((table) => {
     const match = state.csvFiles.find((file) => file.stem === table.name);
     if (match) {
@@ -963,9 +974,10 @@ function renderMapping() {
     const csvStem = state.mapping.get(table.name) || "";
     const csvFile = state.csvFiles.find((file) => file.stem === csvStem);
     const header = csvFile ? headerMatch(table, csvFile) : { matched: 0, total: table.columns.length, ratio: 0 };
+    const method = mappingMethodForTable(table, csvFile);
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td>${statusPill(csvFile ? "mapped" : "missing")}</td>
+      <td>${statusPill(method)}</td>
       <td><code>${escapeHtml(table.name)}</code></td>
       <td><code>${escapeHtml(table.primaryKey.join(", ") || "none")}</code></td>
       <td>${foreignKeySummary(table)}</td>
@@ -993,8 +1005,10 @@ function renderMapping() {
       const tableName = event.target.dataset.table;
       if (event.target.value) {
         state.mapping.set(tableName, event.target.value);
+        state.manualMappings.add(tableName);
       } else {
         state.mapping.delete(tableName);
+        state.manualMappings.delete(tableName);
       }
       renderAll();
     });
@@ -1014,10 +1028,28 @@ function csvSelect(tableName, selectedStem) {
 function statusPill(status) {
   const label = {
     mapped: "mapped",
+    exact: "exact",
+    manual: "manual",
+    inferred: "inferred",
+    ambiguous: "ambiguous",
     missing: "missing CSV",
+    missing_csv: "missing CSV",
     extra: "extra CSV",
-  }[status];
+  }[status] || status;
   return `<span class="pill-status ${status}">${label}</span>`;
+}
+
+function mappingMethodForTable(table, csvFile) {
+  if (!csvFile) {
+    return "missing";
+  }
+  if (state.manualMappings.has(table.name)) {
+    return "manual";
+  }
+  if (csvFile.stem === table.name) {
+    return "exact";
+  }
+  return "mapped";
 }
 
 function foreignKeySummary(table) {
@@ -1035,6 +1067,18 @@ function headerMatch(table, csvFile) {
   const matched = table.columns.filter((column) => csvColumns.has(column.name)).length;
   const total = table.columns.length || 1;
   return { matched, total, ratio: matched / total };
+}
+
+function mappingOverridesForRun() {
+  const overrides = {};
+  state.manualMappings.forEach((tableName) => {
+    const csvStem = state.mapping.get(tableName);
+    const csvFile = state.csvFiles.find((file) => file.stem === csvStem);
+    if (csvFile) {
+      overrides[tableName] = csvFile.name;
+    }
+  });
+  return overrides;
 }
 
 function headerMeter(header) {
@@ -1475,6 +1519,7 @@ function renderDashboard() {
     renderIssueSeverityPanel(filteredIssues),
     renderIssueTypePanel(filteredIssues),
     renderMissingnessPanel(),
+    renderOutliersPanel(),
     renderRelationshipHealthPanel(),
     renderInfluencePanel(),
   ].filter(Boolean);
@@ -2786,6 +2831,28 @@ function renderMissingnessPanel() {
   );
 }
 
+function renderOutliersPanel() {
+  const spec = state.dashboardArtifacts[dashboardChartPaths.outliers];
+  const rows = (spec?.data || [])
+    .filter((row) => filterMatchesTable(row.table))
+    .slice(0, 10)
+    .map((row) => ({
+      label: row.field || `${row.table}.${row.column}`,
+      value: Number(row.outlier_count || 0),
+      count: Number(row.outlier_count || 0),
+      kind: "numeric_outlier",
+      detail: percentText(row.outlier_rate),
+    }));
+  return dashboardPanel(
+    "Numeric IQR outliers",
+    dashboardChartPaths.outliers,
+    renderDashboardBars(rows, {
+      empty: "No numeric outlier rows match the current table filter.",
+      valueFormatter: integerText,
+    }),
+  );
+}
+
 function renderRelationshipHealthPanel() {
   const spec = state.dashboardArtifacts[dashboardChartPaths.relationship];
   const edges = (spec?.details?.edges || []).filter((edge) => {
@@ -2916,6 +2983,15 @@ function dashboardIssuesForSelection(selection) {
   }
   if (selection.kind === "table_assessment") {
     return issues.filter((issue) => issue.table === selection.value);
+  }
+  if (selection.kind === "numeric_outlier") {
+    const [table, column] = String(selection.value || "").split(".");
+    return issues.filter((issue) => (
+      issue.issue_type === "NUMERIC_OUTLIER" &&
+      issue.table === table &&
+      Array.isArray(issue.columns) &&
+      issue.columns.includes(column)
+    ));
   }
   if (selection.kind === "relationship_status") {
     const relationshipIssueTypes = new Set([
@@ -3050,6 +3126,10 @@ function drilldownArtifactsForSelection(selection) {
     paths.add("table_assessments.json");
     paths.add("profile_summary.json");
     paths.add("relationship_graph.json");
+  }
+  if (selection?.kind === "numeric_outlier") {
+    paths.add("profile_summary.json");
+    paths.add(dashboardChartPaths.outliers);
   }
   if (selection?.kind === "relationship_status") {
     paths.add("relationship_graph.json");

@@ -108,6 +108,7 @@ class WebRunStore:
         csv_files: list[UploadedFile],
         rules: UploadedFile | None = None,
         target: str | None = None,
+        mapping_overrides: dict[str, str] | None = None,
     ) -> WebRunJob:
         if not csv_files:
             raise ValueError("At least one CSV file is required.")
@@ -121,15 +122,21 @@ class WebRunStore:
 
         dbml_path = input_dir / _safe_filename(dbml.filename, fallback="schema.dbml")
         dbml_path.write_bytes(dbml.content)
+        stored_csv_names: dict[str, str] = {}
         for index, csv_file in enumerate(csv_files, start=1):
             fallback = f"table_{index}.csv"
-            (csv_dir / _safe_filename(csv_file.filename, fallback=fallback)).write_bytes(
-                csv_file.content
-            )
+            safe_name = _safe_filename(csv_file.filename, fallback=fallback)
+            (csv_dir / safe_name).write_bytes(csv_file.content)
+            stored_csv_names[csv_file.filename] = safe_name
+            stored_csv_names[Path(csv_file.filename).stem] = Path(safe_name).stem
         rules_path: Path | None = None
         if rules is not None and rules.content.strip():
             rules_path = input_dir / _safe_filename(rules.filename, fallback="rules.yaml")
             rules_path.write_bytes(rules.content)
+        stored_mapping_overrides = _translate_uploaded_mapping_overrides(
+            _clean_mapping_overrides(mapping_overrides or {}),
+            stored_csv_names=stored_csv_names,
+        )
 
         job = WebRunJob(
             job_id=job_id,
@@ -143,7 +150,7 @@ class WebRunStore:
             self._jobs[job_id] = job
         thread = threading.Thread(
             target=self._run_job,
-            args=(job, dbml_path, csv_dir, rules_path, target or None),
+            args=(job, dbml_path, csv_dir, rules_path, target or None, stored_mapping_overrides),
             name=f"vsf-web-run-{job_id}",
             daemon=True,
         )
@@ -157,6 +164,7 @@ class WebRunStore:
         csv_dir: str | Path,
         rules_path: str | Path | None = None,
         target: str | None = None,
+        mapping_overrides: dict[str, str] | None = None,
     ) -> WebRunJob:
         validated_dbml_path = _validated_file_path(
             dbml_path,
@@ -185,6 +193,7 @@ class WebRunStore:
             "csv_dir": str(validated_csv_dir),
             "rules_path": str(validated_rules_path) if validated_rules_path else None,
             "target": validated_target,
+            "mapping_overrides": _clean_mapping_overrides(mapping_overrides or {}),
         }
         (input_dir / "path_inputs.json").write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False),
@@ -209,6 +218,7 @@ class WebRunStore:
                 validated_csv_dir,
                 validated_rules_path,
                 validated_target,
+                _clean_mapping_overrides(mapping_overrides or {}),
             ),
             name=f"vsf-web-run-{job_id}",
             daemon=True,
@@ -303,6 +313,7 @@ class WebRunStore:
         csv_dir: Path,
         rules_path: Path | None,
         target: str | None,
+        mapping_overrides: dict[str, str] | None,
     ) -> None:
         from vsf_profiler.cli import run_pipeline
 
@@ -312,6 +323,7 @@ class WebRunStore:
             run_pipeline(
                 dbml_path=dbml_path,
                 csv_dir=csv_dir,
+                mapping_overrides=mapping_overrides,
                 rules_path=rules_path,
                 target=target,
                 out_dir=job.out_dir,
@@ -350,6 +362,7 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
                     csv_files=payload["csv_files"],
                     rules=payload.get("rules"),
                     target=payload.get("target"),
+                    mapping_overrides=payload.get("mapping_overrides"),
                 )
             elif parsed.path == "/api/path-jobs":
                 payload = self._parse_path_job_body()
@@ -358,6 +371,7 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
                     csv_dir=payload["csv_dir"],
                     rules_path=payload.get("rules_path"),
                     target=payload.get("target"),
+                    mapping_overrides=payload.get("mapping_overrides"),
                 )
             else:
                 self.send_error(HTTPStatus.NOT_FOUND)
@@ -485,6 +499,7 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
             "csv_files": csv_files,
             "rules": rules,
             "target": fields.get("target") or None,
+            "mapping_overrides": _parse_mapping_overrides_field(fields.get("mapping_overrides")),
         }
 
     def _parse_path_job_body(self) -> dict[str, str | None]:
@@ -508,6 +523,7 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
             "csv_dir": _required_string(payload, "csv_dir"),
             "rules_path": _optional_string(payload, "rules_path"),
             "target": _optional_string(payload, "target"),
+            "mapping_overrides": _optional_mapping_overrides(payload, "mapping_overrides"),
         }
 
     def _serve_static(self, path: str) -> None:
@@ -672,6 +688,49 @@ def _optional_string(payload: dict[str, Any], key: str) -> str | None:
         raise ValueError(f"{key} must be a string.")
     stripped = value.strip()
     return stripped or None
+
+
+def _optional_mapping_overrides(payload: dict[str, Any], key: str) -> dict[str, str]:
+    value = payload.get(key)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{key} must be an object.")
+    return _clean_mapping_overrides(value)
+
+
+def _parse_mapping_overrides_field(value: str | None) -> dict[str, str]:
+    if value is None or not value.strip():
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ValueError("mapping_overrides must be valid JSON.") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("mapping_overrides must be a JSON object.")
+    return _clean_mapping_overrides(parsed)
+
+
+def _clean_mapping_overrides(mapping_overrides: dict[str, Any]) -> dict[str, str]:
+    cleaned: dict[str, str] = {}
+    for table_name, csv_name in mapping_overrides.items():
+        if not isinstance(table_name, str) or not table_name.strip():
+            raise ValueError("Mapping override table names must be non-empty strings.")
+        if not isinstance(csv_name, str) or not csv_name.strip():
+            raise ValueError(f"Mapping override for {table_name!r} must be a non-empty string.")
+        cleaned[table_name.strip()] = csv_name.strip()
+    return cleaned
+
+
+def _translate_uploaded_mapping_overrides(
+    mapping_overrides: dict[str, str],
+    *,
+    stored_csv_names: dict[str, str],
+) -> dict[str, str]:
+    translated: dict[str, str] = {}
+    for table_name, csv_name in mapping_overrides.items():
+        translated[table_name] = stored_csv_names.get(csv_name, csv_name)
+    return translated
 
 
 def _safe_filename(filename: str, *, fallback: str) -> str:

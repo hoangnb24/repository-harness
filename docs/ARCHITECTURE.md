@@ -244,7 +244,8 @@ The domain should converge on these stable concepts:
 - `TableProfile`: row count, column count, duplicate key metrics, and scan
   metadata.
 - `ColumnProfile`: null count, distinct count, inferred semantic type, numeric
-  stats, string stats, date stats, top values, and quality flags.
+  stats, percentiles, IQR outlier evidence, string stats, date stats, top
+  values, and quality flags.
 - `Issue`: normalized finding with type, severity, table, columns, bad count,
   affected percent, evidence SQL, sample artifact, data-quality next step, and
   provenance.
@@ -339,19 +340,28 @@ constraints with observed data checks:
 
 ## CSV Catalog and Mapping
 
-CSV files map to DBML tables by normalized file stem by default. The catalog
-also records:
+CSV files map to DBML tables by exact file stem first. If no exact CSV exists
+for a DBML table, the backend can infer a mapping from normalized filename
+similarity, DBML column overlap, primary-key column match, foreign-key column
+match, and an extra-column penalty. Inferred mappings are selected only when
+confidence is high and the best candidate is clearly separated from the next
+candidate. Ambiguous candidates stay unmapped until the user provides a manual
+override.
+
+The catalog also records:
 
 - missing CSV files for DBML tables;
 - extra CSV files not described in DBML;
-- duplicate candidate mappings;
+- candidate mapping scores and ambiguity evidence;
+- mapping method, selected CSV, confidence, matched/missing/extra columns;
 - headers read from each file;
 - header-to-column mismatches;
 - file size and modification metadata when available.
 
-The static web UI may let users override mappings manually. A future local web
-runner should pass those mappings to the CLI/backend as explicit run config
-rather than relying only on file stems.
+Manual mapping overrides are explicit run configuration. The CLI accepts a
+YAML/JSON mapping file, and the local web runner passes dropdown overrides to
+the backend for upload and local path jobs. Overrides force table-to-CSV
+selection only; they do not rename columns or repair data.
 
 ## External-Memory Data Access
 
@@ -537,6 +547,7 @@ Current chart specs:
 
 - issue counts by severity and type;
 - missingness by table and top columns;
+- top numeric IQR outlier columns from profile summaries;
 - relationship FK health summary;
 - readiness risk summary;
 - influence top features when available.
@@ -677,7 +688,7 @@ The output directory is the run contract.
 
 | Artifact | Purpose |
 | --- | --- |
-| `profile_summary.json` | Table and column statistics. |
+| `profile_summary.json` | Table and column statistics, including numeric percentiles and IQR outlier evidence. |
 | `issues.json` | Normalized data-quality, schema, and relationship findings. |
 | `influence.json` | Target-column association analysis or skipped status. |
 | `samples/` | Bounded evidence rows for findings. |
@@ -688,7 +699,7 @@ The output directory is the run contract.
 | `relationship_graph.json` | Table nodes, direct FK edges, FK metrics, status, and evidence links. |
 | `dataset_verdict.json` | EDA/data-quality readiness label, risk score, blockers, and data-quality next steps. |
 | `table_assessments.json` | One assessment per profiled table with role, health score, readiness, relationship risks, analysis-impact category, evidence refs, and data-quality next steps. |
-| `charts/` | Deterministic chart specs and report visual-summary data. |
+| `charts/` | Deterministic chart specs and report visual-summary data, including `outliers_top_columns.json`. |
 | `schema_diagram.json` | Diagram metadata and dbdiagram link. |
 | `schema_diagram.dbml` | DBML used for diagram rendering. |
 | `l4_report.md` | Optional Data Scientist EDA narrative when `--use-llm` runs. |

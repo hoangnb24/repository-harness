@@ -91,6 +91,8 @@ def test_web_ui_contains_upload_mapping_and_visualization_regions():
         ".diagram-role-bridge",
         ".diagram-inspector",
         ".diagram-edge-hit",
+        ".pill-status.manual",
+        ".pill-status.ambiguous",
         ".pill-status.failed",
         "@media (prefers-reduced-motion: reduce)",
     ]
@@ -101,6 +103,8 @@ def test_web_ui_contains_upload_mapping_and_visualization_regions():
         "parseDbml",
         "parseCsvHeader",
         "autoLinkCsvs",
+        "manualMappings",
+        "mappingOverridesForRun",
         "checkRunnerHealth",
         "startProfilerRun",
         "startPathRun",
@@ -181,8 +185,10 @@ def test_web_ui_uses_local_backend_runner_without_js_profiler_port():
     assert "charts/issue_counts_by_severity.json" in js
     assert "charts/issue_counts_by_type.json" in js
     assert "charts/missingness_by_table.json" in js
+    assert "charts/outliers_top_columns.json" in js
     assert "charts/relationship_fk_health.json" in js
     assert "charts/influence_top_features.json" in js
+    assert "renderOutliersPanel" in js
     assert "lineage_graph.json" in js
     assert "relationship_graph.json" in js
     assert "table_assessments.json" in js

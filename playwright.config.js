@@ -4,11 +4,13 @@ const venvBin =
   process.platform === "win32"
     ? path.join(__dirname, ".venv", "Scripts")
     : path.join(__dirname, ".venv", "bin");
+const webPort = Number(process.env.VSF_E2E_PORT || 8765);
+const webBaseUrl = `http://127.0.0.1:${webPort}`;
 
 const webCommand =
   process.platform === "win32"
-    ? `set "PATH=${venvBin};%PATH%" && vsf-profiler web --port 8765`
-    : `PATH="${venvBin}:$PATH" vsf-profiler web --port 8765`;
+    ? `set "PATH=${venvBin};%PATH%" && vsf-profiler web --port ${webPort}`
+    : `PATH="${venvBin}:$PATH" vsf-profiler web --port ${webPort}`;
 
 /** @type {import('@playwright/test').PlaywrightTestConfig} */
 module.exports = {
@@ -19,12 +21,12 @@ module.exports = {
   },
   reporter: [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:8765",
+    baseURL: webBaseUrl,
     trace: "retain-on-failure",
   },
   webServer: {
     command: webCommand,
-    url: "http://127.0.0.1:8765/api/health",
+    url: `${webBaseUrl}/api/health`,
     reuseExistingServer: false,
     timeout: 30_000,
   },

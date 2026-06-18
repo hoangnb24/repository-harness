@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 from vsf_profiler.csv_catalog import CsvCatalog
@@ -37,6 +38,10 @@ def build_schema_evaluation(
         _table_evaluation(table_name, table_schema, catalog, issues)
         for table_name, table_schema in schema.tables.items()
     ]
+    mapping_method_counts = Counter(
+        table.get("mapping_method") or table.get("status") or "unknown"
+        for table in tables
+    )
     junction_tables = detect_junction_tables(schema)
     cardinality_counts = _relationship_cardinality_counts(schema)
     extra_csvs = [
@@ -56,6 +61,7 @@ def build_schema_evaluation(
             "missing_table_count": len(catalog.missing_tables),
             "extra_csv_count": len(catalog.extra_csvs),
             "schema_issue_count": len(schema_issue_refs),
+            "mapping_method_counts": dict(sorted(mapping_method_counts.items())),
             "composite_relationship_count": sum(
                 1 for rel in schema.relationships if len(child_columns(rel)) > 1
             ),
@@ -94,10 +100,24 @@ def _table_evaluation(
     issues: list[Issue],
 ) -> dict[str, Any]:
     catalog_table = catalog.tables.get(table_name)
+    mapping = _mapping_evidence(table_name, catalog, catalog_table)
     csv_columns = catalog_table.columns if catalog_table else []
     dbml_columns = list(table_schema.columns)
-    missing_columns = [column for column in dbml_columns if column not in csv_columns]
-    extra_columns = [column for column in csv_columns if column not in table_schema.columns]
+    missing_columns = list(mapping.get("missing_columns") or []) if mapping else [
+        column for column in dbml_columns if column not in csv_columns
+    ]
+    if not catalog_table and not missing_columns and not mapping.get("candidates"):
+        missing_columns = dbml_columns
+    extra_columns = (
+        list(mapping.get("extra_columns") or [])
+        if mapping
+        else [column for column in csv_columns if column not in table_schema.columns]
+    )
+    matched_columns = (
+        list(mapping.get("matched_columns") or [])
+        if mapping
+        else [column for column in dbml_columns if column in csv_columns]
+    )
     table_issues = [
         _issue_ref(issue)
         for issue in issues
@@ -112,8 +132,14 @@ def _table_evaluation(
 
     return {
         "table": table_name,
-        "status": "mapped" if catalog_table else "missing_csv",
+        "status": mapping["status"],
         "csv_path": _source_label(catalog_table) if catalog_table else "",
+        "mapping_method": mapping["mapping_method"],
+        "confidence": mapping["confidence"],
+        "selected_csv": mapping["selected_csv"],
+        "candidates": mapping["candidates"],
+        "ambiguity_reason": mapping.get("ambiguity_reason", ""),
+        "matched_columns": matched_columns,
         "dbml_column_count": len(dbml_columns),
         "csv_column_count": len(csv_columns),
         "missing_columns": missing_columns,
@@ -193,3 +219,34 @@ def _source_label(catalog_table) -> str:
     if catalog_table is None:
         return ""
     return catalog_table.source_name or str(catalog_table.csv_path)
+
+
+def _mapping_evidence(table_name: str, catalog: CsvCatalog, catalog_table) -> dict[str, Any]:
+    evidence = catalog.mapping_evidence.get(table_name)
+    if evidence is not None:
+        return evidence.model_dump(mode="json")
+    if catalog_table is not None:
+        return {
+            "table": table_name,
+            "status": "mapped",
+            "mapping_method": catalog_table.mapping_method,
+            "confidence": catalog_table.mapping_confidence,
+            "selected_csv": _source_label(catalog_table),
+            "candidates": [],
+            "matched_columns": [],
+            "missing_columns": [],
+            "extra_columns": [],
+            "ambiguity_reason": "",
+        }
+    return {
+        "table": table_name,
+        "status": "missing_csv",
+        "mapping_method": "unmapped",
+        "confidence": 0.0,
+        "selected_csv": None,
+        "candidates": [],
+        "matched_columns": [],
+        "missing_columns": [],
+        "extra_columns": [],
+        "ambiguity_reason": "",
+    }

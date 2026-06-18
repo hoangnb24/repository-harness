@@ -63,12 +63,55 @@ class CatalogTable(BaseModel):
     file_size_mb: float
     source_type: str = "csv"
     source_name: str | None = None
+    mapping_method: str = "exact"
+    mapping_confidence: float = 1.0
+
+
+class CsvMappingCandidate(BaseModel):
+    csv_path: str
+    csv_stem: str
+    mapping_method: str = "candidate"
+    confidence: float
+    filename_similarity: float
+    column_overlap: float
+    primary_key_match: float
+    foreign_key_match: float
+    extra_column_penalty: float
+    matched_columns: list[str] = Field(default_factory=list)
+    missing_columns: list[str] = Field(default_factory=list)
+    extra_columns: list[str] = Field(default_factory=list)
+    is_exact_filename: bool = False
+
+
+class CsvMappingEvidence(BaseModel):
+    table: str
+    status: str
+    mapping_method: str
+    confidence: float = 0.0
+    selected_csv: str | None = None
+    ambiguity_reason: str = ""
+    candidates: list[CsvMappingCandidate] = Field(default_factory=list)
+    matched_columns: list[str] = Field(default_factory=list)
+    missing_columns: list[str] = Field(default_factory=list)
+    extra_columns: list[str] = Field(default_factory=list)
 
 
 class CsvCatalog(BaseModel):
     tables: dict[str, CatalogTable] = Field(default_factory=dict)
     missing_tables: list[str] = Field(default_factory=list)
     extra_csvs: list[str] = Field(default_factory=list)
+    mapping_evidence: dict[str, CsvMappingEvidence] = Field(default_factory=dict)
+
+
+class NumericOutlierProfile(BaseModel):
+    method: str = "iqr"
+    q1: float | None = None
+    q3: float | None = None
+    iqr: float | None = None
+    lower_fence: float | None = None
+    upper_fence: float | None = None
+    outlier_count: int = 0
+    outlier_rate: float = 0.0
 
 
 class ColumnProfile(BaseModel):
@@ -83,6 +126,12 @@ class ColumnProfile(BaseModel):
     max: Any | None = None
     mean: float | None = None
     std: float | None = None
+    p25: float | None = None
+    p50: float | None = None
+    p75: float | None = None
+    p95: float | None = None
+    p99: float | None = None
+    outliers: NumericOutlierProfile | None = None
     invalid_cast_count: int = 0
 
 

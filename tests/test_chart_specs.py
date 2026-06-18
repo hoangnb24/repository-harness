@@ -18,6 +18,7 @@ def test_chart_specs_are_deterministic_and_aggregate_only():
         "issue_counts_by_type.json",
         "missingness_by_table.json",
         "missingness_top_columns.json",
+        "outliers_top_columns.json",
         "relationship_fk_health.json",
     ]
     for spec in specs.values():
@@ -40,6 +41,14 @@ def test_chart_specs_are_deterministic_and_aggregate_only():
     assert [row["field"] for row in missing_columns] == ["orders.customer_id", "customers.email"]
     assert missing_columns[0]["null_rate"] == 0.5
     assert missing_columns[1]["null_rate"] == 0.25
+
+    outlier_columns = specs["outliers_top_columns.json"]["data"]
+    assert [row["field"] for row in outlier_columns] == ["orders.payment_value", "customers.age"]
+    assert outlier_columns[0]["method"] == "iqr"
+    assert outlier_columns[0]["outlier_count"] == 2
+    assert outlier_columns[0]["outlier_rate"] == 0.5
+    assert outlier_columns[0]["lower_fence"] == -5.0
+    assert outlier_columns[0]["upper_fence"] == 35.0
 
     relationship_rows = specs["relationship_fk_health.json"]["data"]
     assert relationship_rows == [
@@ -82,14 +91,42 @@ def _profile_summary() -> dict:
                 "columns": {
                     "customer_id": {"null_count": 0, "null_rate": 0.0},
                     "email": {"null_count": 1, "null_rate": 0.25},
+                    "age": {
+                        "null_count": 0,
+                        "null_rate": 0.0,
+                        "outliers": {
+                            "method": "iqr",
+                            "q1": 30.0,
+                            "q3": 40.0,
+                            "iqr": 10.0,
+                            "lower_fence": 15.0,
+                            "upper_fence": 55.0,
+                            "outlier_count": 1,
+                            "outlier_rate": 0.25,
+                        },
+                    },
                 },
             },
             "orders": {
-                "row_count": 2,
-                "column_count": 2,
+                "row_count": 4,
+                "column_count": 3,
                 "columns": {
                     "order_id": {"null_count": 0, "null_rate": 0.0},
-                    "customer_id": {"null_count": 1, "null_rate": 0.5},
+                    "customer_id": {"null_count": 2, "null_rate": 0.5},
+                    "payment_value": {
+                        "null_count": 0,
+                        "null_rate": 0.0,
+                        "outliers": {
+                            "method": "iqr",
+                            "q1": 10.0,
+                            "q3": 20.0,
+                            "iqr": 10.0,
+                            "lower_fence": -5.0,
+                            "upper_fence": 35.0,
+                            "outlier_count": 2,
+                            "outlier_rate": 0.5,
+                        },
+                    },
                 },
             },
         }

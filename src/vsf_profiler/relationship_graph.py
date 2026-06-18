@@ -79,10 +79,13 @@ def _table_node(
     table_schema = schema.tables[table_name]
     catalog_table = catalog.tables.get(table_name)
     table_profile = profile.tables.get(table_name)
+    mapping = _mapping_evidence(table_name, catalog, catalog_table)
     return {
         "table": table_name,
-        "status": "mapped" if catalog_table else "missing_csv",
-        "csv_path": str(catalog_table.csv_path) if catalog_table else "",
+        "status": mapping["mapping_method"] if catalog_table else mapping["status"],
+        "csv_path": _source_label(catalog_table) if catalog_table else "",
+        "mapping_method": mapping["mapping_method"],
+        "mapping_confidence": mapping["confidence"],
         "row_count": table_profile.row_count if table_profile else None,
         "column_count": table_profile.column_count if table_profile else len(table_schema.columns),
         "primary_key": list(table_schema.primary_key),
@@ -182,6 +185,25 @@ def _relationship_status(
     if int(summary.get("child_fk_null_count") or 0) > 0:
         return "warning", "child foreign key has null or blank values"
     return "valid", "relationship passed direct FK checks"
+
+
+def _source_label(catalog_table) -> str:
+    if catalog_table is None:
+        return ""
+    return catalog_table.source_name or str(catalog_table.csv_path)
+
+
+def _mapping_evidence(table_name: str, catalog: CsvCatalog, catalog_table) -> dict[str, Any]:
+    evidence = catalog.mapping_evidence.get(table_name)
+    if evidence is not None:
+        return evidence.model_dump(mode="json")
+    if catalog_table is not None:
+        return {
+            "mapping_method": catalog_table.mapping_method,
+            "status": "mapped",
+            "confidence": catalog_table.mapping_confidence,
+        }
+    return {"mapping_method": "unmapped", "status": "missing_csv", "confidence": 0.0}
 
 
 def _cardinality(summary: dict[str, Any] | None) -> str:

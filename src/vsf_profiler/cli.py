@@ -20,7 +20,7 @@ from vsf_profiler.connectors import (
     TabularSourceConnector,
     cleanup_connector_extracts,
 )
-from vsf_profiler.csv_catalog import build_catalog
+from vsf_profiler.csv_catalog import build_catalog, load_mapping_overrides
 from vsf_profiler.dataset_verdict import build_dataset_verdict
 from vsf_profiler.dbml_parser import parse_dbml_with_report
 from vsf_profiler.demo_data import create_small_demo, download_olist
@@ -67,6 +67,11 @@ def run(
     dbml_arg: Optional[Path] = typer.Argument(None, help="Optional positional DBML path."),
     dbml: Optional[Path] = typer.Option(None, "--dbml", help="DBML schema path."),
     csv_dir: Optional[Path] = typer.Option(None, "--csv-dir", help="Directory containing CSV files."),
+    mapping: Optional[Path] = typer.Option(
+        None,
+        "--mapping",
+        help="Optional YAML/JSON table-to-CSV mapping override file.",
+    ),
     rules: Optional[Path] = typer.Option(None, "--rules", help="Optional YAML rules file."),
     target: Optional[str] = typer.Option(None, "--target", help="Target column as table.column."),
     out: Path = typer.Option(..., "--out", help="Output directory."),
@@ -163,10 +168,13 @@ def run(
             raise typer.BadParameter("Provide a DBML path with --dbml or as the first argument.")
         if csv_dir is None:
             raise typer.BadParameter("--csv-dir is required for CSV mode.")
+    elif mapping is not None:
+        raise typer.BadParameter("--mapping is only supported for CSV mode.")
 
     result = run_pipeline(
         dbml_path=dbml_path,
         csv_dir=csv_dir,
+        mapping_path=mapping,
         rules_path=rules,
         target=target,
         out_dir=out,
@@ -306,6 +314,8 @@ def run_pipeline(
     *,
     dbml_path: Path | None,
     csv_dir: Path | None,
+    mapping_path: Path | None = None,
+    mapping_overrides: dict[str, str] | None = None,
     rules_path: Path | None,
     target: str | None,
     out_dir: Path,
@@ -327,10 +337,16 @@ def run_pipeline(
             "source_type": "csv",
             "dbml_path": str(dbml_path),
             "csv_dir": str(csv_dir),
+            "mapping_path": str(mapping_path) if mapping_path else None,
             "rules_path": str(rules_path) if rules_path else None,
             "target": target,
         }
+        resolved_mapping_overrides = dict(mapping_overrides or {})
+        if mapping_path is not None:
+            resolved_mapping_overrides.update(load_mapping_overrides(mapping_path))
     else:
+        if mapping_path is not None or mapping_overrides:
+            raise ValueError("CSV mapping overrides are only supported for CSV mode.")
         runtime_inputs = {
             **source_connector.runtime_inputs(),
             "dbml_path": str(dbml_path) if dbml_path else None,
@@ -377,7 +393,11 @@ def run_pipeline(
             if source_connector is None:
                 if csv_dir is None:
                     raise ValueError("csv_dir is required for CSV mode.")
-                catalog = build_catalog(csv_dir, schema)
+                catalog = build_catalog(
+                    csv_dir,
+                    schema,
+                    mapping_overrides=resolved_mapping_overrides,
+                )
             else:
                 catalog, connector_metadata, connector_cleanup_paths = source_connector.build_catalog(
                     schema=schema,

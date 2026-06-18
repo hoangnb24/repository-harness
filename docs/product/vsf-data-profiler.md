@@ -5,8 +5,8 @@
 VSF Data Profiler is a local-first Smart EDA tool for data scientists. The MVP
 workflow profiles a folder of related CSV files against a DBML/schema contract,
 applies optional data-quality rules, can run association-based influence
-analysis for an optional target column, and writes deterministic reports plus
-machine-readable evidence artifacts.
+analysis for an optional target column, detects generic numeric outliers, and
+writes deterministic reports plus machine-readable evidence artifacts.
 
 DuckDB is an internal execution detail used for bounded local scans. Users
 interact with CSV folders, schema files, optional rules, optional target
@@ -90,8 +90,17 @@ to understand or run the MVP Smart EDA workflow:
 - Generate `schema_parse_report.json` with parsed object counts, parser
   diagnostics, warnings, and unsupported constructs so unsupported DBML syntax
   is explicit instead of silently ignored.
-- Map CSV file stems to DBML table names and detect missing or extra CSV files.
+- Map CSV files to DBML table names by exact file stem first, then
+  conservative schema/header inference when confidence is high and the top
+  candidate is clearly better than alternatives.
+- Support explicit manual table-to-CSV mapping overrides through backend run
+  configuration without renaming columns, mutating data, or weakening schema
+  checks.
+- Detect missing, ambiguous, and extra CSV files with mapping candidate
+  evidence.
 - Profile CSV data with DuckDB without loading entire input files into pandas.
+- Add numeric percentiles (`p25`, `p50`, `p75`, `p95`, `p99`) and default IQR
+  outlier evidence to numeric column profiles using DuckDB SQL.
 - Materialize DuckDB results into pandas only through bounded helpers with
   explicit row and column limits.
 - Generate automatic checks from DBML constraints.
@@ -101,13 +110,18 @@ to understand or run the MVP Smart EDA workflow:
   and join coverage metrics.
 - Save issue evidence, bounded sample rows, evidence notes, and data-quality
   next steps.
+- Emit `NUMERIC_OUTLIER` P3 review findings with bounded sample evidence when
+  numeric values fall outside their profiled IQR fence.
 - Generate schema evaluation artifacts with DBML-vs-CSV table/column
-  conformance, PK/FK metadata, and schema issue references.
+  conformance, mapping method/confidence/candidate evidence, PK/FK metadata,
+  and schema issue references.
 - Generate relationship graph artifacts with table nodes, FK edges, declared
   and observed cardinality, runtime FK metrics, statuses, junction-table
   detection, and issue/sample evidence links.
 - Generate deterministic readiness, table assessment, and chart-spec artifacts
   from aggregate outputs.
+- Include a top numeric outlier chart spec in `charts/outliers_top_columns.json`
+  for reports, packages, and local dashboard review.
 - Run association-based influence analysis for a supplied target column with
   explicit max analysis rows and max feature columns.
 - Record runtime execution flow through a human-readable log, ordered JSONL

@@ -79,15 +79,15 @@ open outputs/demo_small_l4_openai_smoke/report.html
 
 | Artifact | Demo talking point |
 | --- | --- |
-| `profile_summary.json` | Table and column profiling from CSV scans, including row counts, nulls, distinct values, and type-oriented summaries. |
-| `issues.json` | Normalized quality findings with severity, table/column refs, counts, evidence SQL, sample paths, evidence notes, and data-quality next steps. |
+| `profile_summary.json` | Table and column profiling from CSV scans, including row counts, nulls, distinct values, numeric percentiles, IQR outlier evidence, and type-oriented summaries. |
+| `issues.json` | Normalized quality findings with severity, table/column refs, counts, evidence SQL, sample paths, evidence notes, and data-quality next steps, including generic `NUMERIC_OUTLIER` findings when numeric values exceed profiled IQR fences. |
 | `connector_metadata.json` | Optional for connector runs. Records source type, tables scanned, row estimates, extraction status, warnings, and redaction status. |
 | `schema_parse_report.json` | DBML parsed object counts, warnings, unsupported constructs, and parser diagnostics. |
-| `schema_evaluation.json` | DBML-vs-CSV conformance summary, including missing/extra table or column evidence and schema issue references. |
+| `schema_evaluation.json` | DBML-vs-CSV conformance summary, including mapping method/confidence/candidates, missing/ambiguous/extra table or column evidence, and schema issue references. |
 | `relationship_graph.json` | Graph of tables and DBML relationships with observed FK health, cardinality, junction-table detection, and relationship issue links. |
 | `dataset_verdict.json` | Compatibility artifact for deterministic EDA/data-quality readiness, risk score, top blockers, affected tables, and data-quality next steps. |
 | `table_assessments.json` | One deterministic assessment per profiled table with role, health score, readiness, relationship risks, name-token analysis impact, evidence refs, and data-quality next steps. |
-| `charts/*.json` | Deterministic chart specs for issue counts, missingness, relationship FK health, risk, and influence top features. |
+| `charts/*.json` | Deterministic chart specs for issue counts, missingness, numeric outliers, relationship FK health, risk, and influence top features. |
 | `l4_report.md` | Optional Data Scientist EDA narrative generated only when `--use-llm` runs; may be provider output or deterministic fallback. |
 | `guardrail_report.json` | Audit record for L4 validation: status, provider, fallback reason, checked numbers, checked refs, violations, and raw-data flags. |
 

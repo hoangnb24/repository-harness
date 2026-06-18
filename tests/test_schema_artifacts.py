@@ -1,7 +1,9 @@
 import csv
 import json
 
-from vsf_profiler.cli import run_pipeline
+from typer.testing import CliRunner
+
+from vsf_profiler.cli import app, run_pipeline
 from vsf_profiler.csv_catalog import build_catalog
 from vsf_profiler.dbml_parser import parse_dbml
 from vsf_profiler.demo_data import create_small_demo
@@ -83,6 +85,176 @@ def test_schema_evaluation_captures_dbml_csv_conformance(tmp_path):
     extra_column = next(column for column in customers["columns"] if column["name"] == "extra_from_csv")
     assert extra_column["in_dbml"] is False
     assert extra_column["in_csv"] is True
+
+
+def test_csv_catalog_preserves_exact_mapping_and_infers_strong_header_match(tmp_path):
+    root = tmp_path / "case"
+    csv_dir = root / "csv"
+    csv_dir.mkdir(parents=True)
+    schema_path = root / "schema.dbml"
+    schema_path.write_text(
+        """
+        Table customers {
+          customer_id varchar [pk, not null]
+          email varchar
+          region_id varchar [ref: > regions.region_id]
+        }
+
+        Table regions {
+          region_id varchar [pk, not null]
+        }
+        """,
+        encoding="utf-8",
+    )
+    _write_csv(
+        csv_dir / "crm_customer_export.csv",
+        ["customer_id", "email", "region_id"],
+        [["C001", "c@example.com", "R001"]],
+    )
+    _write_csv(csv_dir / "regions.csv", ["region_id"], [["R001"]])
+
+    schema = parse_dbml(schema_path)
+    catalog = build_catalog(csv_dir, schema)
+    evaluation = build_schema_evaluation(schema=schema, catalog=catalog, issues=[])
+
+    assert catalog.tables["regions"].mapping_method == "exact"
+    assert catalog.tables["customers"].csv_path.name == "crm_customer_export.csv"
+    assert catalog.tables["customers"].mapping_method == "inferred"
+    assert catalog.extra_csvs == []
+
+    customers = next(table for table in evaluation["tables"] if table["table"] == "customers")
+    assert customers["status"] == "mapped"
+    assert customers["mapping_method"] == "inferred"
+    assert customers["selected_csv"] == "crm_customer_export.csv"
+    assert customers["confidence"] >= 0.8
+    assert customers["matched_columns"] == ["customer_id", "email", "region_id"]
+    assert customers["missing_columns"] == []
+    assert customers["extra_columns"] == []
+    assert customers["candidates"][0]["csv_path"] == "crm_customer_export.csv"
+    assert evaluation["summary"]["mapping_method_counts"] == {"exact": 1, "inferred": 1}
+
+
+def test_csv_catalog_leaves_ambiguous_header_matches_unmapped_with_evidence(tmp_path):
+    root = tmp_path / "case"
+    csv_dir = root / "csv"
+    csv_dir.mkdir(parents=True)
+    schema_path = root / "schema.dbml"
+    schema_path.write_text(
+        """
+        Table customers {
+          customer_id varchar [pk, not null]
+          email varchar
+          region_id varchar
+        }
+        """,
+        encoding="utf-8",
+    )
+    header = ["customer_id", "email", "region_id"]
+    _write_csv(csv_dir / "customer_extract_a.csv", header, [["C001", "a@example.com", "R001"]])
+    _write_csv(csv_dir / "customer_extract_b.csv", header, [["C002", "b@example.com", "R002"]])
+
+    schema = parse_dbml(schema_path)
+    catalog = build_catalog(csv_dir, schema)
+    evaluation = build_schema_evaluation(schema=schema, catalog=catalog, issues=[])
+
+    assert "customers" not in catalog.tables
+    assert catalog.missing_tables == ["customers"]
+    evidence = catalog.mapping_evidence["customers"]
+    assert evidence.mapping_method == "ambiguous"
+    assert evidence.status == "ambiguous"
+    assert len(evidence.candidates) == 2
+
+    customers = evaluation["tables"][0]
+    assert customers["status"] == "ambiguous"
+    assert customers["mapping_method"] == "ambiguous"
+    assert customers["selected_csv"] is None
+    assert "too close" in customers["ambiguity_reason"]
+    assert [candidate["csv_path"] for candidate in customers["candidates"]] == [
+        "customer_extract_b.csv",
+        "customer_extract_a.csv",
+    ]
+
+
+def test_pipeline_manual_mapping_override_writes_mapping_evidence_and_reports(tmp_path):
+    root = tmp_path / "case"
+    csv_dir = root / "csv"
+    csv_dir.mkdir(parents=True)
+    schema_path = root / "schema.dbml"
+    schema_path.write_text(
+        """
+        Table customers {
+          customer_id varchar [pk, not null]
+          email varchar
+        }
+        """,
+        encoding="utf-8",
+    )
+    _write_csv(csv_dir / "crm_export.csv", ["customer_id", "email"], [["C001", "a@example.com"]])
+    mapping_path = root / "mapping.yaml"
+    mapping_path.write_text("mappings:\n  customers: crm_export.csv\n", encoding="utf-8")
+    out_dir = root / "out"
+
+    run_pipeline(
+        dbml_path=schema_path,
+        csv_dir=csv_dir,
+        mapping_path=mapping_path,
+        rules_path=None,
+        target=None,
+        out_dir=out_dir,
+    )
+
+    schema_evaluation = json.loads((out_dir / "schema_evaluation.json").read_text())
+    schema_diagram = json.loads((out_dir / "schema_diagram.json").read_text())
+    report_md = (out_dir / "report.md").read_text()
+    report_html = (out_dir / "report.html").read_text()
+
+    customers = schema_evaluation["tables"][0]
+    assert customers["mapping_method"] == "manual"
+    assert customers["selected_csv"] == "crm_export.csv"
+    assert customers["matched_columns"] == ["customer_id", "email"]
+    assert schema_evaluation["summary"]["mapping_method_counts"] == {"manual": 1}
+    assert schema_diagram["tables"][0]["status"] == "manual"
+    assert "manual" in report_md
+    assert "manual" in report_html
+
+
+def test_cli_run_accepts_mapping_override_file(tmp_path):
+    root = tmp_path / "case"
+    csv_dir = root / "csv"
+    csv_dir.mkdir(parents=True)
+    schema_path = root / "schema.dbml"
+    schema_path.write_text(
+        """
+        Table customers {
+          customer_id varchar [pk, not null]
+          email varchar
+        }
+        """,
+        encoding="utf-8",
+    )
+    _write_csv(csv_dir / "crm_export.csv", ["customer_id", "email"], [["C001", "a@example.com"]])
+    mapping_path = root / "mapping.json"
+    mapping_path.write_text(json.dumps({"customers": "crm_export.csv"}), encoding="utf-8")
+    out_dir = root / "out"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "run",
+            "--dbml",
+            str(schema_path),
+            "--csv-dir",
+            str(csv_dir),
+            "--mapping",
+            str(mapping_path),
+            "--out",
+            str(out_dir),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    schema_evaluation = json.loads((out_dir / "schema_evaluation.json").read_text())
+    assert schema_evaluation["tables"][0]["mapping_method"] == "manual"
 
 
 def test_pipeline_writes_relationship_graph_metrics_and_evidence(tmp_path):

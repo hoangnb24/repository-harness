@@ -64,6 +64,7 @@ def test_package_output_directory_writes_manifest_index_and_zip(tmp_path):
         "run_summary.json",
         "run_events.jsonl",
         "charts/issue_counts_by_type.json",
+        "charts/outliers_top_columns.json",
     ]:
         assert path in included
         assert included[path]["sha256"] == _sha256(package_dir / path)
@@ -77,6 +78,8 @@ def test_package_output_directory_writes_manifest_index_and_zip(tmp_path):
     assert "Optional L4 EDA Narrative" in index_html
     assert "Table Assessment and Analysis Impact" in index_html
     assert "Issue Evidence" in index_html
+    assert "Numeric Outlier Summary" in index_html
+    assert "charts/outliers_top_columns.json" in index_html
     assert "Visual Summary Chart Specs" in index_html
     assert "Relationship, Schema, and Lineage Summary" in index_html
     assert "report.html" in index_html

@@ -91,7 +91,7 @@ test("local path run renders the interactive dashboard from generated artifacts"
   await expect(generatedResults).toContainText("NOT_READY");
   await expect(generatedResults).toContainText("Issue counts");
   await expect(generatedResults).toContainText("15 issues");
-  await expect(generatedResults).toContainText("Table impact");
+  await expect(generatedResults).toContainText("Table assessment");
   await expect(generatedResults).toContainText("7 tables");
   await expect(generatedResults).toContainText("Runtime summary");
   await expect(generatedResults).toContainText("8 stages");
@@ -107,6 +107,7 @@ test("local path run renders the interactive dashboard from generated artifacts"
   await expect(dashboard).toContainText("Issue counts by severity");
   await expect(dashboard).toContainText("Issue counts by type");
   await expect(dashboard).toContainText("Missingness by table");
+  await expect(dashboard).toContainText("Numeric IQR outliers");
   await expect(dashboard).toContainText("Relationship FK health");
   await expect(dashboard).toContainText("Influence top features");
 
@@ -192,9 +193,12 @@ test("local path run renders the interactive dashboard from generated artifacts"
     path: "outputs/graph_progressive_screenshots/relationship-full.png",
   });
 
-  await expect(page.locator("#dashboardArtifactCount")).toContainText(/1[6-7] files/);
+  await expect(page.locator("#dashboardArtifactCount")).toContainText(/1[7-8] files/);
   await expect(page.locator("#dashboardArtifactLinks")).toContainText(
     "charts/issue_counts_by_severity.json",
+  );
+  await expect(page.locator("#dashboardArtifactLinks")).toContainText(
+    "charts/outliers_top_columns.json",
   );
   await expect(page.locator("#dashboardArtifactLinks")).toContainText(
     "schema_parse_report.json",

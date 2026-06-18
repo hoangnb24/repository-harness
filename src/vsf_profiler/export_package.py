@@ -373,6 +373,9 @@ def _render_index_html(
     profile_tables = profile_summary.get("tables") or {}
     row_count = sum(int(table.get("row_count") or 0) for table in profile_tables.values())
     column_count = sum(int(table.get("column_count") or 0) for table in profile_tables.values())
+    all_outlier_rows = top_numeric_outlier_rows(profile_summary, limit=10_000)
+    outlier_rows = all_outlier_rows[:10]
+    outlier_count = sum(int(row.get("outlier_count") or 0) for row in all_outlier_rows)
     relationship_status_counts = relationship_summary.get("status_counts") or {}
     invalid_fk_count = int(relationship_status_counts.get("invalid", 0) or 0)
     l4_status = guardrail_report.get("status", "not_enabled") if guardrail_report else "not_enabled"
@@ -387,6 +390,7 @@ def _render_index_html(
             str(table_assessment_summary.get("table_count", "0")),
             "Readiness rows",
         ),
+        ("Numeric outliers", str(outlier_count), f"{len(all_outlier_rows)} profiled columns"),
         ("L4", l4_status, f"{l4_provider} provider"),
         ("Artifacts", str(len(artifact_index)), "Package files"),
     ]
@@ -536,6 +540,18 @@ def _render_index_html(
           <thead><tr><th>Issue</th><th>Severity</th><th>Type</th><th>Table</th><th>Columns</th><th>Bad rows</th><th>Bad rate</th><th>Sample</th><th>Suggested fix</th></tr></thead>
           <tbody>
             {issue_rows_html(issues, artifact_index)}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="section panel">
+      <h2>Numeric Outlier Summary</h2>
+      <p class="meta">Top IQR outlier signals from <code>profile_summary.json</code> and <code>charts/outliers_top_columns.json</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Method</th><th>Outliers</th><th>Rate</th><th>Fence</th></tr></thead>
+          <tbody>
+            {numeric_outlier_rows_html(outlier_rows)}
           </tbody>
         </table>
       </div>
@@ -696,6 +712,46 @@ def issue_rows_html(issues: list[dict[str, Any]], artifact_index: dict[str, dict
     if not rows:
         return '<tr><td colspan="9">No issue rows were included.</td></tr>'
     return "".join(rows)
+
+
+def top_numeric_outlier_rows(profile_summary: dict[str, Any], *, limit: int = 10) -> list[dict[str, Any]]:
+    rows = []
+    for table_name, table in sorted((profile_summary.get("tables") or {}).items()):
+        for column_name, column in sorted((table.get("columns") or {}).items()):
+            outliers = column.get("outliers") or {}
+            outlier_count = int(outliers.get("outlier_count") or 0)
+            if outlier_count <= 0:
+                continue
+            rows.append(
+                {
+                    "field": f"{table_name}.{column_name}",
+                    "method": outliers.get("method") or "iqr",
+                    "outlier_count": outlier_count,
+                    "outlier_rate": outliers.get("outlier_rate") or 0,
+                    "lower_fence": outliers.get("lower_fence"),
+                    "upper_fence": outliers.get("upper_fence"),
+                }
+            )
+    rows.sort(key=lambda row: (-int(row["outlier_count"]), -float(row["outlier_rate"]), row["field"]))
+    return rows[:limit]
+
+
+def numeric_outlier_rows_html(rows: list[dict[str, Any]]) -> str:
+    html_rows = []
+    for row in rows:
+        fence = f"{_h(row.get('lower_fence'))} to {_h(row.get('upper_fence'))}"
+        html_rows.append(
+            "<tr>"
+            f"<td><code>{_h(row.get('field', ''))}</code></td>"
+            f"<td>{_h(row.get('method', ''))}</td>"
+            f"<td>{_h(row.get('outlier_count', 0))}</td>"
+            f"<td>{_h(_format_percent(row.get('outlier_rate', 0)))}</td>"
+            f"<td>{fence}</td>"
+            "</tr>"
+        )
+    if not html_rows:
+        return '<tr><td colspan="5">No numeric IQR outliers were detected.</td></tr>'
+    return "".join(html_rows)
 
 
 def _scorecard_row(label: str, value: Any, detail: str) -> str:

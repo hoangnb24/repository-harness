@@ -55,6 +55,7 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
     relationship_graph = json.loads((out_dir / "relationship_graph.json").read_text())
     dataset_verdict = json.loads((out_dir / "dataset_verdict.json").read_text())
     table_assessments = json.loads((out_dir / "table_assessments.json").read_text())
+    profile_summary = json.loads((out_dir / "profile_summary.json").read_text())
     chart_specs = {
         path.name: json.loads(path.read_text())
         for path in sorted((out_dir / "charts").glob("*.json"))
@@ -88,9 +89,7 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
     assert table_assessments["artifact"] == "table_assessments"
     assert table_assessments["summary"]["table_count"] == 7
     assert len(table_assessments["assessments"]) == 7
-    assert {row["table"] for row in table_assessments["assessments"]} == set(
-        json.loads((out_dir / "profile_summary.json").read_text())["tables"]
-    )
+    assert {row["table"] for row in table_assessments["assessments"]} == set(profile_summary["tables"])
     assert any(row["readiness"] == "NOT_READY" for row in table_assessments["assessments"])
     assert any(
         row["business_impact"]["category"] == "feedback_signal_quality"
@@ -104,6 +103,7 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
         "issue_counts_by_type.json",
         "missingness_by_table.json",
         "missingness_top_columns.json",
+        "outliers_top_columns.json",
         "relationship_fk_health.json",
     ]
     for spec in chart_specs.values():
@@ -121,9 +121,17 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
     assert chart_specs["issue_counts_by_severity.json"]["data"][0]["severity"] == "P0"
     assert chart_specs["issue_counts_by_type.json"]["data"][0]["count"] >= 1
     assert chart_specs["missingness_top_columns.json"]["data"]
+    assert chart_specs["outliers_top_columns.json"]["data"] == []
     assert chart_specs["relationship_fk_health.json"]["data"][0]["status"] == "invalid"
     assert chart_specs["dataset_verdict_risk_summary.json"]["summary"]["verdict"] == "NOT_READY"
     assert chart_specs["influence_top_features.json"]["data"]
+    price_profile = profile_summary["tables"]["order_items"]["columns"]["price"]
+    assert price_profile["p25"] is not None
+    assert price_profile["p50"] is not None
+    assert price_profile["p75"] is not None
+    assert price_profile["p95"] is not None
+    assert price_profile["p99"] is not None
+    assert price_profile["outliers"]["method"] == "iqr"
     assert schema_diagram["dbdiagram_url"].startswith("https://dbdiagram.io/embed?c=")
     assert any(table["table"] == "orders" and table["csv_path"] for table in schema_diagram["tables"])
     assert any(
@@ -161,6 +169,8 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
     assert "table_assessments.json" in report_md
     assert "Visual Summary" in report_md
     assert "charts/issue_counts_by_severity.json" in report_md
+    assert "Top Numeric Outliers by Column" in report_md
+    assert "charts/outliers_top_columns.json" in report_md
     assert "schema_evaluation.json" in report_html
     assert "relationship_graph.json" in report_html
     assert "EDA/Data Quality Readiness" in report_html
@@ -169,6 +179,8 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
     assert "table_assessments.json" in report_html
     assert "Visual Summary" in report_html
     assert "charts/issue_counts_by_severity.json" in report_html
+    assert "Top Numeric Outliers by Column" in report_html
+    assert "charts/outliers_top_columns.json" in report_html
     assert "Execution Flow" in report_md
     assert "Execution Flow" in report_html
     assert "Open DBML diagram in dbdiagram.io" in report_html
@@ -207,6 +219,7 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
         "chart_issue_counts_by_type",
         "chart_missingness_by_table",
         "chart_missingness_top_columns",
+        "chart_outliers_top_columns",
         "chart_relationship_fk_health",
         "schema_diagram_json",
         "schema_diagram_dbml",

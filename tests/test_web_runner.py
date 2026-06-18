@@ -1,3 +1,4 @@
+import csv
 import json
 import threading
 import time
@@ -217,6 +218,7 @@ def test_web_runner_dashboard_endpoint_lists_generated_artifact_urls(tmp_path):
         assert dashboard["missing_artifacts"] == []
         assert "charts/issue_counts_by_severity.json" in dashboard["chart_artifacts"]
         assert "charts/influence_top_features.json" in dashboard["chart_artifacts"]
+        assert "charts/outliers_top_columns.json" in dashboard["chart_artifacts"]
         for artifact_path in [
             "issues.json",
             "profile_summary.json",
@@ -229,6 +231,7 @@ def test_web_runner_dashboard_endpoint_lists_generated_artifact_urls(tmp_path):
             "influence.json",
             "run_summary.json",
             "charts/issue_counts_by_type.json",
+            "charts/outliers_top_columns.json",
         ]:
             assert dashboard["artifact_urls"][artifact_path] == (
                 f"/api/jobs/{payload['job_id']}/artifacts/{artifact_path}"
@@ -313,6 +316,70 @@ def test_web_runner_dashboard_lists_optional_l4_artifacts_when_present(tmp_path)
     assert "guardrail_report.json" not in dashboard["required_artifacts"]
 
 
+def test_web_runner_upload_job_applies_mapping_overrides_after_filename_sanitization(tmp_path):
+    store = WebRunStore(run_root=tmp_path / "web_runs")
+
+    job = store.start_job(
+        dbml=UploadedFile(
+            filename="schema.dbml",
+            content=b"""
+            Table customers {
+              customer_id varchar [pk, not null]
+              email varchar
+            }
+            """,
+        ),
+        csv_files=[
+            UploadedFile(
+                filename="crm customers.csv",
+                content=b"customer_id,email\nC001,a@example.com\n",
+            )
+        ],
+        mapping_overrides={"customers": "crm customers.csv"},
+    )
+
+    wait_for_job(job)
+
+    assert job.status == "succeeded"
+    schema_evaluation = json.loads((job.out_dir / "schema_evaluation.json").read_text())
+    customers = schema_evaluation["tables"][0]
+    assert customers["mapping_method"] == "manual"
+    assert customers["selected_csv"] == "crm_customers.csv"
+    assert customers["matched_columns"] == ["customer_id", "email"]
+
+
+def test_web_runner_path_job_applies_mapping_overrides(tmp_path):
+    root = tmp_path / "data"
+    csv_dir = root / "csv"
+    csv_dir.mkdir(parents=True)
+    schema_path = root / "schema.dbml"
+    schema_path.write_text(
+        """
+        Table customers {
+          customer_id varchar [pk, not null]
+          email varchar
+        }
+        """,
+        encoding="utf-8",
+    )
+    _write_csv(csv_dir / "crm_customers.csv", ["customer_id", "email"], [["C001", "a@example.com"]])
+    store = WebRunStore(run_root=tmp_path / "web_runs")
+
+    job = store.start_path_job(
+        dbml_path=schema_path,
+        csv_dir=csv_dir,
+        mapping_overrides={"customers": "crm_customers.csv"},
+    )
+
+    wait_for_job(job)
+
+    assert job.status == "succeeded"
+    path_inputs = json.loads((job.input_dir / "path_inputs.json").read_text())
+    assert path_inputs["mapping_overrides"] == {"customers": "crm_customers.csv"}
+    schema_evaluation = json.loads((job.out_dir / "schema_evaluation.json").read_text())
+    assert schema_evaluation["tables"][0]["mapping_method"] == "manual"
+
+
 def test_web_runner_rejects_artifact_path_traversal(tmp_path):
     store = WebRunStore(run_root=tmp_path / "web_runs")
     job = store.start_job(
@@ -363,3 +430,10 @@ def _wait_for_http_job(base_url, job_id):
             return payload
         time.sleep(0.05)
     return payload
+
+
+def _write_csv(path, header: list[str], rows: list[list[str]]) -> None:
+    with path.open("w", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(header)
+        writer.writerows(rows)

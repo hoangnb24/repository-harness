@@ -34,6 +34,7 @@ REQUIRED_CHARTS = {
     "issue_counts_by_type.json",
     "missingness_by_table.json",
     "missingness_top_columns.json",
+    "outliers_top_columns.json",
     "relationship_fk_health.json",
 }
 
@@ -263,6 +264,7 @@ def _assert_acceptance_outputs(
     assert "lineage_graph.json" in dashboard["artifact_urls"]
     assert "table_assessments.json" in dashboard["artifact_urls"]
     assert "charts/issue_counts_by_type.json" in dashboard["chart_artifacts"]
+    assert "charts/outliers_top_columns.json" in dashboard["chart_artifacts"]
 
     _assert_no_secret_leak(
         out_dir,

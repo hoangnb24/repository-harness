@@ -13,6 +13,7 @@ from vsf_profiler.duckdb_utils import (
     null_or_empty_expr,
     quote_ident,
     run_scalar,
+    safe_rate,
     try_cast_expr,
 )
 from vsf_profiler.models import ColumnProfile, ProfileSummary, Schema, TableProfile
@@ -160,17 +161,38 @@ def _column_stats(
           MIN({numeric}) AS min_value,
           MAX({numeric}) AS max_value,
           AVG({numeric}) AS mean_value,
-          STDDEV_SAMP({numeric}) AS std_value
+          STDDEV_SAMP({numeric}) AS std_value,
+          quantile_cont({numeric}, 0.25) AS p25_value,
+          quantile_cont({numeric}, 0.50) AS p50_value,
+          quantile_cont({numeric}, 0.75) AS p75_value,
+          quantile_cont({numeric}, 0.95) AS p95_value,
+          quantile_cont({numeric}, 0.99) AS p99_value,
+          COUNT({numeric}) AS numeric_count
         FROM {relation}
         WHERE {numeric} IS NOT NULL
         """
         row = con.execute(sql).fetchone()
-        return {
+        stats = {
             "min": _jsonable(row[0]),
             "max": _jsonable(row[1]),
             "mean": _jsonable(row[2]),
             "std": _jsonable(row[3]),
+            "p25": _jsonable(row[4]),
+            "p50": _jsonable(row[5]),
+            "p75": _jsonable(row[6]),
+            "p95": _jsonable(row[7]),
+            "p99": _jsonable(row[8]),
         }
+        numeric_count = int(row[9] or 0)
+        stats["outliers"] = _iqr_outlier_profile(
+            con=con,
+            relation=relation,
+            numeric=numeric,
+            q1=stats["p25"],
+            q3=stats["p75"],
+            numeric_count=numeric_count,
+        )
+        return stats
 
     if family == "timestamp" or inferred_type == "timestamp":
         ts = f"try_cast({col} AS TIMESTAMP)"
@@ -179,6 +201,45 @@ def _column_stats(
         return {"min": _jsonable(row[0]), "max": _jsonable(row[1])}
 
     return {}
+
+
+def _iqr_outlier_profile(
+    *,
+    con: duckdb.DuckDBPyConnection,
+    relation: str,
+    numeric: str,
+    q1: Any,
+    q3: Any,
+    numeric_count: int,
+) -> dict[str, Any]:
+    if q1 is None or q3 is None or numeric_count <= 0:
+        return {
+            "method": "iqr",
+            "q1": None,
+            "q3": None,
+            "iqr": None,
+            "lower_fence": None,
+            "upper_fence": None,
+            "outlier_count": 0,
+            "outlier_rate": 0.0,
+        }
+    q1_value = float(q1)
+    q3_value = float(q3)
+    iqr = q3_value - q1_value
+    lower_fence = q1_value - (1.5 * iqr)
+    upper_fence = q3_value + (1.5 * iqr)
+    condition = f"{numeric} IS NOT NULL AND ({numeric} < {lower_fence} OR {numeric} > {upper_fence})"
+    outlier_count = int(run_scalar(con, f"SELECT COUNT(*) FROM {relation} WHERE {condition}", 0))
+    return {
+        "method": "iqr",
+        "q1": _jsonable(q1_value),
+        "q3": _jsonable(q3_value),
+        "iqr": _jsonable(iqr),
+        "lower_fence": _jsonable(lower_fence),
+        "upper_fence": _jsonable(upper_fence),
+        "outlier_count": outlier_count,
+        "outlier_rate": round(safe_rate(outlier_count, numeric_count), 6),
+    }
 
 
 def _top_values(con: duckdb.DuckDBPyConnection, relation: str, col: str) -> list[dict[str, Any]]:

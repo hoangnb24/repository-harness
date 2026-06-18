@@ -33,6 +33,7 @@ def run_quality_checks(
 ) -> None:
     _schema_checks(schema, catalog, profile, issues)
     _dbml_value_checks(con, schema, catalog, profile, issues)
+    _numeric_outlier_checks(catalog, profile, issues)
     _yaml_rules(con, catalog, profile, issues, rules_path)
 
 
@@ -184,6 +185,46 @@ def _primary_key_columns(table_schema: TableSchema) -> list[str]:
     if table_schema.primary_key:
         return table_schema.primary_key
     return [column.name for column in table_schema.columns.values() if column.is_pk]
+
+
+def _numeric_outlier_checks(
+    catalog: CsvCatalog,
+    profile: ProfileSummary,
+    issues: IssueCatalog,
+) -> None:
+    for table_name, catalog_table in catalog.tables.items():
+        table_profile = profile.tables.get(table_name)
+        if not table_profile:
+            continue
+        relation = csv_relation(catalog_table.csv_path)
+        for column_name, column_profile in table_profile.columns.items():
+            outliers = column_profile.outliers
+            if outliers is None or outliers.outlier_count <= 0:
+                continue
+            if outliers.lower_fence is None or outliers.upper_fence is None:
+                continue
+            col = quote_ident(column_name)
+            numeric = f"try_cast({col} AS DOUBLE)"
+            lower = _numeric_literal(outliers.lower_fence)
+            upper = _numeric_literal(outliers.upper_fence)
+            condition = (
+                f"{numeric} IS NOT NULL "
+                f"AND ({numeric} < {lower} OR {numeric} > {upper})"
+            )
+            issues.add_count_issue(
+                issue_type="NUMERIC_OUTLIER",
+                severity="P3",
+                table=table_name,
+                columns=[column_name],
+                total_count=table_profile.row_count,
+                count_sql=f"SELECT COUNT(*) FROM {relation} WHERE {condition}",
+                sample_sql=f"SELECT * FROM {relation} WHERE {condition} LIMIT 50",
+                sample_key_sql=f"SELECT DISTINCT {col} FROM {relation} WHERE {condition} LIMIT 10",
+            )
+
+
+def _numeric_literal(value: float) -> str:
+    return format(float(value), ".17g")
 
 
 def _duplicate_key_issue(

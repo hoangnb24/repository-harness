@@ -374,12 +374,17 @@ h3 {
   font-weight: 800;
 }
 
-.pill-status.mapped {
+.pill-status.mapped,
+.pill-status.exact,
+.pill-status.inferred,
+.pill-status.manual {
   border-color: rgba(36, 122, 69, 0.35);
   color: var(--success);
 }
 
-.pill-status.missing {
+.pill-status.missing,
+.pill-status.missing_csv,
+.pill-status.ambiguous {
   border-color: rgba(167, 106, 0, 0.38);
   color: var(--warning);
 }

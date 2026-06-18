@@ -77,6 +77,7 @@ def _render_column(column: ColumnSchema) -> str:
 
 def _table_mapping(table_name: str, table_schema: TableSchema, catalog: CsvCatalog) -> dict:
     catalog_table = catalog.tables.get(table_name)
+    mapping = _mapping_evidence(table_name, catalog, catalog_table)
     relationships = []
     for column in table_schema.columns.values():
         if column.foreign_key:
@@ -90,7 +91,14 @@ def _table_mapping(table_name: str, table_schema: TableSchema, catalog: CsvCatal
     return {
         "table": table_name,
         "csv_path": _source_label(catalog_table) if catalog_table else "",
-        "status": "mapped" if catalog_table else "missing_csv",
+        "status": mapping["mapping_method"] if catalog_table else mapping["status"],
+        "mapping_method": mapping["mapping_method"],
+        "confidence": mapping["confidence"],
+        "selected_csv": mapping["selected_csv"],
+        "matched_columns": mapping["matched_columns"],
+        "missing_columns": mapping["missing_columns"],
+        "extra_columns": mapping["extra_columns"],
+        "candidates": mapping["candidates"],
         "primary_key": table_schema.primary_key,
         "foreign_keys": relationships,
         "column_count": len(table_schema.columns),
@@ -105,3 +113,30 @@ def _source_label(catalog_table) -> str:
     if catalog_table is None:
         return ""
     return catalog_table.source_name or str(catalog_table.csv_path)
+
+
+def _mapping_evidence(table_name: str, catalog: CsvCatalog, catalog_table) -> dict:
+    evidence = catalog.mapping_evidence.get(table_name)
+    if evidence is not None:
+        return evidence.model_dump(mode="json")
+    if catalog_table is not None:
+        return {
+            "mapping_method": catalog_table.mapping_method,
+            "status": "mapped",
+            "confidence": catalog_table.mapping_confidence,
+            "selected_csv": _source_label(catalog_table),
+            "matched_columns": [],
+            "missing_columns": [],
+            "extra_columns": [],
+            "candidates": [],
+        }
+    return {
+        "mapping_method": "unmapped",
+        "status": "missing_csv",
+        "confidence": 0.0,
+        "selected_csv": None,
+        "matched_columns": [],
+        "missing_columns": [],
+        "extra_columns": [],
+        "candidates": [],
+    }

@@ -3,8 +3,8 @@
 `vsf-profiler` is a local-first Smart EDA tool for data scientists. The core
 workflow profiles a folder of related CSV files against a DBML/schema contract,
 applies optional data-quality rules, can run association-based influence
-analysis for an optional target column, and writes deterministic Markdown/HTML
-reports plus machine-readable artifacts.
+analysis for an optional target column, detects generic numeric IQR outliers,
+and writes deterministic Markdown/HTML reports plus machine-readable artifacts.
 
 DuckDB is the internal scan engine. Users do not need to manage DuckDB directly
 for the default CSV plus DBML workflow.
@@ -78,6 +78,12 @@ outputs/demo_small/report.html
 outputs/demo_small/samples/
 ```
 
+Numeric column profiles include percentiles and IQR outlier evidence in
+`profile_summary.json`; `issues.json` records `NUMERIC_OUTLIER` findings only
+when profiled values exceed the generic IQR fence, and
+`charts/outliers_top_columns.json` feeds report, package, and dashboard
+summaries.
+
 On Windows, open the report with:
 
 ```bash
@@ -112,6 +118,14 @@ vsf-profiler run \
   --rules data/demo_small/rules.yaml \
   --target order_reviews.review_score \
   --out outputs/demo_small
+
+# Optional: force table-to-CSV choices when source filenames are not table names.
+# YAML and JSON are supported, for example: mappings: {customers: crm_export.csv}
+vsf-profiler run \
+  --dbml data/demo_small/schema.dbml \
+  --csv-dir data/demo_small/csv \
+  --mapping mapping.yaml \
+  --out outputs/manual_mapping
 
 vsf-profiler demo create-small --out data/demo_small
 vsf-profiler demo download-olist --out data/olist
@@ -320,7 +334,8 @@ profiler.
 Core MVP workflow:
 
 - DBML/schema parsing with explicit `schema_parse_report.json` diagnostics.
-- CSV cataloging by file stem for a folder of related CSV files.
+- CSV cataloging by exact file stem first, then conservative schema/header
+  inference or explicit manual mapping override.
 - DuckDB-backed profiling without full pandas CSV loads.
 - DBML-derived quality checks and optional YAML data-quality rules.
 - FK relationship checks with cardinality, composite FK, and junction-table support.

@@ -1,0 +1,1467 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - paragraph [ref=e4]: VSF Data Profiler
+    - heading "Senior Data Scientist Review" [level=1] [ref=e5]
+    - paragraph [ref=e6]: Deterministic evidence review. Influence findings are association-only, not causation.
+    - heading "Executive scorecard" [level=2] [ref=e7]
+    - generic "Executive scorecard" [ref=e8]:
+      - article [ref=e9]:
+        - generic [ref=e10]: Verdict
+        - strong [ref=e11]: NOT_READY
+        - paragraph [ref=e12]: dataset_verdict.json
+      - article [ref=e13]:
+        - generic [ref=e14]: Risk
+        - strong [ref=e15]: 100/100
+        - paragraph [ref=e16]: 13 P0/P1 blocker issue(s); 6 invalid relationship edge(s) make the dataset not ready for use.
+      - article [ref=e17]:
+        - generic [ref=e18]: Issues
+        - strong [ref=e19]: "15"
+        - paragraph [ref=e20]: 13 P0/P1 blockers
+      - article [ref=e21]:
+        - generic [ref=e22]: Tables
+        - strong [ref=e23]: "7"
+        - paragraph [ref=e24]: 24 rows, 27 columns
+      - article [ref=e25]:
+        - generic [ref=e26]: FK Health
+        - strong [ref=e27]: 6/6
+        - paragraph [ref=e28]: invalid relationship edges
+      - article [ref=e29]:
+        - generic [ref=e30]: L4
+        - strong [ref=e31]: not_enabled
+        - paragraph [ref=e32]: deterministic run
+    - generic [ref=e33]:
+      - strong [ref=e34]: Dataset Verdict
+      - paragraph [ref=e35]: 13 P0/P1 blocker issue(s); 6 invalid relationship edge(s) make the dataset not ready for use.
+      - list [ref=e36]:
+        - listitem [ref=e37]: Resolve P0/P1 blocker issues before analytics, joins, or model training.
+        - listitem [ref=e38]: Fix invalid foreign-key relationships before cross-table use.
+        - listitem [ref=e39]: Deduplicate by primary key or fix upstream key generation.
+        - listitem [ref=e40]: Reject rows with missing primary keys before downstream joins.
+        - listitem [ref=e41]: Deduplicate parent keys before using the table as a dimension.
+    - generic "Primary artifact links" [ref=e42]:
+      - link "Dataset verdict dataset_verdict.json" [ref=e43] [cursor=pointer]:
+        - /url: dataset_verdict.json
+        - strong [ref=e44]: Dataset verdict
+        - code [ref=e45]: dataset_verdict.json
+      - link "Table assessments table_assessments.json" [ref=e46] [cursor=pointer]:
+        - /url: table_assessments.json
+        - strong [ref=e47]: Table assessments
+        - code [ref=e48]: table_assessments.json
+      - link "Relationship graph relationship_graph.json" [ref=e49] [cursor=pointer]:
+        - /url: relationship_graph.json
+        - strong [ref=e50]: Relationship graph
+        - code [ref=e51]: relationship_graph.json
+      - link "Lineage graph lineage_graph.json" [ref=e52] [cursor=pointer]:
+        - /url: lineage_graph.json
+        - strong [ref=e53]: Lineage graph
+        - code [ref=e54]: lineage_graph.json
+  - generic [ref=e55]:
+    - heading "L4 Senior Data Scientist Narrative" [level=2] [ref=e56]
+    - paragraph [ref=e57]:
+      - generic [ref=e58]: not_enabled
+      - text: L4 narrative was not enabled for this deterministic run.
+  - generic [ref=e59]:
+    - heading "Visual Summary" [level=2] [ref=e60]
+    - generic [ref=e61]:
+      - article [ref=e62]:
+        - generic [ref=e63]:
+          - strong [ref=e64]: Dataset Risk
+          - link "charts/dataset_verdict_risk_summary.json" [ref=e65] [cursor=pointer]:
+            - /url: charts/dataset_verdict_risk_summary.json
+        - paragraph [ref=e66]:
+          - generic [ref=e67]: NOT_READY
+          - strong [ref=e68]: 100.0/100
+          - text: risk across 15 issues.
+        - generic [ref=e69]:
+          - generic [ref=e70]: Risk score
+          - generic [ref=e72]: 100.0/100
+      - article [ref=e73]:
+        - generic [ref=e74]:
+          - strong [ref=e75]: Issue Counts by Severity
+          - link "charts/issue_counts_by_severity.json" [ref=e76] [cursor=pointer]:
+            - /url: charts/issue_counts_by_severity.json
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - generic [ref=e79]: P0
+            - generic [ref=e81]: "2"
+          - generic [ref=e82]:
+            - generic [ref=e83]: P1
+            - generic [ref=e85]: "11"
+          - generic [ref=e86]:
+            - generic [ref=e87]: P2
+            - generic [ref=e89]: "0"
+          - generic [ref=e90]:
+            - generic [ref=e91]: P3
+            - generic [ref=e93]: "2"
+      - article [ref=e94]:
+        - generic [ref=e95]:
+          - strong [ref=e96]: Issue Counts by Type
+          - link "charts/issue_counts_by_type.json" [ref=e97] [cursor=pointer]:
+            - /url: charts/issue_counts_by_type.json
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - generic [ref=e100]: ORPHAN_FOREIGN_KEY
+            - generic [ref=e102]: "4"
+          - generic [ref=e103]:
+            - generic [ref=e104]: PARENT_KEY_DUPLICATE
+            - generic [ref=e106]: "3"
+          - generic [ref=e107]:
+            - generic [ref=e108]: DATE_ORDER_INVALID
+            - generic [ref=e110]: "1"
+          - generic [ref=e111]:
+            - generic [ref=e112]: DUPLICATE_PRIMARY_KEY
+            - generic [ref=e114]: "1"
+          - generic [ref=e115]:
+            - generic [ref=e116]: FOREIGN_KEY_NULL
+            - generic [ref=e118]: "1"
+          - generic [ref=e119]:
+            - generic [ref=e120]: INVALID_PLACEHOLDER_TOKEN
+            - generic [ref=e122]: "1"
+          - generic [ref=e123]:
+            - generic [ref=e124]: NEGATIVE_VALUE_NOT_ALLOWED
+            - generic [ref=e126]: "1"
+          - generic [ref=e127]:
+            - generic [ref=e128]: PRIMARY_KEY_NULL
+            - generic [ref=e130]: "1"
+          - generic [ref=e131]:
+            - generic [ref=e132]: REQUIRED_FIELD_NULL
+            - generic [ref=e134]: "1"
+          - generic [ref=e135]:
+            - generic [ref=e136]: VALUE_OUT_OF_RANGE
+            - generic [ref=e138]: "1"
+      - article [ref=e139]:
+        - generic [ref=e140]:
+          - strong [ref=e141]: Top Missingness by Column
+          - link "charts/missingness_top_columns.json" [ref=e142] [cursor=pointer]:
+            - /url: charts/missingness_top_columns.json
+        - generic [ref=e143]:
+          - generic [ref=e144]:
+            - code [ref=e146]: customers.customer_id
+            - generic [ref=e148]: 25.00%
+          - generic [ref=e149]:
+            - code [ref=e151]: orders.customer_id
+            - generic [ref=e153]: 20.00%
+          - generic [ref=e154]:
+            - code [ref=e156]: orders.order_delivered_customer_date
+            - generic [ref=e158]: 20.00%
+          - generic [ref=e159]:
+            - code [ref=e161]: customers.customer_name
+            - generic [ref=e163]: 0.00%
+          - generic [ref=e164]:
+            - code [ref=e166]: customers.customer_state
+            - generic [ref=e168]: 0.00%
+          - generic [ref=e169]:
+            - code [ref=e171]: order_items.freight_value
+            - generic [ref=e173]: 0.00%
+          - generic [ref=e174]:
+            - code [ref=e176]: order_items.order_id
+            - generic [ref=e178]: 0.00%
+          - generic [ref=e179]:
+            - code [ref=e181]: order_items.order_item_id
+            - generic [ref=e183]: 0.00%
+      - article [ref=e184]:
+        - generic [ref=e185]:
+          - strong [ref=e186]: Relationship FK Health
+          - link "charts/relationship_fk_health.json" [ref=e187] [cursor=pointer]:
+            - /url: charts/relationship_fk_health.json
+        - generic [ref=e189]:
+          - generic [ref=e190]: invalid
+          - generic [ref=e192]: "6"
+      - article [ref=e193]:
+        - generic [ref=e194]:
+          - strong [ref=e195]: Influence Top Features
+          - link "charts/influence_top_features.json" [ref=e196] [cursor=pointer]:
+            - /url: charts/influence_top_features.json
+        - generic [ref=e197]:
+          - generic [ref=e198]:
+            - generic [ref=e199]: review_comment_message
+            - generic [ref=e201]: "2.3289"
+          - generic [ref=e202]:
+            - generic [ref=e203]: orders__order_status
+            - generic [ref=e205]: "0.5822"
+  - generic [ref=e206]:
+    - heading "Table Impact and Per-Table Assessment" [level=2] [ref=e207]
+    - generic [ref=e208]:
+      - article [ref=e209]:
+        - generic [ref=e210]: Tables assessed
+        - strong [ref=e211]: "7"
+        - paragraph [ref=e212]: table_assessments.json
+      - article [ref=e213]:
+        - generic [ref=e214]: Average health
+        - strong [ref=e215]: 52.0/100
+        - paragraph [ref=e216]: readiness weighted by issue and relationship risk
+      - article [ref=e217]:
+        - generic [ref=e218]: Not ready
+        - strong [ref=e219]: "7"
+        - paragraph [ref=e220]: tables requiring remediation
+    - table [ref=e222]:
+      - rowgroup [ref=e223]:
+        - row "Table Role Readiness Health Issues Relationship Risks Business Impact Affected Columns First Action" [ref=e224]:
+          - columnheader "Table" [ref=e225]
+          - columnheader "Role" [ref=e226]
+          - columnheader "Readiness" [ref=e227]
+          - columnheader "Health" [ref=e228]
+          - columnheader "Issues" [ref=e229]
+          - columnheader "Relationship Risks" [ref=e230]
+          - columnheader "Business Impact" [ref=e231]
+          - columnheader "Affected Columns" [ref=e232]
+          - columnheader "First Action" [ref=e233]
+      - rowgroup [ref=e234]:
+        - 'row "customers dimension NOT_READY 38 3 1 Customer experience customer_experience customer_id, customer_name Resolve blocker issues for `customers` before cross-table analytics." [ref=e235]':
+          - cell "customers" [ref=e236]:
+            - code [ref=e237]: customers
+          - cell "dimension" [ref=e238]
+          - cell "NOT_READY" [ref=e239]:
+            - generic [ref=e240]: NOT_READY
+          - cell "38" [ref=e241]
+          - cell "3" [ref=e242]
+          - cell "1" [ref=e243]
+          - cell "Customer experience customer_experience" [ref=e244]:
+            - text: Customer experience
+            - text: customer_experience
+          - cell "customer_id, customer_name" [ref=e245]
+          - 'cell "Resolve blocker issues for `customers` before cross-table analytics." [ref=e246]'
+        - 'row "order_items fact NOT_READY 28 2 3 Order fulfillment order_fulfillment product_id, seller_id Resolve blocker issues for `order_items` before cross-table analytics." [ref=e247]':
+          - cell "order_items" [ref=e248]:
+            - code [ref=e249]: order_items
+          - cell "fact" [ref=e250]
+          - cell "NOT_READY" [ref=e251]:
+            - generic [ref=e252]: NOT_READY
+          - cell "28" [ref=e253]
+          - cell "2" [ref=e254]
+          - cell "3" [ref=e255]
+          - cell "Order fulfillment order_fulfillment" [ref=e256]:
+            - text: Order fulfillment
+            - text: order_fulfillment
+          - cell "product_id, seller_id" [ref=e257]
+          - 'cell "Resolve blocker issues for `order_items` before cross-table analytics." [ref=e258]'
+        - 'row "order_payments fact NOT_READY 70 1 1 Revenue and payment operations revenue_and_payment_operations payment_value Resolve blocker issues for `order_payments` before cross-table analytics." [ref=e259]':
+          - cell "order_payments" [ref=e260]:
+            - code [ref=e261]: order_payments
+          - cell "fact" [ref=e262]
+          - cell "NOT_READY" [ref=e263]:
+            - generic [ref=e264]: NOT_READY
+          - cell "70" [ref=e265]
+          - cell "1" [ref=e266]
+          - cell "1" [ref=e267]
+          - cell "Revenue and payment operations revenue_and_payment_operations" [ref=e268]:
+            - text: Revenue and payment operations
+            - text: revenue_and_payment_operations
+          - cell "payment_value" [ref=e269]
+          - 'cell "Resolve blocker issues for `order_payments` before cross-table analytics." [ref=e270]'
+        - 'row "order_reviews event NOT_READY 52 2 1 Customer feedback customer_feedback order_id, review_score Resolve blocker issues for `order_reviews` before cross-table analytics." [ref=e271]':
+          - cell "order_reviews" [ref=e272]:
+            - code [ref=e273]: order_reviews
+          - cell "event" [ref=e274]
+          - cell "NOT_READY" [ref=e275]:
+            - generic [ref=e276]: NOT_READY
+          - cell "52" [ref=e277]
+          - cell "2" [ref=e278]
+          - cell "1" [ref=e279]
+          - cell "Customer feedback customer_feedback" [ref=e280]:
+            - text: Customer feedback
+            - text: customer_feedback
+          - cell "order_id, review_score" [ref=e281]
+          - 'cell "Resolve blocker issues for `order_reviews` before cross-table analytics." [ref=e282]'
+        - 'row "orders fact NOT_READY 0 7 4 Order fulfillment order_fulfillment customer_id, order_delivered_customer_date, order_id, order_purchase_timestamp Resolve blocker issues for `orders` before cross-table analytics." [ref=e283]':
+          - cell "orders" [ref=e284]:
+            - code [ref=e285]: orders
+          - cell "fact" [ref=e286]
+          - cell "NOT_READY" [ref=e287]:
+            - generic [ref=e288]: NOT_READY
+          - cell "0" [ref=e289]
+          - cell "7" [ref=e290]
+          - cell "4" [ref=e291]
+          - cell "Order fulfillment order_fulfillment" [ref=e292]:
+            - text: Order fulfillment
+            - text: order_fulfillment
+          - cell "customer_id, order_delivered_customer_date, order_id, order_purchase_timestamp" [ref=e293]
+          - 'cell "Resolve blocker issues for `orders` before cross-table analytics." [ref=e294]'
+        - 'row "products dimension NOT_READY 88 0 1 Product catalog product_catalog none Resolve blocker issues for `products` before cross-table analytics." [ref=e295]':
+          - cell "products" [ref=e296]:
+            - code [ref=e297]: products
+          - cell "dimension" [ref=e298]
+          - cell "NOT_READY" [ref=e299]:
+            - generic [ref=e300]: NOT_READY
+          - cell "88" [ref=e301]
+          - cell "0" [ref=e302]
+          - cell "1" [ref=e303]
+          - cell "Product catalog product_catalog" [ref=e304]:
+            - text: Product catalog
+            - text: product_catalog
+          - cell "none" [ref=e305]
+          - 'cell "Resolve blocker issues for `products` before cross-table analytics." [ref=e306]'
+        - 'row "sellers dimension NOT_READY 88 0 1 Marketplace operations marketplace_operations none Resolve blocker issues for `sellers` before cross-table analytics." [ref=e307]':
+          - cell "sellers" [ref=e308]:
+            - code [ref=e309]: sellers
+          - cell "dimension" [ref=e310]
+          - cell "NOT_READY" [ref=e311]:
+            - generic [ref=e312]: NOT_READY
+          - cell "88" [ref=e313]
+          - cell "0" [ref=e314]
+          - cell "1" [ref=e315]
+          - cell "Marketplace operations marketplace_operations" [ref=e316]:
+            - text: Marketplace operations
+            - text: marketplace_operations
+          - cell "none" [ref=e317]
+          - 'cell "Resolve blocker issues for `sellers` before cross-table analytics." [ref=e318]'
+  - generic [ref=e319]:
+    - heading "Issue Evidence" [level=2] [ref=e320]
+    - table [ref=e322]:
+      - rowgroup [ref=e323]:
+        - row "Issue Severity Type Table Columns Bad Rows Bad Rate Sample Probable Cause Suggested Fix" [ref=e324]:
+          - columnheader "Issue" [ref=e325]
+          - columnheader "Severity" [ref=e326]
+          - columnheader "Type" [ref=e327]
+          - columnheader "Table" [ref=e328]
+          - columnheader "Columns" [ref=e329]
+          - columnheader "Bad Rows" [ref=e330]
+          - columnheader "Bad Rate" [ref=e331]
+          - columnheader "Sample" [ref=e332]
+          - columnheader "Probable Cause" [ref=e333]
+          - columnheader "Suggested Fix" [ref=e334]
+      - rowgroup [ref=e335]:
+        - row "ISSUE-0004 P0 DUPLICATE_PRIMARY_KEY orders order_id 2/5 40.00% samples/ISSUE-0004.csv Primary key uniqueness is not enforced before export. Deduplicate by primary key or fix upstream key generation." [ref=e336]:
+          - cell "ISSUE-0004" [ref=e337]:
+            - code [ref=e338]: ISSUE-0004
+          - cell "P0" [ref=e339]:
+            - generic [ref=e340]: P0
+          - cell "DUPLICATE_PRIMARY_KEY" [ref=e341]
+          - cell "orders" [ref=e342]:
+            - code [ref=e343]: orders
+          - cell "order_id" [ref=e344]
+          - cell "2/5" [ref=e345]
+          - cell "40.00%" [ref=e346]
+          - cell "samples/ISSUE-0004.csv" [ref=e347]:
+            - link "samples/ISSUE-0004.csv" [ref=e348] [cursor=pointer]:
+              - /url: samples/ISSUE-0004.csv
+          - cell "Primary key uniqueness is not enforced before export." [ref=e349]
+          - cell "Deduplicate by primary key or fix upstream key generation." [ref=e350]
+        - row "ISSUE-0002 P0 PRIMARY_KEY_NULL customers customer_id 1/4 25.00% samples/ISSUE-0002.csv Primary key generation or extraction produced null or blank keys. Reject rows with missing primary keys before downstream joins." [ref=e351]:
+          - cell "ISSUE-0002" [ref=e352]:
+            - code [ref=e353]: ISSUE-0002
+          - cell "P0" [ref=e354]:
+            - generic [ref=e355]: P0
+          - cell "PRIMARY_KEY_NULL" [ref=e356]
+          - cell "customers" [ref=e357]:
+            - code [ref=e358]: customers
+          - cell "customer_id" [ref=e359]
+          - cell "1/4" [ref=e360]
+          - cell "25.00%" [ref=e361]
+          - cell "samples/ISSUE-0002.csv" [ref=e362]:
+            - link "samples/ISSUE-0002.csv" [ref=e363] [cursor=pointer]:
+              - /url: samples/ISSUE-0002.csv
+          - cell "Primary key generation or extraction produced null or blank keys." [ref=e364]
+          - cell "Reject rows with missing primary keys before downstream joins." [ref=e365]
+        - row "ISSUE-0010 P1 PARENT_KEY_DUPLICATE orders order_id 2/5 40.00% samples/ISSUE-0010.csv Parent key is not unique, so joins can multiply child rows. Deduplicate parent keys before using the table as a dimension." [ref=e366]:
+          - cell "ISSUE-0010" [ref=e367]:
+            - code [ref=e368]: ISSUE-0010
+          - cell "P1" [ref=e369]:
+            - generic [ref=e370]: P1
+          - cell "PARENT_KEY_DUPLICATE" [ref=e371]
+          - cell "orders" [ref=e372]:
+            - code [ref=e373]: orders
+          - cell "order_id" [ref=e374]
+          - cell "2/5" [ref=e375]
+          - cell "40.00%" [ref=e376]
+          - cell "samples/ISSUE-0010.csv" [ref=e377]:
+            - link "samples/ISSUE-0010.csv" [ref=e378] [cursor=pointer]:
+              - /url: samples/ISSUE-0010.csv
+          - cell "Parent key is not unique, so joins can multiply child rows." [ref=e379]
+          - cell "Deduplicate parent keys before using the table as a dimension." [ref=e380]
+        - row "ISSUE-0013 P1 PARENT_KEY_DUPLICATE orders order_id 2/5 40.00% samples/ISSUE-0013.csv Parent key is not unique, so joins can multiply child rows. Deduplicate parent keys before using the table as a dimension." [ref=e381]:
+          - cell "ISSUE-0013" [ref=e382]:
+            - code [ref=e383]: ISSUE-0013
+          - cell "P1" [ref=e384]:
+            - generic [ref=e385]: P1
+          - cell "PARENT_KEY_DUPLICATE" [ref=e386]
+          - cell "orders" [ref=e387]:
+            - code [ref=e388]: orders
+          - cell "order_id" [ref=e389]
+          - cell "2/5" [ref=e390]
+          - cell "40.00%" [ref=e391]
+          - cell "samples/ISSUE-0013.csv" [ref=e392]:
+            - link "samples/ISSUE-0013.csv" [ref=e393] [cursor=pointer]:
+              - /url: samples/ISSUE-0013.csv
+          - cell "Parent key is not unique, so joins can multiply child rows." [ref=e394]
+          - cell "Deduplicate parent keys before using the table as a dimension." [ref=e395]
+        - row "ISSUE-0014 P1 PARENT_KEY_DUPLICATE orders order_id 2/5 40.00% samples/ISSUE-0014.csv Parent key is not unique, so joins can multiply child rows. Deduplicate parent keys before using the table as a dimension." [ref=e396]:
+          - cell "ISSUE-0014" [ref=e397]:
+            - code [ref=e398]: ISSUE-0014
+          - cell "P1" [ref=e399]:
+            - generic [ref=e400]: P1
+          - cell "PARENT_KEY_DUPLICATE" [ref=e401]
+          - cell "orders" [ref=e402]:
+            - code [ref=e403]: orders
+          - cell "order_id" [ref=e404]
+          - cell "2/5" [ref=e405]
+          - cell "40.00%" [ref=e406]
+          - cell "samples/ISSUE-0014.csv" [ref=e407]:
+            - link "samples/ISSUE-0014.csv" [ref=e408] [cursor=pointer]:
+              - /url: samples/ISSUE-0014.csv
+          - cell "Parent key is not unique, so joins can multiply child rows." [ref=e409]
+          - cell "Deduplicate parent keys before using the table as a dimension." [ref=e410]
+        - row "ISSUE-0006 P1 NEGATIVE_VALUE_NOT_ALLOWED order_payments payment_value 1/3 33.33% samples/ISSUE-0006.csv A non-negative amount rule was violated. Reject negative amount rows or correct sign handling upstream." [ref=e411]:
+          - cell "ISSUE-0006" [ref=e412]:
+            - code [ref=e413]: ISSUE-0006
+          - cell "P1" [ref=e414]:
+            - generic [ref=e415]: P1
+          - cell "NEGATIVE_VALUE_NOT_ALLOWED" [ref=e416]
+          - cell "order_payments" [ref=e417]:
+            - code [ref=e418]: order_payments
+          - cell "payment_value" [ref=e419]
+          - cell "1/3" [ref=e420]
+          - cell "33.33%" [ref=e421]
+          - cell "samples/ISSUE-0006.csv" [ref=e422]:
+            - link "samples/ISSUE-0006.csv" [ref=e423] [cursor=pointer]:
+              - /url: samples/ISSUE-0006.csv
+          - cell "A non-negative amount rule was violated." [ref=e424]
+          - cell "Reject negative amount rows or correct sign handling upstream." [ref=e425]
+        - row "ISSUE-0001 P1 REQUIRED_FIELD_NULL customers customer_id 1/4 25.00% samples/ISSUE-0001.csv Required source field was emitted as null or blank. Add a not-null validation before publish and backfill missing values." [ref=e426]:
+          - cell "ISSUE-0001" [ref=e427]:
+            - code [ref=e428]: ISSUE-0001
+          - cell "P1" [ref=e429]:
+            - generic [ref=e430]: P1
+          - cell "REQUIRED_FIELD_NULL" [ref=e431]
+          - cell "customers" [ref=e432]:
+            - code [ref=e433]: customers
+          - cell "customer_id" [ref=e434]
+          - cell "1/4" [ref=e435]
+          - cell "25.00%" [ref=e436]
+          - cell "samples/ISSUE-0001.csv" [ref=e437]:
+            - link "samples/ISSUE-0001.csv" [ref=e438] [cursor=pointer]:
+              - /url: samples/ISSUE-0001.csv
+          - cell "Required source field was emitted as null or blank." [ref=e439]
+          - cell "Add a not-null validation before publish and backfill missing values." [ref=e440]
+        - row "ISSUE-0005 P1 VALUE_OUT_OF_RANGE order_reviews review_score 1/4 25.00% samples/ISSUE-0005.csv A business rule range constraint was violated. Clamp, reject, or correct values outside the accepted business range." [ref=e441]:
+          - cell "ISSUE-0005" [ref=e442]:
+            - code [ref=e443]: ISSUE-0005
+          - cell "P1" [ref=e444]:
+            - generic [ref=e445]: P1
+          - cell "VALUE_OUT_OF_RANGE" [ref=e446]
+          - cell "order_reviews" [ref=e447]:
+            - code [ref=e448]: order_reviews
+          - cell "review_score" [ref=e449]
+          - cell "1/4" [ref=e450]
+          - cell "25.00%" [ref=e451]
+          - cell "samples/ISSUE-0005.csv" [ref=e452]:
+            - link "samples/ISSUE-0005.csv" [ref=e453] [cursor=pointer]:
+              - /url: samples/ISSUE-0005.csv
+          - cell "A business rule range constraint was violated." [ref=e454]
+          - cell "Clamp, reject, or correct values outside the accepted business range." [ref=e455]
+        - row "ISSUE-0011 P1 ORPHAN_FOREIGN_KEY order_items product_id 1/4 25.00% samples/ISSUE-0011.csv Parent table may be missing a batch.; Child rows may have loaded before parent rows. Check the parent table load pipeline." [ref=e456]:
+          - cell "ISSUE-0011" [ref=e457]:
+            - code [ref=e458]: ISSUE-0011
+          - cell "P1" [ref=e459]:
+            - generic [ref=e460]: P1
+          - cell "ORPHAN_FOREIGN_KEY" [ref=e461]
+          - cell "order_items" [ref=e462]:
+            - code [ref=e463]: order_items
+          - cell "product_id" [ref=e464]
+          - cell "1/4" [ref=e465]
+          - cell "25.00%" [ref=e466]
+          - cell "samples/ISSUE-0011.csv" [ref=e467]:
+            - link "samples/ISSUE-0011.csv" [ref=e468] [cursor=pointer]:
+              - /url: samples/ISSUE-0011.csv
+          - cell "Parent table may be missing a batch.; Child rows may have loaded before parent rows." [ref=e469]
+          - cell "Check the parent table load pipeline." [ref=e470]
+        - row "ISSUE-0012 P1 ORPHAN_FOREIGN_KEY order_items seller_id 1/4 25.00% samples/ISSUE-0012.csv Parent table may be missing a batch.; Child rows may have loaded before parent rows. Check the parent table load pipeline." [ref=e471]:
+          - cell "ISSUE-0012" [ref=e472]:
+            - code [ref=e473]: ISSUE-0012
+          - cell "P1" [ref=e474]:
+            - generic [ref=e475]: P1
+          - cell "ORPHAN_FOREIGN_KEY" [ref=e476]
+          - cell "order_items" [ref=e477]:
+            - code [ref=e478]: order_items
+          - cell "seller_id" [ref=e479]
+          - cell "1/4" [ref=e480]
+          - cell "25.00%" [ref=e481]
+          - cell "samples/ISSUE-0012.csv" [ref=e482]:
+            - link "samples/ISSUE-0012.csv" [ref=e483] [cursor=pointer]:
+              - /url: samples/ISSUE-0012.csv
+          - cell "Parent table may be missing a batch.; Child rows may have loaded before parent rows." [ref=e484]
+          - cell "Check the parent table load pipeline." [ref=e485]
+        - row "ISSUE-0015 P1 ORPHAN_FOREIGN_KEY order_reviews order_id 1/4 25.00% samples/ISSUE-0015.csv Parent table may be missing a batch.; Child rows may have loaded before parent rows. Check the parent table load pipeline." [ref=e486]:
+          - cell "ISSUE-0015" [ref=e487]:
+            - code [ref=e488]: ISSUE-0015
+          - cell "P1" [ref=e489]:
+            - generic [ref=e490]: P1
+          - cell "ORPHAN_FOREIGN_KEY" [ref=e491]
+          - cell "order_reviews" [ref=e492]:
+            - code [ref=e493]: order_reviews
+          - cell "order_id" [ref=e494]
+          - cell "1/4" [ref=e495]
+          - cell "25.00%" [ref=e496]
+          - cell "samples/ISSUE-0015.csv" [ref=e497]:
+            - link "samples/ISSUE-0015.csv" [ref=e498] [cursor=pointer]:
+              - /url: samples/ISSUE-0015.csv
+          - cell "Parent table may be missing a batch.; Child rows may have loaded before parent rows." [ref=e499]
+          - cell "Check the parent table load pipeline." [ref=e500]
+        - row "ISSUE-0007 P1 DATE_ORDER_INVALID orders order_purchase_timestamp, order_delivered_customer_date 1/5 20.00% samples/ISSUE-0007.csv Timestamp ordering violates the expected business process. Fix timestamp derivation and add ordering validation in the pipeline." [ref=e501]:
+          - cell "ISSUE-0007" [ref=e502]:
+            - code [ref=e503]: ISSUE-0007
+          - cell "P1" [ref=e504]:
+            - generic [ref=e505]: P1
+          - cell "DATE_ORDER_INVALID" [ref=e506]
+          - cell "orders" [ref=e507]:
+            - code [ref=e508]: orders
+          - cell "order_purchase_timestamp, order_delivered_customer_date" [ref=e509]
+          - cell "1/5" [ref=e510]
+          - cell "20.00%" [ref=e511]
+          - cell "samples/ISSUE-0007.csv" [ref=e512]:
+            - link "samples/ISSUE-0007.csv" [ref=e513] [cursor=pointer]:
+              - /url: samples/ISSUE-0007.csv
+          - cell "Timestamp ordering violates the expected business process." [ref=e514]
+          - cell "Fix timestamp derivation and add ordering validation in the pipeline." [ref=e515]
+        - row "ISSUE-0009 P1 ORPHAN_FOREIGN_KEY orders customer_id 1/5 20.00% samples/ISSUE-0009.csv Parent table may be missing a batch.; Child rows may have loaded before parent rows. Check the parent table load pipeline." [ref=e516]:
+          - cell "ISSUE-0009" [ref=e517]:
+            - code [ref=e518]: ISSUE-0009
+          - cell "P1" [ref=e519]:
+            - generic [ref=e520]: P1
+          - cell "ORPHAN_FOREIGN_KEY" [ref=e521]
+          - cell "orders" [ref=e522]:
+            - code [ref=e523]: orders
+          - cell "customer_id" [ref=e524]
+          - cell "1/5" [ref=e525]
+          - cell "20.00%" [ref=e526]
+          - cell "samples/ISSUE-0009.csv" [ref=e527]:
+            - link "samples/ISSUE-0009.csv" [ref=e528] [cursor=pointer]:
+              - /url: samples/ISSUE-0009.csv
+          - cell "Parent table may be missing a batch.; Child rows may have loaded before parent rows." [ref=e529]
+          - cell "Check the parent table load pipeline." [ref=e530]
+        - row "ISSUE-0003 P3 INVALID_PLACEHOLDER_TOKEN customers customer_name 1/4 25.00% samples/ISSUE-0003.csv Placeholder tokens are present instead of normalized nulls. Normalize placeholder tokens to null at ingestion." [ref=e531]:
+          - cell "ISSUE-0003" [ref=e532]:
+            - code [ref=e533]: ISSUE-0003
+          - cell "P3" [ref=e534]:
+            - generic [ref=e535]: P3
+          - cell "INVALID_PLACEHOLDER_TOKEN" [ref=e536]
+          - cell "customers" [ref=e537]:
+            - code [ref=e538]: customers
+          - cell "customer_name" [ref=e539]
+          - cell "1/4" [ref=e540]
+          - cell "25.00%" [ref=e541]
+          - cell "samples/ISSUE-0003.csv" [ref=e542]:
+            - link "samples/ISSUE-0003.csv" [ref=e543] [cursor=pointer]:
+              - /url: samples/ISSUE-0003.csv
+          - cell "Placeholder tokens are present instead of normalized nulls." [ref=e544]
+          - cell "Normalize placeholder tokens to null at ingestion." [ref=e545]
+        - row "ISSUE-0008 P3 FOREIGN_KEY_NULL orders customer_id 1/5 20.00% samples/ISSUE-0008.csv Data violates the current contract. Inspect sample rows and update the pipeline." [ref=e546]:
+          - cell "ISSUE-0008" [ref=e547]:
+            - code [ref=e548]: ISSUE-0008
+          - cell "P3" [ref=e549]:
+            - generic [ref=e550]: P3
+          - cell "FOREIGN_KEY_NULL" [ref=e551]
+          - cell "orders" [ref=e552]:
+            - code [ref=e553]: orders
+          - cell "customer_id" [ref=e554]
+          - cell "1/5" [ref=e555]
+          - cell "20.00%" [ref=e556]
+          - cell "samples/ISSUE-0008.csv" [ref=e557]:
+            - link "samples/ISSUE-0008.csv" [ref=e558] [cursor=pointer]:
+              - /url: samples/ISSUE-0008.csv
+          - cell "Data violates the current contract." [ref=e559]
+          - cell "Inspect sample rows and update the pipeline." [ref=e560]
+  - generic [ref=e561]:
+    - heading "Relationship, Schema, and Lineage Summary" [level=2] [ref=e562]
+    - generic [ref=e563]:
+      - article [ref=e564]:
+        - heading "Relationship Graph" [level=3] [ref=e565]
+        - paragraph [ref=e566]:
+          - link "relationship_graph.json" [ref=e567] [cursor=pointer]:
+            - /url: relationship_graph.json
+        - paragraph [ref=e568]: 6 edges; invalid=6; MANY_TO_ONE=3, UNKNOWN_INVALID_PARENT_KEY=3
+      - article [ref=e569]:
+        - heading "Schema Parse Diagnostics" [level=3] [ref=e570]
+        - paragraph [ref=e571]:
+          - link "schema_parse_report.json" [ref=e572] [cursor=pointer]:
+            - /url: schema_parse_report.json
+        - paragraph [ref=e573]: parsed; tables=7, columns=27, relationships=6, warnings=0, unsupported=0
+      - article [ref=e574]:
+        - heading "Lineage Graph" [level=3] [ref=e575]
+        - paragraph [ref=e576]:
+          - link "lineage_graph.json" [ref=e577] [cursor=pointer]:
+            - /url: lineage_graph.json
+        - paragraph [ref=e578]: 2 sources; 7 tables; 25 artifacts; 179 dependency edges.
+    - heading "Relationship Status" [level=3] [ref=e579]
+    - table [ref=e581]:
+      - rowgroup [ref=e582]:
+        - row "Source Target Declared Cardinality Observed Cardinality Status Reason" [ref=e583]:
+          - columnheader "Source" [ref=e584]
+          - columnheader "Target" [ref=e585]
+          - columnheader "Declared Cardinality" [ref=e586]
+          - columnheader "Observed Cardinality" [ref=e587]
+          - columnheader "Status" [ref=e588]
+          - columnheader "Reason" [ref=e589]
+      - rowgroup [ref=e590]:
+        - row "orders.customer_id customers.customer_id MANY_TO_ONE MANY_TO_ONE invalid child table has orphan foreign keys" [ref=e591]:
+          - cell "orders.customer_id" [ref=e592]:
+            - code [ref=e593]: orders.customer_id
+          - cell "customers.customer_id" [ref=e594]:
+            - code [ref=e595]: customers.customer_id
+          - cell "MANY_TO_ONE" [ref=e596]
+          - cell "MANY_TO_ONE" [ref=e597]
+          - cell "invalid" [ref=e598]:
+            - generic [ref=e599]: invalid
+          - cell "child table has orphan foreign keys" [ref=e600]
+        - row "order_items.order_id orders.order_id MANY_TO_ONE UNKNOWN_INVALID_PARENT_KEY invalid parent key has duplicate values" [ref=e601]:
+          - cell "order_items.order_id" [ref=e602]:
+            - code [ref=e603]: order_items.order_id
+          - cell "orders.order_id" [ref=e604]:
+            - code [ref=e605]: orders.order_id
+          - cell "MANY_TO_ONE" [ref=e606]
+          - cell "UNKNOWN_INVALID_PARENT_KEY" [ref=e607]
+          - cell "invalid" [ref=e608]:
+            - generic [ref=e609]: invalid
+          - cell "parent key has duplicate values" [ref=e610]
+        - row "order_items.product_id products.product_id MANY_TO_ONE MANY_TO_ONE invalid child table has orphan foreign keys" [ref=e611]:
+          - cell "order_items.product_id" [ref=e612]:
+            - code [ref=e613]: order_items.product_id
+          - cell "products.product_id" [ref=e614]:
+            - code [ref=e615]: products.product_id
+          - cell "MANY_TO_ONE" [ref=e616]
+          - cell "MANY_TO_ONE" [ref=e617]
+          - cell "invalid" [ref=e618]:
+            - generic [ref=e619]: invalid
+          - cell "child table has orphan foreign keys" [ref=e620]
+        - row "order_items.seller_id sellers.seller_id MANY_TO_ONE MANY_TO_ONE invalid child table has orphan foreign keys" [ref=e621]:
+          - cell "order_items.seller_id" [ref=e622]:
+            - code [ref=e623]: order_items.seller_id
+          - cell "sellers.seller_id" [ref=e624]:
+            - code [ref=e625]: sellers.seller_id
+          - cell "MANY_TO_ONE" [ref=e626]
+          - cell "MANY_TO_ONE" [ref=e627]
+          - cell "invalid" [ref=e628]:
+            - generic [ref=e629]: invalid
+          - cell "child table has orphan foreign keys" [ref=e630]
+        - row "order_payments.order_id orders.order_id MANY_TO_ONE UNKNOWN_INVALID_PARENT_KEY invalid parent key has duplicate values" [ref=e631]:
+          - cell "order_payments.order_id" [ref=e632]:
+            - code [ref=e633]: order_payments.order_id
+          - cell "orders.order_id" [ref=e634]:
+            - code [ref=e635]: orders.order_id
+          - cell "MANY_TO_ONE" [ref=e636]
+          - cell "UNKNOWN_INVALID_PARENT_KEY" [ref=e637]
+          - cell "invalid" [ref=e638]:
+            - generic [ref=e639]: invalid
+          - cell "parent key has duplicate values" [ref=e640]
+        - row "order_reviews.order_id orders.order_id MANY_TO_ONE UNKNOWN_INVALID_PARENT_KEY invalid parent key has duplicate values" [ref=e641]:
+          - cell "order_reviews.order_id" [ref=e642]:
+            - code [ref=e643]: order_reviews.order_id
+          - cell "orders.order_id" [ref=e644]:
+            - code [ref=e645]: orders.order_id
+          - cell "MANY_TO_ONE" [ref=e646]
+          - cell "UNKNOWN_INVALID_PARENT_KEY" [ref=e647]
+          - cell "invalid" [ref=e648]:
+            - generic [ref=e649]: invalid
+          - cell "parent key has duplicate values" [ref=e650]
+    - paragraph [ref=e651]:
+      - strong [ref=e652]: "Schema evaluation:"
+      - link "schema_evaluation.json" [ref=e653] [cursor=pointer]:
+        - /url: schema_evaluation.json
+      - text: ; mapped tables=7, missing tables=0, extra CSV files=0, schema issue refs=3.
+  - generic [ref=e654]:
+    - heading "Dataset Overview" [level=2] [ref=e655]
+    - table [ref=e657]:
+      - rowgroup [ref=e658]:
+        - row "Table Rows Columns File Size MB" [ref=e659]:
+          - columnheader "Table" [ref=e660]
+          - columnheader "Rows" [ref=e661]
+          - columnheader "Columns" [ref=e662]
+          - columnheader "File Size MB" [ref=e663]
+      - rowgroup [ref=e664]:
+        - row "customers 4 3 0.0001" [ref=e665]:
+          - cell "customers" [ref=e666]:
+            - code [ref=e667]: customers
+          - cell "4" [ref=e668]
+          - cell "3" [ref=e669]
+          - cell "0.0001" [ref=e670]
+        - row "orders 5 5 0.0004" [ref=e671]:
+          - cell "orders" [ref=e672]:
+            - code [ref=e673]: orders
+          - cell "5" [ref=e674]
+          - cell "5" [ref=e675]
+          - cell "0.0004" [ref=e676]
+        - row "order_items 4 6 0.0002" [ref=e677]:
+          - cell "order_items" [ref=e678]:
+            - code [ref=e679]: order_items
+          - cell "4" [ref=e680]
+          - cell "6" [ref=e681]
+          - cell "0.0002" [ref=e682]
+        - row "order_payments 3 5 0.0002" [ref=e683]:
+          - cell "order_payments" [ref=e684]:
+            - code [ref=e685]: order_payments
+          - cell "3" [ref=e686]
+          - cell "5" [ref=e687]
+          - cell "0.0002" [ref=e688]
+        - row "order_reviews 4 4 0.0001" [ref=e689]:
+          - cell "order_reviews" [ref=e690]:
+            - code [ref=e691]: order_reviews
+          - cell "4" [ref=e692]
+          - cell "4" [ref=e693]
+          - cell "0.0001" [ref=e694]
+        - row "products 2 2 0.0001" [ref=e695]:
+          - cell "products" [ref=e696]:
+            - code [ref=e697]: products
+          - cell "2" [ref=e698]
+          - cell "2" [ref=e699]
+          - cell "0.0001" [ref=e700]
+        - row "sellers 2 2 0.0" [ref=e701]:
+          - cell "sellers" [ref=e702]:
+            - code [ref=e703]: sellers
+          - cell "2" [ref=e704]
+          - cell "2" [ref=e705]
+          - cell "0.0" [ref=e706]
+  - generic [ref=e707]:
+    - heading "Execution Flow" [level=2] [ref=e708]
+    - paragraph [ref=e709]:
+      - strong [ref=e710]: "Run ID:"
+      - code [ref=e711]: 17bafc724d7e403d975bc794f54ad761
+      - text: ·
+      - strong [ref=e712]: "Status:"
+      - text: success ·
+      - strong [ref=e713]: "Duration:"
+      - text: 0.659 seconds
+    - paragraph [ref=e714]:
+      - strong [ref=e715]: "Output directory:"
+      - code [ref=e716]: outputs/demo_small_report_redesign
+    - table [ref=e718]:
+      - rowgroup [ref=e719]:
+        - row "Stage Status Duration Seconds Details" [ref=e720]:
+          - columnheader "Stage" [ref=e721]
+          - columnheader "Status" [ref=e722]
+          - columnheader "Duration Seconds" [ref=e723]
+          - columnheader "Details" [ref=e724]
+      - rowgroup [ref=e725]:
+        - row "Parse DBML schema completed 0.002 table_count=7, relationship_count=6, diagnostic_count=0, unsupported_construct_count=0" [ref=e726]:
+          - cell "Parse DBML schema" [ref=e727]
+          - cell "completed" [ref=e728]:
+            - generic [ref=e729]: completed
+          - cell "0.002" [ref=e730]
+          - cell "table_count=7, relationship_count=6, diagnostic_count=0, unsupported_construct_count=0" [ref=e731]
+        - row "Catalog CSV files and table mappings completed 0.001 mapped_table_count=7, missing_table_count=0, extra_csv_count=0" [ref=e732]:
+          - cell "Catalog CSV files and table mappings" [ref=e733]
+          - cell "completed" [ref=e734]:
+            - generic [ref=e735]: completed
+          - cell "0.001" [ref=e736]
+          - cell "mapped_table_count=7, missing_table_count=0, extra_csv_count=0" [ref=e737]
+        - row "Profile CSV tables and columns completed 0.250 table_count=7, row_count=24, column_count=27" [ref=e738]:
+          - cell "Profile CSV tables and columns" [ref=e739]
+          - cell "completed" [ref=e740]:
+            - generic [ref=e741]: completed
+          - cell "0.250" [ref=e742]
+          - cell "table_count=7, row_count=24, column_count=27" [ref=e743]
+        - row "Run data quality checks completed 0.143 issue_count=7" [ref=e744]:
+          - cell "Run data quality checks" [ref=e745]
+          - cell "completed" [ref=e746]:
+            - generic [ref=e747]: completed
+          - cell "0.143" [ref=e748]
+          - cell "issue_count=7" [ref=e749]
+        - row "Check relationships completed 0.160 relationship_count=6, issue_count_added=8" [ref=e750]:
+          - cell "Check relationships" [ref=e751]
+          - cell "completed" [ref=e752]:
+            - generic [ref=e753]: completed
+          - cell "0.160" [ref=e754]
+          - cell "relationship_count=6, issue_count_added=8" [ref=e755]
+        - row "Run influence analysis completed 0.019 row_count=5, feature_count=2" [ref=e756]:
+          - cell "Run influence analysis" [ref=e757]
+          - cell "completed" [ref=e758]:
+            - generic [ref=e759]: completed
+          - cell "0.019" [ref=e760]
+          - cell "row_count=5, feature_count=2" [ref=e761]
+        - row "Write machine-readable artifacts completed 0.006 artifact_count=22, chart_spec_count=7, table_assessment_count=7" [ref=e762]:
+          - cell "Write machine-readable artifacts" [ref=e763]
+          - cell "completed" [ref=e764]:
+            - generic [ref=e765]: completed
+          - cell "0.006" [ref=e766]
+          - cell "artifact_count=22, chart_spec_count=7, table_assessment_count=7" [ref=e767]
+        - row "Render Markdown and HTML reports completed 0.063 report_count=2, formats=[markdown, html]" [ref=e768]:
+          - cell "Render Markdown and HTML reports" [ref=e769]
+          - cell "completed" [ref=e770]:
+            - generic [ref=e771]: completed
+          - cell "0.063" [ref=e772]
+          - cell "report_count=2, formats=[markdown, html]" [ref=e773]
+    - heading "Runtime Artifacts" [level=3] [ref=e774]
+    - table [ref=e776]:
+      - rowgroup [ref=e777]:
+        - row "Artifact Path" [ref=e778]:
+          - columnheader "Artifact" [ref=e779]
+          - columnheader "Path" [ref=e780]
+      - rowgroup [ref=e781]:
+        - row "chart_dataset_verdict_risk_summary charts/dataset_verdict_risk_summary.json" [ref=e782]:
+          - cell "chart_dataset_verdict_risk_summary" [ref=e783]
+          - cell "charts/dataset_verdict_risk_summary.json" [ref=e784]:
+            - code [ref=e785]: charts/dataset_verdict_risk_summary.json
+        - row "chart_influence_top_features charts/influence_top_features.json" [ref=e786]:
+          - cell "chart_influence_top_features" [ref=e787]
+          - cell "charts/influence_top_features.json" [ref=e788]:
+            - code [ref=e789]: charts/influence_top_features.json
+        - row "chart_issue_counts_by_severity charts/issue_counts_by_severity.json" [ref=e790]:
+          - cell "chart_issue_counts_by_severity" [ref=e791]
+          - cell "charts/issue_counts_by_severity.json" [ref=e792]:
+            - code [ref=e793]: charts/issue_counts_by_severity.json
+        - row "chart_issue_counts_by_type charts/issue_counts_by_type.json" [ref=e794]:
+          - cell "chart_issue_counts_by_type" [ref=e795]
+          - cell "charts/issue_counts_by_type.json" [ref=e796]:
+            - code [ref=e797]: charts/issue_counts_by_type.json
+        - row "chart_missingness_by_table charts/missingness_by_table.json" [ref=e798]:
+          - cell "chart_missingness_by_table" [ref=e799]
+          - cell "charts/missingness_by_table.json" [ref=e800]:
+            - code [ref=e801]: charts/missingness_by_table.json
+        - row "chart_missingness_top_columns charts/missingness_top_columns.json" [ref=e802]:
+          - cell "chart_missingness_top_columns" [ref=e803]
+          - cell "charts/missingness_top_columns.json" [ref=e804]:
+            - code [ref=e805]: charts/missingness_top_columns.json
+        - row "chart_relationship_fk_health charts/relationship_fk_health.json" [ref=e806]:
+          - cell "chart_relationship_fk_health" [ref=e807]
+          - cell "charts/relationship_fk_health.json" [ref=e808]:
+            - code [ref=e809]: charts/relationship_fk_health.json
+        - row "charts_dir charts" [ref=e810]:
+          - cell "charts_dir" [ref=e811]
+          - cell "charts" [ref=e812]:
+            - code [ref=e813]: charts
+        - row "dataset_verdict dataset_verdict.json" [ref=e814]:
+          - cell "dataset_verdict" [ref=e815]
+          - cell "dataset_verdict.json" [ref=e816]:
+            - code [ref=e817]: dataset_verdict.json
+        - row "influence influence.json" [ref=e818]:
+          - cell "influence" [ref=e819]
+          - cell "influence.json" [ref=e820]:
+            - code [ref=e821]: influence.json
+        - row "issues issues.json" [ref=e822]:
+          - cell "issues" [ref=e823]
+          - cell "issues.json" [ref=e824]:
+            - code [ref=e825]: issues.json
+        - row "lineage_graph lineage_graph.json" [ref=e826]:
+          - cell "lineage_graph" [ref=e827]
+          - cell "lineage_graph.json" [ref=e828]:
+            - code [ref=e829]: lineage_graph.json
+        - row "profile_summary profile_summary.json" [ref=e830]:
+          - cell "profile_summary" [ref=e831]
+          - cell "profile_summary.json" [ref=e832]:
+            - code [ref=e833]: profile_summary.json
+        - row "relationship_graph relationship_graph.json" [ref=e834]:
+          - cell "relationship_graph" [ref=e835]
+          - cell "relationship_graph.json" [ref=e836]:
+            - code [ref=e837]: relationship_graph.json
+        - row "report_html report.html" [ref=e838]:
+          - cell "report_html" [ref=e839]
+          - cell "report.html" [ref=e840]:
+            - code [ref=e841]: report.html
+        - row "report_md report.md" [ref=e842]:
+          - cell "report_md" [ref=e843]
+          - cell "report.md" [ref=e844]:
+            - code [ref=e845]: report.md
+        - row "run_events run_events.jsonl" [ref=e846]:
+          - cell "run_events" [ref=e847]
+          - cell "run_events.jsonl" [ref=e848]:
+            - code [ref=e849]: run_events.jsonl
+        - row "run_log run.log" [ref=e850]:
+          - cell "run_log" [ref=e851]
+          - cell "run.log" [ref=e852]:
+            - code [ref=e853]: run.log
+        - row "run_summary run_summary.json" [ref=e854]:
+          - cell "run_summary" [ref=e855]
+          - cell "run_summary.json" [ref=e856]:
+            - code [ref=e857]: run_summary.json
+        - row "samples_dir samples" [ref=e858]:
+          - cell "samples_dir" [ref=e859]
+          - cell "samples" [ref=e860]:
+            - code [ref=e861]: samples
+        - row "schema_diagram_dbml schema_diagram.dbml" [ref=e862]:
+          - cell "schema_diagram_dbml" [ref=e863]
+          - cell "schema_diagram.dbml" [ref=e864]:
+            - code [ref=e865]: schema_diagram.dbml
+        - row "schema_diagram_json schema_diagram.json" [ref=e866]:
+          - cell "schema_diagram_json" [ref=e867]
+          - cell "schema_diagram.json" [ref=e868]:
+            - code [ref=e869]: schema_diagram.json
+        - row "schema_evaluation schema_evaluation.json" [ref=e870]:
+          - cell "schema_evaluation" [ref=e871]
+          - cell "schema_evaluation.json" [ref=e872]:
+            - code [ref=e873]: schema_evaluation.json
+        - row "schema_parse_report schema_parse_report.json" [ref=e874]:
+          - cell "schema_parse_report" [ref=e875]
+          - cell "schema_parse_report.json" [ref=e876]:
+            - code [ref=e877]: schema_parse_report.json
+        - row "table_assessments table_assessments.json" [ref=e878]:
+          - cell "table_assessments" [ref=e879]
+          - cell "table_assessments.json" [ref=e880]:
+            - code [ref=e881]: table_assessments.json
+  - generic [ref=e882]:
+    - heading "DBML Diagram and CSV Mapping" [level=2] [ref=e883]
+    - paragraph [ref=e884]: Open this stateless dbdiagram.io link to view the DBML ER diagram.
+    - generic [ref=e885]:
+      - link "Open DBML diagram in dbdiagram.io dbdiagram.io" [ref=e886] [cursor=pointer]:
+        - /url: https://dbdiagram.io/embed?c=Ly8gR2VuZXJhdGVkIGJ5IFZTRiBEYXRhIFByb2ZpbGVyLgovLyBUaGUgQ1NWIG1hcHBpbmcgaXMgYWxzbyB3cml0dGVuIHRvIHNjaGVtYV9kaWFncmFtLmpzb24gYW5kIHRoZSByZXBvcnQuCgpUYWJsZSBjdXN0b21lcnMgewogIE5vdGU6ICdDU1Y6IGRhdGEvZGVtb19zbWFsbC9jc3YvY3VzdG9tZXJzLmNzdicKICBjdXN0b21lcl9pZCB2YXJjaGFyIFtwaywgbm90IG51bGxdCiAgY3VzdG9tZXJfbmFtZSB2YXJjaGFyIFtub3QgbnVsbF0KICBjdXN0b21lcl9zdGF0ZSB2YXJjaGFyCn0KClRhYmxlIG9yZGVycyB7CiAgTm90ZTogJ0NTVjogZGF0YS9kZW1vX3NtYWxsL2Nzdi9vcmRlcnMuY3N2JwogIG9yZGVyX2lkIHZhcmNoYXIgW3BrLCBub3QgbnVsbF0KICBjdXN0b21lcl9pZCB2YXJjaGFyIFtyZWY6ID4gY3VzdG9tZXJzLmN1c3RvbWVyX2lkXQogIG9yZGVyX3N0YXR1cyB2YXJjaGFyCiAgb3JkZXJfcHVyY2hhc2VfdGltZXN0YW1wIHRpbWVzdGFtcAogIG9yZGVyX2RlbGl2ZXJlZF9jdXN0b21lcl9kYXRlIHRpbWVzdGFtcAp9CgpUYWJsZSBvcmRlcl9pdGVtcyB7CiAgTm90ZTogJ0NTVjogZGF0YS9kZW1vX3NtYWxsL2Nzdi9vcmRlcl9pdGVtcy5jc3YnCiAgb3JkZXJfaWQgdmFyY2hhciBbcGssIG5vdCBudWxsLCByZWY6ID4gb3JkZXJzLm9yZGVyX2lkXQogIG9yZGVyX2l0ZW1faWQgaW50IFtwaywgbm90IG51bGxdCiAgcHJvZHVjdF9pZCB2YXJjaGFyIFtyZWY6ID4gcHJvZHVjdHMucHJvZHVjdF9pZF0KICBzZWxsZXJfaWQgdmFyY2hhciBbcmVmOiA%2BIHNlbGxlcnMuc2VsbGVyX2lkXQogIHByaWNlIGZsb2F0CiAgZnJlaWdodF92YWx1ZSBmbG9hdAoKICBpbmRleGVzIHsKICAgIChvcmRlcl9pZCwgb3JkZXJfaXRlbV9pZCkgW3BrXQogIH0KfQoKVGFibGUgb3JkZXJfcGF5bWVudHMgewogIE5vdGU6ICdDU1Y6IGRhdGEvZGVtb19zbWFsbC9jc3Yvb3JkZXJfcGF5bWVudHMuY3N2JwogIG9yZGVyX2lkIHZhcmNoYXIgW3JlZjogPiBvcmRlcnMub3JkZXJfaWRdCiAgcGF5bWVudF9zZXF1ZW50aWFsIGludAogIHBheW1lbnRfdHlwZSB2YXJjaGFyCiAgcGF5bWVudF9pbnN0YWxsbWVudHMgaW50CiAgcGF5bWVudF92YWx1ZSBmbG9hdAp9CgpUYWJsZSBvcmRlcl9yZXZpZXdzIHsKICBOb3RlOiAnQ1NWOiBkYXRhL2RlbW9fc21hbGwvY3N2L29yZGVyX3Jldmlld3MuY3N2JwogIHJldmlld19pZCB2YXJjaGFyIFtwaywgbm90IG51bGxdCiAgb3JkZXJfaWQgdmFyY2hhciBbcmVmOiA%2BIG9yZGVycy5vcmRlcl9pZF0KICByZXZpZXdfc2NvcmUgaW50CiAgcmV2aWV3X2NvbW1lbnRfbWVzc2FnZSB2YXJjaGFyCn0KClRhYmxlIHByb2R1Y3RzIHsKICBOb3RlOiAnQ1NWOiBkYXRhL2RlbW9fc21hbGwvY3N2L3Byb2R1Y3RzLmNzdicKICBwcm9kdWN0X2lkIHZhcmNoYXIgW3BrLCBub3QgbnVsbF0KICBwcm9kdWN0X2NhdGVnb3J5X25hbWUgdmFyY2hhcgp9CgpUYWJsZSBzZWxsZXJzIHsKICBOb3RlOiAnQ1NWOiBkYXRhL2RlbW9fc21hbGwvY3N2L3NlbGxlcnMuY3N2JwogIHNlbGxlcl9pZCB2YXJjaGFyIFtwaywgbm90IG51bGxdCiAgc2VsbGVyX3N0YXRlIHZhcmNoYXIKfQo%3D
+        - strong [ref=e887]: Open DBML diagram in dbdiagram.io
+        - code [ref=e888]: dbdiagram.io
+      - link "Download generated DBML schema_diagram.dbml" [ref=e889] [cursor=pointer]:
+        - /url: schema_diagram.dbml
+        - strong [ref=e890]: Download generated DBML
+        - code [ref=e891]: schema_diagram.dbml
+    - iframe [ref=e892]
+    - heading "CSV to DBML Table Mapping" [level=3] [ref=e893]
+    - table [ref=e895]:
+      - rowgroup [ref=e896]:
+        - row "Status DBML Table CSV File Primary Key Foreign Keys" [ref=e897]:
+          - columnheader "Status" [ref=e898]
+          - columnheader "DBML Table" [ref=e899]
+          - columnheader "CSV File" [ref=e900]
+          - columnheader "Primary Key" [ref=e901]
+          - columnheader "Foreign Keys" [ref=e902]
+      - rowgroup [ref=e903]:
+        - row "mapped customers data/demo_small/csv/customers.csv customer_id none" [ref=e904]:
+          - cell "mapped" [ref=e905]:
+            - generic [ref=e906]: mapped
+          - cell "customers" [ref=e907]:
+            - code [ref=e908]: customers
+          - cell "data/demo_small/csv/customers.csv" [ref=e909]:
+            - code [ref=e910]: data/demo_small/csv/customers.csv
+          - cell "customer_id" [ref=e911]:
+            - code [ref=e912]: customer_id
+          - cell "none" [ref=e913]
+        - row "mapped orders data/demo_small/csv/orders.csv order_id customer_id -> customers.customer_id" [ref=e914]:
+          - cell "mapped" [ref=e915]:
+            - generic [ref=e916]: mapped
+          - cell "orders" [ref=e917]:
+            - code [ref=e918]: orders
+          - cell "data/demo_small/csv/orders.csv" [ref=e919]:
+            - code [ref=e920]: data/demo_small/csv/orders.csv
+          - cell "order_id" [ref=e921]:
+            - code [ref=e922]: order_id
+          - cell "customer_id -> customers.customer_id" [ref=e923]:
+            - generic [ref=e924]:
+              - code [ref=e925]: customer_id
+              - text: "->"
+              - code [ref=e926]: customers.customer_id
+        - row "mapped order_items data/demo_small/csv/order_items.csv order_id, order_item_id order_id -> orders.order_id product_id -> products.product_id seller_id -> sellers.seller_id" [ref=e927]:
+          - cell "mapped" [ref=e928]:
+            - generic [ref=e929]: mapped
+          - cell "order_items" [ref=e930]:
+            - code [ref=e931]: order_items
+          - cell "data/demo_small/csv/order_items.csv" [ref=e932]:
+            - code [ref=e933]: data/demo_small/csv/order_items.csv
+          - cell "order_id, order_item_id" [ref=e934]:
+            - code [ref=e935]: order_id, order_item_id
+          - cell "order_id -> orders.order_id product_id -> products.product_id seller_id -> sellers.seller_id" [ref=e936]:
+            - generic [ref=e937]:
+              - code [ref=e938]: order_id
+              - text: "->"
+              - code [ref=e939]: orders.order_id
+            - generic [ref=e940]:
+              - code [ref=e941]: product_id
+              - text: "->"
+              - code [ref=e942]: products.product_id
+            - generic [ref=e943]:
+              - code [ref=e944]: seller_id
+              - text: "->"
+              - code [ref=e945]: sellers.seller_id
+        - row "mapped order_payments data/demo_small/csv/order_payments.csv none order_id -> orders.order_id" [ref=e946]:
+          - cell "mapped" [ref=e947]:
+            - generic [ref=e948]: mapped
+          - cell "order_payments" [ref=e949]:
+            - code [ref=e950]: order_payments
+          - cell "data/demo_small/csv/order_payments.csv" [ref=e951]:
+            - code [ref=e952]: data/demo_small/csv/order_payments.csv
+          - cell "none" [ref=e953]:
+            - code [ref=e954]: none
+          - cell "order_id -> orders.order_id" [ref=e955]:
+            - generic [ref=e956]:
+              - code [ref=e957]: order_id
+              - text: "->"
+              - code [ref=e958]: orders.order_id
+        - row "mapped order_reviews data/demo_small/csv/order_reviews.csv review_id order_id -> orders.order_id" [ref=e959]:
+          - cell "mapped" [ref=e960]:
+            - generic [ref=e961]: mapped
+          - cell "order_reviews" [ref=e962]:
+            - code [ref=e963]: order_reviews
+          - cell "data/demo_small/csv/order_reviews.csv" [ref=e964]:
+            - code [ref=e965]: data/demo_small/csv/order_reviews.csv
+          - cell "review_id" [ref=e966]:
+            - code [ref=e967]: review_id
+          - cell "order_id -> orders.order_id" [ref=e968]:
+            - generic [ref=e969]:
+              - code [ref=e970]: order_id
+              - text: "->"
+              - code [ref=e971]: orders.order_id
+        - row "mapped products data/demo_small/csv/products.csv product_id none" [ref=e972]:
+          - cell "mapped" [ref=e973]:
+            - generic [ref=e974]: mapped
+          - cell "products" [ref=e975]:
+            - code [ref=e976]: products
+          - cell "data/demo_small/csv/products.csv" [ref=e977]:
+            - code [ref=e978]: data/demo_small/csv/products.csv
+          - cell "product_id" [ref=e979]:
+            - code [ref=e980]: product_id
+          - cell "none" [ref=e981]
+        - row "mapped sellers data/demo_small/csv/sellers.csv seller_id none" [ref=e982]:
+          - cell "mapped" [ref=e983]:
+            - generic [ref=e984]: mapped
+          - cell "sellers" [ref=e985]:
+            - code [ref=e986]: sellers
+          - cell "data/demo_small/csv/sellers.csv" [ref=e987]:
+            - code [ref=e988]: data/demo_small/csv/sellers.csv
+          - cell "seller_id" [ref=e989]:
+            - code [ref=e990]: seller_id
+          - cell "none" [ref=e991]
+  - generic [ref=e992]:
+    - heading "Table Profiles" [level=2] [ref=e993]
+    - heading "customers" [level=3] [ref=e994]
+    - table [ref=e996]:
+      - rowgroup [ref=e997]:
+        - row "Column Expected Type Inferred Type Null Rate Distinct Invalid Casts" [ref=e998]:
+          - columnheader "Column" [ref=e999]
+          - columnheader "Expected Type" [ref=e1000]
+          - columnheader "Inferred Type" [ref=e1001]
+          - columnheader "Null Rate" [ref=e1002]
+          - columnheader "Distinct" [ref=e1003]
+          - columnheader "Invalid Casts" [ref=e1004]
+      - rowgroup [ref=e1005]:
+        - row "customer_id varchar varchar 25.00% 3 0" [ref=e1006]:
+          - cell "customer_id" [ref=e1007]:
+            - code [ref=e1008]: customer_id
+          - cell "varchar" [ref=e1009]
+          - cell "varchar" [ref=e1010]
+          - cell "25.00%" [ref=e1011]
+          - cell "3" [ref=e1012]
+          - cell "0" [ref=e1013]
+        - row "customer_name varchar varchar 0.00% 4 0" [ref=e1014]:
+          - cell "customer_name" [ref=e1015]:
+            - code [ref=e1016]: customer_name
+          - cell "varchar" [ref=e1017]
+          - cell "varchar" [ref=e1018]
+          - cell "0.00%" [ref=e1019]
+          - cell "4" [ref=e1020]
+          - cell "0" [ref=e1021]
+        - row "customer_state varchar varchar 0.00% 4 0" [ref=e1022]:
+          - cell "customer_state" [ref=e1023]:
+            - code [ref=e1024]: customer_state
+          - cell "varchar" [ref=e1025]
+          - cell "varchar" [ref=e1026]
+          - cell "0.00%" [ref=e1027]
+          - cell "4" [ref=e1028]
+          - cell "0" [ref=e1029]
+    - heading "orders" [level=3] [ref=e1030]
+    - table [ref=e1032]:
+      - rowgroup [ref=e1033]:
+        - row "Column Expected Type Inferred Type Null Rate Distinct Invalid Casts" [ref=e1034]:
+          - columnheader "Column" [ref=e1035]
+          - columnheader "Expected Type" [ref=e1036]
+          - columnheader "Inferred Type" [ref=e1037]
+          - columnheader "Null Rate" [ref=e1038]
+          - columnheader "Distinct" [ref=e1039]
+          - columnheader "Invalid Casts" [ref=e1040]
+      - rowgroup [ref=e1041]:
+        - row "order_id varchar varchar 0.00% 4 0" [ref=e1042]:
+          - cell "order_id" [ref=e1043]:
+            - code [ref=e1044]: order_id
+          - cell "varchar" [ref=e1045]
+          - cell "varchar" [ref=e1046]
+          - cell "0.00%" [ref=e1047]
+          - cell "4" [ref=e1048]
+          - cell "0" [ref=e1049]
+        - row "customer_id varchar varchar 20.00% 3 0" [ref=e1050]:
+          - cell "customer_id" [ref=e1051]:
+            - code [ref=e1052]: customer_id
+          - cell "varchar" [ref=e1053]
+          - cell "varchar" [ref=e1054]
+          - cell "20.00%" [ref=e1055]
+          - cell "3" [ref=e1056]
+          - cell "0" [ref=e1057]
+        - row "order_status varchar varchar 0.00% 2 0" [ref=e1058]:
+          - cell "order_status" [ref=e1059]:
+            - code [ref=e1060]: order_status
+          - cell "varchar" [ref=e1061]
+          - cell "varchar" [ref=e1062]
+          - cell "0.00%" [ref=e1063]
+          - cell "2" [ref=e1064]
+          - cell "0" [ref=e1065]
+        - row "order_purchase_timestamp timestamp timestamp 0.00% 4 0" [ref=e1066]:
+          - cell "order_purchase_timestamp" [ref=e1067]:
+            - code [ref=e1068]: order_purchase_timestamp
+          - cell "timestamp" [ref=e1069]
+          - cell "timestamp" [ref=e1070]
+          - cell "0.00%" [ref=e1071]
+          - cell "4" [ref=e1072]
+          - cell "0" [ref=e1073]
+        - row "order_delivered_customer_date timestamp timestamp 20.00% 4 0" [ref=e1074]:
+          - cell "order_delivered_customer_date" [ref=e1075]:
+            - code [ref=e1076]: order_delivered_customer_date
+          - cell "timestamp" [ref=e1077]
+          - cell "timestamp" [ref=e1078]
+          - cell "20.00%" [ref=e1079]
+          - cell "4" [ref=e1080]
+          - cell "0" [ref=e1081]
+    - heading "order_items" [level=3] [ref=e1082]
+    - table [ref=e1084]:
+      - rowgroup [ref=e1085]:
+        - row "Column Expected Type Inferred Type Null Rate Distinct Invalid Casts" [ref=e1086]:
+          - columnheader "Column" [ref=e1087]
+          - columnheader "Expected Type" [ref=e1088]
+          - columnheader "Inferred Type" [ref=e1089]
+          - columnheader "Null Rate" [ref=e1090]
+          - columnheader "Distinct" [ref=e1091]
+          - columnheader "Invalid Casts" [ref=e1092]
+      - rowgroup [ref=e1093]:
+        - row "order_id varchar varchar 0.00% 4 0" [ref=e1094]:
+          - cell "order_id" [ref=e1095]:
+            - code [ref=e1096]: order_id
+          - cell "varchar" [ref=e1097]
+          - cell "varchar" [ref=e1098]
+          - cell "0.00%" [ref=e1099]
+          - cell "4" [ref=e1100]
+          - cell "0" [ref=e1101]
+        - row "order_item_id int int 0.00% 1 0" [ref=e1102]:
+          - cell "order_item_id" [ref=e1103]:
+            - code [ref=e1104]: order_item_id
+          - cell "int" [ref=e1105]
+          - cell "int" [ref=e1106]
+          - cell "0.00%" [ref=e1107]
+          - cell "1" [ref=e1108]
+          - cell "0" [ref=e1109]
+        - row "product_id varchar varchar 0.00% 3 0" [ref=e1110]:
+          - cell "product_id" [ref=e1111]:
+            - code [ref=e1112]: product_id
+          - cell "varchar" [ref=e1113]
+          - cell "varchar" [ref=e1114]
+          - cell "0.00%" [ref=e1115]
+          - cell "3" [ref=e1116]
+          - cell "0" [ref=e1117]
+        - row "seller_id varchar varchar 0.00% 3 0" [ref=e1118]:
+          - cell "seller_id" [ref=e1119]:
+            - code [ref=e1120]: seller_id
+          - cell "varchar" [ref=e1121]
+          - cell "varchar" [ref=e1122]
+          - cell "0.00%" [ref=e1123]
+          - cell "3" [ref=e1124]
+          - cell "0" [ref=e1125]
+        - row "price float int 0.00% 4 0" [ref=e1126]:
+          - cell "price" [ref=e1127]:
+            - code [ref=e1128]: price
+          - cell "float" [ref=e1129]
+          - cell "int" [ref=e1130]
+          - cell "0.00%" [ref=e1131]
+          - cell "4" [ref=e1132]
+          - cell "0" [ref=e1133]
+        - row "freight_value float int 0.00% 4 0" [ref=e1134]:
+          - cell "freight_value" [ref=e1135]:
+            - code [ref=e1136]: freight_value
+          - cell "float" [ref=e1137]
+          - cell "int" [ref=e1138]
+          - cell "0.00%" [ref=e1139]
+          - cell "4" [ref=e1140]
+          - cell "0" [ref=e1141]
+    - heading "order_payments" [level=3] [ref=e1142]
+    - table [ref=e1144]:
+      - rowgroup [ref=e1145]:
+        - row "Column Expected Type Inferred Type Null Rate Distinct Invalid Casts" [ref=e1146]:
+          - columnheader "Column" [ref=e1147]
+          - columnheader "Expected Type" [ref=e1148]
+          - columnheader "Inferred Type" [ref=e1149]
+          - columnheader "Null Rate" [ref=e1150]
+          - columnheader "Distinct" [ref=e1151]
+          - columnheader "Invalid Casts" [ref=e1152]
+      - rowgroup [ref=e1153]:
+        - row "order_id varchar varchar 0.00% 3 0" [ref=e1154]:
+          - cell "order_id" [ref=e1155]:
+            - code [ref=e1156]: order_id
+          - cell "varchar" [ref=e1157]
+          - cell "varchar" [ref=e1158]
+          - cell "0.00%" [ref=e1159]
+          - cell "3" [ref=e1160]
+          - cell "0" [ref=e1161]
+        - row "payment_sequential int int 0.00% 1 0" [ref=e1162]:
+          - cell "payment_sequential" [ref=e1163]:
+            - code [ref=e1164]: payment_sequential
+          - cell "int" [ref=e1165]
+          - cell "int" [ref=e1166]
+          - cell "0.00%" [ref=e1167]
+          - cell "1" [ref=e1168]
+          - cell "0" [ref=e1169]
+        - row "payment_type varchar varchar 0.00% 2 0" [ref=e1170]:
+          - cell "payment_type" [ref=e1171]:
+            - code [ref=e1172]: payment_type
+          - cell "varchar" [ref=e1173]
+          - cell "varchar" [ref=e1174]
+          - cell "0.00%" [ref=e1175]
+          - cell "2" [ref=e1176]
+          - cell "0" [ref=e1177]
+        - row "payment_installments int int 0.00% 2 0" [ref=e1178]:
+          - cell "payment_installments" [ref=e1179]:
+            - code [ref=e1180]: payment_installments
+          - cell "int" [ref=e1181]
+          - cell "int" [ref=e1182]
+          - cell "0.00%" [ref=e1183]
+          - cell "2" [ref=e1184]
+          - cell "0" [ref=e1185]
+        - row "payment_value float int 0.00% 3 0" [ref=e1186]:
+          - cell "payment_value" [ref=e1187]:
+            - code [ref=e1188]: payment_value
+          - cell "float" [ref=e1189]
+          - cell "int" [ref=e1190]
+          - cell "0.00%" [ref=e1191]
+          - cell "3" [ref=e1192]
+          - cell "0" [ref=e1193]
+    - heading "order_reviews" [level=3] [ref=e1194]
+    - table [ref=e1196]:
+      - rowgroup [ref=e1197]:
+        - row "Column Expected Type Inferred Type Null Rate Distinct Invalid Casts" [ref=e1198]:
+          - columnheader "Column" [ref=e1199]
+          - columnheader "Expected Type" [ref=e1200]
+          - columnheader "Inferred Type" [ref=e1201]
+          - columnheader "Null Rate" [ref=e1202]
+          - columnheader "Distinct" [ref=e1203]
+          - columnheader "Invalid Casts" [ref=e1204]
+      - rowgroup [ref=e1205]:
+        - row "review_id varchar varchar 0.00% 4 0" [ref=e1206]:
+          - cell "review_id" [ref=e1207]:
+            - code [ref=e1208]: review_id
+          - cell "varchar" [ref=e1209]
+          - cell "varchar" [ref=e1210]
+          - cell "0.00%" [ref=e1211]
+          - cell "4" [ref=e1212]
+          - cell "0" [ref=e1213]
+        - row "order_id varchar varchar 0.00% 4 0" [ref=e1214]:
+          - cell "order_id" [ref=e1215]:
+            - code [ref=e1216]: order_id
+          - cell "varchar" [ref=e1217]
+          - cell "varchar" [ref=e1218]
+          - cell "0.00%" [ref=e1219]
+          - cell "4" [ref=e1220]
+          - cell "0" [ref=e1221]
+        - row "review_score int int 0.00% 4 0" [ref=e1222]:
+          - cell "review_score" [ref=e1223]:
+            - code [ref=e1224]: review_score
+          - cell "int" [ref=e1225]
+          - cell "int" [ref=e1226]
+          - cell "0.00%" [ref=e1227]
+          - cell "4" [ref=e1228]
+          - cell "0" [ref=e1229]
+        - row "review_comment_message varchar varchar 0.00% 4 0" [ref=e1230]:
+          - cell "review_comment_message" [ref=e1231]:
+            - code [ref=e1232]: review_comment_message
+          - cell "varchar" [ref=e1233]
+          - cell "varchar" [ref=e1234]
+          - cell "0.00%" [ref=e1235]
+          - cell "4" [ref=e1236]
+          - cell "0" [ref=e1237]
+    - heading "products" [level=3] [ref=e1238]
+    - table [ref=e1240]:
+      - rowgroup [ref=e1241]:
+        - row "Column Expected Type Inferred Type Null Rate Distinct Invalid Casts" [ref=e1242]:
+          - columnheader "Column" [ref=e1243]
+          - columnheader "Expected Type" [ref=e1244]
+          - columnheader "Inferred Type" [ref=e1245]
+          - columnheader "Null Rate" [ref=e1246]
+          - columnheader "Distinct" [ref=e1247]
+          - columnheader "Invalid Casts" [ref=e1248]
+      - rowgroup [ref=e1249]:
+        - row "product_id varchar varchar 0.00% 2 0" [ref=e1250]:
+          - cell "product_id" [ref=e1251]:
+            - code [ref=e1252]: product_id
+          - cell "varchar" [ref=e1253]
+          - cell "varchar" [ref=e1254]
+          - cell "0.00%" [ref=e1255]
+          - cell "2" [ref=e1256]
+          - cell "0" [ref=e1257]
+        - row "product_category_name varchar varchar 0.00% 2 0" [ref=e1258]:
+          - cell "product_category_name" [ref=e1259]:
+            - code [ref=e1260]: product_category_name
+          - cell "varchar" [ref=e1261]
+          - cell "varchar" [ref=e1262]
+          - cell "0.00%" [ref=e1263]
+          - cell "2" [ref=e1264]
+          - cell "0" [ref=e1265]
+    - heading "sellers" [level=3] [ref=e1266]
+    - table [ref=e1268]:
+      - rowgroup [ref=e1269]:
+        - row "Column Expected Type Inferred Type Null Rate Distinct Invalid Casts" [ref=e1270]:
+          - columnheader "Column" [ref=e1271]
+          - columnheader "Expected Type" [ref=e1272]
+          - columnheader "Inferred Type" [ref=e1273]
+          - columnheader "Null Rate" [ref=e1274]
+          - columnheader "Distinct" [ref=e1275]
+          - columnheader "Invalid Casts" [ref=e1276]
+      - rowgroup [ref=e1277]:
+        - row "seller_id varchar varchar 0.00% 2 0" [ref=e1278]:
+          - cell "seller_id" [ref=e1279]:
+            - code [ref=e1280]: seller_id
+          - cell "varchar" [ref=e1281]
+          - cell "varchar" [ref=e1282]
+          - cell "0.00%" [ref=e1283]
+          - cell "2" [ref=e1284]
+          - cell "0" [ref=e1285]
+        - row "seller_state varchar varchar 0.00% 2 0" [ref=e1286]:
+          - cell "seller_state" [ref=e1287]:
+            - code [ref=e1288]: seller_state
+          - cell "varchar" [ref=e1289]
+          - cell "varchar" [ref=e1290]
+          - cell "0.00%" [ref=e1291]
+          - cell "2" [ref=e1292]
+          - cell "0" [ref=e1293]
+  - generic [ref=e1294]:
+    - 'heading "Appendix: Evidence SQL and Sample Paths" [level=2] [ref=e1295]'
+    - heading "ISSUE-0004 DUPLICATE_PRIMARY_KEY" [level=3] [ref=e1296]
+    - paragraph [ref=e1297]:
+      - generic [ref=e1298]: P0
+      - code [ref=e1299]: orders
+      - text: "· order_id · 2 bad rows · sample:"
+      - link "samples/ISSUE-0004.csv" [ref=e1300] [cursor=pointer]:
+        - /url: samples/ISSUE-0004.csv
+    - paragraph [ref=e1301]:
+      - strong [ref=e1302]: "Suggested fix:"
+      - text: Deduplicate by primary key or fix upstream key generation.
+    - generic [ref=e1303]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) t JOIN (SELECT "order_id" FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "order_id" IS NOT NULL AND trim(CAST("order_id" AS VARCHAR)) <> '' GROUP BY "order_id" HAVING COUNT(*) > 1) d ON t."order_id" = d."order_id"
+    - heading "ISSUE-0002 PRIMARY_KEY_NULL" [level=3] [ref=e1304]
+    - paragraph [ref=e1305]:
+      - generic [ref=e1306]: P0
+      - code [ref=e1307]: customers
+      - text: "· customer_id · 1 bad rows · sample:"
+      - link "samples/ISSUE-0002.csv" [ref=e1308] [cursor=pointer]:
+        - /url: samples/ISSUE-0002.csv
+    - paragraph [ref=e1309]:
+      - strong [ref=e1310]: "Suggested fix:"
+      - text: Reject rows with missing primary keys before downstream joins.
+    - generic [ref=e1311]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/customers.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "customer_id" IS NULL OR trim(CAST("customer_id" AS VARCHAR)) = ''
+    - heading "ISSUE-0010 PARENT_KEY_DUPLICATE" [level=3] [ref=e1312]
+    - paragraph [ref=e1313]:
+      - generic [ref=e1314]: P1
+      - code [ref=e1315]: orders
+      - text: "· order_id · 2 bad rows · sample:"
+      - link "samples/ISSUE-0010.csv" [ref=e1316] [cursor=pointer]:
+        - /url: samples/ISSUE-0010.csv
+    - paragraph [ref=e1317]:
+      - strong [ref=e1318]: "Suggested fix:"
+      - text: Deduplicate parent keys before using the table as a dimension.
+    - generic [ref=e1319]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) p JOIN (SELECT "order_id" FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "order_id" IS NOT NULL AND trim(CAST("order_id" AS VARCHAR)) <> '' GROUP BY "order_id" HAVING COUNT(*) > 1) d ON p."order_id" = d."order_id"
+    - heading "ISSUE-0013 PARENT_KEY_DUPLICATE" [level=3] [ref=e1320]
+    - paragraph [ref=e1321]:
+      - generic [ref=e1322]: P1
+      - code [ref=e1323]: orders
+      - text: "· order_id · 2 bad rows · sample:"
+      - link "samples/ISSUE-0013.csv" [ref=e1324] [cursor=pointer]:
+        - /url: samples/ISSUE-0013.csv
+    - paragraph [ref=e1325]:
+      - strong [ref=e1326]: "Suggested fix:"
+      - text: Deduplicate parent keys before using the table as a dimension.
+    - generic [ref=e1327]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) p JOIN (SELECT "order_id" FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "order_id" IS NOT NULL AND trim(CAST("order_id" AS VARCHAR)) <> '' GROUP BY "order_id" HAVING COUNT(*) > 1) d ON p."order_id" = d."order_id"
+    - heading "ISSUE-0014 PARENT_KEY_DUPLICATE" [level=3] [ref=e1328]
+    - paragraph [ref=e1329]:
+      - generic [ref=e1330]: P1
+      - code [ref=e1331]: orders
+      - text: "· order_id · 2 bad rows · sample:"
+      - link "samples/ISSUE-0014.csv" [ref=e1332] [cursor=pointer]:
+        - /url: samples/ISSUE-0014.csv
+    - paragraph [ref=e1333]:
+      - strong [ref=e1334]: "Suggested fix:"
+      - text: Deduplicate parent keys before using the table as a dimension.
+    - generic [ref=e1335]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) p JOIN (SELECT "order_id" FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "order_id" IS NOT NULL AND trim(CAST("order_id" AS VARCHAR)) <> '' GROUP BY "order_id" HAVING COUNT(*) > 1) d ON p."order_id" = d."order_id"
+    - heading "ISSUE-0006 NEGATIVE_VALUE_NOT_ALLOWED" [level=3] [ref=e1336]
+    - paragraph [ref=e1337]:
+      - generic [ref=e1338]: P1
+      - code [ref=e1339]: order_payments
+      - text: "· payment_value · 1 bad rows · sample:"
+      - link "samples/ISSUE-0006.csv" [ref=e1340] [cursor=pointer]:
+        - /url: samples/ISSUE-0006.csv
+    - paragraph [ref=e1341]:
+      - strong [ref=e1342]: "Suggested fix:"
+      - text: Reject negative amount rows or correct sign handling upstream.
+    - generic [ref=e1343]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/order_payments.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "payment_value" IS NOT NULL AND trim(CAST("payment_value" AS VARCHAR)) <> '' AND (try_cast("payment_value" AS DOUBLE) < 0.0)
+    - heading "ISSUE-0001 REQUIRED_FIELD_NULL" [level=3] [ref=e1344]
+    - paragraph [ref=e1345]:
+      - generic [ref=e1346]: P1
+      - code [ref=e1347]: customers
+      - text: "· customer_id · 1 bad rows · sample:"
+      - link "samples/ISSUE-0001.csv" [ref=e1348] [cursor=pointer]:
+        - /url: samples/ISSUE-0001.csv
+    - paragraph [ref=e1349]:
+      - strong [ref=e1350]: "Suggested fix:"
+      - text: Add a not-null validation before publish and backfill missing values.
+    - generic [ref=e1351]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/customers.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "customer_id" IS NULL OR trim(CAST("customer_id" AS VARCHAR)) = ''
+    - heading "ISSUE-0005 VALUE_OUT_OF_RANGE" [level=3] [ref=e1352]
+    - paragraph [ref=e1353]:
+      - generic [ref=e1354]: P1
+      - code [ref=e1355]: order_reviews
+      - text: "· review_score · 1 bad rows · sample:"
+      - link "samples/ISSUE-0005.csv" [ref=e1356] [cursor=pointer]:
+        - /url: samples/ISSUE-0005.csv
+    - paragraph [ref=e1357]:
+      - strong [ref=e1358]: "Suggested fix:"
+      - text: Clamp, reject, or correct values outside the accepted business range.
+    - generic [ref=e1359]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/order_reviews.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "review_score" IS NOT NULL AND trim(CAST("review_score" AS VARCHAR)) <> '' AND (try_cast("review_score" AS DOUBLE) < 1.0 OR try_cast("review_score" AS DOUBLE) > 5.0)
+    - heading "ISSUE-0011 ORPHAN_FOREIGN_KEY" [level=3] [ref=e1360]
+    - paragraph [ref=e1361]:
+      - generic [ref=e1362]: P1
+      - code [ref=e1363]: order_items
+      - text: "· product_id · 1 bad rows · sample:"
+      - link "samples/ISSUE-0011.csv" [ref=e1364] [cursor=pointer]:
+        - /url: samples/ISSUE-0011.csv
+    - paragraph [ref=e1365]:
+      - strong [ref=e1366]: "Suggested fix:"
+      - text: Check the parent table load pipeline.; Add anti-join validation before publish.; Quarantine child rows whose parent key is missing.
+    - generic [ref=e1367]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/order_items.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) c LEFT JOIN (SELECT DISTINCT "product_id" AS parent_key_0 FROM read_csv_auto('data/demo_small/csv/products.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "product_id" IS NOT NULL AND trim(CAST("product_id" AS VARCHAR)) <> '') p ON c."product_id" = p.parent_key_0 WHERE c."product_id" IS NOT NULL AND trim(CAST(c."product_id" AS VARCHAR)) <> '' AND p.parent_key_0 IS NULL
+    - heading "ISSUE-0012 ORPHAN_FOREIGN_KEY" [level=3] [ref=e1368]
+    - paragraph [ref=e1369]:
+      - generic [ref=e1370]: P1
+      - code [ref=e1371]: order_items
+      - text: "· seller_id · 1 bad rows · sample:"
+      - link "samples/ISSUE-0012.csv" [ref=e1372] [cursor=pointer]:
+        - /url: samples/ISSUE-0012.csv
+    - paragraph [ref=e1373]:
+      - strong [ref=e1374]: "Suggested fix:"
+      - text: Check the parent table load pipeline.; Add anti-join validation before publish.; Quarantine child rows whose parent key is missing.
+    - generic [ref=e1375]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/order_items.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) c LEFT JOIN (SELECT DISTINCT "seller_id" AS parent_key_0 FROM read_csv_auto('data/demo_small/csv/sellers.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "seller_id" IS NOT NULL AND trim(CAST("seller_id" AS VARCHAR)) <> '') p ON c."seller_id" = p.parent_key_0 WHERE c."seller_id" IS NOT NULL AND trim(CAST(c."seller_id" AS VARCHAR)) <> '' AND p.parent_key_0 IS NULL
+    - heading "ISSUE-0015 ORPHAN_FOREIGN_KEY" [level=3] [ref=e1376]
+    - paragraph [ref=e1377]:
+      - generic [ref=e1378]: P1
+      - code [ref=e1379]: order_reviews
+      - text: "· order_id · 1 bad rows · sample:"
+      - link "samples/ISSUE-0015.csv" [ref=e1380] [cursor=pointer]:
+        - /url: samples/ISSUE-0015.csv
+    - paragraph [ref=e1381]:
+      - strong [ref=e1382]: "Suggested fix:"
+      - text: Check the parent table load pipeline.; Add anti-join validation before publish.; Quarantine child rows whose parent key is missing.
+    - generic [ref=e1383]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/order_reviews.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) c LEFT JOIN (SELECT DISTINCT "order_id" AS parent_key_0 FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "order_id" IS NOT NULL AND trim(CAST("order_id" AS VARCHAR)) <> '') p ON c."order_id" = p.parent_key_0 WHERE c."order_id" IS NOT NULL AND trim(CAST(c."order_id" AS VARCHAR)) <> '' AND p.parent_key_0 IS NULL
+    - heading "ISSUE-0007 DATE_ORDER_INVALID" [level=3] [ref=e1384]
+    - paragraph [ref=e1385]:
+      - generic [ref=e1386]: P1
+      - code [ref=e1387]: orders
+      - text: "· order_purchase_timestamp, order_delivered_customer_date · 1 bad rows · sample:"
+      - link "samples/ISSUE-0007.csv" [ref=e1388] [cursor=pointer]:
+        - /url: samples/ISSUE-0007.csv
+    - paragraph [ref=e1389]:
+      - strong [ref=e1390]: "Suggested fix:"
+      - text: Fix timestamp derivation and add ordering validation in the pipeline.
+    - generic [ref=e1391]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE (order_delivered_customer_date IS NOT NULL) AND NOT (order_delivered_customer_date >= order_purchase_timestamp)
+    - heading "ISSUE-0009 ORPHAN_FOREIGN_KEY" [level=3] [ref=e1392]
+    - paragraph [ref=e1393]:
+      - generic [ref=e1394]: P1
+      - code [ref=e1395]: orders
+      - text: "· customer_id · 1 bad rows · sample:"
+      - link "samples/ISSUE-0009.csv" [ref=e1396] [cursor=pointer]:
+        - /url: samples/ISSUE-0009.csv
+    - paragraph [ref=e1397]:
+      - strong [ref=e1398]: "Suggested fix:"
+      - text: Check the parent table load pipeline.; Add anti-join validation before publish.; Quarantine child rows whose parent key is missing.
+    - generic [ref=e1399]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) c LEFT JOIN (SELECT DISTINCT "customer_id" AS parent_key_0 FROM read_csv_auto('data/demo_small/csv/customers.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "customer_id" IS NOT NULL AND trim(CAST("customer_id" AS VARCHAR)) <> '') p ON c."customer_id" = p.parent_key_0 WHERE c."customer_id" IS NOT NULL AND trim(CAST(c."customer_id" AS VARCHAR)) <> '' AND p.parent_key_0 IS NULL
+    - heading "ISSUE-0003 INVALID_PLACEHOLDER_TOKEN" [level=3] [ref=e1400]
+    - paragraph [ref=e1401]:
+      - generic [ref=e1402]: P3
+      - code [ref=e1403]: customers
+      - text: "· customer_name · 1 bad rows · sample:"
+      - link "samples/ISSUE-0003.csv" [ref=e1404] [cursor=pointer]:
+        - /url: samples/ISSUE-0003.csv
+    - paragraph [ref=e1405]:
+      - strong [ref=e1406]: "Suggested fix:"
+      - text: Normalize placeholder tokens to null at ingestion.
+    - generic [ref=e1407]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/customers.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE lower(trim(CAST("customer_name" AS VARCHAR))) IN ('n/a', 'na', 'unknown', '.', '-', 'null', 'none')
+    - heading "ISSUE-0008 FOREIGN_KEY_NULL" [level=3] [ref=e1408]
+    - paragraph [ref=e1409]:
+      - generic [ref=e1410]: P3
+      - code [ref=e1411]: orders
+      - text: "· customer_id · 1 bad rows · sample:"
+      - link "samples/ISSUE-0008.csv" [ref=e1412] [cursor=pointer]:
+        - /url: samples/ISSUE-0008.csv
+    - paragraph [ref=e1413]:
+      - strong [ref=e1414]: "Suggested fix:"
+      - text: Inspect sample rows and update the pipeline.
+    - generic [ref=e1415]: SELECT COUNT(*) FROM read_csv_auto('data/demo_small/csv/orders.csv', header=true, all_varchar=true, ignore_errors=true, null_padding=true, parallel=false) WHERE "customer_id" IS NULL OR trim(CAST("customer_id" AS VARCHAR)) = ''

@@ -399,6 +399,20 @@
           </div>
         </article>
         <article class="chart-card">
+          <div class="chart-heading"><strong>Top Numeric Outliers by Column</strong><a href="{{ chart_specs.outlier_columns.path }}">{{ chart_specs.outlier_columns.path }}</a></div>
+          <div class="bar-list">
+            {% for row in chart_specs.outlier_columns.data[:8] %}
+            <div class="bar-row">
+              <span class="bar-label"><code>{{ row.field }}</code></span>
+              <span class="bar-track"><span class="bar-fill warn" style="width: {{ row.bar_width_pct }}%;"></span></span>
+              <span class="bar-value">{{ row.outlier_count }}<small>{{ row.outlier_rate | pct }}</small></span>
+            </div>
+            {% else %}
+            <p class="muted">No numeric IQR outliers were detected.</p>
+            {% endfor %}
+          </div>
+        </article>
+        <article class="chart-card">
           <div class="chart-heading"><strong>Relationship FK Health</strong><a href="{{ chart_specs.relationship_health.path }}">{{ chart_specs.relationship_health.path }}</a></div>
           <div class="bar-list">
             {% for row in chart_specs.relationship_health.data %}
@@ -527,6 +541,7 @@
       {% endif %}
       {% if schema_evaluation.available %}
       <p><strong>Schema evaluation:</strong> <a href="{{ schema_evaluation.path }}">{{ schema_evaluation.path }}</a>; mapped tables={{ schema_evaluation.mapped_table_count }}, missing tables={{ schema_evaluation.missing_table_count }}, extra CSV files={{ schema_evaluation.extra_csv_count }}, schema issue refs={{ schema_evaluation.schema_issue_count }}.</p>
+      <p><strong>Mapping methods:</strong> {% for method, count in schema_evaluation.mapping_method_counts.items() %}<code>{{ method }}</code>={{ count }}{% if not loop.last %}, {% endif %}{% else %}none{% endfor %}</p>
       {% endif %}
     </section>
 
@@ -590,19 +605,24 @@
       <h3>CSV to DBML Table Mapping</h3>
       <div class="table-wrap">
         <table class="schema-table">
-          <thead><tr><th>Status</th><th>DBML Table</th><th>CSV File</th><th>Primary Key</th><th>Foreign Keys</th></tr></thead>
+          <thead><tr><th>Status</th><th>Method</th><th>Confidence</th><th>DBML Table</th><th>CSV File</th><th>Matched Columns</th><th>Missing Columns</th><th>Extra Columns</th><th>Primary Key</th><th>Foreign Keys</th></tr></thead>
           <tbody>
             {% for table in schema_diagram.tables %}
             <tr>
               <td><span class="pill">{{ table.status }}</span></td>
+              <td><code>{{ table.mapping_method or table.status }}</code></td>
+              <td>{{ "%.2f"|format(table.confidence or 0) }}</td>
               <td><code>{{ table.table }}</code></td>
-              <td>{% if table.csv_path %}<code>{{ table.csv_path }}</code>{% else %}missing{% endif %}</td>
+              <td>{% if table.csv_path or table.selected_csv %}<code>{{ table.csv_path or table.selected_csv }}</code>{% else %}missing{% endif %}</td>
+              <td>{% if table.matched_columns %}<code>{{ table.matched_columns | join(", ") }}</code>{% else %}none{% endif %}</td>
+              <td>{% if table.missing_columns %}<code>{{ table.missing_columns | join(", ") }}</code>{% else %}none{% endif %}</td>
+              <td>{% if table.extra_columns %}<code>{{ table.extra_columns | join(", ") }}</code>{% else %}none{% endif %}</td>
               <td><code>{{ table.primary_key | join(", ") if table.primary_key else "none" }}</code></td>
               <td>{% for fk in table.foreign_keys %}<div><code>{{ fk.column }}</code> -> <code>{{ fk.parent_table }}.{{ fk.parent_column }}</code></div>{% else %}none{% endfor %}</td>
             </tr>
             {% endfor %}
             {% for extra in schema_diagram.extra_csvs %}
-            <tr><td><span class="pill P2">{{ extra.status }}</span></td><td><code>{{ extra.table }}</code></td><td><code>{{ extra.csv_path }}</code></td><td>n/a</td><td>n/a</td></tr>
+            <tr><td><span class="pill P2">{{ extra.status }}</span></td><td><code>extra</code></td><td>0.00</td><td><code>{{ extra.table }}</code></td><td><code>{{ extra.csv_path }}</code></td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
             {% endfor %}
           </tbody>
         </table>

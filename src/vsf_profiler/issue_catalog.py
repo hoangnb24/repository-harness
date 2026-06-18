@@ -33,6 +33,7 @@ CAUSES = {
     "REGEX_MISMATCH": ["A text value does not match the expected pattern."],
     "EMPTY_STRING": ["Text fields contain blank strings that may behave differently from null."],
     "INVALID_PLACEHOLDER_TOKEN": ["Placeholder tokens are present instead of normalized nulls."],
+    "NUMERIC_OUTLIER": ["Numeric values fall outside the profiled IQR fence for this column."],
 }
 
 FIXES = {
@@ -60,6 +61,9 @@ FIXES = {
     "REGEX_MISMATCH": ["Normalize the text field or update the regex if the contract changed."],
     "EMPTY_STRING": ["Convert blank strings to null or enforce non-empty text rules."],
     "INVALID_PLACEHOLDER_TOKEN": ["Normalize placeholder tokens to null at ingestion."],
+    "NUMERIC_OUTLIER": [
+        "Review bounded sample rows and decide whether to correct, cap, transform, or keep the values."
+    ],
 }
 
 
