@@ -1,0 +1,12 @@
+rules:
+  raw_orders:
+    - id: ORDER_STATUS_VALID
+      type: accepted_values
+      column: status
+      values:
+        - completed
+        - returned
+        - return_pending
+        - shipped
+        - placed
+      severity: P2

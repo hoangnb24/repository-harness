@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VSF Smart EDA Report</title>
+  <style>
+    :root {
+      --foreground-primary: #121817;
+      --foreground-secondary: #46504d;
+      --foreground-tertiary: #68736f;
+      --foreground-muted: #8a9490;
+      --surface-canvas: #f5f7f5;
+      --surface-panel: #ffffff;
+      --surface-overlay: #f9faf8;
+      --surface-inset: #eef2ef;
+      --surface-rail: #151b1a;
+      --border-subtle: #e3e8e4;
+      --border-default: #cfd8d2;
+      --border-strong: #9daaa3;
+      --focus-ring: #0f7664;
+      --accent: #0f7664;
+      --accent-strong: #0b5b4e;
+      --success: #23764d;
+      --warning: #9a5f00;
+      --destructive: #b23b32;
+      --info: #316596;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--surface-canvas);
+      color: var(--foreground-primary);
+      font: 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--accent); font-weight: 800; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+    main {
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 56px;
+    }
+    header,
+    section {
+      margin: 0 0 16px;
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      background: var(--surface-panel);
+    }
+    header { padding: 20px; }
+    section { padding: 18px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 860px;
+      margin-bottom: 8px;
+      font-size: 32px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin-bottom: 12px;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+    h3 {
+      margin: 18px 0 10px;
+      color: var(--foreground-primary);
+      font-size: 15px;
+    }
+    .eyebrow {
+      margin-bottom: 6px;
+      color: var(--foreground-tertiary);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .muted { color: var(--foreground-secondary); }
+    .artifact-links,
+    .scorecard,
+    .summary-grid,
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .scorecard { margin-top: 16px; }
+    .scorecard-title {
+      margin: 14px 0 0;
+      color: var(--foreground-secondary);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .metric-card,
+    .panel,
+    .chart-card {
+      min-width: 0;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: var(--surface-overlay);
+    }
+    .metric-card {
+      display: grid;
+      gap: 8px;
+      min-height: 128px;
+      padding: 12px;
+      border-left: 4px solid var(--info);
+    }
+    .metric-card.ok { border-left-color: var(--success); }
+    .metric-card.warn { border-left-color: var(--warning); }
+    .metric-card.danger { border-left-color: var(--destructive); }
+    .metric-label {
+      color: var(--foreground-tertiary);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .metric-value {
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .metric-detail {
+      margin: 0;
+      color: var(--foreground-secondary);
+      font-size: 12px;
+    }
+    .review-note {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: var(--surface-inset);
+    }
+    .actions-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .actions-list li + li { margin-top: 4px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border: 1px solid var(--border-default);
+      border-radius: 999px;
+      background: var(--surface-panel);
+      color: var(--foreground-secondary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .P0, .P1, .NOT_READY, .invalid, .failed { color: var(--destructive); border-color: rgba(178, 59, 50, 0.35); }
+    .P2, .WARN, .warning, .fallback_used { color: var(--warning); border-color: rgba(154, 95, 0, 0.35); }
+    .P3, .READY, .passed, .valid { color: var(--success); border-color: rgba(35, 118, 77, 0.35); }
+    .not_enabled, .unknown { color: var(--info); border-color: rgba(49, 101, 150, 0.35); }
+    .artifact-links {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+    .artifact-link {
+      display: grid;
+      gap: 3px;
+      min-height: 52px;
+      padding: 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: var(--surface-panel);
+      text-decoration: none;
+    }
+    .artifact-link code {
+      color: var(--foreground-tertiary);
+      overflow-wrap: anywhere;
+    }
+    table {
+      width: 100%;
+      border: 1px solid var(--border-default);
+      border-collapse: collapse;
+      background: var(--surface-panel);
+    }
+    th, td {
+      padding: 8px 9px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--surface-inset);
+      color: var(--foreground-secondary);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .table-wrap { overflow-x: auto; }
+    .chart-card {
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      padding: 12px;
+    }
+    .chart-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .chart-heading a,
+    .chart-heading span {
+      color: var(--foreground-tertiary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+    .bar-list {
+      display: grid;
+      gap: 8px;
+    }
+    .bar-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 230px) minmax(120px, 1fr) minmax(52px, auto);
+      gap: 8px;
+      align-items: center;
+      min-height: 28px;
+    }
+    .bar-label {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      font-weight: 700;
+    }
+    .bar-track {
+      height: 10px;
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-inset);
+    }
+    .bar-fill {
+      min-width: 2px;
+      height: 100%;
+      background: var(--accent);
+    }
+    .bar-fill.warn { background: var(--warning); }
+    .bar-fill.danger { background: var(--destructive); }
+    .bar-value {
+      color: var(--foreground-secondary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 800;
+      text-align: right;
+    }
+    .l4-preview {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+    .schema-table code { white-space: nowrap; }
+    .diagram-frame {
+      width: 100%;
+      height: min(70vh, 680px);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      background: white;
+    }
+    pre {
+      overflow: auto;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--surface-rail);
+      color: #f9faf8;
+    }
+    @media (max-width: 920px) {
+      main { width: min(100% - 20px, 1240px); padding-top: 12px; }
+      .scorecard,
+      .summary-grid,
+      .chart-grid,
+      .artifact-links { grid-template-columns: 1fr; }
+      .bar-row { grid-template-columns: 1fr; }
+      .bar-value { text-align: left; }
+      .diagram-frame { height: 520px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">VSF Data Profiler</p>
+      <h1>Smart EDA Report</h1>
+      <p class="muted">Deterministic EDA and data-quality review. Influence findings are association-only, not causation.</p>
+      <h2 class="scorecard-title">Executive scorecard</h2>
+      <div class="scorecard" aria-label="Executive scorecard">
+        {% for card in scorecard %}
+        <article class="metric-card {{ card.tone }}">
+          <span class="metric-label">{{ card.label }}</span>
+          <strong class="metric-value">{{ card.value }}</strong>
+          <p class="metric-detail">{{ card.detail }}</p>
+        </article>
+        {% endfor %}
+      </div>
+      <div class="review-note">
+        {% if dataset_verdict.available %}
+        <strong>EDA/Data Quality Readiness</strong>
+        <p>{{ dataset_verdict.verdict_rationale }}</p>
+        {% else %}
+        <strong>EDA/Data Quality Readiness</strong>
+        <p>EDA readiness metadata was not provided for this report.</p>
+        {% endif %}
+        <ul class="actions-list">
+          {% for action in recommended_actions[:5] %}
+          <li>{{ action }}</li>
+          {% else %}
+          <li>No deterministic next action was generated.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="artifact-links" aria-label="Primary artifact links">
+        {% if dataset_verdict.available %}<a class="artifact-link" href="{{ dataset_verdict.path }}"><strong>EDA readiness</strong><code>{{ dataset_verdict.path }}</code></a>{% endif %}
+        {% if table_assessments.available %}<a class="artifact-link" href="{{ table_assessments.path }}"><strong>Table assessments</strong><code>{{ table_assessments.path }}</code></a>{% endif %}
+        {% if relationship_graph.available %}<a class="artifact-link" href="{{ relationship_graph.path }}"><strong>Relationship graph</strong><code>{{ relationship_graph.path }}</code></a>{% endif %}
+        {% if lineage_graph.available %}<a class="artifact-link" href="{{ lineage_graph.path }}"><strong>Lineage graph</strong><code>{{ lineage_graph.path }}</code></a>{% endif %}
+      </div>
+    </header>
+
+    <section>
+      <h2>Optional L4 EDA Narrative</h2>
+      {% if l4_report.available %}
+      <p><span class="pill {{ l4_report.status_class }}">{{ l4_report.status }}</span> L4 guardrail checked narrative from provider <strong>{{ l4_report.provider }}</strong>{% if l4_report.model %} using <code>{{ l4_report.model }}</code>{% endif %}{% if l4_report.fallback_reason %}; fallback={{ l4_report.fallback_reason }}{% endif %}.</p>
+      <div class="artifact-links">
+        <a class="artifact-link" href="{{ l4_report.path }}"><strong>L4 report</strong><code>{{ l4_report.path }}</code></a>
+        {% if l4_report.guardrail_path %}<a class="artifact-link" href="{{ l4_report.guardrail_path }}"><strong>Guardrail report</strong><code>{{ l4_report.guardrail_path }}</code></a>{% endif %}
+      </div>
+      <ul class="l4-preview">
+        {% for line in l4_report.preview_lines %}
+        <li>{{ line }}</li>
+        {% else %}
+        <li>Narrative preview unavailable; open the L4 report artifact.</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p><span class="pill not_enabled">not_enabled</span> {{ l4_report.state_text }}</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>Visual Summary</h2>
+      {% if chart_specs.available %}
+      <div class="chart-grid">
+        {% if chart_specs.risk_summary.available %}
+        <article class="chart-card">
+          <div class="chart-heading"><strong>Readiness Risk</strong><a href="{{ chart_specs.risk_summary.path }}">{{ chart_specs.risk_summary.path }}</a></div>
+          <p><span class="pill {{ chart_specs.risk_summary.verdict }}">{{ chart_specs.risk_summary.verdict }}</span> <strong>{{ chart_specs.risk_summary.risk_score }}/100</strong> risk across {{ chart_specs.risk_summary.issue_count }} issues.</p>
+          <div class="bar-row">
+            <span class="bar-label">Risk score</span>
+            <span class="bar-track"><span class="bar-fill danger" style="width: {{ chart_specs.risk_summary.bar_width_pct }}%;"></span></span>
+            <span class="bar-value">{{ chart_specs.risk_summary.risk_score }}/100</span>
+          </div>
+        </article>
+        {% endif %}
+        <article class="chart-card">
+          <div class="chart-heading"><strong>Issue Counts by Severity</strong><a href="{{ chart_specs.issue_severity.path }}">{{ chart_specs.issue_severity.path }}</a></div>
+          <div class="bar-list">
+            {% for row in chart_specs.issue_severity.data %}
+            <div class="bar-row">
+              <span class="bar-label">{{ row.severity }}</span>
+              <span class="bar-track"><span class="bar-fill {% if row.severity in ['P0', 'P1'] %}danger{% elif row.severity == 'P2' %}warn{% endif %}" style="width: {{ row.bar_width_pct }}%;"></span></span>
+              <span class="bar-value">{{ row.count }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+        <article class="chart-card">
+          <div class="chart-heading"><strong>Issue Counts by Type</strong><a href="{{ chart_specs.issue_type.path }}">{{ chart_specs.issue_type.path }}</a></div>
+          <div class="bar-list">
+            {% for row in chart_specs.issue_type.data %}
+            <div class="bar-row">
+              <span class="bar-label">{{ row.issue_type }}</span>
+              <span class="bar-track"><span class="bar-fill danger" style="width: {{ row.bar_width_pct }}%;"></span></span>
+              <span class="bar-value">{{ row.count }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+        <article class="chart-card">
+          <div class="chart-heading"><strong>Top Missingness by Column</strong><a href="{{ chart_specs.missingness_columns.path }}">{{ chart_specs.missingness_columns.path }}</a></div>
+          <div class="bar-list">
+            {% for row in chart_specs.missingness_columns.data[:8] %}
+            <div class="bar-row">
+              <span class="bar-label"><code>{{ row.field }}</code></span>
+              <span class="bar-track"><span class="bar-fill warn" style="width: {{ row.bar_width_pct }}%;"></span></span>
+              <span class="bar-value">{{ row.null_rate | pct }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+        <article class="chart-card">
+          <div class="chart-heading"><strong>Relationship FK Health</strong><a href="{{ chart_specs.relationship_health.path }}">{{ chart_specs.relationship_health.path }}</a></div>
+          <div class="bar-list">
+            {% for row in chart_specs.relationship_health.data %}
+            <div class="bar-row">
+              <span class="bar-label">{{ row.status }}</span>
+              <span class="bar-track"><span class="bar-fill {% if row.status == 'invalid' %}danger{% elif row.status in ['warning', 'skipped'] %}warn{% endif %}" style="width: {{ row.bar_width_pct }}%;"></span></span>
+              <span class="bar-value">{{ row.count }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+        <article class="chart-card">
+          <div class="chart-heading"><strong>Influence Top Features</strong>{% if chart_specs.influence_top_features.available %}<a href="{{ chart_specs.influence_top_features.path }}">{{ chart_specs.influence_top_features.path }}</a>{% else %}<span>not generated</span>{% endif %}</div>
+          {% if chart_specs.influence_top_features.available %}
+          <div class="bar-list">
+            {% for row in chart_specs.influence_top_features.data %}
+            <div class="bar-row">
+              <span class="bar-label">{{ row.feature }}</span>
+              <span class="bar-track"><span class="bar-fill" style="width: {{ row.bar_width_pct }}%;"></span></span>
+              <span class="bar-value">{{ "%.4f" | format(row.score) }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="muted">No influence chart was generated.</p>
+          {% endif %}
+        </article>
+      </div>
+      {% else %}
+      <p>Chart specs were not provided for this report.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>Table Assessment and Analysis Impact</h2>
+      {% if table_assessments.available %}
+      <div class="summary-grid">
+        <article class="metric-card info"><span class="metric-label">Tables assessed</span><strong class="metric-value">{{ table_assessments.table_count }}</strong><p class="metric-detail">{{ table_assessments.path }}</p></article>
+        <article class="metric-card {% if table_assessments.average_health_score < 70 %}warn{% else %}ok{% endif %}"><span class="metric-label">Average health</span><strong class="metric-value">{{ table_assessments.average_health_score }}/100</strong><p class="metric-detail">readiness weighted by issue and relationship risk</p></article>
+        <article class="metric-card danger"><span class="metric-label">Not ready</span><strong class="metric-value">{{ table_assessments.readiness_counts.NOT_READY or 0 }}</strong><p class="metric-detail">tables requiring remediation</p></article>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Table</th><th>Role</th><th>Readiness</th><th>Health</th><th>Issues</th><th>Relationship Risks</th><th>Analysis Impact</th><th>Affected Columns</th><th>First Data Quality Step</th></tr></thead>
+          <tbody>
+            {% for row in table_assessments.assessments %}
+            <tr>
+              <td><code>{{ row.table }}</code></td>
+              <td>{{ row.role }}</td>
+              <td><span class="pill {{ row.readiness }}">{{ row.readiness }}</span></td>
+              <td>{{ row.health_score }}</td>
+              <td>{{ row.issue_total }}</td>
+              <td>{{ row.relationship_risk_count }}</td>
+              <td>{{ row.analysis_impact_label }}<br><span class="muted">{{ row.analysis_impact_category }}</span></td>
+              <td>{{ row.affected_columns | join(", ") if row.affected_columns else "none" }}</td>
+              <td>{{ row.recommended_next_actions[0] if row.recommended_next_actions else "" }}</td>
+            </tr>
+            {% else %}
+            <tr><td>none</td><td>none</td><td>none</td><td>0</td><td>0</td><td>0</td><td>none</td><td>none</td><td>none</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>Table assessment metadata was not provided for this report.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>Issue Evidence</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Issue</th><th>Severity</th><th>Type</th><th>Table</th><th>Columns</th><th>Bad Rows</th><th>Bad Rate</th><th>Sample</th><th>Evidence Note</th><th>Data Quality Next Step</th></tr></thead>
+          <tbody>
+            {% for issue in issue_evidence %}
+            <tr>
+              <td><code>{{ issue.issue_id }}</code></td>
+              <td><span class="pill {{ issue.severity }}">{{ issue.severity }}</span></td>
+              <td>{{ issue.issue_type }}</td>
+              <td><code>{{ issue.table }}</code></td>
+              <td>{{ issue.columns_text }}</td>
+              <td>{{ issue.bad_count }}/{{ issue.total_count }}</td>
+              <td>{{ issue.bad_rate | pct }}</td>
+              <td>{% if issue.sample_bad_rows_path %}<a href="{{ issue.sample_bad_rows_path }}">{{ issue.sample_bad_rows_path }}</a>{% else %}none{% endif %}</td>
+              <td>{{ issue.probable_cause }}</td>
+              <td>{{ issue.suggested_fix }}</td>
+            </tr>
+            {% else %}
+            <tr><td>none</td><td>none</td><td>none</td><td>none</td><td>none</td><td>0</td><td>0.00%</td><td>none</td><td>none</td><td>none</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Relationship, Schema, and Lineage Summary</h2>
+      <div class="summary-grid">
+        {% if relationship_graph.available %}
+        <article class="panel"><h3>Relationship Graph</h3><p><a href="{{ relationship_graph.path }}">{{ relationship_graph.path }}</a></p><p>{{ relationship_graph.edge_count }} edges; {{ relationship_graph.status_counts_text }}; {{ relationship_graph.cardinality_counts_text }}</p></article>
+        {% endif %}
+        {% if schema_parse_report.available %}
+        <article class="panel"><h3>Schema Parse Diagnostics</h3><p><a href="{{ schema_parse_report.path }}">{{ schema_parse_report.path }}</a></p><p>{{ schema_parse_report.status }}; tables={{ schema_parse_report.table_count }}, columns={{ schema_parse_report.column_count }}, relationships={{ schema_parse_report.relationship_count }}, warnings={{ schema_parse_report.warning_count }}, unsupported={{ schema_parse_report.unsupported_count }}</p></article>
+        {% endif %}
+        {% if lineage_graph.available %}
+        <article class="panel"><h3>Lineage Graph</h3><p><a href="{{ lineage_graph.path }}">{{ lineage_graph.path }}</a></p><p>{{ lineage_graph.source_system_count }} sources; {{ lineage_graph.table_count }} tables; {{ lineage_graph.artifact_count }} artifacts; {{ lineage_graph.edge_count }} dependency edges.</p></article>
+        {% endif %}
+        {% if connector_metadata.available %}
+        <article class="panel"><h3>Connector Metadata</h3><p><a href="{{ connector_metadata.path }}">{{ connector_metadata.path }}</a></p><p>{{ connector_metadata.source_type }} source; introspection={{ connector_metadata.introspection_status }}; extraction={{ connector_metadata.extraction_status }}; secrets redacted={{ connector_metadata.secrets_redacted }}.</p></article>
+        {% endif %}
+      </div>
+      {% if relationship_graph.available %}
+      <h3>Relationship Status</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Source</th><th>Target</th><th>Declared Cardinality</th><th>Observed Cardinality</th><th>Status</th><th>Reason</th></tr></thead>
+          <tbody>
+            {% for edge in relationship_graph.edges %}
+            <tr><td><code>{{ edge.source }}</code></td><td><code>{{ edge.target }}</code></td><td>{{ edge.declared_cardinality }}</td><td>{{ edge.observed_cardinality }}</td><td><span class="pill {{ edge.status }}">{{ edge.status }}</span></td><td>{{ edge.reason }}</td></tr>
+            {% else %}
+            <tr><td>none</td><td>none</td><td>none</td><td>none</td><td>none</td><td>none</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+      {% if schema_evaluation.available %}
+      <p><strong>Schema evaluation:</strong> <a href="{{ schema_evaluation.path }}">{{ schema_evaluation.path }}</a>; mapped tables={{ schema_evaluation.mapped_table_count }}, missing tables={{ schema_evaluation.missing_table_count }}, extra CSV files={{ schema_evaluation.extra_csv_count }}, schema issue refs={{ schema_evaluation.schema_issue_count }}.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>Dataset Overview</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Table</th><th>Rows</th><th>Columns</th><th>File Size MB</th></tr></thead>
+          <tbody>
+            {% for table in profile.tables.values() %}
+            <tr><td><code>{{ table.table }}</code></td><td>{{ table.row_count }}</td><td>{{ table.column_count }}</td><td>{{ table.file_size_mb }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Execution Flow</h2>
+      {% if execution_flow.available %}
+      <p><strong>Run ID:</strong> <code>{{ execution_flow.run_id }}</code> · <strong>Status:</strong> {{ execution_flow.status }}{% if execution_flow.duration_seconds %} · <strong>Duration:</strong> {{ execution_flow.duration_seconds }} seconds{% endif %}</p>
+      <p><strong>Output directory:</strong> <code>{{ execution_flow.output_dir }}</code></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Stage</th><th>Status</th><th>Duration Seconds</th><th>Details</th></tr></thead>
+          <tbody>
+            {% for stage in execution_flow.stages %}
+            <tr><td>{{ stage.name }}</td><td><span class="pill {{ stage.status }}">{{ stage.status }}</span></td><td>{{ stage.duration_seconds }}</td><td>{{ stage.details }}{% if stage.error %}; error={{ stage.error }}{% endif %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <h3>Runtime Artifacts</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Artifact</th><th>Path</th></tr></thead>
+          <tbody>
+            {% for artifact in execution_flow.artifacts %}
+            <tr><td>{{ artifact.name }}</td><td><code>{{ artifact.path }}</code></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>Runtime execution metadata was not provided for this report.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>DBML Diagram and CSV Mapping</h2>
+      <p class="muted">{{ schema_diagram.dbdiagram_note }}</p>
+      <div class="artifact-links">
+        {% if schema_diagram.dbdiagram_url_available %}<a class="artifact-link" href="{{ schema_diagram.dbdiagram_url }}" target="_blank" rel="noopener"><strong>Open DBML diagram in dbdiagram.io</strong><code>dbdiagram.io</code></a>{% endif %}
+        <a class="artifact-link" href="{{ schema_diagram.dbml_path }}"><strong>Download generated DBML</strong><code>{{ schema_diagram.dbml_path }}</code></a>
+      </div>
+      {% if schema_diagram.dbdiagram_url_available %}
+      <iframe class="diagram-frame" src="{{ schema_diagram.dbdiagram_url }}" loading="lazy" allowfullscreen title="DBML ER diagram"></iframe>
+      {% else %}
+      <pre>DBML diagram link unavailable because this schema is too large for a URL. Open {{ schema_diagram.dbml_path }} and paste it into dbdiagram.io.</pre>
+      {% endif %}
+      <h3>CSV to DBML Table Mapping</h3>
+      <div class="table-wrap">
+        <table class="schema-table">
+          <thead><tr><th>Status</th><th>DBML Table</th><th>CSV File</th><th>Primary Key</th><th>Foreign Keys</th></tr></thead>
+          <tbody>
+            {% for table in schema_diagram.tables %}
+            <tr>
+              <td><span class="pill">{{ table.status }}</span></td>
+              <td><code>{{ table.table }}</code></td>
+              <td>{% if table.csv_path %}<code>{{ table.csv_path }}</code>{% else %}missing{% endif %}</td>
+              <td><code>{{ table.primary_key | join(", ") if table.primary_key else "none" }}</code></td>
+              <td>{% for fk in table.foreign_keys %}<div><code>{{ fk.column }}</code> -> <code>{{ fk.parent_table }}.{{ fk.parent_column }}</code></div>{% else %}none{% endfor %}</td>
+            </tr>
+            {% endfor %}
+            {% for extra in schema_diagram.extra_csvs %}
+            <tr><td><span class="pill P2">{{ extra.status }}</span></td><td><code>{{ extra.table }}</code></td><td><code>{{ extra.csv_path }}</code></td><td>n/a</td><td>n/a</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Table Profiles</h2>
+      {% for table in profile.tables.values() %}
+      <h3>{{ table.table }}</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Expected Type</th><th>Inferred Type</th><th>Null Rate</th><th>Distinct</th><th>Invalid Casts</th></tr></thead>
+          <tbody>
+            {% for column in table.columns.values() %}
+            <tr><td><code>{{ column.name }}</code></td><td>{{ column.expected_type_from_dbml or "" }}</td><td>{{ column.inferred_type }}</td><td>{{ column.null_rate | pct }}</td><td>{{ column.distinct_count }}</td><td>{{ column.invalid_cast_count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section>
+      <h2>Appendix: Evidence SQL and Sample Paths</h2>
+      {% for issue in issues %}
+      <h3>{{ issue.issue_id }} {{ issue.issue_type }}</h3>
+      <p><span class="pill {{ issue.severity }}">{{ issue.severity }}</span> <code>{{ issue.table }}</code> · {{ issue.columns | join(", ") }} · {{ issue.bad_count }} bad rows · sample: {% if issue.sample_bad_rows_path %}<a href="{{ issue.sample_bad_rows_path }}">{{ issue.sample_bad_rows_path }}</a>{% else %}none{% endif %}</p>
+      <p><strong>Suggested fix:</strong> {{ issue.suggested_fix | join("; ") }}</p>
+      <pre>{{ issue.evidence_sql }}</pre>
+      {% endfor %}
+    </section>
+  </main>
+</body>
+</html>

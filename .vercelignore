@@ -1,0 +1,31 @@
+# Vercel serves only the static preflight UI from web/.
+# Full Python/DuckDB profiling jobs require the local 127.0.0.1 runner.
+.venv
+.env
+.env.*
+.DS_Store
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+
+data
+outputs
+src
+tests
+docs
+examples
+crates
+scripts
+
+Cargo.toml
+Cargo.lock
+pyproject.toml
+Makefile
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+PHASE2.md
+PHASE3.md
+PHASE4.md
+PHASE5.md

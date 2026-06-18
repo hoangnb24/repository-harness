@@ -83,7 +83,7 @@ def main() -> None:
         ]
     )
     prompt_markers = [
-        "Generate the guarded L4 Senior Data Scientist narrative",
+        "Generate the guarded L4 Data Scientist EDA narrative",
         "privacy_contract",
         "source_artifacts",
         "top_issues",

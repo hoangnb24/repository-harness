@@ -1,0 +1,14 @@
+{
+  "name": "repository-harness",
+  "version": "1.0.0",
+  "description": "Playwright E2E checks for the VSF Data Profiler web runner.",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:dashboard": "playwright test tests/e2e/web-dashboard.spec.js"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.61.0"
+  }
+}

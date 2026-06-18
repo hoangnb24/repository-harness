@@ -1,0 +1,36 @@
+Table raw_customers {
+  id int [pk, not null]
+  name varchar
+}
+
+Table raw_orders {
+  id int [pk, not null]
+  user_id int [ref: > raw_customers.id]
+  order_date date
+  status varchar
+}
+
+Table raw_items {
+  id int [pk, not null]
+  order_id int [ref: > raw_orders.id]
+  sku varchar
+}
+
+Table raw_stores {
+  id int [pk, not null]
+  name varchar
+}
+
+Table raw_products {
+  sku varchar [pk, not null]
+  name varchar
+  type varchar
+  price float
+}
+
+Table raw_supplies {
+  id int [pk, not null]
+  name varchar
+  cost float
+  perishable varchar
+}

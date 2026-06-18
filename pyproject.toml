@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vsf-profiler"
+version = "0.2.0rc2"
+description = "Local data profiler for DBML schemas, CSV datasets, and guarded web-runner jobs."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "duckdb>=1.1",
+  "jinja2>=3.1",
+  "pandas>=2.2",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+]
+ml = [
+  "scikit-learn>=1.5",
+]
+postgres = [
+  "psycopg[binary]>=3.2",
+]
+mysql = [
+  "pymysql>=1.1",
+]
+
+[project.scripts]
+vsf-profiler = "vsf_profiler.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

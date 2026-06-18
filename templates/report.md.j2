@@ -1,6 +1,6 @@
-# VSF Senior Data Scientist Review
+# VSF Smart EDA Report
 
-Deterministic evidence review generated from VSF Data Profiler artifacts. Influence findings are association-only, not causal.
+Deterministic EDA and data-quality review generated from VSF Data Profiler artifacts. Influence findings are association-only, not causal.
 
 ## 1. Executive Scorecard
 
@@ -11,14 +11,14 @@ Deterministic evidence review generated from VSF Data Profiler artifacts. Influe
 {% endfor %}
 
 {% if dataset_verdict.available -%}
-### Dataset Verdict
+### EDA/Data Quality Readiness
 
-**Verdict rationale:** {{ dataset_verdict.verdict_rationale }}
+**Readiness rationale:** {{ dataset_verdict.verdict_rationale }}
 {% else -%}
-Dataset verdict metadata was not provided for this report.
+EDA readiness metadata was not provided for this report.
 {% endif %}
 
-### Recommended Actions
+### Data Quality Next Steps
 
 {% for action in recommended_actions -%}
 - {{ action }}
@@ -26,7 +26,7 @@ Dataset verdict metadata was not provided for this report.
 - No actions required.
 {% endfor %}
 
-## 2. L4 Senior Data Scientist Narrative
+## 2. Optional L4 EDA Narrative
 
 {% if l4_report.available -%}
 - L4 report: `{{ l4_report.path }}`
@@ -58,14 +58,14 @@ Dataset verdict metadata was not provided for this report.
 | `{{ chart.path }}` | {{ chart.source_artifacts | join(", ") }} |
 {% endfor %}
 
-### Dataset Risk
+### Readiness Risk
 
 {% if chart_specs.risk_summary.available -%}
-- Verdict: {{ chart_specs.risk_summary.verdict }}
+- Readiness: {{ chart_specs.risk_summary.verdict }}
 - Risk score: {{ chart_specs.risk_summary.risk_score }}/100
 - Issue count: {{ chart_specs.risk_summary.issue_count }}
 {% else -%}
-- Dataset risk chart spec was not generated.
+- Readiness risk chart spec was not generated.
 {% endif %}
 
 ### Issue Counts by Severity
@@ -125,19 +125,19 @@ Method: {{ influence.method }}. This is association, not causation.
 Chart specs were not provided for this report.
 {% endif %}
 
-## 4. Table Impact and Per-Table Assessment
+## 4. Table Assessment and Analysis Impact
 
 {% if table_assessments.available -%}
 - Assessment artifact: `{{ table_assessments.path }}`
 - Tables assessed: {{ table_assessments.table_count }}
 - Average health score: {{ table_assessments.average_health_score }}/100
-- Readiness counts: {% for readiness, count in table_assessments.readiness_counts.items() %}{{ readiness }}={{ count }}{% if not loop.last %}, {% endif %}{% else %}none{% endfor %}
-- Business impact counts: {% for impact, count in table_assessments.business_impact_counts.items() %}{{ impact }}={{ count }}{% if not loop.last %}, {% endif %}{% else %}none{% endfor %}
+- Readiness counts: {{ table_assessments.readiness_counts_text }}
+- Analysis impact counts: {{ table_assessments.analysis_impact_counts_text }}
 
-| Table | Role | Readiness | Health | Issues | Relationship Risks | Business Impact | Affected Columns | First Action |
+| Table | Role | Readiness | Health | Issues | Relationship Risks | Analysis Impact | Affected Columns | First Data Quality Step |
 | --- | --- | --- | ---: | ---: | ---: | --- | --- | --- |
 {% for row in table_assessments.assessments -%}
-| {{ row.table }} | {{ row.role }} | {{ row.readiness }} | {{ row.health_score }} | {{ row.issue_total }} | {{ row.relationship_risk_count }} | {{ row.business_impact_label }} | {{ row.affected_columns | join(", ") if row.affected_columns else "none" }} | {{ row.recommended_next_actions[0] if row.recommended_next_actions else "" }} |
+| {{ row.table }} | {{ row.role }} | {{ row.readiness }} | {{ row.health_score }} | {{ row.issue_total }} | {{ row.relationship_risk_count }} | {{ row.analysis_impact_label }} | {{ row.affected_columns | join(", ") if row.affected_columns else "none" }} | {{ row.recommended_next_actions[0] if row.recommended_next_actions else "" }} |
 {% else -%}
 | none | none | none | 0 | 0 | 0 | none | none | none |
 {% endfor %}
@@ -147,7 +147,7 @@ Table assessment metadata was not provided for this report.
 
 ## 5. Issue Evidence
 
-| Issue | Severity | Type | Table | Columns | Bad Rows | Bad Rate | Sample | Probable Cause | Suggested Fix |
+| Issue | Severity | Type | Table | Columns | Bad Rows | Bad Rate | Sample | Evidence Note | Data Quality Next Step |
 | --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- |
 {% for issue in issue_evidence -%}
 | {{ issue.issue_id }} | {{ issue.severity }} | {{ issue.issue_type }} | {{ issue.table }} | {{ issue.columns_text }} | {{ issue.bad_count }}/{{ issue.total_count }} | {{ issue.bad_rate | pct }} | {{ issue.sample_bad_rows_path or "none" }} | {{ issue.probable_cause }} | {{ issue.suggested_fix }} |

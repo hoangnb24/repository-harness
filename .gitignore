@@ -10,3 +10,28 @@ dist/
 # Downloaded Harness CLI binary for installed project instances.
 scripts/bin/harness-cli
 scripts/bin/harness-cli.exe
+
+# Python local development and generated VSF demo artifacts.
+.DS_Store
+._*
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+htmlcov/
+.vercel/
+node_modules/
+playwright-report/
+test-results/
+.interface-design/*
+!.interface-design/system.md
+
+data/
+outputs/

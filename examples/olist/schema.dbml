@@ -1,0 +1,82 @@
+Table olist_customers_dataset {
+  customer_id varchar [pk, not null]
+  customer_unique_id varchar
+  customer_zip_code_prefix int
+  customer_city varchar
+  customer_state varchar
+}
+
+Table olist_orders_dataset {
+  order_id varchar [pk, not null]
+  customer_id varchar [ref: > olist_customers_dataset.customer_id]
+  order_status varchar
+  order_purchase_timestamp timestamp
+  order_approved_at timestamp
+  order_delivered_carrier_date timestamp
+  order_delivered_customer_date timestamp
+  order_estimated_delivery_date timestamp
+}
+
+Table olist_order_items_dataset {
+  order_id varchar [ref: > olist_orders_dataset.order_id]
+  order_item_id int
+  product_id varchar [ref: > olist_products_dataset.product_id]
+  seller_id varchar [ref: > olist_sellers_dataset.seller_id]
+  shipping_limit_date timestamp
+  price float
+  freight_value float
+
+  indexes {
+    (order_id, order_item_id) [pk]
+  }
+}
+
+Table olist_order_payments_dataset {
+  order_id varchar [ref: > olist_orders_dataset.order_id]
+  payment_sequential int
+  payment_type varchar
+  payment_installments int
+  payment_value float
+}
+
+Table olist_order_reviews_dataset {
+  review_id varchar
+  order_id varchar [ref: > olist_orders_dataset.order_id]
+  review_score int
+  review_comment_title varchar
+  review_comment_message varchar
+  review_creation_date timestamp
+  review_answer_timestamp timestamp
+}
+
+Table olist_products_dataset {
+  product_id varchar [pk, not null]
+  product_category_name varchar [ref: > product_category_name_translation.product_category_name]
+  product_name_lenght int
+  product_description_lenght int
+  product_photos_qty int
+  product_weight_g float
+  product_length_cm float
+  product_height_cm float
+  product_width_cm float
+}
+
+Table olist_sellers_dataset {
+  seller_id varchar [pk, not null]
+  seller_zip_code_prefix int
+  seller_city varchar
+  seller_state varchar
+}
+
+Table product_category_name_translation {
+  product_category_name varchar [pk, not null]
+  product_category_name_english varchar
+}
+
+Table olist_geolocation_dataset {
+  geolocation_zip_code_prefix int
+  geolocation_lat float
+  geolocation_lng float
+  geolocation_city varchar
+  geolocation_state varchar
+}

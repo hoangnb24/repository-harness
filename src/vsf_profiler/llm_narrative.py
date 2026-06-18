@@ -36,12 +36,12 @@ MAX_OPENAI_MAX_OUTPUT_TOKENS = 8192
 MODEL_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 SENSITIVE_CONFIG_KEY_PARTS = ("api_key", "authorization", "token", "secret", "password", "credential")
 
-OPENAI_NARRATIVE_INSTRUCTIONS = """You are writing as a Senior Data Scientist.
+OPENAI_NARRATIVE_INSTRUCTIONS = """You are writing an optional Data Scientist EDA narrative.
 Use only the supplied JSON context, which is derived from deterministic structured artifacts.
 Do not use external facts, raw CSV data, row-level samples, or unbounded examples.
 Do not invent numeric claims; every number must appear in the supplied evidence.
-Reference tables, columns, issue ids, issue types, severities, and verdicts only when they appear in the supplied evidence.
-Reference table business-impact categories only when they appear in table_assessments.json for that table.
+Reference tables, columns, issue ids, issue types, severities, and readiness labels only when they appear in the supplied evidence.
+Reference table analysis-impact categories only when they appear in table_assessments.json for that table.
 Do not use causal wording such as causes, caused, drives, leads to, due to, because, or root cause.
 Use association-only language for influence findings.
 The supplied JSON includes guardrail_safe_draft. Return that Markdown exactly.
@@ -147,8 +147,8 @@ class FakeNarrativeProvider:
         if top_issue.get("table") and top_issue.get("columns"):
             top_ref = f"`{top_issue['table']}.{top_issue['columns'][0]}`"
         return (
-            "# Senior Data Scientist Narrative\n\n"
-            "## Dataset Health\n\n"
+            "# Data Scientist EDA Narrative\n\n"
+            "## EDA Readiness\n\n"
             f"The deterministic artifacts show {summary['table_count']} tables, "
             f"{summary['row_count']} rows, {summary['issue_count']} issues, and a "
             f"risk score of {summary['risk_score']}.\n\n"
@@ -195,7 +195,7 @@ class OpenAINarrativeProvider:
             "instructions": OPENAI_NARRATIVE_INSTRUCTIONS,
             "input": json.dumps(
                 {
-                    "task": "Generate the guarded L4 Senior Data Scientist narrative.",
+                    "task": "Generate the guarded L4 Data Scientist EDA narrative.",
                     "guardrail_safe_draft": context.get("guardrail_safe_draft", ""),
                     "guardrail_contract": context.get("guardrail_contract", {}),
                     "context": context,
@@ -311,7 +311,7 @@ def build_narrative_context(artifacts: dict[str, Any]) -> dict[str, Any]:
     tables = profile.get("tables") or {}
     issue_counts = dataset_verdict.get("issue_counts") or {}
     context = {
-        "role": "Senior Data Scientist",
+        "role": "Data Scientist",
         "source_artifacts": list(SOURCE_ARTIFACTS),
         "privacy_contract": {
             "raw_csv_included": False,
@@ -407,15 +407,15 @@ def _structured_l4_narrative(context: dict[str, Any], *, intro: str) -> str:
     summary = context["summary"]
     top_issues = context["top_issues"][:5]
     lines = [
-        "# Senior Data Scientist Narrative",
+        "# Data Scientist EDA Narrative",
         "",
         intro,
         "",
-        "## Dataset Health",
+        "## EDA Readiness",
         "",
         (
             f"The run reviewed {summary['table_count']} tables, {summary['column_count']} columns, "
-            f"and {summary['row_count']} rows. The deterministic verdict is "
+            f"and {summary['row_count']} rows. The deterministic readiness label is "
             f"`{summary['verdict']}` with risk score {summary['risk_score']} and "
             f"{summary['issue_count']} issues."
         ),
@@ -441,12 +441,12 @@ def _structured_l4_narrative(context: dict[str, Any], *, intro: str) -> str:
         category = impact.get("category") or "general_analytics"
         lines.append(
             f"- `{row['table']}` is `{row['readiness']}` with health score "
-            f"{row['health_score']}, role `{row['role']}`, and impact category `{category}`."
+            f"{row['health_score']}, role `{row['role']}`, and analysis impact category `{category}`."
         )
     lines.extend(
         [
             "",
-            "## Recommended Next Actions",
+            "## Data Quality Next Steps",
             "",
         ]
     )
@@ -462,7 +462,7 @@ def _structured_l4_narrative(context: dict[str, Any], *, intro: str) -> str:
             "",
             (
                 "Influence findings are association-only. Validate important patterns with "
-                "domain review before operational use."
+                "schema and data owner review before analysis use."
             ),
             "",
         ]
@@ -628,7 +628,7 @@ def _check_business_impact_claims(
                     {
                         "type": "business_impact",
                         "claim": sentence.strip(),
-                        "message": "Business-impact claim does not match table_assessments.json evidence.",
+                        "message": "Analysis-impact claim does not match table_assessments.json evidence.",
                     }
                 )
             continue
@@ -655,7 +655,7 @@ def _check_business_impact_claims(
                     {
                         "type": "business_impact",
                         "claim": term,
-                        "message": "Business-impact term is not present in table_assessments.json.",
+                        "message": "Analysis-impact term is not present in table_assessments.json.",
                     }
                 )
                 continue
@@ -675,7 +675,7 @@ def _check_business_impact_claims(
                             "type": "table_business_impact",
                             "table": table,
                             "claim": term,
-                            "message": "Table-specific business-impact claim does not match table_assessments.json.",
+                            "message": "Table-specific analysis-impact claim does not match table_assessments.json.",
                         }
                     )
     return checked, violations
@@ -783,7 +783,13 @@ def _sentences(markdown: str) -> list[str]:
 
 
 def _looks_like_business_impact_claim(sentence: str) -> bool:
-    return bool(re.search(r"\b(business\s+impact|impact\s+category)\b", sentence, re.IGNORECASE))
+    return bool(
+        re.search(
+            r"\b(business\s+impact|analysis\s+impact|impact\s+category)\b",
+            sentence,
+            re.IGNORECASE,
+        )
+    )
 
 
 def _normalize_business_term(value: str) -> str:

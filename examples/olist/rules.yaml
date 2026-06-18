@@ -1,0 +1,52 @@
+rules:
+  olist_order_reviews_dataset:
+    - id: REVIEW_SCORE_RANGE
+      type: range
+      column: review_score
+      min: 1
+      max: 5
+      severity: P1
+
+  olist_order_payments_dataset:
+    - id: PAYMENT_VALUE_NON_NEGATIVE
+      type: range
+      column: payment_value
+      min: 0
+      severity: P1
+
+  olist_order_items_dataset:
+    - id: PRICE_NON_NEGATIVE
+      type: range
+      column: price
+      min: 0
+      severity: P1
+
+    - id: FREIGHT_VALUE_NON_NEGATIVE
+      type: range
+      column: freight_value
+      min: 0
+      severity: P2
+
+  olist_orders_dataset:
+    - id: ORDER_STATUS_VALID
+      type: accepted_values
+      column: order_status
+      values:
+        - delivered
+        - shipped
+        - canceled
+        - unavailable
+        - invoiced
+        - processing
+        - created
+        - approved
+      severity: P2
+
+    - id: DELIVERED_AFTER_PURCHASE
+      type: expression
+      columns:
+        - order_purchase_timestamp
+        - order_delivered_customer_date
+      expression: "order_delivered_customer_date >= order_purchase_timestamp"
+      where: "order_delivered_customer_date IS NOT NULL"
+      severity: P1

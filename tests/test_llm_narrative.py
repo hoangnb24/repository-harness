@@ -26,11 +26,11 @@ class CapturingProvider:
         issue = context["top_issues"][0]
         column_ref = f"{issue['table']}.{issue['columns'][0]}"
         return (
-            "# Senior Data Scientist Narrative\n\n"
+            "# Data Scientist EDA Narrative\n\n"
             f"The deterministic artifacts show {summary['table_count']} tables, "
             f"{summary['issue_count']} issues, and risk score {summary['risk_score']}.\n\n"
             f"`{issue['issue_type']}` is present on `{column_ref}`.\n\n"
-            "Influence findings are association-only and require domain review.\n"
+            "Influence findings are association-only and require schema and data owner review.\n"
         )
 
 
@@ -39,7 +39,7 @@ class BadProvider:
 
     def generate(self, context: dict) -> str:
         return (
-            "# Senior Data Scientist Narrative\n\n"
+            "# Data Scientist EDA Narrative\n\n"
             "The dataset has 999 issues. `ghost_table.bad_column` causes downstream churn.\n"
         )
 
@@ -94,7 +94,7 @@ def test_fake_provider_writes_l4_report_and_passed_guardrail(tmp_path):
     assert guardrail_report["checked_refs"]
     assert guardrail_report["violation_count"] == 0
     assert guardrail_report["violations"] == []
-    assert "Senior Data Scientist Narrative" in l4_report
+    assert "Data Scientist EDA Narrative" in l4_report
     assert "association-only" in l4_report
     assert "l4_report.md" in report_md
     assert "guardrail_report.json" in report_md
@@ -266,8 +266,8 @@ def test_llm_disabled_preserves_deterministic_artifact_set(tmp_path):
     assert "l4_report" not in run_summary["artifact_paths"]
     assert "guardrail_report" not in run_summary["artifact_paths"]
     assert "llm_narrative" not in [stage["name"] for stage in run_summary["stage_timings"]]
-    assert "L4 Senior Data Scientist Narrative" in report_md
-    assert "L4 narrative was not enabled for this deterministic run" in report_md
+    assert "Optional L4 EDA Narrative" in report_md
+    assert "Optional L4 EDA narrative was not enabled for this deterministic run" in report_md
 
 
 def test_guardrail_rejects_unsupported_numbers_refs_and_causal_wording():
@@ -306,8 +306,8 @@ def test_guardrail_rejects_unsupported_numbers_refs_and_causal_wording():
                     "health_score": 42,
                     "readiness": "WARN",
                     "business_impact": {
-                        "category": "order_fulfillment",
-                        "label": "Order fulfillment",
+                        "category": "transaction_event_quality",
+                        "label": "Transaction event quality",
                     },
                 }
             ]
@@ -365,8 +365,8 @@ def test_guardrail_rejects_unsupported_business_impact_claims():
                     "health_score": 100,
                     "readiness": "READY",
                     "business_impact": {
-                        "category": "order_fulfillment",
-                        "label": "Order fulfillment",
+                        "category": "transaction_event_quality",
+                        "label": "Transaction event quality",
                     },
                 },
                 {
@@ -375,8 +375,8 @@ def test_guardrail_rejects_unsupported_business_impact_claims():
                     "health_score": 100,
                     "readiness": "READY",
                     "business_impact": {
-                        "category": "customer_feedback",
-                        "label": "Customer feedback",
+                        "category": "feedback_signal_quality",
+                        "label": "Feedback signal quality",
                     },
                 },
             ]
@@ -388,15 +388,15 @@ def test_guardrail_rejects_unsupported_business_impact_claims():
     evidence = build_guardrail_evidence(artifacts, context)
 
     passed = validate_narrative(
-        "`orders` has impact category `order_fulfillment`.",
+        "`orders` has impact category `transaction_event_quality`.",
         evidence,
     )
     mismatched = validate_narrative(
-        "`orders` has impact category `customer_feedback`.",
+        "`orders` has impact category `feedback_signal_quality`.",
         evidence,
     )
     unsupported = validate_narrative(
-        "`orders` has financial reporting business impact.",
+        "`orders` has financial reporting analysis impact.",
         evidence,
     )
 
@@ -431,7 +431,7 @@ def test_openai_provider_uses_responses_api_without_raw_csv_payload():
                     "content": [
                         {
                             "type": "output_text",
-                            "text": "# Senior Data Scientist Narrative\n\n"
+                            "text": "# Data Scientist EDA Narrative\n\n"
                             "The deterministic artifacts show 1 tables and 2 rows.\n\n"
                             "Influence findings are association-only.",
                         }
@@ -449,7 +449,7 @@ def test_openai_provider_uses_responses_api_without_raw_csv_payload():
         transport=fake_transport,
     )
     context = {
-        "role": "Senior Data Scientist",
+        "role": "Data Scientist",
         "source_artifacts": ["profile_summary.json", "issues.json"],
         "privacy_contract": {
             "raw_csv_included": False,
@@ -459,7 +459,7 @@ def test_openai_provider_uses_responses_api_without_raw_csv_payload():
         "summary": {"table_count": 1, "row_count": 2},
         "tables": [{"table": "orders", "columns": ["order_id"], "row_count": 2}],
         "top_issues": [],
-        "guardrail_safe_draft": "# Senior Data Scientist Narrative\n\n"
+        "guardrail_safe_draft": "# Data Scientist EDA Narrative\n\n"
         "The deterministic artifacts show 1 tables and 2 rows.\n\n"
         "Influence findings are association-only.",
         "guardrail_contract": {
@@ -469,7 +469,7 @@ def test_openai_provider_uses_responses_api_without_raw_csv_payload():
 
     narrative = provider.generate(context)
 
-    assert "Senior Data Scientist Narrative" in narrative
+    assert "Data Scientist EDA Narrative" in narrative
     assert len(calls) == 1
     call = calls[0]
     assert call["url"] == "https://example.test/v1/responses"

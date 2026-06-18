@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VSF Data Profiler Console</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Console navigation">
+      <div class="brand-block">
+        <span class="brand-mark" aria-hidden="true">VSF</span>
+        <div>
+          <p class="eyebrow">Local runner</p>
+          <h1>Smart EDA Console</h1>
+        </div>
+      </div>
+
+      <nav class="nav-stack" aria-label="Main sections">
+        <a class="nav-item active" href="#runner">Run profiler</a>
+        <a class="nav-item" href="#dashboard">Review dashboard</a>
+        <a class="nav-item" href="#tableImpact">Table assessment</a>
+        <a class="nav-item" href="#graphs">Graphs</a>
+        <a class="nav-item" href="#artifacts">Artifacts</a>
+        <a class="nav-item" href="#inputSetup">Input setup</a>
+      </nav>
+
+      <div class="sidebar-card">
+        <p class="eyebrow">Boundary</p>
+        <p>Full profiling runs only through the local <code>127.0.0.1</code> Python/DuckDB backend. Vercel serves static preflight only.</p>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">DBML + CSV -> evidence artifacts</p>
+          <h2>Run the profiler, inspect risk, review table assessments, and open the generated evidence package.</h2>
+          <p class="topbar-note">Full jobs use the local <code>127.0.0.1</code> runner. Hosted Vercel remains a static preflight surface.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="button ghost" id="loadDemoButton" type="button">Reset demo</button>
+          <button class="button primary" id="visualizeButton" type="button" disabled>Visualize DBML</button>
+        </div>
+      </header>
+
+      <section class="status-strip" aria-label="Workflow status">
+        <article class="status-card complete">
+          <span class="step-number">01</span>
+          <div>
+            <strong>Schema contract</strong>
+            <p id="dbmlStatus">Waiting for DBML</p>
+          </div>
+        </article>
+        <article class="status-card">
+          <span class="step-number">02</span>
+          <div>
+            <strong>CSV inventory</strong>
+            <p id="csvStatus">No CSV files selected</p>
+          </div>
+        </article>
+        <article class="status-card">
+          <span class="step-number">03</span>
+          <div>
+            <strong>Mapping health</strong>
+            <p id="mappingStatus">Run auto-link after upload</p>
+          </div>
+        </article>
+        <article class="status-card">
+          <span class="step-number">04</span>
+          <div>
+            <strong>Local backend</strong>
+            <p id="runnerStatus">Checking local backend</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel runner-panel console-primary" id="runner">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Run profiler</p>
+            <h3>Start a local Python/DuckDB run</h3>
+          </div>
+          <span class="badge" id="jobStatusBadge">No job</span>
+        </div>
+
+        <div class="runner-grid">
+          <div class="runner-controls">
+            <div class="runner-mode-switch" role="tablist" aria-label="Runner mode">
+              <button class="mode-button active" id="runnerModeUpload" type="button" role="tab" aria-selected="true" aria-controls="runnerForm">Upload mode</button>
+              <button class="mode-button" id="runnerModePath" type="button" role="tab" aria-selected="false" aria-controls="pathRunnerForm">Local path mode</button>
+            </div>
+
+            <form class="runner-form" id="runnerForm">
+              <label class="field-label" for="rulesInput">
+                Optional rules file
+                <input id="rulesInput" type="file" accept=".yaml,.yml,.json,.txt">
+              </label>
+              <div class="file-card compact" id="rulesFileCard" hidden>
+                <span class="file-icon" aria-hidden="true">YML</span>
+                <div>
+                  <strong id="rulesFileName">rules.yaml</strong>
+                  <p id="rulesFileMeta">Ready for backend run</p>
+                </div>
+              </div>
+              <label class="field-label" for="targetInput">
+                Target column
+                <input id="targetInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="order_reviews.review_score">
+              </label>
+              <button class="button primary" id="runProfilerButton" type="submit" disabled>Run full profiler</button>
+            </form>
+
+            <form class="runner-form" id="pathRunnerForm" hidden>
+              <label class="field-label" for="dbmlPathInput">
+                DBML file path
+                <input id="dbmlPathInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="data/demo_small/schema.dbml">
+              </label>
+              <label class="field-label" for="csvDirPathInput">
+                CSV directory path
+                <input id="csvDirPathInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="data/demo_small/csv">
+              </label>
+              <label class="field-label" for="rulesPathInput">
+                Optional rules path
+                <input id="rulesPathInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="data/demo_small/rules.yaml">
+              </label>
+              <label class="field-label" for="pathTargetInput">
+                Target column
+                <input id="pathTargetInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="order_reviews.review_score">
+              </label>
+              <button class="button primary" id="runPathProfilerButton" type="submit" disabled>Run path job</button>
+            </form>
+
+            <p class="form-message" id="runnerMessage" role="status">Start with files uploaded from this browser session.</p>
+          </div>
+
+          <div class="runtime-panel" aria-live="polite">
+            <div class="runtime-column">
+              <div class="runtime-heading">
+                <strong>Runtime stages</strong>
+                <span id="eventCount">0 events</span>
+              </div>
+              <div class="stage-list" id="stageList">
+                <p class="muted">Run events from <code>run_events.jsonl</code> will appear here.</p>
+              </div>
+            </div>
+            <div class="runtime-column">
+              <div class="runtime-heading">
+                <strong>Generated results</strong>
+                <span id="artifactCount">0 files</span>
+              </div>
+              <div class="artifact-list" id="artifactList">
+                <p class="muted">Generated result previews and artifact links load from <code>run_summary.json</code>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel dashboard-panel" id="dashboard">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Post-run review</p>
+            <h3>Dashboard</h3>
+          </div>
+          <span class="badge" id="dashboardStatusBadge">Waiting for run</span>
+        </div>
+
+        <div class="dashboard-layout">
+          <aside class="dashboard-sidebar" aria-label="Dashboard filters">
+            <div class="runtime-heading">
+              <strong>Filters</strong>
+              <span id="dashboardIssueCount">0 issues</span>
+            </div>
+            <label class="field-label" for="dashboardSeverityFilter">
+              Severity
+              <select id="dashboardSeverityFilter">
+                <option value="all">All severities</option>
+              </select>
+            </label>
+            <label class="field-label" for="dashboardIssueTypeFilter">
+              Issue type
+              <select id="dashboardIssueTypeFilter">
+                <option value="all">All issue types</option>
+              </select>
+            </label>
+            <label class="field-label" for="dashboardTableFilter">
+              Table
+              <select id="dashboardTableFilter">
+                <option value="all">All tables</option>
+              </select>
+            </label>
+            <button class="button secondary" id="dashboardResetFilters" type="button">Reset filters</button>
+            <p class="form-message" id="dashboardMessage" role="status">Dashboard loads after a completed backend job.</p>
+          </aside>
+
+          <div class="dashboard-main">
+            <div class="dashboard-summary-strip" id="dashboardSummaryStrip" aria-label="Dashboard summary">
+              <div><span>readiness</span><strong>Waiting</strong></div>
+              <div><span>risk</span><strong>--</strong></div>
+              <div><span>issues</span><strong>0</strong></div>
+              <div><span>tables</span><strong>0</strong></div>
+            </div>
+
+            <section class="dashboard-section table-impact-section" id="tableImpact" aria-labelledby="tableImpactTitle">
+              <div class="runtime-heading">
+                <strong id="tableImpactTitle">Table Assessment</strong>
+                <span id="tableImpactStatus">Waiting for table_assessments.json</span>
+              </div>
+              <div class="table-impact-grid" id="tableImpactGrid">
+                <p class="muted">Run a job to review per-table readiness and analysis impact.</p>
+              </div>
+            </section>
+
+            <div class="dashboard-panel-grid" id="dashboardPanelGrid">
+              <p class="muted">Run a job to render charts from generated artifact URLs.</p>
+            </div>
+
+            <section class="dashboard-graph" id="graphs" aria-labelledby="dashboardGraphTitle">
+              <div class="runtime-heading">
+                <strong id="dashboardGraphTitle">Graph view</strong>
+                <span id="dashboardGraphStatus">Waiting for artifacts</span>
+              </div>
+              <div class="dashboard-graph-toolbar">
+                <div class="graph-control-group">
+                  <span>Artifact</span>
+                  <div class="runner-mode-switch dashboard-graph-mode" role="tablist" aria-label="Graph artifact">
+                    <button class="mode-button active" id="dashboardGraphModeLineage" type="button" role="tab" aria-selected="true">Lineage</button>
+                    <button class="mode-button" id="dashboardGraphModeRelationship" type="button" role="tab" aria-selected="false">Relationships</button>
+                  </div>
+                </div>
+                <div class="graph-control-group">
+                  <span>View</span>
+                  <div class="runner-mode-switch dashboard-graph-mode" role="group" aria-label="Graph detail level">
+                    <button class="mode-button active" id="dashboardGraphDisplayOverview" type="button" aria-pressed="true">Overview</button>
+                    <button class="mode-button" id="dashboardGraphDisplayFocus" type="button" aria-pressed="false">Focus</button>
+                    <button class="mode-button" id="dashboardGraphDisplayFull" type="button" aria-pressed="false">Full</button>
+                  </div>
+                </div>
+                <div class="graph-toggle-row" aria-label="Graph detail toggles">
+                  <label class="toggle-label">
+                    <input id="dashboardGraphColumnsToggle" type="checkbox">
+                    <span>Show columns</span>
+                  </label>
+                  <label class="toggle-label">
+                    <input id="dashboardGraphRuntimeToggle" type="checkbox">
+                    <span>Show runtime/artifacts</span>
+                  </label>
+                  <label class="toggle-label">
+                    <input id="dashboardGraphInvalidOnlyToggle" type="checkbox">
+                    <span>Invalid/warning only</span>
+                  </label>
+                  <button class="ghost-button graph-reset-button" id="dashboardGraphResetView" type="button">Reset graph view</button>
+                </div>
+                <label class="field-label graph-scope-label" for="dashboardGraphScope">
+                  Detail scope
+                  <select id="dashboardGraphScope">
+                    <option value="table">Tables</option>
+                    <option value="columns">Columns</option>
+                    <option value="relationships">Relationships</option>
+                    <option value="runtime">Runtime + artifacts</option>
+                  </select>
+                </label>
+              </div>
+              <div class="dashboard-graph-canvas">
+                <svg id="dashboardGraphSvg" class="dashboard-graph-svg" role="img" aria-label="Dashboard artifact graph"></svg>
+              </div>
+              <div class="graph-legend" id="dashboardGraphLegend">
+                <span>No graph loaded</span>
+              </div>
+            </section>
+
+            <div class="dashboard-detail-grid">
+              <section class="dashboard-detail" aria-live="polite">
+                <div class="runtime-heading">
+                  <strong>Drilldown</strong>
+                  <span id="dashboardDrilldownMeta">No selection</span>
+                </div>
+                <div id="dashboardDrilldown">
+                  <p class="muted">Select a chart item to inspect matching issues and artifact links.</p>
+                </div>
+              </section>
+              <section class="dashboard-detail" aria-live="polite">
+                <div class="runtime-heading">
+                  <strong>Graph drilldown</strong>
+                  <span id="dashboardGraphDrilldownMeta">No node</span>
+                </div>
+                <div id="dashboardGraphDrilldown">
+                  <p class="muted">Select a graph node to inspect metadata and evidence artifacts.</p>
+                </div>
+              </section>
+              <section class="dashboard-detail" id="artifacts">
+                <div class="runtime-heading">
+                  <strong>Artifact sources</strong>
+                  <span id="dashboardArtifactCount">0 files</span>
+                </div>
+                <div class="artifact-list compact" id="dashboardArtifactLinks">
+                  <p class="muted">Dashboard sources are listed after artifact discovery.</p>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-label" id="inputSetup">
+        <p class="eyebrow">Input setup</p>
+        <h3>Upload preflight and DBML mapping</h3>
+      </section>
+
+      <section class="upload-grid" id="upload">
+        <article class="panel upload-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Contract</p>
+              <h3>Upload DBML contract</h3>
+            </div>
+            <span class="badge" id="tableCountBadge">Demo loading</span>
+          </div>
+          <label class="dropzone" for="dbmlInput" id="dbmlDropzone">
+            <span class="dropzone-title">Drop schema.dbml here</span>
+            <span class="dropzone-copy">Preflight parses DBML in the browser. The full profiler still runs in Python.</span>
+            <input id="dbmlInput" type="file" accept=".dbml,.txt">
+          </label>
+          <div class="file-card" id="dbmlFileCard" hidden>
+            <span class="file-icon" aria-hidden="true">DB</span>
+            <div>
+              <strong id="dbmlFileName">schema.dbml</strong>
+              <p id="dbmlFileMeta">Parsed contract</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel upload-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">CSV inventory</p>
+              <h3>Upload related CSV files</h3>
+            </div>
+            <span class="badge" id="csvCountBadge">0 CSV</span>
+          </div>
+          <label class="dropzone" for="csvInput" id="csvDropzone">
+            <span class="dropzone-title">Drop one or many CSV files</span>
+            <span class="dropzone-copy">Upload mode sends selected browser files to the local runner. Use path mode for large local datasets.</span>
+            <input id="csvInput" type="file" accept=".csv,text/csv" multiple>
+          </label>
+          <div class="csv-list" id="csvList" aria-live="polite"></div>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel diagram-panel" id="diagram">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Live schema graph</p>
+              <h3>DBML diagram preview</h3>
+            </div>
+            <a class="button secondary" id="dbdiagramLink" href="#" target="_blank" rel="noopener" aria-disabled="true">Open dbdiagram</a>
+          </div>
+          <div class="diagram-status-row">
+            <p class="form-message" id="diagramMessage" role="status">Local diagram preview renders from browser DBML state.</p>
+            <span class="badge" id="diagramSourceBadge">Local preview</span>
+          </div>
+          <div class="diagram-toolbar" role="toolbar" aria-label="Local diagram controls">
+            <button class="button secondary" id="diagramFitButton" type="button">Fit view</button>
+            <button class="button secondary" id="diagramDensityToggle" type="button" aria-pressed="false">Expanded cards</button>
+            <button class="button secondary" id="diagramColumnsToggle" type="button" aria-pressed="false">Show non-key columns</button>
+            <button class="button ghost" id="diagramResetSelection" type="button">Reset selection</button>
+          </div>
+          <div class="diagram-warnings" id="diagramWarnings" hidden></div>
+          <div class="diagram-empty" id="diagramEmpty">
+            <div class="diagram-glyph" aria-hidden="true"></div>
+            <strong>Preparing demo DBML diagram</strong>
+            <p>The demo contract loads automatically. Upload your own DBML/CSV files to replace it.</p>
+          </div>
+          <div class="local-diagram" id="localDiagram" hidden>
+            <div class="diagram-canvas" id="diagramCanvas">
+              <svg id="diagramSvg" class="diagram-svg" role="img" aria-label="Local DBML schema diagram"></svg>
+            </div>
+            <aside class="diagram-inspector" id="diagramInspector" aria-live="polite"></aside>
+          </div>
+          <iframe id="diagramFrame" class="diagram-frame" title="External dbdiagram preview" hidden aria-hidden="true"></iframe>
+        </article>
+
+        <aside class="panel preflight-panel" id="issues">
+          <div class="panel-heading compact">
+            <div>
+              <p class="eyebrow">Preflight</p>
+              <h3>Contract health</h3>
+            </div>
+          </div>
+          <div class="metric-grid">
+            <div class="metric-card">
+              <span id="mappedMetric">0</span>
+              <p>mapped</p>
+            </div>
+            <div class="metric-card warning">
+              <span id="missingMetric">0</span>
+              <p>missing CSV</p>
+            </div>
+            <div class="metric-card neutral">
+              <span id="extraMetric">0</span>
+              <p>extra CSV</p>
+            </div>
+          </div>
+          <div class="edge-list" id="edgeList">
+            <p class="muted">Relationships appear here after DBML parsing.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="panel mapping-panel" id="mapping">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Mapping</p>
+            <h3>CSV to DBML Table Mapping</h3>
+          </div>
+          <button class="button secondary" id="autoLinkButton" type="button" disabled>Auto-link by file stem</button>
+        </div>
+
+        <div class="mapping-table-wrap">
+          <table class="mapping-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>DBML table</th>
+                <th>Primary key</th>
+                <th>Foreign keys</th>
+                <th>CSV file</th>
+                <th>Header match</th>
+              </tr>
+            </thead>
+            <tbody id="mappingBody">
+              <tr>
+                <td colspan="6" class="empty-row">Upload DBML to start mapping.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="csvItemTemplate">
+    <div class="csv-pill">
+      <span class="csv-name"></span>
+      <span class="csv-meta"></span>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
