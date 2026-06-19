@@ -35,7 +35,7 @@
     <main class="workspace">
       <header class="topbar">
         <div>
-          <p class="eyebrow">DBML + CSV -> evidence artifacts</p>
+          <p class="eyebrow">CSV, DBML, or database -> evidence artifacts</p>
           <h2>Run the profiler, inspect risk, review table assessments, and open the generated evidence package.</h2>
           <p class="topbar-note">Full jobs use the local <code>127.0.0.1</code> runner. Hosted Vercel remains a static preflight surface.</p>
         </div>
@@ -56,7 +56,7 @@
         <article class="status-card">
           <span class="step-number">02</span>
           <div>
-            <strong>CSV inventory</strong>
+            <strong>Source inventory</strong>
             <p id="csvStatus">No CSV files selected</p>
           </div>
         </article>
@@ -87,9 +87,10 @@
 
         <div class="runner-grid">
           <div class="runner-controls">
-            <div class="runner-mode-switch" role="tablist" aria-label="Runner mode">
+            <div class="runner-mode-switch runner-source-switch" role="tablist" aria-label="Runner mode">
               <button class="mode-button active" id="runnerModeUpload" type="button" role="tab" aria-selected="true" aria-controls="runnerForm">Upload mode</button>
               <button class="mode-button" id="runnerModePath" type="button" role="tab" aria-selected="false" aria-controls="pathRunnerForm">Local path mode</button>
+              <button class="mode-button" id="runnerModeDatabase" type="button" role="tab" aria-selected="false" aria-controls="databaseRunnerForm">Database mode</button>
             </div>
 
             <div class="runner-option-block" aria-label="Demo dataset">
@@ -152,6 +153,43 @@
                 <input id="pathTargetInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="order_reviews.review_score">
               </label>
               <button class="button primary" id="runPathProfilerButton" type="submit" disabled>Run path job</button>
+            </form>
+
+            <form class="runner-form" id="databaseRunnerForm" hidden>
+              <div class="database-source-grid">
+                <label class="field-label" for="databaseSourceType">
+                  Source type
+                  <select id="databaseSourceType">
+                    <option value="postgres">Postgres</option>
+                    <option value="mysql">MySQL / MariaDB</option>
+                  </select>
+                </label>
+                <label class="field-label" for="databaseChunkRowsInput">
+                  Chunk rows
+                  <input id="databaseChunkRowsInput" type="number" inputmode="numeric" min="1" max="100000" value="10000">
+                </label>
+              </div>
+              <label class="field-label" for="databaseUrlInput">
+                Connection URL
+                <input id="databaseUrlInput" type="password" inputmode="url" autocomplete="off" spellcheck="false" placeholder="postgresql://user:password@127.0.0.1:5432/app">
+              </label>
+              <label class="field-label" for="databaseSchemaInput">
+                Schema / database
+                <input id="databaseSchemaInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="public">
+              </label>
+              <label class="field-label" for="databaseTablesInput">
+                Table list
+                <input id="databaseTablesInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="customers, orders, order_items">
+              </label>
+              <label class="field-label" for="databaseRulesPathInput">
+                Optional rules path
+                <input id="databaseRulesPathInput" type="text" inputmode="text" autocomplete="off" spellcheck="false">
+              </label>
+              <label class="field-label" for="databaseTargetInput">
+                Target column
+                <input id="databaseTargetInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="orders.order_total">
+              </label>
+              <button class="button primary" id="runDatabaseProfilerButton" type="submit" disabled>Run database job</button>
             </form>
 
             <p class="form-message" id="runnerMessage" role="status">Start with files uploaded from this browser session.</p>

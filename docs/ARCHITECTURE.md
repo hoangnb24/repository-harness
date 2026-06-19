@@ -43,7 +43,8 @@ Optional advanced surfaces:
 - static local-first DBML/CSV mapping web preflight surface, including the
   Vercel static deployment;
 - local-only web runner with upload mode for demo/small-medium files and local
-  path mode for larger local datasets;
+  path mode for larger local datasets, plus first-class Postgres/MySQL database
+  mode over the existing connector boundary;
 - interactive local web-runner dashboard rendered from generated artifacts,
   including chart panels plus lineage and relationship graph views;
 - exportable self-contained analysis packages generated from existing output
@@ -103,7 +104,7 @@ Target roadmap scope:
 | CLI | Run the full profiler and write artifacts to an output directory. | v0.2 local RC. |
 | Static reports | Let users inspect findings without running an app server. | v0.2 local RC. |
 | Static web workspace | Upload DBML/CSV headers locally, map files to tables, and visualize DBML before a run. The Vercel deployment serves only this static preflight surface. | v0.2 static preflight. |
-| Local web runner | Run DBML/CSV/rules jobs through a `127.0.0.1` backend using either browser upload mode or local path mode, then expose canonical artifacts, chart panels, and lineage/relationship graph views in an interactive artifact dashboard. | Optional v0.2 local runner. |
+| Local web runner | Run DBML/CSV/rules or selected Postgres/MySQL database jobs through a `127.0.0.1` backend using browser upload mode, local path mode, or database mode, then expose canonical artifacts, chart panels, and lineage/relationship graph views in an interactive artifact dashboard. | Optional v0.2 local runner. |
 | Runtime trace files | Make each run debuggable through log, JSONL events, and summary metadata. | v0.2 hardening. |
 | Optional LLM report | Produce a guarded narrative from evidence JSON after deterministic checks finish. | Optional v0.2. |
 | Analysis package | Export an existing output directory into an offline package with manifest, index page, generated artifacts, checksums, optional PDF, and optional zip. | Optional v0.2 handoff surface. |
@@ -133,6 +134,12 @@ DBML + CSV directory + optional YAML rules + optional target column
   -> optional local lineage graph from source, schema, runtime, and artifact evidence
   -> deterministic JSON, samples, schema diagrams, Markdown, and HTML reports
 ```
+
+Database source mode enters the same flow after the local connector adapts
+selected Postgres or MySQL/MariaDB tables into generated schema evidence and a
+temporary DuckDB-readable catalog. Temporary connector extracts are removed
+after the run, while `connector_metadata.json`, `schema_diagram.dbml`, runtime
+artifacts, reports, and dashboard views remain canonical generated evidence.
 
 ### Near-term and target enrichment flow
 

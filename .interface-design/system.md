@@ -176,3 +176,4 @@ Data style: monospace with tabular numbers.
 | Preserve artifact names and routes in UI copy and controls | The web runner is a local presenter over canonical artifacts, not a new profiling engine | 2026-06-16 |
 | Use an ERD-style local DBML diagram pattern for US-061 | The local preview must be demo-readable without relying on the external dbdiagram.io iframe | 2026-06-17 |
 | Default dashboard graphs to progressive disclosure for US-062 | Demo reviewers need readable topology first and artifact-level evidence only on selection or explicit toggles | 2026-06-17 |
+| Treat Database mode as a runner source tab for US-072 | Postgres/MySQL inputs should feel first-class in the local console while preserving the same artifact-backed review stack and secret boundary | 2026-06-19 |

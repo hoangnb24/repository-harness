@@ -8,12 +8,18 @@ import urllib.request
 import pytest
 
 from vsf_profiler.demo_data import create_small_demo
+from vsf_profiler.models import CatalogTable, ColumnSchema, CsvCatalog, Schema, TableSchema
+from vsf_profiler import web_runner
+from vsf_profiler.connectors import redact_connection_url
 from vsf_profiler.web_runner import (
     LOCAL_WEB_HOST,
     UploadedFile,
     WebRunStore,
     create_web_server,
 )
+
+POSTGRES_SECRET_URL = "postgresql://profiler:super-secret@127.0.0.1:5432/demo?token=query-secret"
+MYSQL_SECRET_URL = "mysql://profiler:super-secret@127.0.0.1:3306/demo?token=query-secret"
 
 
 REQUIRED_ARTIFACTS = {
@@ -131,6 +137,165 @@ def test_web_runner_path_job_can_enable_fake_llm_report(tmp_path):
     assert payload["llm"] == {"enabled": True, "provider": "fake"}
     artifact_paths = {artifact["path"] for artifact in payload["artifacts"]}
     assert {"l4_report.md", "guardrail_report.json"}.issubset(artifact_paths)
+
+
+def test_web_runner_database_job_writes_artifacts_and_redacts_secret_url(
+    tmp_path,
+    monkeypatch,
+):
+    captured: dict[str, object] = {}
+
+    def fake_from_config(**kwargs):
+        captured.update(kwargs)
+        return FakeWebDatabaseConnector(
+            source_type="postgres",
+            secret_url=kwargs["postgres_url"],
+            default_schema=kwargs["postgres_schema"],
+            selected_tables=kwargs["postgres_tables"],
+            chunk_rows=kwargs["postgres_chunk_rows"],
+        )
+
+    monkeypatch.setattr(web_runner.PostgresConnector, "from_config", staticmethod(fake_from_config))
+    store = WebRunStore(run_root=tmp_path / "web_runs")
+
+    job = store.start_database_job(
+        source_type="postgres",
+        connection_url=POSTGRES_SECRET_URL,
+        schema="public",
+        tables="customers",
+        chunk_rows=2,
+    )
+
+    wait_for_job(job)
+
+    assert job.status == "succeeded"
+    assert job.input_mode == "database"
+    assert job.database_source_type == "postgres"
+    assert captured["postgres_url"] == POSTGRES_SECRET_URL
+    assert captured["postgres_schema"] == "public"
+    assert captured["postgres_tables"] == "customers"
+    assert captured["postgres_chunk_rows"] == 2
+    assert (job.out_dir / "connector_metadata.json").exists()
+    assert (job.out_dir / "schema_diagram.dbml").exists()
+    assert not (job.out_dir / ".connector_extracts").exists()
+
+    database_inputs = json.loads((job.input_dir / "database_inputs.json").read_text())
+    assert database_inputs["input_mode"] == "database"
+    assert database_inputs["source_type"] == "postgres"
+    assert database_inputs["connection_url"] == (
+        "postgresql://[redacted]@127.0.0.1:5432/demo?token=%5Bredacted%5D"
+    )
+    assert database_inputs["secrets_redacted"] is True
+
+    payload = store.job_payload(job)
+    assert payload["input_mode"] == "database"
+    assert payload["database"] == {"source_type": "postgres"}
+    assert POSTGRES_SECRET_URL not in json.dumps(payload)
+    assert "super-secret" not in json.dumps(payload)
+    assert_no_secret_leak(job.root_dir, POSTGRES_SECRET_URL)
+    assert_no_secret_leak(job.root_dir, "super-secret")
+    assert_no_secret_leak(job.root_dir, "query-secret")
+
+
+def test_web_runner_database_job_http_endpoint(tmp_path, monkeypatch):
+    def fake_from_config(**kwargs):
+        return FakeWebDatabaseConnector(
+            source_type="mysql",
+            secret_url=kwargs["mysql_url"],
+            default_schema=kwargs["mysql_schema"],
+            selected_tables=kwargs["mysql_tables"],
+            chunk_rows=kwargs["mysql_chunk_rows"],
+        )
+
+    monkeypatch.setattr(web_runner.MySQLConnector, "from_config", staticmethod(fake_from_config))
+    server = create_web_server(port=0, run_root=tmp_path / "web_runs")
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://{LOCAL_WEB_HOST}:{server.server_address[1]}"
+    try:
+        payload = _post_json(
+            f"{base_url}/api/database-jobs",
+            {
+                "source_type": "mysql",
+                "connection_url": MYSQL_SECRET_URL,
+                "schema": "demo",
+                "tables": "customers",
+                "chunk_rows": 1,
+                "target": "customers.customer_id",
+            },
+        )
+
+        assert payload["status"] in {"queued", "running"}
+        assert payload["input_mode"] == "database"
+        assert payload["database"] == {"source_type": "mysql"}
+        assert MYSQL_SECRET_URL not in json.dumps(payload)
+
+        job_payload = _wait_for_http_job(base_url, payload["job_id"])
+        assert job_payload["status"] == "succeeded"
+        assert job_payload["input_mode"] == "database"
+        artifact_paths = {artifact["path"] for artifact in job_payload["artifacts"]}
+        assert REQUIRED_ARTIFACTS.issubset(artifact_paths)
+        assert "connector_metadata.json" in artifact_paths
+        assert "schema_diagram.dbml" in artifact_paths
+        assert MYSQL_SECRET_URL not in json.dumps(job_payload)
+        assert "super-secret" not in json.dumps(job_payload)
+
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            _post_json(
+                f"{base_url}/api/database-jobs",
+                {
+                    "source_type": "postgres",
+                    "connection_url": MYSQL_SECRET_URL,
+                },
+            )
+        assert exc_info.value.code == 400
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+
+
+def test_web_runner_database_job_validates_inputs_before_start(tmp_path):
+    store = WebRunStore(run_root=tmp_path / "web_runs")
+
+    with pytest.raises(ValueError, match="source_type"):
+        store.start_database_job(
+            source_type="sqlite",
+            connection_url="sqlite:///tmp/demo.db",
+        )
+
+    with pytest.raises(ValueError, match="Postgres connection_url"):
+        store.start_database_job(
+            source_type="postgres",
+            connection_url=MYSQL_SECRET_URL,
+        )
+
+    with pytest.raises(ValueError, match="MySQL connection_url"):
+        store.start_database_job(
+            source_type="mysql",
+            connection_url=POSTGRES_SECRET_URL,
+        )
+
+    with pytest.raises(ValueError, match="chunk_rows"):
+        store.start_database_job(
+            source_type="postgres",
+            connection_url=POSTGRES_SECRET_URL,
+            chunk_rows=0,
+        )
+
+    with pytest.raises(ValueError, match="table.column"):
+        store.start_database_job(
+            source_type="postgres",
+            connection_url=POSTGRES_SECRET_URL,
+            target="customer_id",
+        )
+
+    with pytest.raises(ValueError, match="llm_provider requires use_llm"):
+        store.start_database_job(
+            source_type="postgres",
+            connection_url=POSTGRES_SECRET_URL,
+            llm_provider="fake",
+        )
 
 
 def test_web_runner_path_job_validates_inputs_before_start(tmp_path):
@@ -449,6 +614,114 @@ def test_web_server_binds_localhost_only(tmp_path):
         server.server_close()
 
 
+class FakeWebDatabaseConnector:
+    def __init__(
+        self,
+        *,
+        source_type: str,
+        secret_url: str,
+        default_schema: str,
+        selected_tables: str | None,
+        chunk_rows: int,
+    ) -> None:
+        self.source_type = source_type
+        self.secret_url = secret_url
+        self.default_schema = default_schema
+        self.selected_tables = selected_tables
+        self.chunk_rows = chunk_rows
+
+    def runtime_inputs(self):
+        url_key = "postgres_url" if self.source_type == "postgres" else "mysql_url"
+        return {
+            "source_type": self.source_type,
+            url_key: self.secret_url,
+            "password": "super-secret",
+            "target_token": "query-secret",
+        }
+
+    def prepare_schema(self):
+        table = TableSchema(
+            name="customers",
+            columns={
+                "customer_id": ColumnSchema(
+                    name="customer_id",
+                    type="varchar",
+                    is_pk=True,
+                    not_null=True,
+                ),
+                "email": ColumnSchema(name="email", type="varchar", unique=True),
+            },
+            primary_key=["customer_id"],
+        )
+        schema = Schema(tables={"customers": table})
+        return schema, {
+            "artifact": "schema_parse_report",
+            "version": 1,
+            "parser": "fake_web_database_connector",
+            "status": "generated_from_connector",
+            "source": {"path": ""},
+            "counts": {
+                "tables": 1,
+                "columns": 2,
+                "relationships": 0,
+                "warnings": 0,
+                "errors": 0,
+                "unsupported_constructs": 0,
+            },
+            "diagnostics": [],
+            "unsupported_constructs": [],
+            "objects": {"tables": [{"name": "customers"}]},
+        }
+
+    def build_catalog(self, *, schema, out_dir):
+        extract_dir = out_dir / ".connector_extracts" / self.source_type
+        extract_dir.mkdir(parents=True)
+        extract_path = extract_dir / "customers.csv"
+        _write_csv(
+            extract_path,
+            ["customer_id", "email"],
+            [["C001", "a@example.com"], ["C002", "b@example.com"]],
+        )
+        catalog = CsvCatalog(
+            tables={
+                "customers": CatalogTable(
+                    table="customers",
+                    csv_path=extract_path,
+                    columns=["customer_id", "email"],
+                    file_size_mb=0.001,
+                    source_type=self.source_type,
+                    source_name=f"{self.source_type}:{self.default_schema}.customers",
+                )
+            }
+        )
+        metadata = {
+            "artifact": "connector_metadata",
+            "version": 1,
+            "source_type": self.source_type,
+            "connection": {"url": redact_connection_url(self.secret_url), "provided_by": "test"},
+            "default_schema": self.default_schema,
+            "introspection_status": "completed",
+            "extraction_status": "completed",
+            "tables_scanned": ["customers"],
+            "tables": [
+                {
+                    "table": "customers",
+                    "source_table": f"{self.default_schema}.customers",
+                    "columns": ["customer_id", "email"],
+                    "column_count": 2,
+                    "row_count_estimate": 2,
+                    "rows_extracted": 2,
+                    "status": "extracted",
+                }
+            ],
+            "warnings": [],
+            "chunk_rows": self.chunk_rows,
+            "raw_extracts_persisted": False,
+            "secrets_redacted": True,
+        }
+        return catalog, metadata, [extract_dir]
+
+
 def _post_json(url, payload):
     request = urllib.request.Request(
         url,
@@ -482,3 +755,9 @@ def _write_csv(path, header: list[str], rows: list[list[str]]) -> None:
         writer = csv.writer(handle)
         writer.writerow(header)
         writer.writerows(rows)
+
+
+def assert_no_secret_leak(root_dir, secret: str) -> None:
+    for path in root_dir.rglob("*"):
+        if path.is_file() and path.suffix in {".json", ".jsonl", ".log", ".md", ".html"}:
+            assert secret not in path.read_text(encoding="utf-8")

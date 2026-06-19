@@ -29,6 +29,7 @@ def test_web_ui_contains_upload_mapping_and_visualization_regions():
         'id="diagramInspector"',
         'id="runnerForm"',
         'id="pathRunnerForm"',
+        'id="databaseRunnerForm"',
         'id="demoPresetSmall"',
         'id="demoPresetOlist"',
         'id="demoPresetStatus"',
@@ -38,9 +39,18 @@ def test_web_ui_contains_upload_mapping_and_visualization_regions():
         'id="llmModeStatus"',
         'id="runProfilerButton"',
         'id="runPathProfilerButton"',
+        'id="runDatabaseProfilerButton"',
         'id="dbmlPathInput"',
         'id="csvDirPathInput"',
         'id="rulesPathInput"',
+        'id="runnerModeDatabase"',
+        'id="databaseSourceType"',
+        'id="databaseUrlInput"',
+        'id="databaseSchemaInput"',
+        'id="databaseTablesInput"',
+        'id="databaseChunkRowsInput"',
+        'id="databaseRulesPathInput"',
+        'id="databaseTargetInput"',
         'id="stageList"',
         'id="artifactList"',
         'id="dashboard"',
@@ -83,6 +93,12 @@ def test_web_ui_contains_upload_mapping_and_visualization_regions():
         "Vercel serves static preflight only",
         "Upload mode",
         "Local path mode",
+        "Database mode",
+        "Postgres",
+        "MySQL / MariaDB",
+        "Connection URL",
+        "Schema / database",
+        "Table list",
         "Small demo",
         "Full Olist",
         "L4 report",
@@ -99,6 +115,8 @@ def test_web_ui_contains_upload_mapping_and_visualization_regions():
         "--surface-rail",
         "--accent",
         "--focus-ring",
+        ".runner-source-switch",
+        ".database-source-grid",
         ".diagram-role-bridge",
         ".diagram-inspector",
         ".diagram-edge-hit",
@@ -128,6 +146,10 @@ def test_web_ui_contains_upload_mapping_and_visualization_regions():
         "checkRunnerHealth",
         "startProfilerRun",
         "startPathRun",
+        "startDatabaseRun",
+        "databaseSourceLabel",
+        "syncDatabaseSourceControls",
+        "/api/database-jobs",
         "renderGeneratedResults",
         "renderGeneratedResultPreviews",
         "renderGeneratedL4Preview",
@@ -198,6 +220,7 @@ def test_web_ui_uses_local_backend_runner_without_js_profiler_port():
     assert 'fetch("/api/health"' in js
     assert 'fetch("/api/jobs"' in js
     assert 'fetch("/api/path-jobs"' in js
+    assert 'fetch("/api/database-jobs"' in js
     assert 'fetch(`/api/jobs/${jobId}/dashboard`' in js
     assert "new EventSource" in js
     assert "run_events.jsonl" in js

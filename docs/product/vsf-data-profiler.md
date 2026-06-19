@@ -58,13 +58,15 @@ These capabilities are implemented and test-covered, but they are not required
 to understand or run the MVP Smart EDA workflow:
 
 - `vsf-profiler web` local-only runner on `127.0.0.1`, including browser upload
-  mode, local path mode, generated-results previews, dashboard filters, graph
-  views, and artifact links.
+  mode, local path mode, first-class Postgres/MySQL/MariaDB database mode,
+  generated-results previews, dashboard filters, graph views, and artifact
+  links.
 - Static Vercel deployment for browser-side DBML/CSV preflight only. It does
   not run Python/DuckDB jobs.
 - Postgres and MySQL/MariaDB connector modes for selected local database
-  tables, writing additive `connector_metadata.json` and removing temporary
-  raw extracts after a run.
+  tables through the CLI or local web runner, writing additive
+  `connector_metadata.json`, generating schema/DBML evidence from
+  introspection, and removing temporary raw extracts after a run.
 - `lineage_graph.json` and optional lineage graph presentation in reports,
   packages, and the local dashboard.
 - `vsf-profiler package` export of an existing output directory into an offline
@@ -137,13 +139,17 @@ to understand or run the MVP Smart EDA workflow:
 - Database connectors must redact connection strings, passwords, tokens, API
   keys, and auth material from runtime logs, events, summaries, reports,
   dashboard payloads, and errors.
+- The local web-runner database mode may accept a raw connection URL only
+  through the `127.0.0.1` backend request. Persisted input manifests, job
+  payloads, generated artifacts, reports, and dashboard payloads must expose
+  only redacted connection details or source type summaries.
 - Real Postgres and MySQL/MariaDB smokes must skip explicitly when local test
   URLs are absent.
 - The local web runner dashboard must consume generated artifacts only; it must
   not fetch raw CSV files or rerun profiler logic in JavaScript.
 - The local web runner may prefill the small synthetic demo or optional Olist
-  CSV sample, and may opt into fake/OpenAI L4 report generation while keeping
-  LLM disabled by default.
+  CSV sample, expose upload/path/database source modes, and opt into
+  fake/OpenAI L4 report generation while keeping LLM disabled by default.
 - Export packages must exclude raw source CSV files and connector temporary
   extracts. Bounded `samples/*.csv` evidence is the only CSV content allowed in
   packages.

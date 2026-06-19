@@ -48,6 +48,39 @@ test("local path run renders the interactive dashboard from generated artifacts"
   await expect(page.locator("#llmModeStatus")).toContainText("LLM off");
   await expect(page.locator("#llmModeOff")).toHaveAttribute("aria-pressed", "true");
 
+  await page.locator("#runnerModeDatabase").click();
+  await expect(page.locator("#databaseRunnerForm")).toBeVisible();
+  await expect(page.locator("#runnerStatus")).toContainText("Ready for database source");
+  await expect(page.locator("#databaseSourceType")).toHaveValue("postgres");
+  await expect(page.locator("#databaseSchemaInput")).toHaveValue("public");
+  await expect(page.locator("#runDatabaseProfilerButton")).toBeDisabled();
+  await page
+    .locator("#databaseUrlInput")
+    .fill("postgresql://profiler:secret@127.0.0.1:5432/demo");
+  await page.locator("#databaseTablesInput").fill("customers, orders, order_items");
+  await page.locator("#databaseTargetInput").fill("orders.order_total");
+  await expect(page.locator("#csvStatus")).toContainText("Postgres selected tables ready");
+  await expect(page.locator("#runDatabaseProfilerButton")).toBeEnabled();
+  await page.locator("#databaseSourceType").selectOption("mysql");
+  await expect(page.locator("#databaseSchemaInput")).toHaveValue("");
+  await page
+    .locator("#databaseUrlInput")
+    .fill("mysql://profiler:secret@127.0.0.1:3306/demo");
+  await expect(page.locator("#csvStatus")).toContainText("MySQL/MariaDB selected tables ready");
+  fs.mkdirSync("outputs/us072_database_mode", { recursive: true });
+  await page.locator("#runner").screenshot({
+    path: "outputs/us072_database_mode/database-mode-runner.png",
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#runner").scrollIntoViewIfNeeded();
+  await page.locator("#runner").screenshot({
+    path: "outputs/us072_database_mode/database-mode-runner-mobile.png",
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  await page.locator("#runnerModePath").click();
+  await expect(page.locator("#pathRunnerForm")).toBeVisible();
+
   await page.locator("#demoPresetOlist").click();
   await expect(page.locator("#demoPresetStatus")).toContainText("Full Olist");
   await expect(page.locator("#dbmlPathInput")).toHaveValue("examples/olist/schema.dbml");

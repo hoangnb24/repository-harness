@@ -1943,6 +1943,10 @@ h3 {
   background: var(--surface-inset);
 }
 
+.runner-source-switch {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .demo-preset-switch {
   grid-template-columns: 1fr 1fr;
 }
@@ -1994,6 +1998,9 @@ h3 {
   font-size: 13px;
   font-weight: 900;
   cursor: pointer;
+  line-height: 1.15;
+  padding: 0 8px;
+  overflow-wrap: anywhere;
 }
 
 .mode-button:hover {
@@ -2013,6 +2020,12 @@ h3 {
   gap: 12px;
 }
 
+.database-source-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 0.48fr);
+  gap: 10px;
+}
+
 .field-label {
   display: grid;
   gap: 7px;
@@ -2022,7 +2035,10 @@ h3 {
 }
 
 .field-label input[type="text"],
-.field-label input[type="file"] {
+.field-label input[type="password"],
+.field-label input[type="number"],
+.field-label input[type="file"],
+.field-label select {
   width: 100%;
   min-height: 42px;
   padding: 9px 11px;
@@ -2032,12 +2048,14 @@ h3 {
   color: var(--foreground-primary);
 }
 
-.field-label input[type="text"] {
+.field-label input[type="text"],
+.field-label input[type="number"] {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
 }
 
-.field-label input:focus-visible {
+.field-label input:focus-visible,
+.field-label select:focus-visible {
   outline: 3px solid rgba(11, 107, 95, 0.28);
   outline-offset: 2px;
 }
@@ -2478,7 +2496,9 @@ h3 {
     align-items: stretch;
   }
 
-  .llm-mode-switch {
+  .runner-source-switch,
+  .llm-mode-switch,
+  .database-source-grid {
     grid-template-columns: 1fr;
   }
 

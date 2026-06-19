@@ -302,6 +302,13 @@ The local runner binds only to `127.0.0.1`. It preserves CLI artifact
 contracts and can run upload-mode jobs for demo/small-medium files or local
 path mode jobs where browser-entered DBML, CSV directory, and optional rules
 paths are validated locally without uploading CSV bytes through the browser.
+It also exposes a first-class database mode for local Postgres and
+MySQL/MariaDB sources: choose the source type, enter a connection URL,
+schema/database, optional table list, optional rules path, optional target
+column, chunk rows, and the shared L4 report toggle. The raw connection URL is
+used only by the local backend request; persisted job manifests, runtime
+artifacts, reports, and dashboard payloads use redacted connection details or
+source type summaries.
 After a run completes, the local runner can show an interactive dashboard from
 generated artifact URLs such as
 `charts/*.json`, `issues.json`, `profile_summary.json`,
@@ -322,6 +329,10 @@ from those artifacts while keeping raw artifact links available.
 - Local path mode sends only local path strings to the backend, then runs the
   existing Python/DuckDB pipeline directly against those paths. Use it for
   larger local datasets when the CSV directory is visible to the server process.
+- Database mode sends a local Postgres or MySQL/MariaDB connection URL to the
+  `127.0.0.1` backend, introspects selected tables, generates schema/DBML
+  evidence, extracts temporary chunked CSV material for DuckDB scanning, and
+  removes those temporary extracts after artifacts are written.
 
 The static `report.html` keeps its deterministic Visual Summary. The optional
 web-runner dashboard is an interactive browser view with filters and drilldown;

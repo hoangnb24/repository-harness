@@ -14,16 +14,33 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qsl, unquote, urlparse
 
+from vsf_profiler.connectors import (
+    DEFAULT_MYSQL_CHUNK_ROWS,
+    DEFAULT_MYSQL_SCHEMA,
+    DEFAULT_POSTGRES_CHUNK_ROWS,
+    DEFAULT_POSTGRES_SCHEMA,
+    MAX_MYSQL_CHUNK_ROWS,
+    MAX_POSTGRES_CHUNK_ROWS,
+    MySQLConnector,
+    PostgresConnector,
+    TabularSourceConnector,
+    redact_connection_url,
+    redact_secret_text,
+)
 
 LOCAL_WEB_HOST = "127.0.0.1"
 DEFAULT_WEB_PORT = 8765
 DEFAULT_RUN_ROOT = Path("outputs/web_runs")
 MAX_UPLOAD_BYTES = 250 * 1024 * 1024
 MAX_PATH_JOB_BYTES = 16 * 1024
+MAX_DATABASE_JOB_BYTES = 16 * 1024
 TARGET_PATTERN = re.compile(r"^[A-Za-z_][\w]*\.[A-Za-z_][\w]*$")
 ALLOWED_LLM_PROVIDERS = {"fake", "openai"}
+ALLOWED_DATABASE_SOURCE_TYPES = {"postgres", "mysql"}
+POSTGRES_URL_SCHEMES = {"postgres", "postgresql"}
+MYSQL_URL_SCHEMES = {"mysql", "mariadb", "mysql+pymysql", "mariadb+pymysql"}
 
 ARTIFACT_LABELS = {
     "profile_summary.json": "Profile summary",
@@ -80,6 +97,7 @@ class WebRunJob:
     csv_dir: Path
     out_dir: Path
     input_mode: str = "upload"
+    database_source_type: str | None = None
     use_llm: bool = False
     llm_provider: str | None = None
     status: str = "queued"
@@ -258,6 +276,104 @@ class WebRunStore:
         thread.start()
         return job
 
+    def start_database_job(
+        self,
+        *,
+        source_type: str,
+        connection_url: str,
+        schema: str | None = None,
+        tables: str | None = None,
+        chunk_rows: int | str | None = None,
+        rules_path: str | Path | None = None,
+        target: str | None = None,
+        use_llm: bool = False,
+        llm_provider: str | None = None,
+    ) -> WebRunJob:
+        validated_source_type = _validated_database_source_type(source_type)
+        validated_connection_url = _validated_database_url(
+            connection_url,
+            source_type=validated_source_type,
+        )
+        validated_schema = _validated_database_schema(schema, source_type=validated_source_type)
+        validated_tables = _validated_database_tables(tables)
+        validated_chunk_rows = _validated_database_chunk_rows(
+            chunk_rows,
+            source_type=validated_source_type,
+        )
+        validated_rules_path: Path | None = None
+        if rules_path is not None and str(rules_path).strip():
+            validated_rules_path = _validated_file_path(
+                rules_path,
+                label="Rules path",
+                extensions={".yaml", ".yml"},
+            )
+        validated_target = _validated_target(target)
+        validated_use_llm, validated_llm_provider = _validated_llm_options(
+            use_llm=use_llm,
+            llm_provider=llm_provider,
+        )
+        source_connector = _database_connector_from_options(
+            source_type=validated_source_type,
+            connection_url=validated_connection_url,
+            schema=validated_schema,
+            tables=validated_tables,
+            chunk_rows=validated_chunk_rows,
+        )
+
+        job_id = _new_job_id()
+        root_dir = self.run_root / job_id
+        input_dir = root_dir / "input"
+        out_dir = root_dir / "artifacts"
+        input_dir.mkdir(parents=True, exist_ok=True)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "input_mode": "database",
+            "source_type": validated_source_type,
+            "connection_url": redact_connection_url(validated_connection_url),
+            "schema": validated_schema,
+            "tables": validated_tables,
+            "chunk_rows": validated_chunk_rows,
+            "rules_path": str(validated_rules_path) if validated_rules_path else None,
+            "target": validated_target,
+            "use_llm": validated_use_llm,
+            "llm_provider": validated_llm_provider,
+            "secrets_redacted": True,
+        }
+        (input_dir / "database_inputs.json").write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        job = WebRunJob(
+            job_id=job_id,
+            root_dir=root_dir,
+            input_dir=input_dir,
+            csv_dir=input_dir,
+            out_dir=out_dir,
+            input_mode="database",
+            database_source_type=validated_source_type,
+            use_llm=validated_use_llm,
+            llm_provider=validated_llm_provider,
+        )
+        with self._lock:
+            self._jobs[job_id] = job
+        thread = threading.Thread(
+            target=self._run_database_job,
+            args=(
+                job,
+                source_connector,
+                validated_connection_url,
+                validated_rules_path,
+                validated_target,
+                validated_use_llm,
+                validated_llm_provider,
+            ),
+            name=f"vsf-web-run-{job_id}",
+            daemon=True,
+        )
+        thread.start()
+        return job
+
     def get_job(self, job_id: str) -> WebRunJob | None:
         with self._lock:
             return self._jobs.get(job_id)
@@ -276,6 +392,11 @@ class WebRunStore:
                 "enabled": job.use_llm,
                 "provider": job.llm_provider,
             },
+            "database": (
+                {"source_type": job.database_source_type}
+                if job.database_source_type is not None
+                else None
+            ),
             "summary": summary,
             "events_url": f"/api/jobs/{job.job_id}/events",
             "artifacts_url": f"/api/jobs/{job.job_id}/artifacts",
@@ -377,6 +498,40 @@ class WebRunStore:
         finally:
             job.finished_at = _iso_now()
 
+    def _run_database_job(
+        self,
+        job: WebRunJob,
+        source_connector: TabularSourceConnector,
+        connection_url: str,
+        rules_path: Path | None,
+        target: str | None,
+        use_llm: bool,
+        llm_provider_name: str | None,
+    ) -> None:
+        from vsf_profiler.cli import _llm_provider_from_config, run_pipeline
+
+        job.status = "running"
+        job.started_at = _iso_now()
+        try:
+            llm_provider = _llm_provider_from_config(llm_provider_name) if use_llm else None
+            run_pipeline(
+                dbml_path=None,
+                csv_dir=None,
+                rules_path=rules_path,
+                target=target,
+                out_dir=job.out_dir,
+                source_connector=source_connector,
+                use_llm=use_llm,
+                llm_provider=llm_provider,
+            )
+        except Exception as exc:
+            job.status = "failed"
+            job.error = _safe_error_message(exc, secret_values=[connection_url])
+        else:
+            job.status = "succeeded"
+        finally:
+            job.finished_at = _iso_now()
+
 
 class WebRunnerHandler(BaseHTTPRequestHandler):
     store: WebRunStore
@@ -415,6 +570,19 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
                     rules_path=payload.get("rules_path"),
                     target=payload.get("target"),
                     mapping_overrides=payload.get("mapping_overrides"),
+                    use_llm=bool(payload.get("use_llm", False)),
+                    llm_provider=payload.get("llm_provider"),
+                )
+            elif parsed.path == "/api/database-jobs":
+                payload = self._parse_database_job_body()
+                job = self.store.start_database_job(
+                    source_type=payload["source_type"],
+                    connection_url=payload["connection_url"],
+                    schema=payload.get("schema"),
+                    tables=payload.get("tables"),
+                    chunk_rows=payload.get("chunk_rows"),
+                    rules_path=payload.get("rules_path"),
+                    target=payload.get("target"),
                     use_llm=bool(payload.get("use_llm", False)),
                     llm_provider=payload.get("llm_provider"),
                 )
@@ -575,6 +743,34 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
             "llm_provider": _optional_llm_provider_string(payload.get("llm_provider")),
         }
 
+    def _parse_database_job_body(self) -> dict[str, Any]:
+        content_type = self.headers.get("Content-Type", "")
+        if "application/json" not in content_type:
+            raise ValueError("Expected application/json database job payload.")
+        content_length = int(self.headers.get("Content-Length", "0"))
+        if content_length <= 0:
+            raise ValueError("Database job body is empty.")
+        if content_length > MAX_DATABASE_JOB_BYTES:
+            raise ValueError("Database job payload is too large.")
+        body = self.rfile.read(content_length)
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Database job payload must be valid JSON.") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("Database job payload must be a JSON object.")
+        return {
+            "source_type": _required_string(payload, "source_type"),
+            "connection_url": _required_string(payload, "connection_url"),
+            "schema": _optional_string(payload, "schema"),
+            "tables": _optional_string(payload, "tables"),
+            "chunk_rows": payload.get("chunk_rows"),
+            "rules_path": _optional_string(payload, "rules_path"),
+            "target": _optional_string(payload, "target"),
+            "use_llm": _optional_bool(payload, "use_llm"),
+            "llm_provider": _optional_llm_provider_string(payload.get("llm_provider")),
+        }
+
     def _serve_static(self, path: str) -> None:
         if path in {"", "/"}:
             static_path = self.static_dir / "index.html"
@@ -680,6 +876,147 @@ def _read_json_if_exists(path: Path) -> dict[str, Any] | None:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return None
+
+
+def _database_connector_from_options(
+    *,
+    source_type: str,
+    connection_url: str,
+    schema: str,
+    tables: str | None,
+    chunk_rows: int,
+) -> TabularSourceConnector:
+    if source_type == "postgres":
+        return PostgresConnector.from_config(
+            postgres_url=connection_url,
+            postgres_schema=schema or DEFAULT_POSTGRES_SCHEMA,
+            postgres_tables=tables,
+            postgres_chunk_rows=chunk_rows,
+        )
+    if source_type == "mysql":
+        return MySQLConnector.from_config(
+            mysql_url=connection_url,
+            mysql_schema=schema or DEFAULT_MYSQL_SCHEMA,
+            mysql_tables=tables,
+            mysql_chunk_rows=chunk_rows,
+        )
+    raise ValueError("source_type must be postgres or mysql.")
+
+
+def _validated_database_source_type(source_type: str) -> str:
+    if not isinstance(source_type, str):
+        raise ValueError("source_type must be a string.")
+    normalized = source_type.strip().lower()
+    if normalized in {"mariadb", "mysql/mariadb"}:
+        normalized = "mysql"
+    if normalized not in ALLOWED_DATABASE_SOURCE_TYPES:
+        raise ValueError("source_type must be postgres or mysql.")
+    return normalized
+
+
+def _validated_database_url(connection_url: str, *, source_type: str) -> str:
+    if not isinstance(connection_url, str):
+        raise ValueError("connection_url must be a string.")
+    url = connection_url.strip()
+    if not url:
+        raise ValueError("connection_url is required.")
+    if len(url) > 4096:
+        raise ValueError("connection_url is too long.")
+    if any(char.isspace() for char in url):
+        raise ValueError("connection_url must not contain whitespace.")
+    parsed = urlparse(url)
+    scheme = parsed.scheme.lower()
+    if not scheme or not parsed.netloc:
+        raise ValueError("connection_url must be a database URL.")
+    if source_type == "postgres" and scheme not in POSTGRES_URL_SCHEMES:
+        raise ValueError("Postgres connection_url must use postgres:// or postgresql://.")
+    if source_type == "mysql" and scheme not in MYSQL_URL_SCHEMES:
+        raise ValueError("MySQL connection_url must use mysql:// or mariadb://.")
+    return url
+
+
+def _validated_database_schema(schema: str | None, *, source_type: str) -> str:
+    if schema is None:
+        return DEFAULT_POSTGRES_SCHEMA if source_type == "postgres" else DEFAULT_MYSQL_SCHEMA
+    if not isinstance(schema, str):
+        raise ValueError("schema must be a string.")
+    stripped = schema.strip()
+    if len(stripped) > 256:
+        raise ValueError("schema is too long.")
+    if _has_control_characters(stripped):
+        raise ValueError("schema must not contain control characters.")
+    if not stripped and source_type == "postgres":
+        return DEFAULT_POSTGRES_SCHEMA
+    return stripped
+
+
+def _validated_database_tables(tables: str | None) -> str | None:
+    if tables is None:
+        return None
+    if not isinstance(tables, str):
+        raise ValueError("tables must be a string.")
+    stripped = tables.strip()
+    if not stripped:
+        return None
+    if len(stripped) > 4096:
+        raise ValueError("tables is too long.")
+    if _has_control_characters(stripped):
+        raise ValueError("tables must not contain control characters.")
+    return stripped
+
+
+def _validated_database_chunk_rows(
+    chunk_rows: int | str | None,
+    *,
+    source_type: str,
+) -> int:
+    default = DEFAULT_POSTGRES_CHUNK_ROWS if source_type == "postgres" else DEFAULT_MYSQL_CHUNK_ROWS
+    maximum = MAX_POSTGRES_CHUNK_ROWS if source_type == "postgres" else MAX_MYSQL_CHUNK_ROWS
+    if chunk_rows is None or chunk_rows == "":
+        return default
+    if isinstance(chunk_rows, bool):
+        raise ValueError("chunk_rows must be an integer.")
+    try:
+        value = int(chunk_rows)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("chunk_rows must be an integer.") from exc
+    if value <= 0 or value > maximum:
+        raise ValueError(f"chunk_rows must be between 1 and {maximum}.")
+    return value
+
+
+def _has_control_characters(value: str) -> bool:
+    return any(ord(char) < 32 for char in value)
+
+
+def _safe_error_message(exc: Exception, *, secret_values: list[str]) -> str:
+    message = f"{exc.__class__.__name__}: {exc}"
+    for secret in _expanded_secret_values(secret_values):
+        if secret:
+            replacement = redact_connection_url(secret) if "://" in secret else "[redacted]"
+            message = message.replace(secret, replacement)
+    return redact_secret_text(message)
+
+
+def _expanded_secret_values(values: list[str]) -> list[str]:
+    expanded: list[str] = []
+    for value in values:
+        if not value:
+            continue
+        expanded.append(value)
+        try:
+            parsed = urlparse(value)
+        except ValueError:
+            continue
+        if parsed.password:
+            expanded.append(unquote(parsed.password))
+        for key, query_value in parse_qsl(parsed.query, keep_blank_values=True):
+            if any(
+                part in key.lower()
+                for part in ("secret", "token", "password", "api_key", "api-key", "credential")
+            ):
+                expanded.append(query_value)
+    return expanded
 
 
 def _validated_file_path(
