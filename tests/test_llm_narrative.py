@@ -148,9 +148,11 @@ def test_configured_fake_provider_output_passes_guardrail(tmp_path):
     )
 
     guardrail_report = json.loads((out_dir / "guardrail_report.json").read_text())
+    profile_summary = json.loads((out_dir / "profile_summary.json").read_text())
     l4_report = (out_dir / "l4_report.md").read_text()
     report_md = (out_dir / "report.md").read_text()
     report_html = (out_dir / "report.html").read_text()
+    column_count = sum(table["column_count"] for table in profile_summary["tables"].values())
 
     assert guardrail_report["status"] == "passed"
     assert guardrail_report["provider"] == "fake"
@@ -161,6 +163,10 @@ def test_configured_fake_provider_output_passes_guardrail(tmp_path):
     assert guardrail_report["violation_count"] == 0
     assert guardrail_report["violations"] == []
     assert "Deterministic fallback narrative" not in l4_report
+    assert "Feature Usability Summary" in l4_report
+    assert f"The column review classified {column_count} columns" in l4_report
+    assert "Table-by-Table Health Review" in l4_report
+    assert "Column Issue Blocks" in l4_report
     assert "Influence findings are association-only" in l4_report
     assert "L4 guardrail status: **passed**" in report_md
     assert "provider=fake" in report_md
@@ -194,6 +200,9 @@ def test_openai_safe_draft_output_passes_without_fallback(tmp_path):
     assert guardrail_report["violation_count"] == 0
     assert guardrail_report["violations"] == []
     assert "Guarded provider narrative" in l4_report
+    assert "Feature Usability Summary" in l4_report
+    assert "Table-by-Table Health Review" in l4_report
+    assert "Column Issue Blocks" in l4_report
     assert "Deterministic fallback narrative" not in l4_report
     assert "L4 guardrail status: **passed**" in report_md
     assert "fallback" not in report_md.lower()

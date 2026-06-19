@@ -1943,6 +1943,48 @@ h3 {
   background: var(--surface-inset);
 }
 
+.demo-preset-switch {
+  grid-template-columns: 1fr 1fr;
+}
+
+.llm-mode-switch {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.runner-option-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+}
+
+.option-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.option-heading strong {
+  color: var(--foreground-primary);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.option-heading span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--foreground-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: right;
+}
+
 .mode-button {
   min-height: 38px;
   border: 1px solid transparent;
@@ -2130,7 +2172,7 @@ h3 {
 
 .generated-result-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 8px;
 }
 
@@ -2149,14 +2191,28 @@ h3 {
 .generated-result-heading,
 .runtime-heading.compact {
   display: flex;
+  min-width: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
 
+.generated-result-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+  gap: 4px;
+}
+
+.generated-result-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .generated-result-heading a,
 .generated-result-heading span,
 .runtime-heading.compact span {
+  min-width: 0;
   color: var(--foreground-tertiary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
@@ -2165,10 +2221,16 @@ h3 {
   overflow-wrap: anywhere;
 }
 
+.generated-result-heading a,
+.generated-result-heading span {
+  text-align: left;
+}
+
 .generated-result-kpi {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
 }
 
@@ -2181,12 +2243,13 @@ h3 {
 }
 
 .generated-result-kpi span {
+  min-width: 0;
   color: var(--foreground-secondary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   font-weight: 800;
-  text-align: right;
-  white-space: nowrap;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .generated-result-card p {
@@ -2413,6 +2476,10 @@ h3 {
 
   .graph-toggle-row {
     align-items: stretch;
+  }
+
+  .llm-mode-switch {
+    grid-template-columns: 1fr;
   }
 
   .toggle-label,

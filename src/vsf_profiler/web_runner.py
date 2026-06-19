@@ -23,6 +23,7 @@ DEFAULT_RUN_ROOT = Path("outputs/web_runs")
 MAX_UPLOAD_BYTES = 250 * 1024 * 1024
 MAX_PATH_JOB_BYTES = 16 * 1024
 TARGET_PATTERN = re.compile(r"^[A-Za-z_][\w]*\.[A-Za-z_][\w]*$")
+ALLOWED_LLM_PROVIDERS = {"fake", "openai"}
 
 ARTIFACT_LABELS = {
     "profile_summary.json": "Profile summary",
@@ -79,6 +80,8 @@ class WebRunJob:
     csv_dir: Path
     out_dir: Path
     input_mode: str = "upload"
+    use_llm: bool = False
+    llm_provider: str | None = None
     status: str = "queued"
     created_at: str = field(default_factory=_iso_now)
     started_at: str | None = None
@@ -109,9 +112,15 @@ class WebRunStore:
         rules: UploadedFile | None = None,
         target: str | None = None,
         mapping_overrides: dict[str, str] | None = None,
+        use_llm: bool = False,
+        llm_provider: str | None = None,
     ) -> WebRunJob:
         if not csv_files:
             raise ValueError("At least one CSV file is required.")
+        validated_use_llm, validated_llm_provider = _validated_llm_options(
+            use_llm=use_llm,
+            llm_provider=llm_provider,
+        )
         job_id = _new_job_id()
         root_dir = self.run_root / job_id
         input_dir = root_dir / "input"
@@ -145,12 +154,23 @@ class WebRunStore:
             csv_dir=csv_dir,
             out_dir=out_dir,
             input_mode="upload",
+            use_llm=validated_use_llm,
+            llm_provider=validated_llm_provider,
         )
         with self._lock:
             self._jobs[job_id] = job
         thread = threading.Thread(
             target=self._run_job,
-            args=(job, dbml_path, csv_dir, rules_path, target or None, stored_mapping_overrides),
+            args=(
+                job,
+                dbml_path,
+                csv_dir,
+                rules_path,
+                target or None,
+                stored_mapping_overrides,
+                validated_use_llm,
+                validated_llm_provider,
+            ),
             name=f"vsf-web-run-{job_id}",
             daemon=True,
         )
@@ -165,6 +185,8 @@ class WebRunStore:
         rules_path: str | Path | None = None,
         target: str | None = None,
         mapping_overrides: dict[str, str] | None = None,
+        use_llm: bool = False,
+        llm_provider: str | None = None,
     ) -> WebRunJob:
         validated_dbml_path = _validated_file_path(
             dbml_path,
@@ -180,6 +202,10 @@ class WebRunStore:
                 extensions={".yaml", ".yml"},
             )
         validated_target = _validated_target(target)
+        validated_use_llm, validated_llm_provider = _validated_llm_options(
+            use_llm=use_llm,
+            llm_provider=llm_provider,
+        )
 
         job_id = _new_job_id()
         root_dir = self.run_root / job_id
@@ -194,6 +220,8 @@ class WebRunStore:
             "rules_path": str(validated_rules_path) if validated_rules_path else None,
             "target": validated_target,
             "mapping_overrides": _clean_mapping_overrides(mapping_overrides or {}),
+            "use_llm": validated_use_llm,
+            "llm_provider": validated_llm_provider,
         }
         (input_dir / "path_inputs.json").write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False),
@@ -207,6 +235,8 @@ class WebRunStore:
             csv_dir=validated_csv_dir,
             out_dir=out_dir,
             input_mode="path",
+            use_llm=validated_use_llm,
+            llm_provider=validated_llm_provider,
         )
         with self._lock:
             self._jobs[job_id] = job
@@ -219,6 +249,8 @@ class WebRunStore:
                 validated_rules_path,
                 validated_target,
                 _clean_mapping_overrides(mapping_overrides or {}),
+                validated_use_llm,
+                validated_llm_provider,
             ),
             name=f"vsf-web-run-{job_id}",
             daemon=True,
@@ -240,6 +272,10 @@ class WebRunStore:
             "started_at": job.started_at,
             "finished_at": job.finished_at,
             "error": job.error,
+            "llm": {
+                "enabled": job.use_llm,
+                "provider": job.llm_provider,
+            },
             "summary": summary,
             "events_url": f"/api/jobs/{job.job_id}/events",
             "artifacts_url": f"/api/jobs/{job.job_id}/artifacts",
@@ -314,12 +350,15 @@ class WebRunStore:
         rules_path: Path | None,
         target: str | None,
         mapping_overrides: dict[str, str] | None,
+        use_llm: bool,
+        llm_provider_name: str | None,
     ) -> None:
-        from vsf_profiler.cli import run_pipeline
+        from vsf_profiler.cli import _llm_provider_from_config, run_pipeline
 
         job.status = "running"
         job.started_at = _iso_now()
         try:
+            llm_provider = _llm_provider_from_config(llm_provider_name) if use_llm else None
             run_pipeline(
                 dbml_path=dbml_path,
                 csv_dir=csv_dir,
@@ -327,6 +366,8 @@ class WebRunStore:
                 rules_path=rules_path,
                 target=target,
                 out_dir=job.out_dir,
+                use_llm=use_llm,
+                llm_provider=llm_provider,
             )
         except Exception as exc:
             job.status = "failed"
@@ -363,6 +404,8 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
                     rules=payload.get("rules"),
                     target=payload.get("target"),
                     mapping_overrides=payload.get("mapping_overrides"),
+                    use_llm=payload.get("use_llm", False),
+                    llm_provider=payload.get("llm_provider"),
                 )
             elif parsed.path == "/api/path-jobs":
                 payload = self._parse_path_job_body()
@@ -372,6 +415,8 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
                     rules_path=payload.get("rules_path"),
                     target=payload.get("target"),
                     mapping_overrides=payload.get("mapping_overrides"),
+                    use_llm=bool(payload.get("use_llm", False)),
+                    llm_provider=payload.get("llm_provider"),
                 )
             else:
                 self.send_error(HTTPStatus.NOT_FOUND)
@@ -500,9 +545,11 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
             "rules": rules,
             "target": fields.get("target") or None,
             "mapping_overrides": _parse_mapping_overrides_field(fields.get("mapping_overrides")),
+            "use_llm": _parse_bool_field(fields.get("use_llm")),
+            "llm_provider": _optional_llm_provider_string(fields.get("llm_provider")),
         }
 
-    def _parse_path_job_body(self) -> dict[str, str | None]:
+    def _parse_path_job_body(self) -> dict[str, Any]:
         content_type = self.headers.get("Content-Type", "")
         if "application/json" not in content_type:
             raise ValueError("Expected application/json path job payload.")
@@ -524,6 +571,8 @@ class WebRunnerHandler(BaseHTTPRequestHandler):
             "rules_path": _optional_string(payload, "rules_path"),
             "target": _optional_string(payload, "target"),
             "mapping_overrides": _optional_mapping_overrides(payload, "mapping_overrides"),
+            "use_llm": _optional_bool(payload, "use_llm"),
+            "llm_provider": _optional_llm_provider_string(payload.get("llm_provider")),
         }
 
     def _serve_static(self, path: str) -> None:
@@ -671,6 +720,49 @@ def _validated_target(target: str | None) -> str | None:
     if not TARGET_PATTERN.match(stripped):
         raise ValueError("Target column must use table.column format.")
     return stripped
+
+
+def _validated_llm_options(*, use_llm: bool, llm_provider: str | None) -> tuple[bool, str | None]:
+    provider = _optional_llm_provider_string(llm_provider)
+    if provider and not use_llm:
+        raise ValueError("llm_provider requires use_llm.")
+    return bool(use_llm), provider
+
+
+def _optional_llm_provider_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("llm_provider must be a string.")
+    provider = value.strip().lower()
+    if not provider:
+        return None
+    if provider not in ALLOWED_LLM_PROVIDERS:
+        allowed = ", ".join(sorted(ALLOWED_LLM_PROVIDERS))
+        raise ValueError(f"llm_provider must be one of: {allowed}.")
+    return provider
+
+
+def _optional_bool(payload: dict[str, Any], key: str) -> bool:
+    value = payload.get(key)
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return _parse_bool_field(value)
+    raise ValueError(f"{key} must be a boolean.")
+
+
+def _parse_bool_field(value: str | None) -> bool:
+    if value is None or not value.strip():
+        return False
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError("use_llm must be a boolean.")
 
 
 def _required_string(payload: dict[str, Any], key: str) -> str:

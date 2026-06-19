@@ -4,6 +4,8 @@ const state = {
   dbmlFile: null,
   rulesFile: null,
   runnerMode: "upload",
+  selectedDemoPreset: "small",
+  llmMode: "off",
   runnerAvailable: false,
   currentJob: null,
   runEvents: [],
@@ -59,6 +61,13 @@ const els = {
   runnerModePath: document.querySelector("#runnerModePath"),
   runnerForm: document.querySelector("#runnerForm"),
   pathRunnerForm: document.querySelector("#pathRunnerForm"),
+  demoPresetSmall: document.querySelector("#demoPresetSmall"),
+  demoPresetOlist: document.querySelector("#demoPresetOlist"),
+  demoPresetStatus: document.querySelector("#demoPresetStatus"),
+  llmModeOff: document.querySelector("#llmModeOff"),
+  llmModeFake: document.querySelector("#llmModeFake"),
+  llmModeOpenAI: document.querySelector("#llmModeOpenAI"),
+  llmModeStatus: document.querySelector("#llmModeStatus"),
   runProfilerButton: document.querySelector("#runProfilerButton"),
   runPathProfilerButton: document.querySelector("#runPathProfilerButton"),
   dbmlPathInput: document.querySelector("#dbmlPathInput"),
@@ -153,16 +162,36 @@ Table order_items {
   }
 }
 
+Table order_payments {
+  order_id varchar [ref: > orders.order_id]
+  payment_sequential int
+  payment_type varchar
+  payment_installments int
+  payment_value float
+}
+
 Table order_reviews {
   review_id varchar [pk, not null]
   order_id varchar [ref: > orders.order_id]
   review_score int
+  review_comment_message varchar
+}
+
+Table products {
+  product_id varchar [pk, not null]
+  product_category_name varchar
+}
+
+Table sellers {
+  seller_id varchar [pk, not null]
+  seller_state varchar
 }`;
 
 const demoCsvs = [
-  { name: "customers.csv", columns: ["customer_id", "customer_name", "customer_state"], size: 248 },
+  { name: "customers.csv", stem: "customers", columns: ["customer_id", "customer_name", "customer_state"], size: 112 },
   {
     name: "orders.csv",
+    stem: "orders",
     columns: [
       "order_id",
       "customer_id",
@@ -170,15 +199,192 @@ const demoCsvs = [
       "order_purchase_timestamp",
       "order_delivered_customer_date",
     ],
-    size: 512,
+    size: 370,
   },
   {
     name: "order_items.csv",
+    stem: "order_items",
     columns: ["order_id", "order_item_id", "product_id", "seller_id", "price", "freight_value"],
-    size: 442,
+    size: 183,
   },
-  { name: "payments.csv", columns: ["order_id", "payment_value"], size: 144 },
+  {
+    name: "order_payments.csv",
+    stem: "order_payments",
+    columns: ["order_id", "payment_sequential", "payment_type", "payment_installments", "payment_value"],
+    size: 159,
+  },
+  {
+    name: "order_reviews.csv",
+    stem: "order_reviews",
+    columns: ["review_id", "order_id", "review_score", "review_comment_message"],
+    size: 146,
+  },
+  { name: "products.csv", stem: "products", columns: ["product_id", "product_category_name"], size: 64 },
+  { name: "sellers.csv", stem: "sellers", columns: ["seller_id", "seller_state"], size: 42 },
 ];
+
+const olistDemoDbml = `Table olist_customers_dataset {
+  customer_id varchar [pk, not null]
+  customer_unique_id varchar
+  customer_zip_code_prefix int
+  customer_city varchar
+  customer_state varchar
+}
+
+Table olist_orders_dataset {
+  order_id varchar [pk, not null]
+  customer_id varchar [ref: > olist_customers_dataset.customer_id]
+  order_status varchar
+  order_purchase_timestamp timestamp
+  order_approved_at timestamp
+  order_delivered_carrier_date timestamp
+  order_delivered_customer_date timestamp
+  order_estimated_delivery_date timestamp
+}
+
+Table olist_order_items_dataset {
+  order_id varchar [ref: > olist_orders_dataset.order_id]
+  order_item_id int
+  product_id varchar [ref: > olist_products_dataset.product_id]
+  seller_id varchar [ref: > olist_sellers_dataset.seller_id]
+  shipping_limit_date timestamp
+  price float
+  freight_value float
+
+  indexes {
+    (order_id, order_item_id) [pk]
+  }
+}
+
+Table olist_order_payments_dataset {
+  order_id varchar [ref: > olist_orders_dataset.order_id]
+  payment_sequential int
+  payment_type varchar
+  payment_installments int
+  payment_value float
+}
+
+Table olist_order_reviews_dataset {
+  review_id varchar
+  order_id varchar [ref: > olist_orders_dataset.order_id]
+  review_score int
+  review_comment_title varchar
+  review_comment_message varchar
+  review_creation_date timestamp
+  review_answer_timestamp timestamp
+}
+
+Table olist_products_dataset {
+  product_id varchar [pk, not null]
+  product_category_name varchar [ref: > product_category_name_translation.product_category_name]
+  product_name_lenght int
+  product_description_lenght int
+  product_photos_qty int
+  product_weight_g float
+  product_length_cm float
+  product_height_cm float
+  product_width_cm float
+}
+
+Table olist_sellers_dataset {
+  seller_id varchar [pk, not null]
+  seller_zip_code_prefix int
+  seller_city varchar
+  seller_state varchar
+}
+
+Table product_category_name_translation {
+  product_category_name varchar [pk, not null]
+  product_category_name_english varchar
+}
+
+Table olist_geolocation_dataset {
+  geolocation_zip_code_prefix int
+  geolocation_lat float
+  geolocation_lng float
+  geolocation_city varchar
+  geolocation_state varchar
+}`;
+
+const olistDemoCsvs = [
+  {
+    name: "olist_customers_dataset.csv",
+    stem: "olist_customers_dataset",
+    columns: ["customer_id", "customer_unique_id", "customer_zip_code_prefix", "customer_city", "customer_state"],
+    size: 9033957,
+  },
+  {
+    name: "olist_geolocation_dataset.csv",
+    stem: "olist_geolocation_dataset",
+    columns: ["geolocation_zip_code_prefix", "geolocation_lat", "geolocation_lng", "geolocation_city", "geolocation_state"],
+    size: 61273883,
+  },
+  {
+    name: "olist_order_items_dataset.csv",
+    stem: "olist_order_items_dataset",
+    columns: ["order_id", "order_item_id", "product_id", "seller_id", "shipping_limit_date", "price", "freight_value"],
+    size: 15438671,
+  },
+  {
+    name: "olist_order_payments_dataset.csv",
+    stem: "olist_order_payments_dataset",
+    columns: ["order_id", "payment_sequential", "payment_type", "payment_installments", "payment_value"],
+    size: 5777138,
+  },
+  {
+    name: "olist_order_reviews_dataset.csv",
+    stem: "olist_order_reviews_dataset",
+    columns: ["review_id", "order_id", "review_score", "review_comment_title", "review_comment_message", "review_creation_date", "review_answer_timestamp"],
+    size: 14451670,
+  },
+  {
+    name: "olist_orders_dataset.csv",
+    stem: "olist_orders_dataset",
+    columns: ["order_id", "customer_id", "order_status", "order_purchase_timestamp", "order_approved_at", "order_delivered_carrier_date", "order_delivered_customer_date", "order_estimated_delivery_date"],
+    size: 17654914,
+  },
+  {
+    name: "olist_products_dataset.csv",
+    stem: "olist_products_dataset",
+    columns: ["product_id", "product_category_name", "product_name_lenght", "product_description_lenght", "product_photos_qty", "product_weight_g", "product_length_cm", "product_height_cm", "product_width_cm"],
+    size: 2379446,
+  },
+  {
+    name: "olist_sellers_dataset.csv",
+    stem: "olist_sellers_dataset",
+    columns: ["seller_id", "seller_zip_code_prefix", "seller_city", "seller_state"],
+    size: 174703,
+  },
+  {
+    name: "product_category_name_translation.csv",
+    stem: "product_category_name_translation",
+    columns: ["product_category_name", "product_category_name_english"],
+    size: 2613,
+  },
+];
+
+const demoPresets = {
+  small: {
+    label: "Small demo",
+    dbmlName: "demo_schema.dbml",
+    dbmlPath: "data/demo_small/schema.dbml",
+    csvDir: "data/demo_small/csv",
+    rulesPath: "data/demo_small/rules.yaml",
+    target: "order_reviews.review_score",
+    dbmlText: demoDbml,
+    csvs: demoCsvs,
+  },
+  olist: {
+    label: "Full Olist",
+    dbmlName: "olist_schema.dbml",
+    dbmlPath: "examples/olist/schema.dbml",
+    csvDir: "data/olist",
+    rulesPath: "examples/olist/rules.yaml",
+    target: "olist_order_reviews_dataset.review_score",
+    dbmlText: olistDemoDbml,
+    csvs: olistDemoCsvs,
+  },
+};
 
 const dashboardChartPaths = {
   risk: "charts/dataset_verdict_risk_summary.json",
@@ -247,6 +453,12 @@ const relationshipIssueTypes = new Set([
 ]);
 
 const severityOrder = ["P0", "P1", "P2", "P3"];
+
+function severityRank(severity) {
+  const index = severityOrder.indexOf(severity);
+  return index === -1 ? severityOrder.length : index;
+}
+
 const localDiagramLimits = {
   tables: 24,
   relationships: 60,
@@ -305,7 +517,7 @@ els.autoLinkButton.addEventListener("click", () => {
 });
 
 els.loadDemoButton.addEventListener("click", () => {
-  loadDemoState();
+  loadDemoState("small");
 });
 
 els.runnerModeUpload.addEventListener("click", () => {
@@ -314,6 +526,26 @@ els.runnerModeUpload.addEventListener("click", () => {
 
 els.runnerModePath.addEventListener("click", () => {
   setRunnerMode("path");
+});
+
+els.demoPresetSmall.addEventListener("click", () => {
+  loadDemoState("small", { switchToPath: true });
+});
+
+els.demoPresetOlist.addEventListener("click", () => {
+  loadDemoState("olist", { switchToPath: true });
+});
+
+els.llmModeOff.addEventListener("click", () => {
+  setLlmMode("off");
+});
+
+els.llmModeFake.addEventListener("click", () => {
+  setLlmMode("fake");
+});
+
+els.llmModeOpenAI.addEventListener("click", () => {
+  setLlmMode("openai");
 });
 
 els.runnerForm.addEventListener("submit", async (event) => {
@@ -333,6 +565,7 @@ els.pathRunnerForm.addEventListener("submit", async (event) => {
   els.pathTargetInput,
 ].forEach((input) => {
   input.addEventListener("input", () => {
+    syncDemoPresetFromPathInputs();
     renderControls();
   });
 });
@@ -513,12 +746,13 @@ async function startProfilerRun() {
   if (Object.keys(mappingOverrides).length) {
     form.append("mapping_overrides", JSON.stringify(mappingOverrides));
   }
+  appendLlmFormFields(form);
 
   state.runEvents = [];
   state.currentJob = { status: "queued", artifacts: [] };
   resetDashboardState();
   renderJob();
-  renderRunnerMessage("Uploading files to local runner...", "pending");
+  renderRunnerMessage(`Uploading files to local runner${llmRunSuffix()}...`, "pending");
   els.runProfilerButton.disabled = true;
 
   try {
@@ -566,12 +800,13 @@ async function startPathRun() {
   if (Object.keys(mappingOverrides).length) {
     payload.mapping_overrides = mappingOverrides;
   }
+  Object.assign(payload, llmRunOptions());
 
   state.runEvents = [];
   state.currentJob = { status: "queued", input_mode: "path", artifacts: [] };
   resetDashboardState();
   renderJob();
-  renderRunnerMessage("Starting local path job on 127.0.0.1...", "pending");
+  renderRunnerMessage(`Starting local path job on 127.0.0.1${llmRunSuffix()}...`, "pending");
   els.runPathProfilerButton.disabled = true;
 
   try {
@@ -603,6 +838,11 @@ function setRunnerMode(mode) {
     "idle",
   );
   renderAll();
+}
+
+function setLlmMode(mode) {
+  state.llmMode = ["off", "fake", "openai"].includes(mode) ? mode : "off";
+  renderControls();
 }
 
 function connectEventStream(eventsUrl) {
@@ -648,20 +888,79 @@ function renderRunnerMessage(message, status) {
   els.runnerMessage.dataset.status = status;
 }
 
-function loadDemoState() {
-  state.dbmlText = demoDbml;
-  state.dbmlName = "demo_schema.dbml";
+function loadDemoState(presetName = "small", options = {}) {
+  const preset = demoPresets[presetName] || demoPresets.small;
+  state.selectedDemoPreset = presetName in demoPresets ? presetName : "small";
+  state.dbmlText = preset.dbmlText;
+  state.dbmlName = preset.dbmlName;
   state.dbmlFile = null;
   state.rulesFile = null;
-  state.csvFiles = demoCsvs;
-  els.dbmlPathInput.value = "data/demo_small/schema.dbml";
-  els.csvDirPathInput.value = "data/demo_small/csv";
-  els.rulesPathInput.value = "data/demo_small/rules.yaml";
-  els.pathTargetInput.value = "order_reviews.review_score";
+  state.csvFiles = preset.csvs.map(cloneCsvPreview);
+  els.dbmlPathInput.value = preset.dbmlPath;
+  els.csvDirPathInput.value = preset.csvDir;
+  els.rulesPathInput.value = preset.rulesPath;
+  els.pathTargetInput.value = preset.target;
+  if (options.switchToPath) {
+    state.runnerMode = "path";
+    renderRunnerMessage(`${preset.label} paths are ready for the local runner.`, "idle");
+  }
   parseDbmlState();
   autoLinkCsvs();
   renderAll();
   renderDiagram();
+}
+
+function cloneCsvPreview(file) {
+  return {
+    name: file.name,
+    stem: file.stem || file.name.replace(/\.csv$/i, ""),
+    size: file.size,
+    columns: [...file.columns],
+  };
+}
+
+function syncDemoPresetFromPathInputs() {
+  const dbmlPath = els.dbmlPathInput.value.trim();
+  const csvDir = els.csvDirPathInput.value.trim();
+  const rulesPath = els.rulesPathInput.value.trim();
+  const target = els.pathTargetInput.value.trim();
+  const match = Object.entries(demoPresets).find(([, preset]) => (
+    preset.dbmlPath === dbmlPath &&
+    preset.csvDir === csvDir &&
+    preset.rulesPath === rulesPath &&
+    preset.target === target
+  ));
+  state.selectedDemoPreset = match ? match[0] : "custom";
+}
+
+function llmRunOptions() {
+  if (state.llmMode === "off") {
+    return { use_llm: false };
+  }
+  return {
+    use_llm: true,
+    llm_provider: state.llmMode,
+  };
+}
+
+function appendLlmFormFields(form) {
+  const options = llmRunOptions();
+  form.append("use_llm", options.use_llm ? "true" : "false");
+  if (options.llm_provider) {
+    form.append("llm_provider", options.llm_provider);
+  }
+}
+
+function llmRunSuffix() {
+  return state.llmMode === "off" ? "" : ` with ${llmModeLabel(state.llmMode)} L4`;
+}
+
+function llmModeLabel(mode) {
+  return {
+    off: "LLM off",
+    fake: "Fake",
+    openai: "OpenAI",
+  }[mode] || "LLM off";
 }
 
 function setupDropzone(element, onDrop) {
@@ -1107,6 +1406,32 @@ function renderControls() {
   els.runnerModePath.setAttribute("aria-selected", state.runnerMode === "path" ? "true" : "false");
   els.runnerForm.hidden = state.runnerMode !== "upload";
   els.pathRunnerForm.hidden = state.runnerMode !== "path";
+  renderDemoPresetControls();
+  renderLlmModeControls();
+}
+
+function renderDemoPresetControls() {
+  const preset = demoPresets[state.selectedDemoPreset];
+  els.demoPresetStatus.textContent = preset ? preset.label : "Custom paths";
+  [
+    [els.demoPresetSmall, state.selectedDemoPreset === "small"],
+    [els.demoPresetOlist, state.selectedDemoPreset === "olist"],
+  ].forEach(([button, active]) => {
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function renderLlmModeControls() {
+  els.llmModeStatus.textContent = llmModeLabel(state.llmMode);
+  [
+    [els.llmModeOff, state.llmMode === "off"],
+    [els.llmModeFake, state.llmMode === "fake"],
+    [els.llmModeOpenAI, state.llmMode === "openai"],
+  ].forEach(([button, active]) => {
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
 }
 
 function renderRunner() {
@@ -1231,6 +1556,7 @@ function renderGeneratedResultPreviews(artifacts) {
     <div class="generated-result-grid">
       ${renderGeneratedVerdictPreview(artifacts)}
       ${renderGeneratedIssueCountsPreview(artifacts)}
+      ${renderGeneratedColumnUsabilityPreview(artifacts)}
       ${renderGeneratedTableImpactPreview(artifacts)}
       ${renderGeneratedL4Preview(artifacts)}
       ${renderGeneratedRuntimePreview(artifacts)}
@@ -1278,6 +1604,56 @@ function renderGeneratedIssueCountsPreview(artifacts) {
     `,
     artifacts,
   );
+}
+
+function renderGeneratedColumnUsabilityPreview(artifacts) {
+  const profile = state.dashboardArtifacts["profile_summary.json"] || {};
+  const tables = profile.tables || {};
+  const issues = getDashboardIssues();
+  const issueSeverityByField = new Map();
+  issues.forEach((issue) => {
+    const table = issue.table || "";
+    const columns = Array.isArray(issue.columns) && issue.columns.length ? issue.columns : [""];
+    columns.forEach((column) => {
+      const key = column ? `${table}.${column}` : table;
+      const current = issueSeverityByField.get(key);
+      if (!current || severityRank(issue.severity) < severityRank(current)) {
+        issueSeverityByField.set(key, issue.severity || "");
+      }
+    });
+  });
+
+  let ready = 0;
+  let needsPreparation = 0;
+  let blocked = 0;
+  Object.entries(tables).forEach(([tableName, table]) => {
+    Object.entries(table.columns || {}).forEach(([columnName, column]) => {
+      const severity = issueSeverityByField.get(`${tableName}.${columnName}`) || "";
+      const outliers = column.outliers || {};
+      const hasReviewSignal = Number(column.null_rate || 0) > 0 ||
+        Number(column.invalid_cast_count || 0) > 0 ||
+        Number(outliers.outlier_count || 0) > 0;
+      if (severity === "P0" || severity === "P1") {
+        blocked += 1;
+      } else if (severity === "P2" || severity === "P3" || hasReviewSignal) {
+        needsPreparation += 1;
+      } else {
+        ready += 1;
+      }
+    });
+  });
+
+  const total = ready + needsPreparation + blocked;
+  const body = total
+    ? `
+      <div class="generated-result-kpi">
+        <strong>${integerText(blocked)}</strong>
+        <span>blocked columns</span>
+      </div>
+      <p>${integerText(needsPreparation)} need preparation · ${integerText(ready)} ready</p>
+    `
+    : `<p class="muted">Waiting for <code>profile_summary.json</code> and <code>issues.json</code>.</p>`;
+  return generatedResultCard("Column usability", "profile_summary.json", body, artifacts);
 }
 
 function renderGeneratedTableImpactPreview(artifacts) {

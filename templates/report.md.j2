@@ -18,6 +18,25 @@ Deterministic EDA and data-quality review generated from VSF Data Profiler artif
 EDA readiness metadata was not provided for this report.
 {% endif %}
 
+### Feature/Column Usability Summary
+
+{% if column_usability.available -%}
+- Columns reviewed: {{ column_usability.column_count }}
+- Ready columns: {{ column_usability.ready_count }}
+- Columns needing preparation: {{ column_usability.needs_preparation_count }}
+- Columns blocked for analysis: {{ column_usability.blocked_count }}
+
+| Table | Column | Usability | Severity | Issue Types | Evidence | Advisory Next Step |
+| --- | --- | --- | --- | --- | --- | --- |
+{% for row in column_usability.rows -%}
+| {{ row.table }} | {{ row.column }} | {{ row.status_label }} | {{ row.severity }} | {{ row.issue_types_text }} | {{ row.evidence }} | {{ row.advisory_next_step }} |
+{% else -%}
+| none | none | none | none | none | none | none |
+{% endfor %}
+{% else -%}
+Column usability metadata was not provided for this report.
+{% endif %}
+
 ### Data Quality Next Steps
 
 {% for action in recommended_actions -%}
@@ -135,27 +154,51 @@ Method: {{ influence.method }}. This is association, not causation.
 Chart specs were not provided for this report.
 {% endif %}
 
-## 4. Table Assessment and Analysis Impact
+## 4. Table-by-Table Health Review
 
-{% if table_assessments.available -%}
+Table Assessment and Analysis Impact artifact: `{{ table_assessments.path if table_assessments.available else "not available" }}`
+
+{% if table_health_reviews.available -%}
 - Assessment artifact: `{{ table_assessments.path }}`
 - Tables assessed: {{ table_assessments.table_count }}
 - Average health score: {{ table_assessments.average_health_score }}/100
 - Readiness counts: {{ table_assessments.readiness_counts_text }}
 - Analysis impact counts: {{ table_assessments.analysis_impact_counts_text }}
 
-| Table | Role | Readiness | Health | Issues | Relationship Risks | Analysis Impact | Affected Columns | First Data Quality Step |
-| --- | --- | --- | ---: | ---: | ---: | --- | --- | --- |
-{% for row in table_assessments.assessments -%}
-| {{ row.table }} | {{ row.role }} | {{ row.readiness }} | {{ row.health_score }} | {{ row.issue_total }} | {{ row.relationship_risk_count }} | {{ row.analysis_impact_label }} | {{ row.affected_columns | join(", ") if row.affected_columns else "none" }} | {{ row.recommended_next_actions[0] if row.recommended_next_actions else "" }} |
+| Table | Role | Readiness | Health | Rows | Columns | Issues | Severity Mix | Relationship Risks | Affected Columns | Analysis Impact | Advisory Next Step |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: | --- | --- | --- |
+{% for row in table_health_reviews.reviews -%}
+| {{ row.table }} | {{ row.role }} | {{ row.readiness }} | {{ row.health_score }} | {{ row.row_count }} | {{ row.column_count }} | {{ row.issue_total }} | {{ row.severity_counts_text }} | {{ row.relationship_risk_count }} | {{ row.affected_columns_text }} | {{ row.analysis_impact_label }} | {{ row.first_next_step }} |
 {% else -%}
-| none | none | none | 0 | 0 | 0 | none | none | none |
+| none | none | none | 0 | 0 | 0 | 0 | none | 0 | none | none | none |
+{% endfor %}
+
+### Table Review Notes
+
+{% for row in table_health_reviews.reviews -%}
+- `{{ row.table }}`: {{ row.review_note }} Evidence: {{ row.issue_type_counts_text }}.
+{% else -%}
+- No table review notes were generated.
 {% endfor %}
 {% else -%}
 Table assessment metadata was not provided for this report.
 {% endif %}
 
-## 5. Issue Evidence
+## 5. Column Issue Blocks
+
+{% if column_issue_blocks.available -%}
+| Field | Issue | Severity | Evidence | ML/Analysis Consequence | Advisory Next Step |
+| --- | --- | --- | --- | --- | --- |
+{% for block in column_issue_blocks.blocks -%}
+| {{ block.field }} | {{ block.issue_id }} {{ block.issue_type }} | {{ block.severity }} | {{ block.evidence }} | {{ block.analysis_consequence }} | {{ block.advisory_next_step }} |
+{% else -%}
+| none | none | none | none | none | none |
+{% endfor %}
+{% else -%}
+No column issue blocks were generated.
+{% endif %}
+
+## 6. Issue Evidence
 
 | Issue | Severity | Type | Table | Columns | Bad Rows | Bad Rate | Sample | Evidence Note | Data Quality Next Step |
 | --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- |
@@ -165,7 +208,7 @@ Table assessment metadata was not provided for this report.
 | none | none | none | none | none | 0 | 0.00% | none | none | none |
 {% endfor %}
 
-## 6. Relationship, Schema, and Lineage Summary
+## 7. Relationship, Schema, and Lineage Summary
 
 {% if relationship_graph.available -%}
 - Relationship graph: `{{ relationship_graph.path }}`
@@ -240,7 +283,7 @@ Relationship graph artifact was not provided.
 - Evidence artifacts: {{ lineage_graph.evidence_artifacts | join(", ") }}
 {% endif %}
 
-## 7. Dataset Overview
+## 8. Dataset Overview
 
 | Table | Rows | Columns | File Size MB |
 | --- | ---: | ---: | ---: |
@@ -248,7 +291,7 @@ Relationship graph artifact was not provided.
 | {{ table.table }} | {{ table.row_count }} | {{ table.column_count }} | {{ table.file_size_mb }} |
 {% endfor %}
 
-## 8. Runtime Execution Flow and Artifact Index
+## 9. Runtime Execution Flow and Artifact Index
 
 {% if execution_flow.available -%}
 - Run ID: `{{ execution_flow.run_id }}`
@@ -271,7 +314,7 @@ Relationship graph artifact was not provided.
 Runtime execution metadata was not provided for this report.
 {% endif %}
 
-## 9. DBML Diagram and CSV Mapping
+## 10. DBML Diagram and CSV Mapping
 
 - Generated DBML: `{{ schema_diagram.dbml_path }}`
 - dbdiagram.io link: {% if schema_diagram.dbdiagram_url_available %}{{ schema_diagram.dbdiagram_url }}{% else %}unavailable because the schema is too large for a safe URL{% endif %}
@@ -286,7 +329,7 @@ Runtime execution metadata was not provided for this report.
 | {{ extra.status }} | extra | 0.00 | {{ extra.table }} | {{ extra.csv_path }} | n/a | n/a | n/a | n/a | n/a |
 {% endfor %}
 
-## 10. Table Profiles
+## 11. Table Profiles
 
 {% for table in profile.tables.values() %}
 ### {{ table.table }}
@@ -298,7 +341,7 @@ Runtime execution metadata was not provided for this report.
 {% endfor %}
 {% endfor %}
 
-## 11. Appendix: Evidence SQL and Sample Paths
+## 12. Appendix: Evidence SQL and Sample Paths
 
 {% for issue in issues %}
 ### {{ issue.issue_id }} {{ issue.issue_type }}
@@ -309,8 +352,8 @@ Runtime execution metadata was not provided for this report.
 - Bad count: {{ issue.bad_count }}
 - Bad rate: {{ issue.bad_rate | pct }}
 - Sample: {{ issue.sample_bad_rows_path or "none" }}
-- Probable cause: {{ issue.probable_causes | join("; ") }}
-- Suggested fix: {{ issue.suggested_fix | join("; ") }}
+- Evidence note: {{ issue.probable_causes | join("; ") }}
+- Advisory next step: {{ issue.suggested_fix | join("; ") }}
 
 ```sql
 {{ issue.evidence_sql }}

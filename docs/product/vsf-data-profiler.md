@@ -141,6 +141,9 @@ to understand or run the MVP Smart EDA workflow:
   URLs are absent.
 - The local web runner dashboard must consume generated artifacts only; it must
   not fetch raw CSV files or rerun profiler logic in JavaScript.
+- The local web runner may prefill the small synthetic demo or optional Olist
+  CSV sample, and may opt into fake/OpenAI L4 report generation while keeping
+  LLM disabled by default.
 - Export packages must exclude raw source CSV files and connector temporary
   extracts. Bounded `samples/*.csv` evidence is the only CSV content allowed in
   packages.

@@ -328,6 +328,39 @@
     </header>
 
     <section>
+      <h2>Feature/Column Usability Summary</h2>
+      {% if column_usability.available %}
+      <div class="summary-grid">
+        <article class="metric-card ok"><span class="metric-label">Ready</span><strong class="metric-value">{{ column_usability.ready_count }}</strong><p class="metric-detail">columns without deterministic cleanup actions</p></article>
+        <article class="metric-card warn"><span class="metric-label">Needs preparation</span><strong class="metric-value">{{ column_usability.needs_preparation_count }}</strong><p class="metric-detail">columns with review or preprocessing evidence</p></article>
+        <article class="metric-card danger"><span class="metric-label">Blocked</span><strong class="metric-value">{{ column_usability.blocked_count }}</strong><p class="metric-detail">columns tied to P0/P1 evidence</p></article>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Table</th><th>Column</th><th>Usability</th><th>Severity</th><th>Issue Types</th><th>Evidence</th><th>Advisory Next Step</th></tr></thead>
+          <tbody>
+            {% for row in column_usability.rows %}
+            <tr>
+              <td><code>{{ row.table }}</code></td>
+              <td><code>{{ row.column }}</code></td>
+              <td>{{ row.status_label }}</td>
+              <td><span class="pill {{ row.severity }}">{{ row.severity }}</span></td>
+              <td>{{ row.issue_types_text }}</td>
+              <td>{{ row.evidence }}</td>
+              <td>{{ row.advisory_next_step }}</td>
+            </tr>
+            {% else %}
+            <tr><td>none</td><td>none</td><td>none</td><td>none</td><td>none</td><td>none</td><td>none</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>Column usability metadata was not provided for this report.</p>
+      {% endif %}
+    </section>
+
+    <section>
       <h2>Optional L4 EDA Narrative</h2>
       {% if l4_report.available %}
       <p><span class="pill {{ l4_report.status_class }}">{{ l4_report.status }}</span> L4 guardrail checked narrative from provider <strong>{{ l4_report.provider }}</strong>{% if l4_report.model %} using <code>{{ l4_report.model }}</code>{% endif %}{% if l4_report.fallback_reason %}; fallback={{ l4_report.fallback_reason }}{% endif %}.</p>
@@ -447,8 +480,9 @@
     </section>
 
     <section>
-      <h2>Table Assessment and Analysis Impact</h2>
-      {% if table_assessments.available %}
+      <h2>Table-by-Table Health Review</h2>
+      <p class="muted">Table Assessment and Analysis Impact artifact: {% if table_assessments.available %}<a href="{{ table_assessments.path }}">{{ table_assessments.path }}</a>{% else %}not available{% endif %}</p>
+      {% if table_health_reviews.available %}
       <div class="summary-grid">
         <article class="metric-card info"><span class="metric-label">Tables assessed</span><strong class="metric-value">{{ table_assessments.table_count }}</strong><p class="metric-detail">{{ table_assessments.path }}</p></article>
         <article class="metric-card {% if table_assessments.average_health_score < 70 %}warn{% else %}ok{% endif %}"><span class="metric-label">Average health</span><strong class="metric-value">{{ table_assessments.average_health_score }}/100</strong><p class="metric-detail">readiness weighted by issue and relationship risk</p></article>
@@ -456,28 +490,66 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Table</th><th>Role</th><th>Readiness</th><th>Health</th><th>Issues</th><th>Relationship Risks</th><th>Analysis Impact</th><th>Affected Columns</th><th>First Data Quality Step</th></tr></thead>
+          <thead><tr><th>Table</th><th>Role</th><th>Readiness</th><th>Health</th><th>Rows</th><th>Columns</th><th>Issues</th><th>Severity Mix</th><th>Relationship Risks</th><th>Affected Columns</th><th>Analysis Impact</th><th>Advisory Next Step</th></tr></thead>
           <tbody>
-            {% for row in table_assessments.assessments %}
+            {% for row in table_health_reviews.reviews %}
             <tr>
               <td><code>{{ row.table }}</code></td>
               <td>{{ row.role }}</td>
               <td><span class="pill {{ row.readiness }}">{{ row.readiness }}</span></td>
               <td>{{ row.health_score }}</td>
+              <td>{{ row.row_count }}</td>
+              <td>{{ row.column_count }}</td>
               <td>{{ row.issue_total }}</td>
+              <td>{{ row.severity_counts_text }}</td>
               <td>{{ row.relationship_risk_count }}</td>
+              <td>{{ row.affected_columns_text }}</td>
               <td>{{ row.analysis_impact_label }}<br><span class="muted">{{ row.analysis_impact_category }}</span></td>
-              <td>{{ row.affected_columns | join(", ") if row.affected_columns else "none" }}</td>
-              <td>{{ row.recommended_next_actions[0] if row.recommended_next_actions else "" }}</td>
+              <td>{{ row.first_next_step }}</td>
             </tr>
             {% else %}
-            <tr><td>none</td><td>none</td><td>none</td><td>0</td><td>0</td><td>0</td><td>none</td><td>none</td><td>none</td></tr>
+            <tr><td>none</td><td>none</td><td>none</td><td>0</td><td>0</td><td>0</td><td>0</td><td>none</td><td>0</td><td>none</td><td>none</td><td>none</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <h3>Table Review Notes</h3>
+      <ul class="actions-list">
+        {% for row in table_health_reviews.reviews %}
+        <li><code>{{ row.table }}</code>: {{ row.review_note }} Evidence: {{ row.issue_type_counts_text }}.</li>
+        {% else %}
+        <li>No table review notes were generated.</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p>Table assessment metadata was not provided for this report.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>Column Issue Blocks</h2>
+      {% if column_issue_blocks.available %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Issue</th><th>Severity</th><th>Evidence</th><th>ML/Analysis Consequence</th><th>Advisory Next Step</th></tr></thead>
+          <tbody>
+            {% for block in column_issue_blocks.blocks %}
+            <tr>
+              <td><code>{{ block.field }}</code></td>
+              <td><code>{{ block.issue_id }}</code> {{ block.issue_type }}</td>
+              <td><span class="pill {{ block.severity }}">{{ block.severity }}</span></td>
+              <td>{{ block.evidence }}</td>
+              <td>{{ block.analysis_consequence }}</td>
+              <td>{{ block.advisory_next_step }}</td>
+            </tr>
+            {% else %}
+            <tr><td>none</td><td>none</td><td>none</td><td>none</td><td>none</td><td>none</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
       {% else %}
-      <p>Table assessment metadata was not provided for this report.</p>
+      <p>No column issue blocks were generated.</p>
       {% endif %}
     </section>
 
@@ -651,7 +723,7 @@
       {% for issue in issues %}
       <h3>{{ issue.issue_id }} {{ issue.issue_type }}</h3>
       <p><span class="pill {{ issue.severity }}">{{ issue.severity }}</span> <code>{{ issue.table }}</code> · {{ issue.columns | join(", ") }} · {{ issue.bad_count }} bad rows · sample: {% if issue.sample_bad_rows_path %}<a href="{{ issue.sample_bad_rows_path }}">{{ issue.sample_bad_rows_path }}</a>{% else %}none{% endif %}</p>
-      <p><strong>Suggested fix:</strong> {{ issue.suggested_fix | join("; ") }}</p>
+      <p><strong>Advisory next step:</strong> {{ issue.suggested_fix | join("; ") }}</p>
       <pre>{{ issue.evidence_sql }}</pre>
       {% endfor %}
     </section>

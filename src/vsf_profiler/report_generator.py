@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -99,6 +99,7 @@ def _build_context(
     table_count = len(profile.tables)
     column_count = sum(table.column_count for table in profile.tables.values())
     row_count = sum(table.row_count for table in profile.tables.values())
+    issue_evidence = _issue_evidence_context(sorted_issues)
     return {
         "summary": {
             "table_count": table_count,
@@ -120,11 +121,18 @@ def _build_context(
         ),
         "profile": profile,
         "issues": sorted_issues,
-        "issue_evidence": _issue_evidence_context(sorted_issues),
+        "issue_evidence": issue_evidence,
         "top_issues": sorted_issues[:15],
         "relationship_issues": [
             issue for issue in sorted_issues if issue.issue_type in RELATIONSHIP_ISSUES
         ],
+        "column_usability": _column_usability_context(profile, sorted_issues),
+        "table_health_reviews": _table_health_reviews_context(
+            profile,
+            sorted_issues,
+            table_assessment_context,
+        ),
+        "column_issue_blocks": _column_issue_blocks_context(sorted_issues),
         "influence": influence,
         "schema_diagram": schema_diagram,
         "schema_parse_report": schema_parse_context,
@@ -244,6 +252,170 @@ def _issue_evidence_context(issues: list[Issue], *, limit: int = 25) -> list[dic
             }
         )
     return rows
+
+
+def _column_usability_context(
+    profile: ProfileSummary,
+    issues: list[Issue],
+    *,
+    row_limit: int = 30,
+) -> dict[str, Any]:
+    issue_map: dict[tuple[str, str], list[Issue]] = defaultdict(list)
+    for issue in issues:
+        for column in issue.columns or [""]:
+            issue_map[(issue.table, column)].append(issue)
+
+    rows: list[dict[str, Any]] = []
+    counts = Counter({"ready": 0, "needs_preparation": 0, "blocked": 0})
+    for table_name, table in sorted(profile.tables.items()):
+        for column_name, column in sorted(table.columns.items()):
+            column_issues = issue_map.get((table_name, column_name), [])
+            severity = _worst_issue_severity(column_issues)
+            outlier_count = int(column.outliers.outlier_count) if column.outliers else 0
+            status = _column_usability_status(
+                severity=severity,
+                null_rate=column.null_rate,
+                invalid_cast_count=column.invalid_cast_count,
+                outlier_count=outlier_count,
+            )
+            counts[status] += 1
+            rows.append(
+                {
+                    "table": table_name,
+                    "column": column_name,
+                    "field": f"{table_name}.{column_name}",
+                    "status": status,
+                    "status_label": _column_usability_label(status),
+                    "severity": severity or "none",
+                    "issue_count": len(column_issues),
+                    "issue_types": sorted({issue.issue_type for issue in column_issues}),
+                    "issue_types_text": _issue_types_text(column_issues),
+                    "null_rate": column.null_rate,
+                    "invalid_cast_count": column.invalid_cast_count,
+                    "outlier_count": outlier_count,
+                    "evidence": _column_usability_evidence(
+                        column=column,
+                        issues=column_issues,
+                        outlier_count=outlier_count,
+                    ),
+                    "advisory_next_step": _column_usability_next_step(
+                        status=status,
+                        column=column,
+                        issues=column_issues,
+                        outlier_count=outlier_count,
+                    ),
+                }
+            )
+
+    rows.sort(
+        key=lambda row: (
+            _column_status_order(row["status"]),
+            _severity_sort_order(row["severity"]),
+            -row["issue_count"],
+            -float(row["null_rate"]),
+            -int(row["outlier_count"]),
+            row["field"],
+        )
+    )
+    return {
+        "available": bool(rows),
+        "column_count": len(rows),
+        "ready_count": counts["ready"],
+        "needs_preparation_count": counts["needs_preparation"],
+        "blocked_count": counts["blocked"],
+        "counts_text": _format_counts(
+            {
+                "ready": counts["ready"],
+                "needs_preparation": counts["needs_preparation"],
+                "blocked": counts["blocked"],
+            }
+        ),
+        "rows": rows[:row_limit],
+    }
+
+
+def _table_health_reviews_context(
+    profile: ProfileSummary,
+    issues: list[Issue],
+    table_assessments: dict[str, Any],
+    *,
+    limit: int = 20,
+) -> dict[str, Any]:
+    if not table_assessments.get("available"):
+        return {"available": False, "reviews": []}
+    issues_by_table: dict[str, list[Issue]] = defaultdict(list)
+    for issue in issues:
+        issues_by_table[issue.table].append(issue)
+    reviews = []
+    for row in table_assessments.get("assessments", [])[:limit]:
+        table_name = row.get("table", "")
+        table_profile = profile.tables.get(table_name)
+        table_issues = issues_by_table.get(table_name, [])
+        type_counts = Counter(issue.issue_type for issue in table_issues)
+        severity_counts = Counter(normalize_severity(issue.severity) for issue in table_issues)
+        affected_columns = row.get("affected_columns") or []
+        next_actions = row.get("recommended_next_actions") or []
+        reviews.append(
+            {
+                **row,
+                "row_count": table_profile.row_count if table_profile else 0,
+                "column_count": table_profile.column_count if table_profile else 0,
+                "issue_type_counts": dict(sorted(type_counts.items())),
+                "issue_type_counts_text": _format_review_counts(dict(sorted(type_counts.items()))),
+                "severity_counts": dict(sorted(severity_counts.items())),
+                "severity_counts_text": _format_counts(dict(sorted(severity_counts.items()))),
+                "affected_columns_text": ", ".join(affected_columns) if affected_columns else "none",
+                "first_next_step": next_actions[0] if next_actions else "Review generated evidence.",
+                "review_note": _table_review_note(row, table_issues),
+            }
+        )
+    return {
+        "available": bool(reviews),
+        "reviews": reviews,
+    }
+
+
+def _column_issue_blocks_context(
+    issues: list[Issue],
+    *,
+    limit: int = 40,
+) -> dict[str, Any]:
+    blocks: list[dict[str, Any]] = []
+    for issue in issues:
+        columns = issue.columns or ["table_level"]
+        for column in columns:
+            field = issue.table if column == "table_level" else f"{issue.table}.{column}"
+            blocks.append(
+                {
+                    "issue_id": issue.issue_id,
+                    "field": field,
+                    "table": issue.table,
+                    "column": column,
+                    "severity": issue.severity,
+                    "issue_type": issue.issue_type,
+                    "evidence": _issue_block_evidence(issue),
+                    "analysis_consequence": _analysis_consequence(issue),
+                    "advisory_next_step": issue.suggested_fix[0]
+                    if issue.suggested_fix
+                    else "Review generated evidence and choose a cleanup path.",
+                    "sample_bad_rows_path": issue.sample_bad_rows_path or "",
+                    "bad_count": issue.bad_count,
+                    "total_count": issue.total_count,
+                    "bad_rate": issue.bad_rate,
+                }
+            )
+    blocks.sort(
+        key=lambda row: (
+            _severity_sort_order(row["severity"]),
+            row["table"],
+            row["column"],
+            row["issue_id"],
+        )
+    )
+    return {
+        "available": bool(blocks),
+        "blocks": blocks[:limit],
+    }
 
 
 def _dataset_verdict_context(dataset_verdict: dict[str, Any] | None) -> dict[str, Any]:
@@ -428,6 +600,131 @@ def _format_counts(counts: dict[str, Any]) -> str:
     if not counts:
         return "none"
     return ", ".join(f"{key}={value}" for key, value in counts.items())
+
+
+def _format_review_counts(counts: dict[str, Any]) -> str:
+    if not counts:
+        return "none"
+    return ", ".join(f"{key}: {value}" for key, value in counts.items())
+
+
+def _worst_issue_severity(issues: list[Issue]) -> str:
+    if not issues:
+        return ""
+    return min((normalize_severity(issue.severity) for issue in issues), key=_severity_sort_order)
+
+
+def _severity_sort_order(severity: str) -> int:
+    order = {severity: index for index, severity in enumerate(SEVERITIES)}
+    return order.get(normalize_severity(severity), len(order))
+
+
+def _column_status_order(status: str) -> int:
+    return {"blocked": 0, "needs_preparation": 1, "ready": 2}.get(status, 3)
+
+
+def _column_usability_status(
+    *,
+    severity: str,
+    null_rate: float,
+    invalid_cast_count: int,
+    outlier_count: int,
+) -> str:
+    if severity in {"P0", "P1"}:
+        return "blocked"
+    if severity in {"P2", "P3"} or null_rate > 0 or invalid_cast_count > 0 or outlier_count > 0:
+        return "needs_preparation"
+    return "ready"
+
+
+def _column_usability_label(status: str) -> str:
+    labels = {
+        "blocked": "Blocked for analysis",
+        "needs_preparation": "Needs preparation",
+        "ready": "Ready",
+    }
+    return labels.get(status, status)
+
+
+def _issue_types_text(issues: list[Issue]) -> str:
+    if not issues:
+        return "none"
+    return ", ".join(sorted({issue.issue_type for issue in issues}))
+
+
+def _column_usability_evidence(
+    *,
+    column: Any,
+    issues: list[Issue],
+    outlier_count: int,
+) -> str:
+    parts = [
+        f"null rate {column.null_rate:.2%}",
+        f"distinct={column.distinct_count}",
+    ]
+    if column.invalid_cast_count:
+        parts.append(f"invalid_casts={column.invalid_cast_count}")
+    if outlier_count:
+        parts.append(f"iqr_outliers={outlier_count}")
+    if issues:
+        parts.append(f"issues={len(issues)}")
+    return "; ".join(parts)
+
+
+def _column_usability_next_step(
+    *,
+    status: str,
+    column: Any,
+    issues: list[Issue],
+    outlier_count: int,
+) -> str:
+    if issues:
+        first_action = next((issue.suggested_fix[0] for issue in issues if issue.suggested_fix), "")
+        if first_action:
+            return first_action
+    if outlier_count:
+        return "Review IQR outlier evidence before scaling, aggregation, or feature use."
+    if column.invalid_cast_count:
+        return "Normalize typed values before using this column in analysis."
+    if column.null_rate > 0:
+        return "Choose an imputation, exclusion, or missingness flag strategy before modeling."
+    if status == "ready":
+        return "No deterministic cleanup step was generated."
+    return "Review generated evidence before using this column in analysis."
+
+
+def _table_review_note(row: dict[str, Any], issues: list[Issue]) -> str:
+    readiness = row.get("readiness") or "unknown"
+    relationship_risk_count = int(row.get("relationship_risk_count") or 0)
+    if readiness == "NOT_READY":
+        return "Resolve blocker evidence before joins, modeling, or repeated analysis use."
+    if relationship_risk_count:
+        return "Review relationship evidence before cross-table feature construction."
+    if issues:
+        return "Review issue evidence and prepare affected fields before analysis use."
+    return "No deterministic blockers were found for this table."
+
+
+def _issue_block_evidence(issue: Issue) -> str:
+    sample = f"; sample={issue.sample_bad_rows_path}" if issue.sample_bad_rows_path else ""
+    return f"{issue.bad_count}/{issue.total_count} rows; bad rate {issue.bad_rate:.2%}{sample}"
+
+
+def _analysis_consequence(issue: Issue) -> str:
+    issue_type = issue.issue_type
+    if issue_type in {"PRIMARY_KEY_NULL", "DUPLICATE_PRIMARY_KEY", "UNIQUE_DUPLICATE"}:
+        return "Entity-level joins, de-duplication, and train/test splits may be unreliable until key evidence is fixed."
+    if issue_type in RELATIONSHIP_ISSUES:
+        return "Cross-table joins may drop, multiply, or misalign records during feature construction."
+    if issue_type in {"REQUIRED_FIELD_NULL", "EMPTY_STRING", "INVALID_PLACEHOLDER_TOKEN"}:
+        return "Missingness handling is required before aggregate analysis or model feature use."
+    if issue_type in {"VALUE_OUT_OF_RANGE", "NEGATIVE_VALUE_NOT_ALLOWED", "NUMERIC_OUTLIER"}:
+        return "Distribution-sensitive aggregates and models may need capping, transformation, or exclusion decisions."
+    if issue_type in {"TYPE_CAST_INVALID", "DATE_ORDER_INVALID", "REGEX_MISMATCH"}:
+        return "Typed, time-based, or pattern-derived features need normalization before analysis use."
+    if issue_type in {"TABLE_MISSING", "COLUMN_MISSING", "EXTRA_COLUMN"}:
+        return "Schema coverage should be confirmed before comparing tables or training models."
+    return "Dataset readiness is reduced until this evidence is reviewed."
 
 
 def _format_endpoint(table: str, columns: Any) -> str:

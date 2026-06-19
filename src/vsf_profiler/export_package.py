@@ -376,6 +376,12 @@ def _render_index_html(
     all_outlier_rows = top_numeric_outlier_rows(profile_summary, limit=10_000)
     outlier_rows = all_outlier_rows[:10]
     outlier_count = sum(int(row.get("outlier_count") or 0) for row in all_outlier_rows)
+    column_usability_rows = package_column_usability_rows(profile_summary, issues)
+    blocked_column_count = sum(1 for row in column_usability_rows if row["status"] == "blocked")
+    preparation_column_count = sum(
+        1 for row in column_usability_rows if row["status"] == "needs_preparation"
+    )
+    column_issue_blocks = package_column_issue_blocks(issues)
     relationship_status_counts = relationship_summary.get("status_counts") or {}
     invalid_fk_count = int(relationship_status_counts.get("invalid", 0) or 0)
     l4_status = guardrail_report.get("status", "not_enabled") if guardrail_report else "not_enabled"
@@ -390,6 +396,7 @@ def _render_index_html(
             str(table_assessment_summary.get("table_count", "0")),
             "Readiness rows",
         ),
+        ("Column usability", str(blocked_column_count), f"{preparation_column_count} need preparation"),
         ("Numeric outliers", str(outlier_count), f"{len(all_outlier_rows)} profiled columns"),
         ("L4", l4_status, f"{l4_provider} provider"),
         ("Artifacts", str(len(artifact_index)), "Package files"),
@@ -517,6 +524,18 @@ def _render_index_html(
       </div>
     </section>
     <section class="section panel">
+      <h2>Feature/Column Usability Summary</h2>
+      <p class="meta">Derived from <code>profile_summary.json</code> and <code>issues.json</code>; no raw source rows are included.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Usability</th><th>Severity</th><th>Issue types</th><th>Evidence</th><th>Advisory next step</th></tr></thead>
+          <tbody>
+            {package_column_usability_rows_html(column_usability_rows)}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="section panel">
       <h2>Optional L4 EDA Narrative</h2>
       {l4_summary_html(guardrail_report, artifact_index)}
     </section>
@@ -537,9 +556,21 @@ def _render_index_html(
       <p class="meta">Top findings from <code>issues.json</code>, including bounded sample links when included in the package.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Issue</th><th>Severity</th><th>Type</th><th>Table</th><th>Columns</th><th>Bad rows</th><th>Bad rate</th><th>Sample</th><th>Suggested fix</th></tr></thead>
+          <thead><tr><th>Issue</th><th>Severity</th><th>Type</th><th>Table</th><th>Columns</th><th>Bad rows</th><th>Bad rate</th><th>Sample</th><th>Advisory next step</th></tr></thead>
           <tbody>
             {issue_rows_html(issues, artifact_index)}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="section panel">
+      <h2>Column Issue Blocks</h2>
+      <p class="meta">Column-level issue blocks with deterministic evidence, analysis consequence, and advisory next step.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Issue</th><th>Severity</th><th>Evidence</th><th>ML/analysis consequence</th><th>Advisory next step</th></tr></thead>
+          <tbody>
+            {package_column_issue_blocks_html(column_issue_blocks)}
           </tbody>
         </table>
       </div>
@@ -714,6 +745,126 @@ def issue_rows_html(issues: list[dict[str, Any]], artifact_index: dict[str, dict
     return "".join(rows)
 
 
+def package_column_usability_rows(
+    profile_summary: dict[str, Any],
+    issues: list[dict[str, Any]],
+    *,
+    limit: int = 30,
+) -> list[dict[str, Any]]:
+    issue_map: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for issue in issues:
+        table = str(issue.get("table") or "")
+        for column in issue.get("columns") or [""]:
+            issue_map.setdefault((table, str(column)), []).append(issue)
+
+    rows = []
+    for table_name, table in sorted((profile_summary.get("tables") or {}).items()):
+        for column_name, column in sorted((table.get("columns") or {}).items()):
+            column_issues = issue_map.get((table_name, column_name), [])
+            severity = _worst_issue_severity(column_issues)
+            outliers = column.get("outliers") or {}
+            outlier_count = int(outliers.get("outlier_count") or 0)
+            status = _column_usability_status(
+                severity=severity,
+                null_rate=float(column.get("null_rate") or 0),
+                invalid_cast_count=int(column.get("invalid_cast_count") or 0),
+                outlier_count=outlier_count,
+            )
+            rows.append(
+                {
+                    "field": f"{table_name}.{column_name}",
+                    "status": status,
+                    "status_label": _column_usability_label(status),
+                    "severity": severity or "none",
+                    "issue_types": ", ".join(sorted({issue.get("issue_type", "") for issue in column_issues}))
+                    or "none",
+                    "evidence": _package_column_evidence(column, column_issues, outlier_count),
+                    "advisory_next_step": _package_column_next_step(column, column_issues, outlier_count),
+                    "issue_count": len(column_issues),
+                }
+            )
+    rows.sort(
+        key=lambda row: (
+            {"blocked": 0, "needs_preparation": 1, "ready": 2}.get(row["status"], 3),
+            _severity_rank(row["severity"]),
+            -int(row["issue_count"]),
+            row["field"],
+        )
+    )
+    return rows[:limit]
+
+
+def package_column_usability_rows_html(rows: list[dict[str, Any]]) -> str:
+    html_rows = []
+    for row in rows:
+        html_rows.append(
+            "<tr>"
+            f"<td><code>{_h(row.get('field', ''))}</code></td>"
+            f"<td>{_h(row.get('status_label', ''))}</td>"
+            f"<td><span class=\"pill {_h(row.get('severity', 'none'))}\">{_h(row.get('severity', 'none'))}</span></td>"
+            f"<td>{_h(row.get('issue_types', 'none'))}</td>"
+            f"<td>{_h(row.get('evidence', ''))}</td>"
+            f"<td>{_h(row.get('advisory_next_step', ''))}</td>"
+            "</tr>"
+        )
+    if not html_rows:
+        return '<tr><td colspan="6">No column usability rows were generated.</td></tr>'
+    return "".join(html_rows)
+
+
+def package_column_issue_blocks(
+    issues: list[dict[str, Any]],
+    *,
+    limit: int = 40,
+) -> list[dict[str, Any]]:
+    blocks = []
+    for issue in issues:
+        for column in issue.get("columns") or ["table_level"]:
+            table = str(issue.get("table") or "")
+            field = table if column == "table_level" else f"{table}.{column}"
+            fixes = issue.get("suggested_fix") or []
+            blocks.append(
+                {
+                    "field": field,
+                    "issue_id": issue.get("issue_id") or "",
+                    "issue_type": issue.get("issue_type") or "",
+                    "severity": issue.get("severity") or "",
+                    "evidence": (
+                        f"{issue.get('bad_count', 0)}/{issue.get('total_count', 0)} rows; "
+                        f"bad rate {_format_percent(issue.get('bad_rate', 0))}"
+                    ),
+                    "analysis_consequence": _analysis_consequence(str(issue.get("issue_type") or "")),
+                    "advisory_next_step": fixes[0] if fixes else "Review generated evidence.",
+                }
+            )
+    blocks.sort(
+        key=lambda row: (
+            _severity_rank(str(row["severity"])),
+            str(row["field"]),
+            str(row["issue_id"]),
+        )
+    )
+    return blocks[:limit]
+
+
+def package_column_issue_blocks_html(rows: list[dict[str, Any]]) -> str:
+    html_rows = []
+    for row in rows:
+        html_rows.append(
+            "<tr>"
+            f"<td><code>{_h(row.get('field', ''))}</code></td>"
+            f"<td><code>{_h(row.get('issue_id', ''))}</code> {_h(row.get('issue_type', ''))}</td>"
+            f"<td><span class=\"pill {_h(row.get('severity', 'unknown'))}\">{_h(row.get('severity', 'unknown'))}</span></td>"
+            f"<td>{_h(row.get('evidence', ''))}</td>"
+            f"<td>{_h(row.get('analysis_consequence', ''))}</td>"
+            f"<td>{_h(row.get('advisory_next_step', ''))}</td>"
+            "</tr>"
+        )
+    if not html_rows:
+        return '<tr><td colspan="6">No column issue blocks were generated.</td></tr>'
+    return "".join(html_rows)
+
+
 def top_numeric_outlier_rows(profile_summary: dict[str, Any], *, limit: int = 10) -> list[dict[str, Any]]:
     rows = []
     for table_name, table in sorted((profile_summary.get("tables") or {}).items()):
@@ -752,6 +903,96 @@ def numeric_outlier_rows_html(rows: list[dict[str, Any]]) -> str:
     if not html_rows:
         return '<tr><td colspan="5">No numeric IQR outliers were detected.</td></tr>'
     return "".join(html_rows)
+
+
+def _worst_issue_severity(issues: list[dict[str, Any]]) -> str:
+    if not issues:
+        return ""
+    return min((str(issue.get("severity") or "") for issue in issues), key=_severity_rank)
+
+
+def _severity_rank(severity: str) -> int:
+    return {"P0": 0, "P1": 1, "P2": 2, "P3": 3}.get(severity, 4)
+
+
+def _column_usability_status(
+    *,
+    severity: str,
+    null_rate: float,
+    invalid_cast_count: int,
+    outlier_count: int,
+) -> str:
+    if severity in {"P0", "P1"}:
+        return "blocked"
+    if severity in {"P2", "P3"} or null_rate > 0 or invalid_cast_count > 0 or outlier_count > 0:
+        return "needs_preparation"
+    return "ready"
+
+
+def _column_usability_label(status: str) -> str:
+    return {
+        "blocked": "Blocked for analysis",
+        "needs_preparation": "Needs preparation",
+        "ready": "Ready",
+    }.get(status, status)
+
+
+def _package_column_evidence(
+    column: dict[str, Any],
+    issues: list[dict[str, Any]],
+    outlier_count: int,
+) -> str:
+    parts = [
+        f"null rate {_format_percent(column.get('null_rate', 0))}",
+        f"distinct={int(column.get('distinct_count') or 0)}",
+    ]
+    invalid_cast_count = int(column.get("invalid_cast_count") or 0)
+    if invalid_cast_count:
+        parts.append(f"invalid_casts={invalid_cast_count}")
+    if outlier_count:
+        parts.append(f"iqr_outliers={outlier_count}")
+    if issues:
+        parts.append(f"issues={len(issues)}")
+    return "; ".join(parts)
+
+
+def _package_column_next_step(
+    column: dict[str, Any],
+    issues: list[dict[str, Any]],
+    outlier_count: int,
+) -> str:
+    for issue in issues:
+        fixes = issue.get("suggested_fix") or []
+        if fixes:
+            return str(fixes[0])
+    if outlier_count:
+        return "Review IQR outlier evidence before scaling, aggregation, or feature use."
+    if int(column.get("invalid_cast_count") or 0):
+        return "Normalize typed values before using this column in analysis."
+    if float(column.get("null_rate") or 0) > 0:
+        return "Choose an imputation, exclusion, or missingness flag strategy before modeling."
+    return "No deterministic cleanup step was generated."
+
+
+def _analysis_consequence(issue_type: str) -> str:
+    if issue_type in {"PRIMARY_KEY_NULL", "DUPLICATE_PRIMARY_KEY", "UNIQUE_DUPLICATE"}:
+        return "Entity-level joins, de-duplication, and train/test splits may be unreliable until key evidence is fixed."
+    if issue_type in {
+        "ORPHAN_FOREIGN_KEY",
+        "PARENT_KEY_DUPLICATE",
+        "FOREIGN_KEY_NULL",
+        "CHILD_RELATIONSHIP_DUPLICATE",
+    }:
+        return "Cross-table joins may drop, multiply, or misalign records during feature construction."
+    if issue_type in {"REQUIRED_FIELD_NULL", "EMPTY_STRING", "INVALID_PLACEHOLDER_TOKEN"}:
+        return "Missingness handling is required before aggregate analysis or model feature use."
+    if issue_type in {"VALUE_OUT_OF_RANGE", "NEGATIVE_VALUE_NOT_ALLOWED", "NUMERIC_OUTLIER"}:
+        return "Distribution-sensitive aggregates and models may need capping, transformation, or exclusion decisions."
+    if issue_type in {"TYPE_CAST_INVALID", "DATE_ORDER_INVALID", "REGEX_MISMATCH"}:
+        return "Typed, time-based, or pattern-derived features need normalization before analysis use."
+    if issue_type in {"TABLE_MISSING", "COLUMN_MISSING", "EXTRA_COLUMN"}:
+        return "Schema coverage should be confirmed before comparing tables or training models."
+    return "Dataset readiness is reduced until this evidence is reviewed."
 
 
 def _scorecard_row(label: str, value: Any, detail: str) -> str:

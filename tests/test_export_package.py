@@ -75,9 +75,13 @@ def test_package_output_directory_writes_manifest_index_and_zip(tmp_path):
     index_html = (package_dir / "index.html").read_text(encoding="utf-8")
     assert "Smart EDA Package" in index_html
     assert "Executive scorecard" in index_html
+    assert "Feature/Column Usability Summary" in index_html
+    assert "Column usability" in index_html
     assert "Optional L4 EDA Narrative" in index_html
     assert "Table Assessment and Analysis Impact" in index_html
     assert "Issue Evidence" in index_html
+    assert "Column Issue Blocks" in index_html
+    assert "ML/analysis consequence" in index_html
     assert "Numeric Outlier Summary" in index_html
     assert "charts/outliers_top_columns.json" in index_html
     assert "Visual Summary Chart Specs" in index_html
@@ -86,6 +90,7 @@ def test_package_output_directory_writes_manifest_index_and_zip(tmp_path):
     assert "lineage_graph.json" in index_html
     assert "relationship_graph.json" in index_html
     assert "table_assessments.json" in index_html
+    assert "Suggested fix" not in index_html
     assert "Georgia" not in index_html
     assert "#f4efe5" not in index_html
 

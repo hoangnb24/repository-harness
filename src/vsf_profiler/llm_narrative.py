@@ -141,6 +141,9 @@ class FakeNarrativeProvider:
         }
 
     def generate(self, context: dict[str, Any]) -> str:
+        safe_draft = context.get("guardrail_safe_draft")
+        if isinstance(safe_draft, str) and safe_draft.strip():
+            return safe_draft
         summary = context["summary"]
         top_issue = next(iter(context["top_issues"]), {})
         top_ref = ""
@@ -383,6 +386,15 @@ def build_narrative_context(artifacts: dict[str, Any]) -> dict[str, Any]:
             "notes": influence.get("notes") or [],
         },
     }
+    column_usability_rows = _column_usability_rows(profile, issues)
+    context["column_usability_summary"] = _column_usability_summary(column_usability_rows)
+    context["column_usability"] = column_usability_rows[:20]
+    context["table_health_reviews"] = _table_health_reviews(
+        profile,
+        context["table_assessments"],
+        issues,
+    )
+    context["column_issue_blocks"] = _column_issue_blocks(issues)
     safe_draft = guardrail_safe_l4_draft(context)
     context["guardrail_safe_draft"] = safe_draft
     context["guardrail_contract"] = _guardrail_contract_from_draft(safe_draft)
@@ -406,6 +418,7 @@ def guardrail_safe_l4_draft(context: dict[str, Any]) -> str:
 def _structured_l4_narrative(context: dict[str, Any], *, intro: str) -> str:
     summary = context["summary"]
     top_issues = context["top_issues"][:5]
+    usability_summary = context.get("column_usability_summary") or {}
     lines = [
         "# Data Scientist EDA Narrative",
         "",
@@ -420,9 +433,27 @@ def _structured_l4_narrative(context: dict[str, Any], *, intro: str) -> str:
             f"{summary['issue_count']} issues."
         ),
         "",
-        "## Priority Findings",
+        "## Feature Usability Summary",
         "",
+        (
+            f"The column review classified {usability_summary.get('column_count', 0)} columns: "
+            f"{usability_summary.get('ready_count', 0)} ready, "
+            f"{usability_summary.get('needs_preparation_count', 0)} needing preparation, and "
+            f"{usability_summary.get('blocked_count', 0)} blocked for analysis."
+        ),
     ]
+    for row in (context.get("column_usability") or [])[:5]:
+        lines.append(
+            f"- `{row['field']}` is `{row['status_label']}` with severity `{row['severity']}`; "
+            f"evidence: {row['evidence']}."
+        )
+    lines.extend(
+        [
+            "",
+            "## Priority Findings",
+            "",
+        ]
+    )
     if not top_issues:
         lines.append("No issue records were present in `issues.json`.")
     for issue in top_issues:
@@ -432,17 +463,39 @@ def _structured_l4_narrative(context: dict[str, Any], *, intro: str) -> str:
             f"- `{issue['issue_type']}` on {ref}: {issue['bad_count']} affected rows "
             f"with severity `{issue['severity']}`."
         )
-    lines.extend(["", "## Per-Table Assessment", ""])
-    table_rows = context.get("table_assessments") or []
+    lines.extend(["", "## Table-by-Table Health Review", ""])
+    table_rows = context.get("table_health_reviews") or []
     if not table_rows:
         lines.append("No table assessment rows were present in `table_assessments.json`.")
     for row in table_rows[:5]:
-        impact = row.get("business_impact") or {}
-        category = impact.get("category") or "general_analytics"
         lines.append(
             f"- `{row['table']}` is `{row['readiness']}` with health score "
-            f"{row['health_score']}, role `{row['role']}`, and analysis impact category `{category}`."
+            f"{row['health_score']}, role `{row['role']}`, {row['issue_total']} issues, "
+            f"and {row['relationship_risk_count']} relationship risks."
         )
+    lines.extend(["", "## Column Issue Blocks", ""])
+    issue_blocks = context.get("column_issue_blocks") or []
+    if not issue_blocks:
+        lines.append("No column issue blocks were present in `issues.json`.")
+    for block in issue_blocks[:5]:
+        lines.append(
+            f"- `{block['field']}` has `{block['issue_type']}` with severity "
+            f"`{block['severity']}`. Evidence: {block['evidence']}. "
+            f"Analysis consequence: {block['analysis_consequence']}"
+        )
+    relationship_summary = context.get("relationship_summary") or {}
+    schema_summary = context.get("schema_summary") or {}
+    lines.extend(
+        [
+            "",
+            "## Relationship and Schema Review",
+            "",
+            (
+                f"Relationship evidence includes {relationship_summary.get('edge_count', 0)} edges "
+                f"and schema mapping evidence includes {schema_summary.get('mapped_table_count', 0)} mapped tables."
+            ),
+        ]
+    )
     lines.extend(
         [
             "",
@@ -468,6 +521,192 @@ def _structured_l4_narrative(context: dict[str, Any], *, intro: str) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def _column_usability_rows(profile: dict[str, Any], issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    issue_map: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for issue in issues:
+        table = str(issue.get("table") or "")
+        for column in issue.get("columns") or [""]:
+            issue_map.setdefault((table, str(column)), []).append(issue)
+
+    rows: list[dict[str, Any]] = []
+    for table_name, table in sorted((profile.get("tables") or {}).items()):
+        for column_name, column in sorted((table.get("columns") or {}).items()):
+            column_issues = issue_map.get((table_name, column_name), [])
+            severity = _worst_severity(column_issues)
+            outliers = column.get("outliers") or {}
+            outlier_count = int(outliers.get("outlier_count") or 0)
+            status = _column_status(
+                severity=severity,
+                null_rate=float(column.get("null_rate") or 0),
+                invalid_cast_count=int(column.get("invalid_cast_count") or 0),
+                outlier_count=outlier_count,
+            )
+            rows.append(
+                {
+                    "field": f"{table_name}.{column_name}",
+                    "table": table_name,
+                    "column": column_name,
+                    "status": status,
+                    "status_label": _column_status_label(status),
+                    "severity": severity or "none",
+                    "issue_count": len(column_issues),
+                    "issue_types": sorted({str(issue.get("issue_type") or "") for issue in column_issues}),
+                    "null_rate": float(column.get("null_rate") or 0),
+                    "invalid_cast_count": int(column.get("invalid_cast_count") or 0),
+                    "outlier_count": outlier_count,
+                    "evidence": _column_evidence(column, column_issues, outlier_count),
+                }
+            )
+    rows.sort(
+        key=lambda row: (
+            {"blocked": 0, "needs_preparation": 1, "ready": 2}.get(str(row["status"]), 3),
+            _severity_rank(str(row["severity"])),
+            -int(row["issue_count"]),
+            str(row["field"]),
+        )
+    )
+    return rows
+
+
+def _column_usability_summary(rows: list[dict[str, Any]]) -> dict[str, int]:
+    return {
+        "column_count": len(rows),
+        "ready_count": sum(1 for row in rows if row.get("status") == "ready"),
+        "needs_preparation_count": sum(1 for row in rows if row.get("status") == "needs_preparation"),
+        "blocked_count": sum(1 for row in rows if row.get("status") == "blocked"),
+    }
+
+
+def _table_health_reviews(
+    profile: dict[str, Any],
+    table_assessments: list[dict[str, Any]],
+    issues: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    issues_by_table: dict[str, list[dict[str, Any]]] = {}
+    for issue in issues:
+        issues_by_table.setdefault(str(issue.get("table") or ""), []).append(issue)
+    reviews = []
+    profile_tables = profile.get("tables") or {}
+    for row in table_assessments[:10]:
+        table_name = str(row.get("table") or "")
+        table_profile = profile_tables.get(table_name) or {}
+        table_issues = issues_by_table.get(table_name, [])
+        impact = row.get("business_impact") or {}
+        reviews.append(
+            {
+                "table": table_name,
+                "role": row.get("role") or "",
+                "readiness": row.get("readiness") or "",
+                "health_score": row.get("health_score") or 0,
+                "row_count": table_profile.get("row_count") or 0,
+                "column_count": table_profile.get("column_count") or 0,
+                "issue_total": sum((row.get("issue_counts_by_severity") or {}).values()),
+                "relationship_risk_count": row.get("relationship_risk_count") or 0,
+                "affected_columns": row.get("affected_columns") or [],
+                "analysis_impact_category": impact.get("category") or "general_analytics",
+                "analysis_impact_label": impact.get("label") or "General analytics",
+                "top_issue_types": sorted({str(issue.get("issue_type") or "") for issue in table_issues})[:5],
+            }
+        )
+    return reviews
+
+
+def _column_issue_blocks(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    blocks = []
+    for issue in issues[:30]:
+        for column in issue.get("columns") or ["table_level"]:
+            table = str(issue.get("table") or "")
+            field = table if column == "table_level" else f"{table}.{column}"
+            blocks.append(
+                {
+                    "field": field,
+                    "issue_id": issue.get("issue_id") or "",
+                    "issue_type": issue.get("issue_type") or "",
+                    "severity": issue.get("severity") or "",
+                    "evidence": (
+                        f"{issue.get('bad_count', 0)}/{issue.get('total_count', 0)} rows; "
+                        f"bad rate {float(issue.get('bad_rate') or 0):.6f}"
+                    ),
+                    "analysis_consequence": _issue_analysis_consequence(str(issue.get("issue_type") or "")),
+                }
+            )
+    blocks.sort(
+        key=lambda block: (
+            _severity_rank(str(block["severity"])),
+            str(block["field"]),
+            str(block["issue_id"]),
+        )
+    )
+    return blocks[:20]
+
+
+def _column_status(
+    *,
+    severity: str,
+    null_rate: float,
+    invalid_cast_count: int,
+    outlier_count: int,
+) -> str:
+    if severity in {"P0", "P1"}:
+        return "blocked"
+    if severity in {"P2", "P3"} or null_rate > 0 or invalid_cast_count > 0 or outlier_count > 0:
+        return "needs_preparation"
+    return "ready"
+
+
+def _column_status_label(status: str) -> str:
+    return {
+        "blocked": "Blocked for analysis",
+        "needs_preparation": "Needs preparation",
+        "ready": "Ready",
+    }.get(status, status)
+
+
+def _column_evidence(
+    column: dict[str, Any],
+    issues: list[dict[str, Any]],
+    outlier_count: int,
+) -> str:
+    parts = [
+        f"null rate {float(column.get('null_rate') or 0):.6f}",
+        f"distinct={int(column.get('distinct_count') or 0)}",
+    ]
+    invalid_cast_count = int(column.get("invalid_cast_count") or 0)
+    if invalid_cast_count:
+        parts.append(f"invalid_casts={invalid_cast_count}")
+    if outlier_count:
+        parts.append(f"iqr_outliers={outlier_count}")
+    if issues:
+        parts.append(f"issues={len(issues)}")
+    return "; ".join(parts)
+
+
+def _worst_severity(issues: list[dict[str, Any]]) -> str:
+    if not issues:
+        return ""
+    return min((str(issue.get("severity") or "") for issue in issues), key=_severity_rank)
+
+
+def _severity_rank(severity: str) -> int:
+    return {"P0": 0, "P1": 1, "P2": 2, "P3": 3}.get(severity, 4)
+
+
+def _issue_analysis_consequence(issue_type: str) -> str:
+    if issue_type in {"PRIMARY_KEY_NULL", "DUPLICATE_PRIMARY_KEY", "UNIQUE_DUPLICATE"}:
+        return "Entity-level joins and splits may be unreliable until key evidence is fixed."
+    if issue_type in {"ORPHAN_FOREIGN_KEY", "PARENT_KEY_DUPLICATE", "FOREIGN_KEY_NULL", "CHILD_RELATIONSHIP_DUPLICATE"}:
+        return "Cross-table joins may drop, multiply, or misalign records during feature construction."
+    if issue_type in {"REQUIRED_FIELD_NULL", "EMPTY_STRING", "INVALID_PLACEHOLDER_TOKEN"}:
+        return "Missingness handling is required before aggregate analysis or model feature use."
+    if issue_type in {"VALUE_OUT_OF_RANGE", "NEGATIVE_VALUE_NOT_ALLOWED", "NUMERIC_OUTLIER"}:
+        return "Distribution-sensitive aggregates and models may need capping, transformation, or exclusion decisions."
+    if issue_type in {"TYPE_CAST_INVALID", "DATE_ORDER_INVALID", "REGEX_MISMATCH"}:
+        return "Typed, time-based, or pattern-derived features need normalization before analysis use."
+    if issue_type in {"TABLE_MISSING", "COLUMN_MISSING", "EXTRA_COLUMN"}:
+        return "Schema coverage should be confirmed before comparing tables or training models."
+    return "Dataset readiness is reduced until this evidence is reviewed."
 
 
 def _guardrail_contract_from_draft(draft: str) -> dict[str, Any]:
@@ -499,7 +738,7 @@ def build_guardrail_evidence(
 ) -> dict[str, Any]:
     numbers: dict[str, set[str]] = {}
     refs: dict[str, set[str]] = {}
-    _collect_numbers(context["summary"], "$.context.summary", numbers)
+    _collect_numbers(context, "$.context", numbers)
     _collect_numbers(artifacts, "$.artifacts", numbers)
     _collect_refs(artifacts, refs)
     _collect_refs(context, refs)

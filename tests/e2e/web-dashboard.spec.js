@@ -43,6 +43,30 @@ test("local path run renders the interactive dashboard from generated artifacts"
 
   await page.locator("#runnerModePath").click();
   await expect(page.locator("#pathRunnerForm")).toBeVisible();
+  await expect(page.locator("#demoPresetStatus")).toContainText("Small demo");
+  await expect(page.locator("#demoPresetSmall")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#llmModeStatus")).toContainText("LLM off");
+  await expect(page.locator("#llmModeOff")).toHaveAttribute("aria-pressed", "true");
+
+  await page.locator("#demoPresetOlist").click();
+  await expect(page.locator("#demoPresetStatus")).toContainText("Full Olist");
+  await expect(page.locator("#dbmlPathInput")).toHaveValue("examples/olist/schema.dbml");
+  await expect(page.locator("#csvDirPathInput")).toHaveValue("data/olist");
+  await expect(page.locator("#rulesPathInput")).toHaveValue("examples/olist/rules.yaml");
+  await expect(page.locator("#pathTargetInput")).toHaveValue("olist_order_reviews_dataset.review_score");
+  await expect(page.locator("#diagramSvg")).toContainText("olist_orders_dataset");
+  await expect(page.locator("#mappingStatus")).toContainText("9/9 tables mapped");
+
+  await page.locator("#llmModeFake").click();
+  await expect(page.locator("#llmModeStatus")).toContainText("Fake");
+  await expect(page.locator("#llmModeFake")).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#llmModeOff").click();
+  await expect(page.locator("#llmModeStatus")).toContainText("LLM off");
+
+  await page.locator("#demoPresetSmall").click();
+  await expect(page.locator("#demoPresetStatus")).toContainText("Small demo");
+  await expect(page.locator("#diagramSvg")).toContainText("order_payments");
+  await expect(page.locator("#mappingStatus")).toContainText("7/7 tables mapped");
 
   await page.locator("#dbmlPathInput").fill("data/demo_small/schema.dbml");
   await page.locator("#csvDirPathInput").fill("data/demo_small/csv");
@@ -91,6 +115,8 @@ test("local path run renders the interactive dashboard from generated artifacts"
   await expect(generatedResults).toContainText("NOT_READY");
   await expect(generatedResults).toContainText("Issue counts");
   await expect(generatedResults).toContainText("15 issues");
+  await expect(generatedResults).toContainText("Column usability");
+  await expect(generatedResults).toContainText("blocked columns");
   await expect(generatedResults).toContainText("Table assessment");
   await expect(generatedResults).toContainText("7 tables");
   await expect(generatedResults).toContainText("Runtime summary");
@@ -101,6 +127,16 @@ test("local path run renders the interactive dashboard from generated artifacts"
   await expect(generatedResults).toContainText("report.md");
   await expect(generatedResults).toContainText("Raw artifact links");
   await expect(generatedResults).toContainText("dataset_verdict.json");
+  fs.mkdirSync("outputs/us070_visual_review", { recursive: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await generatedResults.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: "outputs/us070_visual_review/dashboard-generated-results-desktop-page.png",
+  });
+  await generatedResults.screenshot({
+    path: "outputs/us070_visual_review/dashboard-generated-results-desktop.png",
+  });
 
   const dashboard = page.locator("#dashboardPanelGrid");
   await expect(dashboard).toContainText("EDA readiness");
@@ -249,5 +285,13 @@ test("local path run renders the interactive dashboard from generated artifacts"
   await expect(page.locator("#tableImpact")).toBeVisible();
   await page.screenshot({
     path: "outputs/web_demo_ux_screenshots/mobile-dashboard.png",
+  });
+  await page.locator("#artifactList").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+  await page.screenshot({
+    path: "outputs/us070_visual_review/dashboard-generated-results-mobile-page.png",
+  });
+  await page.locator("#artifactList").screenshot({
+    path: "outputs/us070_visual_review/dashboard-generated-results-mobile.png",
   });
 });

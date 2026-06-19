@@ -92,6 +92,29 @@
               <button class="mode-button" id="runnerModePath" type="button" role="tab" aria-selected="false" aria-controls="pathRunnerForm">Local path mode</button>
             </div>
 
+            <div class="runner-option-block" aria-label="Demo dataset">
+              <div class="option-heading">
+                <strong>Demo dataset</strong>
+                <span id="demoPresetStatus">Small demo</span>
+              </div>
+              <div class="runner-mode-switch demo-preset-switch" role="group" aria-label="Demo preset">
+                <button class="mode-button active" id="demoPresetSmall" type="button" aria-pressed="true">Small demo</button>
+                <button class="mode-button" id="demoPresetOlist" type="button" aria-pressed="false">Full Olist</button>
+              </div>
+            </div>
+
+            <div class="runner-option-block" aria-label="L4 report mode">
+              <div class="option-heading">
+                <strong>L4 report</strong>
+                <span id="llmModeStatus">LLM off</span>
+              </div>
+              <div class="runner-mode-switch llm-mode-switch" role="group" aria-label="L4 report mode">
+                <button class="mode-button active" id="llmModeOff" type="button" aria-pressed="true">Off</button>
+                <button class="mode-button" id="llmModeFake" type="button" aria-pressed="false">Fake</button>
+                <button class="mode-button" id="llmModeOpenAI" type="button" aria-pressed="false">OpenAI</button>
+              </div>
+            </div>
+
             <form class="runner-form" id="runnerForm">
               <label class="field-label" for="rulesInput">
                 Optional rules file

@@ -103,6 +103,36 @@ def test_web_runner_path_job_writes_canonical_artifacts_without_csv_upload(tmp_p
     assert REQUIRED_ARTIFACTS.issubset(artifact_paths)
 
 
+def test_web_runner_path_job_can_enable_fake_llm_report(tmp_path):
+    data_dir = create_small_demo(tmp_path / "data" / "demo_small")
+    store = WebRunStore(run_root=tmp_path / "web_runs")
+
+    job = store.start_path_job(
+        dbml_path=data_dir / "schema.dbml",
+        csv_dir=data_dir / "csv",
+        rules_path=data_dir / "rules.yaml",
+        target="order_reviews.review_score",
+        use_llm=True,
+        llm_provider="fake",
+    )
+
+    wait_for_job(job)
+
+    assert job.status == "succeeded"
+    assert (job.out_dir / "l4_report.md").exists()
+    assert (job.out_dir / "guardrail_report.json").exists()
+    path_inputs = json.loads((job.input_dir / "path_inputs.json").read_text())
+    assert path_inputs["use_llm"] is True
+    assert path_inputs["llm_provider"] == "fake"
+    run_summary = json.loads((job.out_dir / "run_summary.json").read_text())
+    assert run_summary["inputs"]["use_llm"] is True
+    assert run_summary["inputs"]["llm_provider"] == "fake"
+    payload = store.job_payload(job)
+    assert payload["llm"] == {"enabled": True, "provider": "fake"}
+    artifact_paths = {artifact["path"] for artifact in payload["artifacts"]}
+    assert {"l4_report.md", "guardrail_report.json"}.issubset(artifact_paths)
+
+
 def test_web_runner_path_job_validates_inputs_before_start(tmp_path):
     data_dir = create_small_demo(tmp_path / "data" / "demo_small")
     store = WebRunStore(run_root=tmp_path / "web_runs")
@@ -149,6 +179,21 @@ def test_web_runner_path_job_validates_inputs_before_start(tmp_path):
             dbml_path=data_dir / "schema.dbml",
             csv_dir=data_dir / "csv",
             target="review_score",
+        )
+
+    with pytest.raises(ValueError, match="llm_provider requires use_llm"):
+        store.start_path_job(
+            dbml_path=data_dir / "schema.dbml",
+            csv_dir=data_dir / "csv",
+            llm_provider="fake",
+        )
+
+    with pytest.raises(ValueError, match="llm_provider"):
+        store.start_path_job(
+            dbml_path=data_dir / "schema.dbml",
+            csv_dir=data_dir / "csv",
+            use_llm=True,
+            llm_provider="unsupported",
         )
 
 

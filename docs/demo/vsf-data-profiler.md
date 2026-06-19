@@ -21,8 +21,10 @@ relational CSV plus DBML dataset and does not require internet access.
    `guardrail_report.json`.
 7. Run the OpenAI smoke path only when `.env` has `OPENAI_API_KEY`; it is
    optional provider validation, not the default demo.
-8. Optionally start the local web runner and show that completed upload/path
-   jobs populate the interactive dashboard from generated artifact URLs.
+8. Optionally start the local web runner, choose the small or Olist preset in
+   local path mode, and show that completed jobs populate the interactive
+   dashboard from generated artifact URLs. Keep L4 off for the default demo or
+   switch to fake/OpenAI when validating optional narrative output.
 9. Close with the boundary: core CSV plus DBML Smart EDA works locally without
    internet; L4, database connectors, package/PDF export, benchmarks, and the
    web dashboard are optional advanced surfaces.

@@ -165,8 +165,18 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
     assert "relationship_graph.json" in report_md
     assert "EDA/Data Quality Readiness" in report_md
     assert "dataset_verdict.json" in report_md
+    assert "Feature/Column Usability Summary" in report_md
+    assert "Feature/Column Usability Summary" in report_html
+    assert "Blocked for analysis" in report_md
+    assert "Blocked for analysis" in report_html
+    assert "Table-by-Table Health Review" in report_md
+    assert "Table-by-Table Health Review" in report_html
     assert "Table Assessment and Analysis Impact" in report_md
     assert "table_assessments.json" in report_md
+    assert "Column Issue Blocks" in report_md
+    assert "Column Issue Blocks" in report_html
+    assert "ML/Analysis Consequence" in report_md
+    assert "ML/Analysis Consequence" in report_html
     assert "Visual Summary" in report_md
     assert "charts/issue_counts_by_severity.json" in report_md
     assert "Top Numeric Outliers by Column" in report_md
@@ -183,6 +193,10 @@ def test_demo_small_pipeline_writes_required_outputs(tmp_path):
     assert "charts/outliers_top_columns.json" in report_html
     assert "Execution Flow" in report_md
     assert "Execution Flow" in report_html
+    assert "Probable cause" not in report_md
+    assert "Suggested fix" not in report_md
+    assert "business rule" not in report_md.lower()
+    assert "business process" not in report_md.lower()
     assert "Open DBML diagram in dbdiagram.io" in report_html
     assert "orders.customer_id" in report_html
     assert run_summary["status"] == "success"
