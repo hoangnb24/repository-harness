@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "run_id": "run_1782473523_99206",
+  "story_id": "US-057",
+  "outcome": "completed",
+  "summary_path": ".harness/runs/run_1782473523_99206/SUMMARY.md",
+  "validation": {
+    "commands": [
+      {
+        "command": "npm --prefix crates/harness-symphony/web-ui run build",
+        "result": "pass"
+      },
+      {
+        "command": "npm --prefix crates/harness-symphony/web-ui run e2e",
+        "result": "pass"
+      },
+      {
+        "command": "HARNESS_DB_PATH=/Users/tubakhuym/harness-experimental/.symphony/worktrees/run_1782473523_99206/harness.db HARNESS_RUN_ID=run_1782473523_99206 HARNESS_RUN_MODE=execute /Users/tubakhuym/harness-experimental/scripts/bin/harness-cli story verify US-057",
+        "result": "pass"
+      },
+      {
+        "command": "git diff --check",
+        "result": "pass"
+      }
+    ]
+  },
+  "changed_files": [
+    "crates/harness-symphony/web-ui/src/main.tsx",
+    "crates/harness-symphony/web-ui/tests/board.spec.ts",
+    "docs/stories/epics/E08-symphony-web-ui-controller/US-057-dependency-graph-sidebar-view.md",
+    ".harness/changesets/run_1782473523_99206.changeset.jsonl"
+  ],
+  "harness_records": {
+    "intake_id": 113,
+    "trace_id": 128,
+    "changeset_path": ".harness/changesets/run_1782473523_99206.changeset.jsonl"
+  }
+}

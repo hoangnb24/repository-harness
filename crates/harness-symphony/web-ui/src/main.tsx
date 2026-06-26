@@ -2,9 +2,11 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
   Circle,
   Clock3,
+  GitBranch,
   GitPullRequestArrow,
   GripVertical,
   Loader2,
@@ -175,7 +177,6 @@ function App() {
     [items]
   );
   const activeRun = items.find((item) => item.active_run);
-  const blockedItems = items.filter((item) => item.board_state === "Blocked");
 
   const startTask = React.useCallback(
     async (storyId: string) => {
@@ -276,7 +277,7 @@ function App() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 md:p-4 lg:grid-cols-[224px_minmax(0,1fr)] xl:p-6">
-        <ControllerSidebar counts={counts} blockedItems={blockedItems} />
+        <ControllerSidebar counts={counts} items={items} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
 
         <div className="flex min-w-0 flex-col gap-3">
           <header className="flex flex-col gap-3 border-b border-border pb-3 xl:flex-row xl:items-end xl:justify-between">
@@ -343,8 +344,6 @@ function App() {
             ) : null}
           </section>
 
-          <DependencyGraph items={items} selectedId={selected?.id ?? null} />
-
           <p className="text-xs leading-5 text-muted-foreground">
             Source: local Symphony API responses for board state, run events, review artifacts, PR status, and sync state.
           </p>
@@ -354,60 +353,87 @@ function App() {
   );
 }
 
-function DependencyGraph({ items, selectedId }: { items: BoardItem[]; selectedId: string | null }) {
-  const graphItems = items
-    .filter((item) => item.blockers.length > 0 || item.unblocks.length > 0 || item.board_state !== "Done")
-    .slice(0, 5);
+function SidebarDependencyGraph({
+  items,
+  selectedId,
+  onSelect
+}: {
+  items: BoardItem[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const graphItems = items.filter((item) => item.blockers.length > 0 || item.unblocks.length > 0);
+  const edgeCount = graphItems.reduce((sum, item) => sum + item.blockers.length, 0);
 
   return (
-    <section className="rounded-lg border border-border bg-background p-4" aria-label="Dependency graph">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-2xl font-semibold leading-tight tracking-tight">Dependency graph</h2>
-        <p className="text-sm text-muted-foreground">Blocked work stays visible, but unsafe starts are disabled.</p>
+    <section className="mt-2 hidden border-t border-border/70 pt-3 lg:block" aria-label="Dependency graph sidebar">
+      <div className="flex items-center justify-between gap-2 px-2">
+        <div className="flex items-center gap-2">
+          <GitBranch className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-bold">Dependency graph</h2>
+        </div>
+        <span className="font-mono text-xs text-muted-foreground">{edgeCount}</span>
       </div>
-      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-3 grid max-h-[34vh] gap-2 overflow-auto pr-1" aria-label="Dependency edges">
         {graphItems.length > 0 ? (
           graphItems.map((item) => (
-            <Card
+            <button
               key={item.id}
+              type="button"
+              onClick={() => onSelect(item.id)}
               className={cn(
-                "min-h-24 rounded-md p-3",
-                item.id === selectedId && "border-primary bg-accent",
-                item.board_state === "Blocked" && "border-warning/70"
+                "w-full rounded-md border border-border bg-background p-2 text-left transition hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                item.id === selectedId && "border-primary bg-accent"
               )}
             >
-              <strong className="block font-mono text-xs">{item.id}</strong>
-              <span className="mt-1 block text-xs leading-5 text-muted-foreground">{dependencySummary(item)}</span>
-            </Card>
+              <div className="flex items-center justify-between gap-2">
+                <strong className="font-mono text-xs">{item.id}</strong>
+                <Badge tone={stateTone[item.board_state]}>{item.board_state}</Badge>
+              </div>
+              <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5">{item.title}</p>
+              <div className="mt-2 grid gap-1 text-xs leading-5 text-muted-foreground">
+                {item.blockers.length > 0 ? (
+                  <GraphLine left={item.blockers.join(", ")} right={item.id} />
+                ) : null}
+                {item.unblocks.length > 0 ? (
+                  <GraphLine left={item.id} right={item.unblocks.join(", ")} />
+                ) : null}
+              </div>
+            </button>
           ))
         ) : (
-          <Card className="rounded-md p-3 text-sm text-muted-foreground">No dependency edges on the current board.</Card>
+          <div className="rounded-md border border-dashed border-border bg-background p-3 text-xs leading-5 text-muted-foreground">
+            No dependency edges on the current board.
+          </div>
         )}
       </div>
     </section>
   );
 }
 
-function dependencySummary(item: BoardItem) {
-  if (item.board_state === "Done") {
-    return `${item.title} is already implemented.`;
-  }
-  if (item.board_state === "Blocked") {
-    return item.reason;
-  }
-  if (item.unblocks.length > 0) {
-    return `Unblocks ${item.unblocks.join(", ")}.`;
-  }
-  return item.reason;
+function GraphLine({ left, right }: { left: string; right: string }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_16px_minmax(0,1fr)] items-center gap-1">
+      <span className="truncate font-mono">{left}</span>
+      <ArrowRight className="size-3 justify-self-center" />
+      <span className="truncate font-mono">{right}</span>
+    </div>
+  );
 }
 
 function ControllerSidebar({
   counts,
-  blockedItems
+  items,
+  selectedId,
+  onSelect
 }: {
   counts: Record<BoardState, number>;
-  blockedItems: BoardItem[];
+  items: BoardItem[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
+  const blockedItems = items.filter((item) => item.board_state === "Blocked");
+
   return (
     <aside
       aria-label="Workspace navigation"
@@ -450,6 +476,8 @@ function ControllerSidebar({
         <SidebarItem label="Blocked" count={String(counts.Blocked)} />
         <SidebarItem label="Review" count={String(counts.Review)} />
       </nav>
+
+      <SidebarDependencyGraph items={items} selectedId={selectedId} onSelect={onSelect} />
     </aside>
   );
 }
