@@ -433,7 +433,7 @@ fn turn_error_from_query<'a>(message: &'a Value, turn_id: &str) -> Option<&'a st
 fn codex_prompt(config: &ResolvedConfig, prepared: &PreparedRun) -> String {
     let harness_cli = config.repo_root.join("scripts/bin/harness-cli");
     format!(
-        "You are running inside a Harness Symphony worktree. Read AGENTS.md and the run contract at {}. Complete only story {} for run {}. Do not change unrelated product code. Write all required artifacts under the current working directory: .harness/runs/{}/SUMMARY.md and .harness/runs/{}/RESULT.json. Use Harness CLI writes with HARNESS_DB_PATH, HARNESS_RUN_ID, and HARNESS_RUN_MODE from the environment so .harness/changesets/{}.changeset.jsonl is produced in this worktree. If scripts/bin/harness-cli is absent in the worktree, run the root binary at {} while keeping the current worktree as cwd. RESULT.json must have version 1, run_id {}, story_id {}, an allowed outcome, validation evidence, and summary_path .harness/runs/{}/SUMMARY.md.",
+        "You are running inside a Harness Symphony worktree. Read AGENTS.md and the run contract at {}. Complete only story {} for run {}. Do not change unrelated product code. Write all required artifacts under the current working directory: .harness/runs/{}/SUMMARY.md and .harness/runs/{}/RESULT.json. Use Harness CLI writes with HARNESS_DB_PATH, HARNESS_RUN_ID, and HARNESS_RUN_MODE from the environment so .harness/changesets/{}.changeset.jsonl is produced in this worktree. If scripts/bin/harness-cli is absent in the worktree, run the root binary at {} while keeping the current worktree as cwd. RESULT.json must have version 1, run_id {}, story_id {}, an allowed outcome, summary_path .harness/runs/{}/SUMMARY.md, and a top-level validation object. Do not write validation_evidence. validation must be either {{\"commands\":[{{\"command\":\"exact command\",\"result\":\"pass\"}}]}} with each result set to pass, fail, or unavailable, or {{\"unavailable\":\"non-empty reason\"}}.",
         prepared.contract_path.display(),
         prepared.story_id,
         prepared.run_id,
@@ -540,6 +540,9 @@ mod tests {
         assert!(prompt.contains(".harness/changesets/run_1.changeset.jsonl"));
         assert!(prompt.contains("/repo/scripts/bin/harness-cli"));
         assert!(prompt.contains("HARNESS_DB_PATH"));
+        assert!(prompt.contains("top-level validation object"));
+        assert!(prompt.contains("Do not write validation_evidence"));
+        assert!(prompt.contains("\"result\":\"pass\""));
     }
 
     #[test]
