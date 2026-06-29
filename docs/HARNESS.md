@@ -8,8 +8,13 @@ The app is what users touch. The harness is what agents touch.
 ## Mental Model
 
 ```text
-------------------+
++------------------+
 | Human intent    |
++------------------+
+         |
+         v
++------------------+
+| Brainstorm       |
 +------------------+
          |
          v
@@ -20,6 +25,11 @@ The app is what users touch. The harness is what agents touch.
          v
 +------------------+
 | Story packet     |
++------------------+
+         |
+         v
++------------------+
+| Git branch       |
 +------------------+
          |
          v
@@ -48,6 +58,9 @@ The app is what users touch. The harness is what agents touch.
 +------------------+
 ```
 
+Brainstorming is optional. Use `docs/BRAINSTORM.md` when the user wants to
+explore ideas before selecting implementation work.
+
 Every task has two possible outputs:
 
 1. Product delta: app code, tests, API shape, data model, or product docs.
@@ -62,6 +75,8 @@ Harness v0 includes:
 - Empty product documentation structure.
 - Feature intake and risk lanes.
 - Story templates.
+- Git branch workflow for reviewable feature and update work.
+- Validation Integrity controls for anti-cheat proof and policy protection.
 - Decision log template.
 - Validation report template.
 - Test matrix placeholder.
@@ -138,6 +153,12 @@ docs/product/*
 docs/stories/*
   story-sized work packets and historical evidence
 
+docs/GIT_WORKFLOW.md
+  branch, commit, and pre-merge workflow for selected work
+
+docs/VALIDATION_INTEGRITY.md
+  anti-cheat controls for protected docs, verification, tests, CI, and traces
+
 scripts/bin/harness-cli query matrix
   behavior-to-proof control panel backed by the durable layer
 
@@ -161,6 +182,7 @@ stories, durable proof records, and decision records.
 
 Ongoing work should enter the harness as one of these input types:
 
+- Brainstorm: early idea exploration before selected implementation work.
 - New spec: a project specification that needs to become product docs and
   initial story candidates.
 - Spec slice: a selected behavior from the provided spec.
@@ -174,9 +196,11 @@ The spec-to-work loop is:
 
 ```text
 human intent or supplied spec
+  -> brainstorm if the intent is still exploratory
   -> classify input type
   -> update or create product contract
   -> create story packet or initiative notes when needed
+  -> create or verify the Git branch for selected work
   -> define validation proof
   -> implement or document the blocker
   -> update product docs, stories, durable proof records, and decisions
@@ -227,20 +251,26 @@ items; `low` is not a valid lane.
 
 For every task:
 
-1. Classify the request with `docs/FEATURE_INTAKE.md`.
-2. Record the classification with `scripts/bin/harness-cli intake`.
-3. Locate the affected product docs and story files.
-4. Check proof status with `scripts/bin/harness-cli query matrix`.
-5. Work only inside the selected lane: tiny, normal, or high-risk.
-6. Before finishing, ask whether product truth, validation expectations,
+1. If the request is exploratory, use `docs/BRAINSTORM.md` before committing to
+   product truth or implementation work.
+2. Classify selected work with `docs/FEATURE_INTAKE.md`.
+3. Record the classification with `scripts/bin/harness-cli intake`.
+4. Locate the affected product docs and story files.
+5. Use `docs/GIT_WORKFLOW.md` to create or verify the work branch before
+   implementation.
+6. Use `docs/VALIDATION_INTEGRITY.md` when protected docs, verification,
+   tests, CI, traces, or proof requirements change.
+7. Check proof status with `scripts/bin/harness-cli query matrix`.
+8. Work only inside the selected lane: tiny, normal, or high-risk.
+9. Before finishing, ask whether product truth, validation expectations,
    architecture rules, repeated failure patterns, or next-agent instructions
    changed.
-7. Record a trace with `scripts/bin/harness-cli trace`, using
+10. Record a trace with `scripts/bin/harness-cli trace`, using
    `docs/TRACE_SPEC.md` for the expected trace tier and field depth.
-8. Review the trace score printed by `scripts/bin/harness-cli trace`; use
+11. Review the trace score printed by `scripts/bin/harness-cli trace`; use
    `scripts/bin/harness-cli score-trace --id <id>` only when re-checking a
    specific historical trace.
-9. If harness friction was found, either fix it directly or record it with
+12. If harness friction was found, either fix it directly or record it with
    `scripts/bin/harness-cli backlog add`.
 
 ## Story Verification
@@ -271,6 +301,28 @@ CLI rejects text values such as `yes` and `no`.
 Use `scripts/bin/harness-cli query matrix --numeric` when copying proof values
 back into `story update`. The default matrix output is human-readable
 `yes`/`no`; the numeric output mirrors CLI input.
+
+## Validation Integrity
+
+Use `docs/VALIDATION_INTEGRITY.md` whenever work touches protected policy,
+verification commands, tests, fixtures, snapshots, CI workflows, traces, or
+proof requirements.
+
+Run the mechanical check before review:
+
+```bash
+python3 scripts/validation-integrity-check.py --auto
+```
+
+During bootstrap before the first baseline commit, `--auto` uses bootstrap mode.
+Manual bootstrap mode is also available:
+
+```bash
+python3 scripts/validation-integrity-check.py --bootstrap
+```
+
+CI proof or reviewer proof outranks local agent-reported proof for shared
+branches. Validation weakening requires a durable decision record.
 
 ## Phase 5 Evolution Commands
 
@@ -352,6 +404,7 @@ Agents should ask for human confirmation before:
 
 - Changing architecture direction.
 - Removing validation requirements.
+- Weakening tests, fixtures, CI checks, or proof commands.
 - Changing the source-of-truth hierarchy.
 - Changing risk classification rules.
 - Replacing the feature workflow.
@@ -363,6 +416,8 @@ A task is done only when:
 - The requested change is completed or the blocker is documented.
 - Relevant docs, stories, and test matrix entries remain current.
 - Validation commands were run when they exist.
+- Validation integrity checks passed or the bootstrap/skipped reason is
+  documented.
 - A trace has been recorded with `scripts/bin/harness-cli trace`.
 - Missing harness capabilities were recorded with
   `scripts/bin/harness-cli backlog add`.

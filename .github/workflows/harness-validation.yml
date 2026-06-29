@@ -1,0 +1,22 @@
+name: Harness Validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validation-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validation integrity
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: python3 scripts/validation-integrity-check.py --base "origin/${BASE_REF}"

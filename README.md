@@ -48,12 +48,19 @@ In this repo, those answers live in:
 - `AGENTS.md` — the stable agent shim with local project notes and Harness
   doc links.
 - `docs/HARNESS.md` — the human-agent collaboration model.
+- `docs/BRAINSTORM.md` — exploratory workflow before selected work enters
+  feature intake.
 - `docs/FEATURE_INTAKE.md` — tiny, normal, and high-risk work classification.
+- `docs/GIT_WORKFLOW.md` — branch, commit, and pre-merge workflow for selected
+  work.
+- `docs/VALIDATION_INTEGRITY.md` — anti-cheat controls for protected docs,
+  proof, tests, CI, and traces.
 - `docs/ARCHITECTURE.md` — architecture discovery and boundary rules.
 - `docs/TEST_MATRIX.md` — behavior-to-proof validation expectations.
 - `docs/stories/` — story packets and backlog items.
 - `docs/decisions/` — durable decisions and tradeoffs.
-- `docs/templates/` — reusable spec, story, decision, and validation templates.
+- `docs/templates/` — reusable brainstorm, spec, story, decision, and validation
+  templates.
 
 OpenAI describes this shift as an agent-first world where humans steer and
 agents execute:
@@ -162,17 +169,21 @@ A typical flow looks like this:
 
 ```text
 human intent or product spec
+  -> brainstorm when intent is exploratory
   -> product contract
   -> feature intake
   -> story packet
+  -> git branch
   -> validation expectations
+  -> validation integrity check
   -> implementation work
   -> decision or lesson captured for future agents
 ```
 
-Implementation prompts do not go straight to code. They first pass through
-feature intake, become story-sized work when needed, and then carry both product
-validation and harness maintenance expectations.
+Exploratory prompts can pass through brainstorm first. Implementation prompts do
+not go straight to code. They pass through feature intake, move onto a
+reviewable Git branch, become story-sized work when needed, and then carry both
+product validation and harness maintenance expectations.
 
 ## Tool Registry
 
@@ -205,9 +216,9 @@ This repository is in Harness v0.
 
 There is no application implementation and no baked-in product specification
 yet. The current work is the reusable project harness: the file structure,
-agent operating model, feature intake process, story templates, and validation
-expectations that help humans and agents turn a future user-provided spec into
-implementation work.
+agent operating model, brainstorm workflow, feature intake process, story
+templates, and validation expectations that help humans and agents turn a future
+user-provided spec into implementation work.
 
 ## Product Sources
 

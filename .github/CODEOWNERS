@@ -1,0 +1,15 @@
+# Harness policy, validation integrity, release workflow, and merge approval
+# are owned by the fork owner.
+
+AGENTS.md @TruongPhuHung
+docs/HARNESS.md @TruongPhuHung
+docs/FEATURE_INTAKE.md @TruongPhuHung
+docs/TEST_MATRIX.md @TruongPhuHung
+docs/TRACE_SPEC.md @TruongPhuHung
+docs/GIT_WORKFLOW.md @TruongPhuHung
+docs/VALIDATION_INTEGRITY.md @TruongPhuHung
+docs/templates/ @TruongPhuHung
+.github/CODEOWNERS @TruongPhuHung
+.github/pull_request_template.md @TruongPhuHung
+.github/workflows/ @TruongPhuHung
+scripts/validation-integrity-check.py @TruongPhuHung

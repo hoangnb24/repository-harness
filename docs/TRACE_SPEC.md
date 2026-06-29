@@ -28,6 +28,11 @@ table. The schema is not changed by Phase 2.
 | `harness_friction` | TEXT | Standard+ when friction exists; Detailed always | Free text naming what was hard, missing, ambiguous, or repeated. Use `none` only when the agent actively checked and found no friction. | `New Phase 2 docs are not in installer copy list; recorded as out-of-scope follow-up.` |
 | `notes` | TEXT | Optional | Free text for review context that does not fit other fields. | `Trace covers US-003, US-004, US-005, and US-006.` |
 
+Validation integrity evidence belongs in `actions_taken`, `errors`,
+`harness_friction`, or `notes`. Name changed tests, changed proof commands,
+changed CI workflows, skipped checks, bootstrap exceptions, and any decision
+record that allowed validation weakening.
+
 ## Quality Tiers
 
 ### Minimal (score: 1)
@@ -88,6 +93,8 @@ Required for:
 - Changes touching architecture direction, source-of-truth hierarchy,
   validation requirements, auth, authorization, data loss, audit/security, or
   external provider behavior.
+- Changes touching Validation integrity surfaces such as tests, proof commands,
+  CI workflows, trace policy, or protected Harness files.
 - Benchmark or release work where later review needs precise proof.
 
 For high-risk work, `decisions_made` in the trace summarizes what was decided.

@@ -6,7 +6,11 @@ future user-provided spec.
 ## Main Files
 
 - `HARNESS.md`: how humans and agents collaborate.
+- `BRAINSTORM.md`: how exploratory ideas become selected intake-ready work.
 - `FEATURE_INTAKE.md`: how prompts become tiny, normal, or high-risk work.
+- `GIT_WORKFLOW.md`: how selected work moves through branch, proof, and merge.
+- `VALIDATION_INTEGRITY.md`: anti-cheat controls for docs, proof, tests, CI,
+  and traces.
 - `ARCHITECTURE.md`: architecture discovery and boundary rules.
 - `TEST_MATRIX.md`: legacy proof map; current proof status is queried with
   `scripts/bin/harness-cli query matrix`.
@@ -21,8 +25,8 @@ future user-provided spec.
 - `decisions/`: durable decisions and tradeoffs.
 - `demo/`: concrete walkthroughs that show how the harness transforms input
   into agent-ready work.
-- `templates/`: reusable spec-intake, story, plan, decision, and validation
-  formats.
+- `templates/`: reusable brainstorm, spec-intake, story, plan, decision, and
+  validation formats.
 
 ## Current State
 

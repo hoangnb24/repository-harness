@@ -32,8 +32,13 @@ Choose lane: tiny, normal, or high-risk
 Use the input type to decide where the work should land before choosing the risk
 lane.
 
+If the user is still exploring options, use `docs/BRAINSTORM.md` before feature
+intake. Brainstorm notes are provisional and do not become product truth until
+the user selects a direction and the selected work enters this intake gate.
+
 | Type | Use when | Typical artifact |
 | --- | --- | --- |
+| Brainstorm | Exploring options before selecting implementation work | Chat response or `docs/templates/brainstorm.md` |
 | New spec | Turning a user-provided project spec into harness-ready docs | Product docs, candidate epics, decisions |
 | Spec slice | Implementing selected behavior from an accepted spec | Story packet |
 | Change request | Changing, fixing, or refining accepted behavior | Story packet or direct patch |
@@ -61,6 +66,10 @@ Requirements:
 
 - Record the intake row before implementation; tiny work skips story packet
   overhead, not durable task classification.
+- Follow `docs/GIT_WORKFLOW.md`; tiny docs-only work may stay on the current
+  branch only when the workflow allows it.
+- Follow Validation integrity rules in `docs/VALIDATION_INTEGRITY.md` if proof,
+  tests, CI, traces, or protected policy files change.
 - Patch directly.
 - Keep affected docs current.
 - Run available quick checks.
@@ -74,6 +83,9 @@ Requirements:
 
 - Create or update one story file from `docs/templates/story.md`.
 - Link relevant product docs.
+- Create or verify a story-linked Git branch with `docs/GIT_WORKFLOW.md`.
+- Apply Validation integrity checks from `docs/VALIDATION_INTEGRITY.md` when
+  proof, tests, CI, traces, or protected policy files change.
 - Add or update validation expectations.
 - Implement the smallest vertical slice when implementation exists.
 - Record or update proof status with `scripts/bin/harness-cli story add` and
@@ -88,6 +100,8 @@ Requirements:
 
 - Create a story folder using `docs/templates/high-risk-story/`.
 - Fill in `execplan.md`, `overview.md`, `design.md`, and `validation.md`.
+- Create or verify a story-linked Git branch with `docs/GIT_WORKFLOW.md`.
+- Apply Validation integrity checks from `docs/VALIDATION_INTEGRITY.md`.
 - Ask for human confirmation before implementation if direction is ambiguous.
 - Record a durable decision when behavior, architecture, authorization, data
   ownership, API shape, or validation requirements change meaningfully. Use a
@@ -110,6 +124,7 @@ Mark one flag for each item that applies:
 | Cross-platform | desktop/mobile/browser split, native shell behavior, deep links |
 | Existing behavior | already implemented or test-covered behavior changes |
 | Weak proof | unclear or missing tests around the affected area |
+| Validation integrity | proof commands, tests, fixtures, snapshots, mocks, coverage, CI, trace policy, or protected Harness files |
 | Multi-domain | more than one product domain changes at once |
 
 ## Classification
@@ -136,6 +151,7 @@ Hard gates:
 - Audit/security.
 - External provider behavior.
 - Removing or weakening validation requirements.
+- Weakening tests, CI checks, proof commands, or protected validation policy.
 
 ## Output
 

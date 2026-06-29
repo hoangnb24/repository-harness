@@ -15,10 +15,13 @@ Read to classify the request, find the affected surface, and choose a lane.
 | Document Or Source | Tiny | Normal | High-Risk |
 | --- | --- | --- | --- |
 | `AGENTS.md` | Must | Must | Must |
+| `docs/BRAINSTORM.md` | Must if exploratory | Must if exploratory | Must if exploratory |
 | `docs/FEATURE_INTAKE.md` | Must | Must | Must |
 | `scripts/bin/harness-cli query matrix` | Must | Must | Must |
 | `README.md` | Should | Must | Must |
 | `docs/HARNESS.md` | Should | Must | Must |
+| `docs/GIT_WORKFLOW.md` | Should if files change | Must | Must |
+| `docs/VALIDATION_INTEGRITY.md` | Should if proof changes | Must if proof changes | Must |
 | `docs/ARCHITECTURE.md` | Skip | Should | Must |
 | Relevant `docs/product/*` | Skip if unrelated | Must if product behavior changes | Must |
 | Relevant `docs/stories/*` | Skip if unrelated | Must if a story exists | Must |
@@ -32,6 +35,8 @@ Read to decide the smallest safe approach and expected proof.
 | Document Or Source | Tiny | Normal | High-Risk |
 | --- | --- | --- | --- |
 | Current files to edit | Must | Must | Must |
+| `docs/GIT_WORKFLOW.md` | Should if files change | Must | Must |
+| `docs/VALIDATION_INTEGRITY.md` | Should if proof changes | Must if proof changes | Must |
 | `docs/templates/story.md` | Skip | Must when creating/updating a story | Should |
 | `docs/templates/high-risk-story/*` | Skip | Skip unless risk escalates | Must |
 | `docs/ARCHITECTURE.md` | Skip | Should for code or boundary changes | Must |
@@ -80,7 +85,9 @@ Read to leave useful evidence for the next agent and for benchmark scoring.
 | `scripts/bin/harness-cli query matrix` | Should | Must | Must |
 | `scripts/bin/harness-cli query backlog` | Skip | Should if friction occurred | Must |
 | Changed-file list from `git status --short` | Must | Must | Must |
+| Current Git branch from `git status --short --branch` | Should | Must | Must |
 | Validation command output | Should | Must | Must |
+| Validation integrity check output | Should if proof changes | Must if proof changes | Must |
 | Story packet or progress log | Skip if no story | Must | Must |
 | `docs/HARNESS_COMPONENTS.md` | Skip | Should if attributing friction | Must if failure attribution is needed |
 
@@ -88,6 +95,9 @@ Read to leave useful evidence for the next agent and for benchmark scoring.
 
 | Trigger Condition | Action |
 | --- | --- |
+| Task is exploratory and no implementation direction has been selected | Read `docs/BRAINSTORM.md`; keep output provisional until the user selects work for feature intake. |
+| Task starts feature, update, fix, maintenance, or high-risk implementation work | Read `docs/GIT_WORKFLOW.md`; create or verify the work branch before implementation unless the task is bootstrap-only. |
+| Task changes protected docs, tests, fixtures, snapshots, mocks, coverage, CI workflows, trace policy, or proof commands | Read `docs/VALIDATION_INTEGRITY.md`; run `python3 scripts/validation-integrity-check.py` or document the bootstrap exception. |
 | Task touches database schema, durable records, or migrations | Read `docs/decisions/0004-sqlite-durable-layer.md`, `scripts/schema/`, and relevant CLI code before planning. |
 | Task touches CLI command behavior or installer distribution | Read `docs/decisions/0005-prebuilt-rust-harness-cli.md`, `scripts/README.md`, relevant `crates/harness-cli/*` code, CLI help output, and installer docs. |
 | Task touches auth, authorization, audit/security, data loss, or external providers | Treat as high-risk, read `docs/templates/high-risk-story/*`, and check prior decisions before implementation. |
@@ -103,8 +113,8 @@ Read to leave useful evidence for the next agent and for benchmark scoring.
 | Lane | Target Context Budget | Read Shape | Reasoning |
 | --- | --- | --- | --- |
 | Tiny | About 2K tokens of Harness context | `AGENTS.md`, `docs/FEATURE_INTAKE.md`, matrix query, and the exact file being changed. | Tiny work should not spend more context on policy than on the edit. |
-| Normal | About 5K tokens of Harness context | Intake docs, relevant product/story docs, architecture when structural, validation expectations, and trace spec at the end. | Normal work needs enough context to preserve contracts and record proof without reading every historical file. |
-| High-risk | About 10K tokens of Harness context | Full intake, architecture, relevant decisions, high-risk templates, product docs, validation docs, trace spec, and component/maturity docs when Harness behavior changes. | High-risk work needs source hierarchy, prior decisions, and proof expectations in context before implementation. |
+| Normal | About 5K tokens of Harness context | Intake docs, Git workflow, validation integrity when proof changes, relevant product/story docs, architecture when structural, validation expectations, and trace spec at the end. | Normal work needs enough context to preserve contracts and record proof without reading every historical file. |
+| High-risk | About 10K tokens of Harness context | Full intake, Git workflow, validation integrity, architecture, relevant decisions, high-risk templates, product docs, validation docs, trace spec, and component/maturity docs when Harness behavior changes. | High-risk work needs source hierarchy, prior decisions, and proof expectations in context before implementation. |
 
 Budget rules:
 

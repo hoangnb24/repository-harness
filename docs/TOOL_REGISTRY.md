@@ -128,7 +128,8 @@ one; coin new ones in kebab-case:
 
 ```
 impact-analysis · deploy-verification · coverage · security-scan
-performance-benchmark · documentation-lookup
+performance-benchmark · documentation-lookup · version-control
+validation-integrity
 ```
 
 ## Inspecting The Registry

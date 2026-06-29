@@ -24,6 +24,12 @@ docs, design notes, and validation expectations for a feature.
 The classification step that turns a prompt into tiny, normal, or high-risk
 work before implementation begins.
 
+## Brainstorm
+
+A provisional exploration step before feature intake. Brainstorm output can
+compare options and risks, but it does not become product truth until the user
+selects a direction and the selected work enters the intake gate.
+
 ## Component Taxonomy
 
 A map from Harness files and capabilities to the responsibilities they serve,
@@ -40,6 +46,18 @@ indicators.
 
 The expected depth of a task trace: minimal for tiny work, standard for normal
 work, and detailed for high-risk work.
+
+## Git Branch Workflow
+
+The Harness rule set that keeps selected work off `main` after the baseline
+commit, ties branches to stories, and requires pre-merge proof before review or
+merge.
+
+## Validation Integrity
+
+The anti-cheat rule set that protects docs, verification commands, tests,
+fixtures, CI workflows, and traces from being weakened by the same work they
+are supposed to judge.
 
 ## Verification Gate
 

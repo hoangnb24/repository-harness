@@ -28,6 +28,17 @@ Add commands after scripts exist.
 TBD
 ```
 
+## Validation Integrity
+
+- Tests changed:
+- Fixtures, snapshots, mocks, or coverage changed:
+- Verify command changed:
+- CI workflow changed:
+- Protected Harness policy changed:
+- Validation weakened:
+- Decision record:
+- `python3 scripts/validation-integrity-check.py` result:
+
 ## Acceptance Evidence
 
 Add results after verification.

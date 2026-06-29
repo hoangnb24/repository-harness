@@ -143,10 +143,14 @@ This repo uses Harness. Before work, read:
 - `docs/FEATURE_INTAKE.md`
 - `docs/ARCHITECTURE.md`
 - `docs/CONTEXT_RULES.md`
+- `docs/TOOL_REGISTRY.md`
 - `scripts/bin/harness-cli query matrix` on macOS/Linux, or `.\scripts\bin\harness-cli.exe query matrix` on Windows
 
 Use the Rust Harness CLI at `scripts/bin/harness-cli` on macOS/Linux or
-`scripts/bin/harness-cli.exe` on Windows as the main operational tool.
+`scripts/bin/harness-cli.exe` on Windows as the main operational tool. Before a
+step that could use an external tool, run `scripts/bin/harness-cli query tools
+--capability <name> --status present` to see what is equipped; an absent
+capability is a clean skip.
 <!-- HARNESS:END -->
 '@
 }
@@ -344,8 +348,10 @@ $files = @(
     "AGENTS.md",
     "README.md",
     "docs/ARCHITECTURE.md",
+    "docs/BRAINSTORM.md",
     "docs/CONTEXT_RULES.md",
     "docs/FEATURE_INTAKE.md",
+    "docs/GIT_WORKFLOW.md",
     "docs/GLOSSARY.md",
     "docs/HARNESS.md",
     "docs/HARNESS_AUDIT.md",
@@ -357,6 +363,7 @@ $files = @(
     "docs/TEST_MATRIX.md",
     "docs/TOOL_REGISTRY.md",
     "docs/TRACE_SPEC.md",
+    "docs/VALIDATION_INTEGRITY.md",
     "docs/decisions/0001-harness-first-development.md",
     "docs/decisions/0002-post-spec-product-lifecycle.md",
     "docs/decisions/0003-generic-spec-intake-harness.md",
@@ -364,10 +371,18 @@ $files = @(
     "docs/decisions/0005-prebuilt-rust-harness-cli.md",
     "docs/decisions/0006-phase-4-benchmark-triage.md",
     "docs/decisions/0007-improvement-proposal-rules.md",
+    "docs/decisions/0008-validation-integrity-anti-cheat.md",
     "docs/decisions/README.md",
     "docs/product/README.md",
     "docs/stories/README.md",
+    "docs/stories/US-001-add-brainstorm-workflow.md",
+    "docs/stories/US-002-add-git-branch-workflow.md",
     "docs/stories/backlog.md",
+    "docs/stories/epics/E04-validation-integrity/US-003-anti-cheat-validation-integrity/design.md",
+    "docs/stories/epics/E04-validation-integrity/US-003-anti-cheat-validation-integrity/execplan.md",
+    "docs/stories/epics/E04-validation-integrity/US-003-anti-cheat-validation-integrity/overview.md",
+    "docs/stories/epics/E04-validation-integrity/US-003-anti-cheat-validation-integrity/validation.md",
+    "docs/templates/brainstorm.md",
     "docs/templates/decision.md",
     "docs/templates/spec-intake.md",
     "docs/templates/story.md",
@@ -382,6 +397,10 @@ $files = @(
     "scripts/schema/003-tool-registry.sql",
     "scripts/schema/004-intervention.sql",
     "scripts/schema/005-tool-extensions.sql",
+    "scripts/validation-integrity-check.py",
+    ".github/CODEOWNERS",
+    ".github/pull_request_template.md",
+    ".github/workflows/harness-validation.yml",
     ".gitignore"
 )
 

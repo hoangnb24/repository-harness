@@ -31,6 +31,13 @@ Describe the behavior this story must make true.
 - Domain rules:
 - UI surfaces:
 
+## Git Branch
+
+- Branch:
+- Base:
+- Merge target:
+- Bootstrap exception:
+
 ## Validation
 
 When updating durable proof status, use numeric booleans:
@@ -44,6 +51,16 @@ When updating durable proof status, use numeric booleans:
 | Platform | |
 | Release | |
 
+## Validation Integrity
+
+- Tests changed:
+- Fixtures, snapshots, mocks, or coverage changed:
+- Verify command changed:
+- CI workflow changed:
+- Protected Harness policy changed:
+- Validation weakened:
+- Decision record:
+
 ## Harness Delta
 
 Document any harness updates made or proposed because of this story.
@@ -51,3 +68,7 @@ Document any harness updates made or proposed because of this story.
 ## Evidence
 
 Add commands, reports, screenshots, or links after validation exists.
+
+- Branch:
+- Commits:
+- Pull request or merge:
