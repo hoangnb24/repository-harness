@@ -520,6 +520,7 @@ mod tests {
             single_active_run: true,
             agent_adapter: "custom".to_owned(),
             agent_command: vec![],
+            agent_model: None,
             agent_timeout_minutes: 120,
             pull_request_create: "ask".to_owned(),
             pull_request_provider: "github".to_owned(),

@@ -1,10 +1,11 @@
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+use serde::Serialize;
 use serde_json::{json, Value};
 use thiserror::Error;
 
@@ -20,12 +21,14 @@ const CODEX_IDLE_RECONCILE_SECONDS: u64 = 1;
 pub enum AgentError {
     #[error("agent.command is not configured. Set agent.command in .harness/symphony.yml.")]
     MissingCommand,
-    #[error("unsupported agent adapter '{0}'. Supported adapters: custom, codex")]
+    #[error("unsupported agent adapter '{0}'. Supported adapters: custom, codex, claudecode")]
     UnsupportedAdapter(String),
     #[error("agent command failed with status {status}: {stderr}")]
     CommandFailed { status: String, stderr: String },
     #[error("codex app-server failed: {0}")]
     Codex(String),
+    #[error("claude code failed: {0}")]
+    ClaudeCode(String),
     #[error("agent io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("agent json error: {0}")]
@@ -36,6 +39,7 @@ pub fn run_agent(config: &ResolvedConfig, prepared: &PreparedRun) -> Result<(), 
     match config.agent_adapter.as_str() {
         "custom" => run_custom_agent(config, prepared),
         "codex" => run_codex_agent(config, prepared),
+        "claudecode" => run_claude_code_agent(config, prepared),
         other => Err(AgentError::UnsupportedAdapter(other.to_owned())),
     }
 }
@@ -46,6 +50,9 @@ pub fn resolved_agent_command(config: &ResolvedConfig) -> Vec<String> {
     }
     if config.agent_adapter == "codex" {
         return vec!["codex".to_owned(), "app-server".to_owned()];
+    }
+    if config.agent_adapter == "claudecode" {
+        return vec![resolve_claude_binary()];
     }
     Vec::new()
 }
@@ -64,8 +71,262 @@ pub fn agent_adapter_status(config: &ResolvedConfig) -> Result<String, AgentErro
             "codex app-server command: {}",
             resolved_agent_command(config).join(" ")
         )),
+        "claudecode" => Ok(format!(
+            "claude command: {}",
+            resolved_agent_command(config).join(" ")
+        )),
         other => Err(AgentError::UnsupportedAdapter(other.to_owned())),
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Readiness {
+    Ready,
+    NeedsSetup,
+    NotInstalled,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AgentReadiness {
+    pub adapter: String,
+    pub active: bool,
+    pub binary_present: bool,
+    pub binary_detail: String,
+    pub auth_ready: bool,
+    pub auth_detail: String,
+    pub overall: Readiness,
+    pub next: Option<String>,
+}
+
+/// Pure decision layer: map probe results to an overall readiness and next hint.
+fn resolve_readiness(
+    adapter: &str,
+    binary_present: bool,
+    auth_ready: bool,
+    command_configured: bool,
+) -> (Readiness, Option<String>) {
+    match adapter {
+        "custom" => {
+            if command_configured {
+                (Readiness::Ready, None)
+            } else {
+                (
+                    Readiness::NeedsSetup,
+                    Some("Set agent.command in .harness/symphony.yml.".to_owned()),
+                )
+            }
+        }
+        "claudecode" => {
+            if !binary_present {
+                (
+                    Readiness::NotInstalled,
+                    Some("Install Claude Code: npm i -g @anthropic-ai/claude-code".to_owned()),
+                )
+            } else if !auth_ready {
+                (
+                    Readiness::NeedsSetup,
+                    Some(
+                        "Authenticate: run `claude` and log in, or set ANTHROPIC_API_KEY."
+                            .to_owned(),
+                    ),
+                )
+            } else {
+                (Readiness::Ready, None)
+            }
+        }
+        "codex" => {
+            if !binary_present {
+                (
+                    Readiness::NotInstalled,
+                    Some("Install Codex CLI.".to_owned()),
+                )
+            } else if !auth_ready {
+                (Readiness::NeedsSetup, Some("Run: codex login".to_owned()))
+            } else {
+                (Readiness::Ready, None)
+            }
+        }
+        _ => (
+            Readiness::Unknown,
+            Some("Set agent.adapter to custom, codex, or claudecode.".to_owned()),
+        ),
+    }
+}
+
+fn agent_binary_name(adapter: &str, config: &ResolvedConfig) -> Option<String> {
+    match adapter {
+        "claudecode" => Some(resolve_claude_binary()),
+        "codex" => Some("codex".to_owned()),
+        "custom" => config.agent_command.first().cloned(),
+        _ => None,
+    }
+}
+
+fn probe_binary(bin: &str) -> (bool, String) {
+    // Bound the probe: a bad custom command or a `--version` that hangs on a TTY
+    // prompt must not freeze doctor or the future /api/agents endpoint.
+    let mut child = match Command::new(bin)
+        .arg("--version")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(error) => return (false, format!("{bin} is not runnable: {error}")),
+    };
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if !status.success() {
+                    return (false, format!("{bin} --version returned a failure status"));
+                }
+                let mut stdout = String::new();
+                if let Some(mut handle) = child.stdout.take() {
+                    use std::io::Read;
+                    let _ = handle.read_to_string(&mut stdout);
+                }
+                return (true, stdout.trim().to_owned());
+            }
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return (false, format!("{bin} --version timed out"));
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(error) => return (false, format!("{bin} is not runnable: {error}")),
+        }
+    }
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(PathBuf::from)
+}
+
+fn expand_tilde(path: &str, home: &Path) -> PathBuf {
+    if path == "~" {
+        return home.to_path_buf();
+    }
+    if let Some(rest) = path.strip_prefix("~/") {
+        return home.join(rest);
+    }
+    PathBuf::from(path)
+}
+
+/// Resolve the Claude Code executable, honoring an explicit `CLAUDE_EXECUTABLE`
+/// override before falling back to `claude` on `PATH`.
+fn resolve_claude_binary() -> String {
+    if let Some(value) = std::env::var_os("CLAUDE_EXECUTABLE") {
+        let raw = value.to_string_lossy().to_string();
+        if !raw.is_empty() {
+            let candidate = match home_dir() {
+                Some(home) => expand_tilde(&raw, &home),
+                None => PathBuf::from(&raw),
+            };
+            if candidate.is_file() {
+                return candidate.to_string_lossy().into_owned();
+            }
+        }
+    }
+    "claude".to_owned()
+}
+
+/// True when `~/.claude.json` records a completed Claude Code login. The OAuth
+/// token itself lives outside this file (e.g. the OS keychain), so its presence
+/// here is the reliable signal that the CLI is authenticated and usable.
+fn config_indicates_login(value: &Value) -> bool {
+    value
+        .get("oauthAccount")
+        .is_some_and(|account| !account.is_null())
+        || value
+            .get("userID")
+            .and_then(Value::as_str)
+            .is_some_and(|id| !id.is_empty())
+}
+
+fn claude_config_login() -> bool {
+    let Some(home) = home_dir() else {
+        return false;
+    };
+    let Ok(text) = std::fs::read_to_string(home.join(".claude.json")) else {
+        return false;
+    };
+    serde_json::from_str::<Value>(&text)
+        .map(|value| config_indicates_login(&value))
+        .unwrap_or(false)
+}
+
+fn env_nonempty(key: &str) -> bool {
+    std::env::var(key)
+        .map(|value| !value.is_empty())
+        .unwrap_or(false)
+}
+
+fn probe_auth(adapter: &str) -> (bool, String) {
+    match adapter {
+        "claudecode" => {
+            if env_nonempty("ANTHROPIC_API_KEY") {
+                return (true, "ANTHROPIC_API_KEY is set".to_owned());
+            }
+            if std::env::var_os("CLAUDE_CODE_USE_BEDROCK").is_some()
+                || std::env::var_os("CLAUDE_CODE_USE_VERTEX").is_some()
+            {
+                return (true, "cloud provider auth is configured".to_owned());
+            }
+            if home_dir().is_some_and(|home| home.join(".claude/.credentials.json").exists()) {
+                return (true, "~/.claude/.credentials.json exists".to_owned());
+            }
+            if claude_config_login() {
+                return (
+                    true,
+                    "logged in via Claude Code (~/.claude.json)".to_owned(),
+                );
+            }
+            (false, "no Claude Code credentials found".to_owned())
+        }
+        "codex" => {
+            if env_nonempty("OPENAI_API_KEY") {
+                return (true, "OPENAI_API_KEY is set".to_owned());
+            }
+            if home_dir().is_some_and(|home| home.join(".codex/auth.json").exists()) {
+                return (true, "~/.codex/auth.json exists".to_owned());
+            }
+            (false, "no Codex credentials found".to_owned())
+        }
+        _ => (true, "auth not required".to_owned()),
+    }
+}
+
+pub fn agent_readiness(config: &ResolvedConfig, adapter: &str) -> AgentReadiness {
+    let (binary_present, binary_detail) = match agent_binary_name(adapter, config) {
+        Some(bin) => probe_binary(&bin),
+        None => (false, "no agent binary configured".to_owned()),
+    };
+    let (auth_ready, auth_detail) = probe_auth(adapter);
+    let command_configured = !config.agent_command.is_empty();
+    let (overall, next) =
+        resolve_readiness(adapter, binary_present, auth_ready, command_configured);
+    AgentReadiness {
+        adapter: adapter.to_owned(),
+        active: adapter == config.agent_adapter,
+        binary_present,
+        binary_detail,
+        auth_ready,
+        auth_detail,
+        overall,
+        next,
+    }
+}
+
+pub fn all_agent_readiness(config: &ResolvedConfig) -> Vec<AgentReadiness> {
+    ["claudecode", "codex", "custom"]
+        .into_iter()
+        .map(|adapter| agent_readiness(config, adapter))
+        .collect()
 }
 
 fn run_custom_agent(config: &ResolvedConfig, prepared: &PreparedRun) -> Result<(), AgentError> {
@@ -335,6 +596,179 @@ fn run_codex_agent(config: &ResolvedConfig, prepared: &PreparedRun) -> Result<()
     }
 }
 
+fn claude_code_args(config: &ResolvedConfig, prompt: &str) -> Vec<String> {
+    let mut args = vec![
+        "-p".to_owned(),
+        prompt.to_owned(),
+        "--output-format".to_owned(),
+        "stream-json".to_owned(),
+        "--verbose".to_owned(),
+        "--dangerously-skip-permissions".to_owned(),
+    ];
+    if let Some(model) = &config.agent_model {
+        args.push("--model".to_owned());
+        args.push(model.clone());
+    }
+    args
+}
+
+fn record_claude_line(
+    event_log_path: &Path,
+    line: &str,
+    final_is_error: &mut Option<bool>,
+    final_subtype: &mut Option<String>,
+) -> Result<(), AgentError> {
+    append_event_log(event_log_path, line)?;
+    // The claude adapter deliberately tolerates non-JSON or partial stdout lines
+    // (still logged to the event file above) rather than hard-erroring on a parse
+    // failure the way run_codex_agent does.
+    if let Ok(message) = serde_json::from_str::<Value>(line) {
+        if message.get("type").and_then(Value::as_str) == Some("result") {
+            *final_is_error = Some(
+                message
+                    .get("is_error")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+            );
+            *final_subtype = message
+                .get("subtype")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+        }
+    }
+    Ok(())
+}
+
+fn run_claude_code_agent(
+    config: &ResolvedConfig,
+    prepared: &PreparedRun,
+) -> Result<(), AgentError> {
+    let command = resolved_agent_command(config);
+    if command.is_empty() {
+        return Err(AgentError::MissingCommand);
+    }
+
+    let prompt = agent_prompt(config, prepared);
+    let mut process = base_command(&command, prepared);
+    process
+        .args(claude_code_args(config, &prompt))
+        // When the harness itself runs inside a Claude Code session these flags
+        // are inherited; strip them so the spawned agent starts as a clean
+        // top-level session instead of a nested child.
+        .env_remove("CLAUDECODE")
+        .env_remove("CLAUDE_CODE_CHILD_SESSION")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = process.spawn()?;
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| AgentError::ClaudeCode("failed to open claude stdout".to_owned()))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| AgentError::ClaudeCode("failed to open claude stderr".to_owned()))?;
+
+    // Drain stderr continuously on its own thread so a chatty Node CLI cannot fill
+    // the pipe buffer, block its own write(), and burn the whole timeout.
+    let stderr_handle = std::thread::spawn(move || {
+        let mut buffer = String::new();
+        std::io::Read::read_to_string(&mut BufReader::new(stderr), &mut buffer).ok();
+        buffer
+    });
+
+    let (line_tx, line_rx) = mpsc::channel::<String>();
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines().map_while(Result::ok) {
+            if line_tx.send(line).is_err() {
+                break;
+            }
+        }
+    });
+
+    let event_log_path = prepared
+        .contract_path
+        .parent()
+        .unwrap_or(&prepared.worktree)
+        .join("CLAUDE_CODE_EVENTS.jsonl");
+    let deadline = Instant::now() + Duration::from_secs(config.agent_timeout_minutes as u64 * 60);
+    let mut final_is_error: Option<bool> = None;
+    let mut final_subtype: Option<String> = None;
+
+    loop {
+        if Instant::now() >= deadline {
+            terminate_child(&mut child);
+            return Err(AgentError::ClaudeCode(format!(
+                "timed out after {} minute(s); see {}",
+                config.agent_timeout_minutes,
+                event_log_path.display()
+            )));
+        }
+
+        match line_rx.recv_timeout(Duration::from_millis(250)) {
+            Ok(line) => {
+                record_claude_line(
+                    &event_log_path,
+                    &line,
+                    &mut final_is_error,
+                    &mut final_subtype,
+                )?;
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                if child.try_wait()?.is_some() {
+                    break;
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                break;
+            }
+        }
+    }
+
+    // Child exited or stdout closed. Drain every remaining line with a BLOCKING
+    // recv: it returns Err only once the reader thread hits EOF and drops the
+    // sender, so no buffered line (including the terminal `result`) can be lost to
+    // a race. It cannot hang: the child has exited, so stdout closes and the
+    // reader reaches EOF within microseconds.
+    while let Ok(line) = line_rx.recv() {
+        record_claude_line(
+            &event_log_path,
+            &line,
+            &mut final_is_error,
+            &mut final_subtype,
+        )?;
+    }
+
+    // Reap the child; a `stream-json` result is authoritative, so the exit status
+    // itself is not part of the success decision.
+    child.wait()?;
+    let stderr_text = stderr_handle.join().unwrap_or_default();
+    match final_is_error {
+        Some(true) => {
+            let detail =
+                final_subtype.unwrap_or_else(|| "claude reported an error result".to_owned());
+            Err(AgentError::ClaudeCode(detail))
+        }
+        // is_error:false is an authoritative success signal, so the process exit
+        // status is intentionally not consulted on this arm.
+        Some(false) => Ok(()),
+        None => {
+            // A real `--output-format stream-json` run always emits a terminal
+            // result event, so its absence is anomalous regardless of exit status.
+            let mut detail = format!(
+                "claude exited without a result event; see {}",
+                event_log_path.display()
+            );
+            if !stderr_text.trim().is_empty() {
+                detail.push_str(&format!(" (stderr: {})", stderr_text.trim()));
+            }
+            Err(AgentError::ClaudeCode(detail))
+        }
+    }
+}
+
 fn base_command(command: &[String], prepared: &PreparedRun) -> Command {
     let mut process = Command::new(&command[0]);
     process
@@ -381,7 +815,7 @@ fn send_turn_start(
                 "input": [
                     {
                         "type": "text",
-                        "text": codex_prompt(config, prepared),
+                        "text": agent_prompt(config, prepared),
                         "text_elements": []
                     }
                 ]
@@ -430,7 +864,7 @@ fn turn_error_from_query<'a>(message: &'a Value, turn_id: &str) -> Option<&'a st
         .and_then(Value::as_str)
 }
 
-fn codex_prompt(config: &ResolvedConfig, prepared: &PreparedRun) -> String {
+fn agent_prompt(config: &ResolvedConfig, prepared: &PreparedRun) -> String {
     let harness_cli = config.repo_root.join("scripts/bin/harness-cli");
     format!(
         "You are running inside a Harness Symphony worktree. Read AGENTS.md and the run contract at {}. Complete only story {} for run {}. Do not change unrelated product code. Write all required artifacts under the current working directory: .harness/runs/{}/SUMMARY.md and .harness/runs/{}/RESULT.json. Use Harness CLI writes with HARNESS_DB_PATH, HARNESS_RUN_ID, and HARNESS_RUN_MODE from the environment so .harness/changesets/{}.changeset.jsonl is produced in this worktree. If scripts/bin/harness-cli is absent in the worktree, run the root binary at {} while keeping the current worktree as cwd. RESULT.json must have version 1, run_id {}, story_id {}, an allowed outcome, summary_path .harness/runs/{}/SUMMARY.md, and a top-level validation object. Do not write validation_evidence. validation must be either {{\"commands\":[{{\"command\":\"exact command\",\"result\":\"pass\"}}]}} with each result set to pass, fail, or unavailable, or {{\"unavailable\":\"non-empty reason\"}}.",
@@ -479,6 +913,7 @@ mod tests {
             single_active_run: true,
             agent_adapter: adapter.to_owned(),
             agent_command: command.into_iter().map(str::to_owned).collect(),
+            agent_model: None,
             agent_timeout_minutes: 120,
             pull_request_create: "ask".to_owned(),
             pull_request_provider: "github".to_owned(),
@@ -531,9 +966,9 @@ mod tests {
     }
 
     #[test]
-    fn codex_prompt_points_to_worktree_artifacts_and_run_env() {
+    fn agent_prompt_points_to_worktree_artifacts_and_run_env() {
         let config = config("codex", vec![]);
-        let prompt = codex_prompt(&config, &prepared());
+        let prompt = agent_prompt(&config, &prepared());
 
         assert!(prompt.contains("US-046"));
         assert!(prompt.contains(".harness/runs/run_1/SUMMARY.md"));
@@ -578,6 +1013,222 @@ printf '%s\n' '{"method":"turn/completed","params":{"threadId":"thr_1","turn":{"
         prepared.contract_path = worktree.join(".harness/runs/run_1/RUN_CONTRACT.json");
 
         run_codex_agent(&config, &prepared).unwrap();
+    }
+
+    #[test]
+    fn claudecode_defaults_to_claude_command() {
+        let config = config("claudecode", vec![]);
+
+        assert_eq!(resolved_agent_command(&config), vec!["claude".to_owned()]);
+        assert!(agent_adapter_status(&config).unwrap().contains("claude"));
+    }
+
+    #[test]
+    fn claude_code_args_include_model_when_set() {
+        let mut config = config("claudecode", vec![]);
+        config.agent_model = Some("sonnet".to_owned());
+        let args = claude_code_args(&config, "do the work");
+
+        assert_eq!(
+            args,
+            vec![
+                "-p".to_owned(),
+                "do the work".to_owned(),
+                "--output-format".to_owned(),
+                "stream-json".to_owned(),
+                "--verbose".to_owned(),
+                "--dangerously-skip-permissions".to_owned(),
+                "--model".to_owned(),
+                "sonnet".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn claude_code_args_omit_model_when_absent() {
+        let config = config("claudecode", vec![]);
+        let args = claude_code_args(&config, "do the work");
+
+        assert!(!args.contains(&"--model".to_owned()));
+        assert_eq!(args.first().map(String::as_str), Some("-p"));
+        assert!(args.contains(&"stream-json".to_owned()));
+    }
+
+    #[test]
+    fn claudecode_adapter_completes_via_fake_claude() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let worktree = temp_dir.path().join("worktree");
+        fs::create_dir_all(&worktree).unwrap();
+        let fake_claude = temp_dir.path().join("fake-claude");
+        fs::write(
+            &fake_claude,
+            r#"#!/usr/bin/env sh
+printf '%s\n' '{"type":"system","subtype":"init"}'
+printf '%s\n' '{"type":"assistant","message":{"role":"assistant"}}'
+printf '%s\n' '{"type":"result","subtype":"success","is_error":false}'
+"#,
+        )
+        .unwrap();
+        let mut permissions = fs::metadata(&fake_claude).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&fake_claude, permissions).unwrap();
+
+        let mut config = config("claudecode", vec![fake_claude.to_str().unwrap()]);
+        config.agent_timeout_minutes = 1;
+        let mut prepared = prepared();
+        prepared.worktree = worktree.clone();
+        prepared.harness_db_path = worktree.join("harness.db");
+        prepared.contract_path = worktree.join(".harness/runs/run_1/RUN_CONTRACT.json");
+
+        run_claude_code_agent(&config, &prepared).unwrap();
+
+        let event_log = worktree.join(".harness/runs/run_1/CLAUDE_CODE_EVENTS.jsonl");
+        assert!(event_log.exists());
+    }
+
+    #[test]
+    fn claudecode_adapter_reports_error_result() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let worktree = temp_dir.path().join("worktree");
+        fs::create_dir_all(&worktree).unwrap();
+        let fake_claude = temp_dir.path().join("fake-claude");
+        fs::write(
+            &fake_claude,
+            r#"#!/usr/bin/env sh
+printf '%s\n' '{"type":"result","subtype":"error_max_turns","is_error":true}'
+"#,
+        )
+        .unwrap();
+        let mut permissions = fs::metadata(&fake_claude).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&fake_claude, permissions).unwrap();
+
+        let mut config = config("claudecode", vec![fake_claude.to_str().unwrap()]);
+        config.agent_timeout_minutes = 1;
+        let mut prepared = prepared();
+        prepared.worktree = worktree.clone();
+        prepared.harness_db_path = worktree.join("harness.db");
+        prepared.contract_path = worktree.join(".harness/runs/run_1/RUN_CONTRACT.json");
+
+        assert!(matches!(
+            run_claude_code_agent(&config, &prepared).unwrap_err(),
+            AgentError::ClaudeCode(_)
+        ));
+    }
+
+    #[test]
+    fn claudecode_adapter_errors_without_result_event() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let worktree = temp_dir.path().join("worktree");
+        fs::create_dir_all(&worktree).unwrap();
+        let fake_claude = temp_dir.path().join("fake-claude");
+        fs::write(
+            &fake_claude,
+            r#"#!/usr/bin/env sh
+printf '%s\n' '{"type":"system","subtype":"init"}'
+"#,
+        )
+        .unwrap();
+        let mut permissions = fs::metadata(&fake_claude).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&fake_claude, permissions).unwrap();
+
+        let mut config = config("claudecode", vec![fake_claude.to_str().unwrap()]);
+        config.agent_timeout_minutes = 1;
+        let mut prepared = prepared();
+        prepared.worktree = worktree.clone();
+        prepared.harness_db_path = worktree.join("harness.db");
+        prepared.contract_path = worktree.join(".harness/runs/run_1/RUN_CONTRACT.json");
+
+        assert!(matches!(
+            run_claude_code_agent(&config, &prepared).unwrap_err(),
+            AgentError::ClaudeCode(_)
+        ));
+    }
+
+    #[test]
+    fn resolve_readiness_covers_all_branches() {
+        assert_eq!(
+            resolve_readiness("custom", false, true, true).0,
+            Readiness::Ready
+        );
+        let (status, next) = resolve_readiness("custom", false, true, false);
+        assert_eq!(status, Readiness::NeedsSetup);
+        assert!(next.unwrap().contains("agent.command"));
+
+        let (status, next) = resolve_readiness("claudecode", false, false, false);
+        assert_eq!(status, Readiness::NotInstalled);
+        assert!(next.unwrap().contains("npm i -g @anthropic-ai/claude-code"));
+        let (status, next) = resolve_readiness("claudecode", true, false, false);
+        assert_eq!(status, Readiness::NeedsSetup);
+        assert!(next.unwrap().contains("ANTHROPIC_API_KEY"));
+        assert_eq!(
+            resolve_readiness("claudecode", true, true, false).0,
+            Readiness::Ready
+        );
+
+        let (status, next) = resolve_readiness("codex", false, false, false);
+        assert_eq!(status, Readiness::NotInstalled);
+        assert!(next.unwrap().contains("Codex"));
+        let (status, next) = resolve_readiness("codex", true, false, false);
+        assert_eq!(status, Readiness::NeedsSetup);
+        assert!(next.unwrap().contains("codex login"));
+        assert_eq!(
+            resolve_readiness("codex", true, true, false).0,
+            Readiness::Ready
+        );
+
+        let (status, next) = resolve_readiness("mystery", true, true, true);
+        assert_eq!(status, Readiness::Unknown);
+        assert!(next.unwrap().contains("agent.adapter"));
+    }
+
+    #[test]
+    fn all_agent_readiness_marks_active_adapter() {
+        let config = config("claudecode", vec![]);
+        let all = all_agent_readiness(&config);
+
+        assert_eq!(all.len(), 3);
+        let active: Vec<&str> = all
+            .iter()
+            .filter(|entry| entry.active)
+            .map(|entry| entry.adapter.as_str())
+            .collect();
+        assert_eq!(active, vec!["claudecode"]);
+    }
+
+    #[test]
+    fn readiness_serializes_kebab_case() {
+        assert_eq!(
+            serde_json::to_string(&Readiness::NotInstalled).unwrap(),
+            "\"not-installed\""
+        );
+    }
+
+    #[test]
+    fn config_indicates_login_detects_oauth_account_or_user_id() {
+        let with_oauth = json!({ "oauthAccount": { "emailAddress": "person@example.com" } });
+        assert!(config_indicates_login(&with_oauth));
+
+        let with_user_id = json!({ "userID": "abc123" });
+        assert!(config_indicates_login(&with_user_id));
+
+        assert!(!config_indicates_login(&json!({})));
+        assert!(!config_indicates_login(&json!({ "oauthAccount": null })));
+        assert!(!config_indicates_login(&json!({ "userID": "" })));
+    }
+
+    #[test]
+    fn expand_tilde_resolves_home_prefix_only() {
+        let home = Path::new("/home/agent");
+        assert_eq!(expand_tilde("~", home), home.to_path_buf());
+        assert_eq!(expand_tilde("~/bin/claude", home), home.join("bin/claude"));
+        assert_eq!(
+            expand_tilde("/usr/local/bin/claude", home),
+            PathBuf::from("/usr/local/bin/claude")
+        );
+        // A bare "~name" is not a home reference and must be left untouched.
+        assert_eq!(expand_tilde("~other/x", home), PathBuf::from("~other/x"));
     }
 
     #[test]

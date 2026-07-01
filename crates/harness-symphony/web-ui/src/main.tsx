@@ -53,6 +53,23 @@ type BoardResponse = {
   items: BoardItem[];
 };
 
+type AgentOverall = "ready" | "needs-setup" | "not-installed" | "unknown";
+
+type AgentStatus = {
+  adapter: string;
+  active: boolean;
+  binary_present: boolean;
+  binary_detail: string;
+  auth_ready: boolean;
+  auth_detail: string;
+  overall: AgentOverall;
+  next: string | null;
+};
+
+type AgentsResponse = {
+  agents: AgentStatus[];
+};
+
 type RunEvent = unknown;
 
 type EventsResponse = {
@@ -120,8 +137,23 @@ const stateTone = {
   Done: "done"
 } as const;
 
+const agentOverallLabel = {
+  ready: "Ready",
+  "needs-setup": "Needs setup",
+  "not-installed": "Not installed",
+  unknown: "Unknown"
+} as const;
+
+const agentDot = {
+  ready: "bg-emerald-500",
+  "needs-setup": "bg-amber-500",
+  "not-installed": "bg-zinc-400",
+  unknown: "bg-zinc-300"
+} as const;
+
 function App() {
   const [items, setItems] = React.useState<BoardItem[]>([]);
+  const [agents, setAgents] = React.useState<AgentStatus[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [confettiBursts, setConfettiBursts] = React.useState<ConfettiBurst[]>([]);
   const [query, setQuery] = React.useState("");
@@ -132,6 +164,20 @@ function App() {
   const [markingMergedRunId, setMarkingMergedRunId] = React.useState<string | null>(null);
   const confettiBurstIdRef = React.useRef(0);
   const prefersReducedMotion = usePrefersReducedMotion();
+
+  const loadAgents = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/agents");
+      if (!response.ok) {
+        throw new Error(`Agents request failed (${response.status})`);
+      }
+      const data = (await response.json()) as AgentsResponse;
+      setAgents(Array.isArray(data.agents) ? data.agents : []);
+    } catch {
+      // Keep the app usable when agent status is unavailable; render a degraded strip.
+      setAgents([]);
+    }
+  }, []);
 
   const loadBoard = React.useCallback(async () => {
     setLoading(true);
@@ -147,8 +193,9 @@ function App() {
       setError(cause instanceof Error ? cause.message : "Board request failed");
     } finally {
       setLoading(false);
+      void loadAgents();
     }
-  }, []);
+  }, [loadAgents]);
 
   React.useEffect(() => {
     void loadBoard();
@@ -203,13 +250,13 @@ function App() {
   );
 
   const startTask = React.useCallback(
-    async (storyId: string) => {
+    async (storyId: string, adapter?: string) => {
       setStartingId(storyId);
       setError(null);
       try {
-        const response = await fetch(`/api/tasks/${encodeURIComponent(storyId)}/start`, {
-          method: "POST"
-        });
+        const base = `/api/tasks/${encodeURIComponent(storyId)}/start`;
+        const url = adapter ? `${base}?adapter=${encodeURIComponent(adapter)}` : base;
+        const response = await fetch(url, { method: "POST" });
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string } | null;
           throw new Error(body?.error ?? `Start failed (${response.status})`);
@@ -305,6 +352,8 @@ function App() {
             </div>
           </header>
 
+          <AgentsStrip agents={agents} />
+
           <SummaryStrip activeRun={activeRun} counts={counts} />
 
           {error ? (
@@ -327,6 +376,7 @@ function App() {
             <TaskDetailOverlay onClose={() => setSelectedId(null)}>
               <TaskDetail
                 item={selected}
+                agents={agents}
                 startingId={startingId}
                 syncingRunId={syncingRunId}
                 markingMergedRunId={markingMergedRunId}
@@ -511,6 +561,46 @@ function SidebarItem({ label, count, active = false }: { label: string; count: s
       <span>{label}</span>
       <span className="font-mono text-xs text-muted-foreground">{count}</span>
     </a>
+  );
+}
+
+function AgentsStrip({ agents }: { agents: AgentStatus[] }) {
+  return (
+    <section
+      aria-label="Agent readiness"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground"
+    >
+      <span className="font-semibold uppercase tracking-widest">Agents</span>
+      {agents.length > 0 ? (
+        agents.map((agent) => <AgentPill key={agent.adapter} agent={agent} />)
+      ) : (
+        <span>Agent status unavailable.</span>
+      )}
+    </section>
+  );
+}
+
+function AgentPill({ agent }: { agent: AgentStatus }) {
+  const label = agentOverallLabel[agent.overall] ?? agent.overall;
+  const dot = agentDot[agent.overall] ?? "bg-zinc-300";
+  const hint = agent.next ?? agent.auth_detail;
+
+  return (
+    <span
+      data-testid={`agent-card-${agent.adapter}`}
+      title={hint ? `${agent.binary_detail} — ${hint}` : agent.binary_detail}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
+        agent.active ? "border-primary/40 bg-accent" : "border-transparent"
+      )}
+    >
+      <span className={cn("size-1.5 shrink-0 rounded-full", dot)} aria-hidden />
+      <span className="font-mono font-medium text-foreground/90">{agent.adapter}</span>
+      {agent.active ? (
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">active</span>
+      ) : null}
+      <span className="text-muted-foreground">{label}</span>
+    </span>
   );
 }
 
@@ -721,6 +811,7 @@ function ConfettiBurstHost({
 
 function TaskDetail({
   item,
+  agents,
   startingId,
   syncingRunId,
   markingMergedRunId,
@@ -730,11 +821,12 @@ function TaskDetail({
   onMarkPrMerged
 }: {
   item: BoardItem;
+  agents: AgentStatus[];
   startingId: string | null;
   syncingRunId: string | null;
   markingMergedRunId: string | null;
   onClose: (origin?: HTMLElement) => void;
-  onStart: (storyId: string) => Promise<void>;
+  onStart: (storyId: string, adapter?: string) => Promise<void>;
   onSync: (runId: string) => Promise<void>;
   onMarkPrMerged: (runId: string) => Promise<void>;
 }) {
@@ -813,6 +905,12 @@ function TaskDetail({
 
   const isReady = item.board_state === "Ready";
   const isStarting = startingId === item.id;
+  const readyAgents = agents.filter((agent) => agent.overall === "ready").map((agent) => agent.adapter);
+  const activeAgent = agents.find((agent) => agent.active)?.adapter;
+  const defaultAgent =
+    (activeAgent && readyAgents.includes(activeAgent) ? activeAgent : readyAgents[0]) ?? undefined;
+  const [pickedAgent, setPickedAgent] = React.useState<string | undefined>(undefined);
+  const chosenAgent = pickedAgent ?? defaultAgent;
 
   return (
     <aside
@@ -849,10 +947,26 @@ function TaskDetail({
           <Field label="Children" value={item.children.length > 0 ? item.children.join(", ") : "none"} />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
+          {isReady && readyAgents.length > 0 ? (
+            <select
+              aria-label="Agent to run"
+              value={chosenAgent}
+              onChange={(event) => setPickedAgent(event.target.value)}
+              disabled={isStarting}
+              className="h-9 rounded-md border border-border bg-background px-2 text-sm font-medium"
+            >
+              {readyAgents.map((adapter) => (
+                <option key={adapter} value={adapter}>
+                  {adapter}
+                  {adapter === activeAgent ? " (default)" : ""}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <Button
             disabled={!isReady || isStarting}
-            title={isReady ? "Start task" : "Blocked tasks cannot start"}
-            onClick={() => void onStart(item.id)}
+            title={isReady ? `Start with ${chosenAgent ?? "the configured agent"}` : "Blocked tasks cannot start"}
+            onClick={() => void onStart(item.id, chosenAgent)}
           >
             {isStarting ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Play data-icon="inline-start" />}
             {isReady ? "Start work" : item.board_state === "In Progress" ? "One run active" : "Start blocked"}
