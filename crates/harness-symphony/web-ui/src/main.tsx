@@ -250,13 +250,13 @@ function App() {
   );
 
   const startTask = React.useCallback(
-    async (storyId: string) => {
+    async (storyId: string, adapter?: string) => {
       setStartingId(storyId);
       setError(null);
       try {
-        const response = await fetch(`/api/tasks/${encodeURIComponent(storyId)}/start`, {
-          method: "POST"
-        });
+        const base = `/api/tasks/${encodeURIComponent(storyId)}/start`;
+        const url = adapter ? `${base}?adapter=${encodeURIComponent(adapter)}` : base;
+        const response = await fetch(url, { method: "POST" });
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string } | null;
           throw new Error(body?.error ?? `Start failed (${response.status})`);
@@ -376,6 +376,7 @@ function App() {
             <TaskDetailOverlay onClose={() => setSelectedId(null)}>
               <TaskDetail
                 item={selected}
+                agents={agents}
                 startingId={startingId}
                 syncingRunId={syncingRunId}
                 markingMergedRunId={markingMergedRunId}
@@ -810,6 +811,7 @@ function ConfettiBurstHost({
 
 function TaskDetail({
   item,
+  agents,
   startingId,
   syncingRunId,
   markingMergedRunId,
@@ -819,11 +821,12 @@ function TaskDetail({
   onMarkPrMerged
 }: {
   item: BoardItem;
+  agents: AgentStatus[];
   startingId: string | null;
   syncingRunId: string | null;
   markingMergedRunId: string | null;
   onClose: (origin?: HTMLElement) => void;
-  onStart: (storyId: string) => Promise<void>;
+  onStart: (storyId: string, adapter?: string) => Promise<void>;
   onSync: (runId: string) => Promise<void>;
   onMarkPrMerged: (runId: string) => Promise<void>;
 }) {
@@ -902,6 +905,12 @@ function TaskDetail({
 
   const isReady = item.board_state === "Ready";
   const isStarting = startingId === item.id;
+  const readyAgents = agents.filter((agent) => agent.overall === "ready").map((agent) => agent.adapter);
+  const activeAgent = agents.find((agent) => agent.active)?.adapter;
+  const defaultAgent =
+    (activeAgent && readyAgents.includes(activeAgent) ? activeAgent : readyAgents[0]) ?? undefined;
+  const [pickedAgent, setPickedAgent] = React.useState<string | undefined>(undefined);
+  const chosenAgent = pickedAgent ?? defaultAgent;
 
   return (
     <aside
@@ -938,10 +947,26 @@ function TaskDetail({
           <Field label="Children" value={item.children.length > 0 ? item.children.join(", ") : "none"} />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
+          {isReady && readyAgents.length > 0 ? (
+            <select
+              aria-label="Agent to run"
+              value={chosenAgent}
+              onChange={(event) => setPickedAgent(event.target.value)}
+              disabled={isStarting}
+              className="h-9 rounded-md border border-border bg-background px-2 text-sm font-medium"
+            >
+              {readyAgents.map((adapter) => (
+                <option key={adapter} value={adapter}>
+                  {adapter}
+                  {adapter === activeAgent ? " (default)" : ""}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <Button
             disabled={!isReady || isStarting}
-            title={isReady ? "Start task" : "Blocked tasks cannot start"}
-            onClick={() => void onStart(item.id)}
+            title={isReady ? `Start with ${chosenAgent ?? "the configured agent"}` : "Blocked tasks cannot start"}
+            onClick={() => void onStart(item.id, chosenAgent)}
           >
             {isStarting ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Play data-icon="inline-start" />}
             {isReady ? "Start work" : item.board_state === "In Progress" ? "One run active" : "Start blocked"}

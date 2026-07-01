@@ -174,7 +174,7 @@ fn handle_request(config: &ResolvedConfig, request: &str) -> Result<String, WebE
         (Some("GET"), Some("/api/agents")) => agents_response(config),
         (Some("POST"), Some(path)) if start_path_story_id(path).is_some() => {
             let story_id = start_path_story_id(path).unwrap_or_default();
-            start_run_response(config, &story_id)
+            start_run_response(config, &story_id, start_adapter_override(path))
         }
         (Some("GET"), Some(path)) if events_path_run_id(path).is_some() => {
             let run_id = events_path_run_id(path).unwrap_or_default();
@@ -314,8 +314,19 @@ fn pr_merged_response(config: &ResolvedConfig, run_id: &str) -> Result<String, W
     }
 }
 
-fn start_run_response(config: &ResolvedConfig, story_id: &str) -> Result<String, WebError> {
-    if let Some(active) = RunStateStore::new(config.state_db.clone()).active_run()? {
+fn start_run_response(
+    config: &ResolvedConfig,
+    story_id: &str,
+    adapter: Option<String>,
+) -> Result<String, WebError> {
+    let run_config = match adapter {
+        Some(adapter) => match config_with_adapter(config, &adapter) {
+            Ok(cfg) => cfg,
+            Err(error) => return json_response(400, &ErrorResponse { error }),
+        },
+        None => config.clone(),
+    };
+    if let Some(active) = RunStateStore::new(run_config.state_db.clone()).active_run()? {
         return json_response(
             409,
             &ErrorResponse {
@@ -323,14 +334,14 @@ fn start_run_response(config: &ResolvedConfig, story_id: &str) -> Result<String,
             },
         );
     }
-    match prepare_run(config, story_id) {
+    match prepare_run(&run_config, story_id) {
         Ok(prepared) => {
             let response = StartRunResponse {
                 run_id: prepared.run_id.clone(),
                 story_id: prepared.story_id.clone(),
                 status: "started".to_owned(),
             };
-            spawn_run(config.clone(), prepared);
+            spawn_run(run_config.clone(), prepared);
             json_response(202, &response)
         }
         Err(RunError::State(StateError::ActiveRunExists(run_id))) => json_response(
@@ -558,9 +569,37 @@ fn parse_request_line(request: &str) -> (Option<String>, Option<String>) {
 }
 
 fn start_path_story_id(path: &str) -> Option<String> {
+    let path = path.split('?').next().unwrap_or(path);
     let path = path.trim_end_matches('/');
     let story_id = path.strip_prefix("/api/tasks/")?.strip_suffix("/start")?;
     safe_identifier(story_id).then(|| story_id.to_owned())
+}
+
+/// Optional `?adapter=<name>` override on the start request, letting a single
+/// run use a different agent than the globally configured one.
+fn start_adapter_override(path: &str) -> Option<String> {
+    let query = path.split('?').nth(1)?;
+    query.split('&').find_map(|pair| {
+        let (key, value) = pair.split_once('=')?;
+        (key == "adapter" && !value.is_empty()).then(|| value.to_owned())
+    })
+}
+
+/// Clone the resolved config with a per-run agent adapter override. Named
+/// adapters resolve their own default command, so `agent_command` is only kept
+/// for the `custom` adapter.
+fn config_with_adapter(base: &ResolvedConfig, adapter: &str) -> Result<ResolvedConfig, String> {
+    if !matches!(adapter, "custom" | "codex" | "claudecode") {
+        return Err(format!(
+            "unknown agent adapter '{adapter}'. Supported: custom, codex, claudecode"
+        ));
+    }
+    let mut config = base.clone();
+    config.agent_adapter = adapter.to_owned();
+    if adapter != "custom" {
+        config.agent_command = Vec::new();
+    }
+    Ok(config)
 }
 
 fn events_path_run_id(path: &str) -> Option<String> {
@@ -881,6 +920,42 @@ mod tests {
             Some("US-050".to_owned())
         );
         assert_eq!(start_path_story_id("/api/tasks/../start"), None);
+        // A query string must not break story-id extraction.
+        assert_eq!(
+            start_path_story_id("/api/tasks/US-050/start?adapter=codex"),
+            Some("US-050".to_owned())
+        );
+    }
+
+    #[test]
+    fn start_adapter_override_reads_query() {
+        assert_eq!(
+            start_adapter_override("/api/tasks/US-050/start?adapter=codex"),
+            Some("codex".to_owned())
+        );
+        assert_eq!(start_adapter_override("/api/tasks/US-050/start"), None);
+        assert_eq!(
+            start_adapter_override("/api/tasks/US-050/start?adapter="),
+            None
+        );
+    }
+
+    #[test]
+    fn config_with_adapter_overrides_named_adapter_and_clears_command() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut base = test_config(&temp_dir);
+        base.agent_adapter = "custom".to_owned();
+        base.agent_command = vec!["./run.sh".to_owned()];
+
+        let claude = config_with_adapter(&base, "claudecode").unwrap();
+        assert_eq!(claude.agent_adapter, "claudecode");
+        assert!(claude.agent_command.is_empty());
+
+        // custom keeps its configured command
+        let custom = config_with_adapter(&base, "custom").unwrap();
+        assert_eq!(custom.agent_command, vec!["./run.sh".to_owned()]);
+
+        assert!(config_with_adapter(&base, "bogus").is_err());
     }
 
     #[test]
