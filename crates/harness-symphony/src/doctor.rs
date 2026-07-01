@@ -4,7 +4,7 @@ use std::process::Command;
 
 use thiserror::Error;
 
-use crate::agent::{agent_adapter_status, AgentError};
+use crate::agent::{agent_adapter_status, agent_readiness, AgentError, Readiness};
 use crate::config::ResolvedConfig;
 use crate::sync::unapplied_changesets;
 
@@ -64,6 +64,7 @@ pub fn run_doctor(config: &ResolvedConfig) -> Result<DoctorReport, DoctorError> 
         check_unapplied_changesets(config),
         check_gitignore(config),
         check_agent_adapter(config),
+        check_agent_prerequisites(config),
         check_pr_adapter(config),
     ];
     Ok(DoctorReport { checks })
@@ -360,6 +361,25 @@ fn check_agent_adapter(config: &ResolvedConfig) -> DoctorCheck {
     }
 }
 
+fn check_agent_prerequisites(config: &ResolvedConfig) -> DoctorCheck {
+    let readiness = agent_readiness(config, &config.agent_adapter);
+    let status = match readiness.overall {
+        Readiness::Ready => CheckStatus::Pass,
+        // Warn-only: probes are environment-dependent and must not turn a
+        // working config red just because a binary or credential is absent here.
+        Readiness::NeedsSetup | Readiness::NotInstalled | Readiness::Unknown => CheckStatus::Warn,
+    };
+    DoctorCheck {
+        name: "agent prerequisites",
+        status,
+        detail: format!(
+            "{}: {}; auth: {}",
+            readiness.adapter, readiness.binary_detail, readiness.auth_detail
+        ),
+        next: readiness.next,
+    }
+}
+
 fn check_pr_adapter(config: &ResolvedConfig) -> DoctorCheck {
     if config.pull_request_create == "disabled" || config.pull_request_create == "never" {
         return DoctorCheck {
@@ -427,6 +447,7 @@ mod tests {
             single_active_run: true,
             agent_adapter: "custom".to_owned(),
             agent_command: Vec::new(),
+            agent_model: None,
             agent_timeout_minutes: 120,
             pull_request_create: "ask".to_owned(),
             pull_request_provider: "github".to_owned(),
@@ -474,6 +495,18 @@ mod tests {
 
         assert_eq!(check.status, CheckStatus::Fail);
         assert!(check.next.unwrap().contains("agent.adapter"));
+    }
+
+    #[test]
+    fn agent_prerequisites_warn_for_unconfigured_custom() {
+        // custom + no command is deterministic (no real binary probe involved):
+        // NeedsSetup maps to Warn, never Fail.
+        let config = base_config();
+        let check = check_agent_prerequisites(&config);
+
+        assert_eq!(check.name, "agent prerequisites");
+        assert_eq!(check.status, CheckStatus::Warn);
+        assert!(check.next.unwrap().contains("agent.command"));
     }
 
     #[test]

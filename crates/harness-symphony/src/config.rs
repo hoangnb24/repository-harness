@@ -31,6 +31,7 @@ pub struct ResolvedConfig {
     pub single_active_run: bool,
     pub agent_adapter: String,
     pub agent_command: Vec<String>,
+    pub agent_model: Option<String>,
     pub agent_timeout_minutes: u32,
     pub pull_request_create: String,
     pub pull_request_provider: String,
@@ -94,6 +95,8 @@ pub struct AgentConfig {
     pub adapter: String,
     #[serde(default)]
     pub command: Vec<String>,
+    #[serde(default)]
+    pub model: Option<String>,
     #[serde(default = "default_timeout_minutes")]
     pub timeout_minutes: u32,
 }
@@ -183,6 +186,7 @@ impl Default for AgentConfig {
         Self {
             adapter: default_agent_adapter(),
             command: Vec::new(),
+            model: None,
             timeout_minutes: default_timeout_minutes(),
         }
     }
@@ -263,6 +267,7 @@ impl SymphonyConfig {
             single_active_run: self.symphony.single_active_run,
             agent_adapter: self.agent.adapter.clone(),
             agent_command: self.agent.command.clone(),
+            agent_model: self.agent.model.clone(),
             agent_timeout_minutes: self.agent.timeout_minutes,
             pull_request_create: self.pull_request.create.clone(),
             pull_request_provider: self.pull_request.provider.clone(),
@@ -453,6 +458,25 @@ auto:
             resolved.worktrees_dir,
             PathBuf::from("/repo/workspace/.symphony/worktrees")
         );
+    }
+
+    #[test]
+    fn resolve_propagates_agent_model() {
+        let config: SymphonyConfig = serde_yaml::from_str(
+            r#"
+version: 1
+agent:
+  adapter: claudecode
+  model: sonnet
+"#,
+        )
+        .unwrap();
+
+        let resolved = config.resolve(Path::new("/repo"));
+        assert_eq!(resolved.agent_model.as_deref(), Some("sonnet"));
+
+        let defaults = SymphonyConfig::default().resolve(Path::new("/repo"));
+        assert_eq!(defaults.agent_model, None);
     }
 
     #[test]

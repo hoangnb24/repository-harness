@@ -7,6 +7,7 @@ use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;
 
+use crate::agent::{all_agent_readiness, AgentReadiness};
 use crate::changeset::{render_changeset, render_markdown, ChangesetError};
 use crate::config::ResolvedConfig;
 use crate::pr::{create_pr, PrError};
@@ -66,6 +67,11 @@ struct BoardItemResponse {
     run_id: Option<String>,
     active_run: Option<String>,
     reason: String,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentsResponse {
+    agents: Vec<AgentReadiness>,
 }
 
 #[derive(Debug, Serialize)]
@@ -165,6 +171,7 @@ fn handle_request(config: &ResolvedConfig, request: &str) -> Result<String, WebE
                 },
             )
         }
+        (Some("GET"), Some("/api/agents")) => agents_response(config),
         (Some("POST"), Some(path)) if start_path_story_id(path).is_some() => {
             let story_id = start_path_story_id(path).unwrap_or_default();
             start_run_response(config, &story_id)
@@ -186,7 +193,7 @@ fn handle_request(config: &ResolvedConfig, request: &str) -> Result<String, WebE
             pr_merged_response(config, &run_id)
         }
         (Some("GET"), Some(path)) => static_response(config, path),
-        (Some(_), Some("/health" | "/api/board")) => json_response(
+        (Some(_), Some("/health" | "/api/board" | "/api/agents")) => json_response(
             405,
             &ErrorResponse {
                 error: "method not allowed".to_owned(),
@@ -213,6 +220,13 @@ fn handle_request(config: &ResolvedConfig, request: &str) -> Result<String, WebE
             },
         ),
     }
+}
+
+fn agents_response(config: &ResolvedConfig) -> Result<String, WebError> {
+    let body = AgentsResponse {
+        agents: all_agent_readiness(config),
+    };
+    json_response(200, &body)
 }
 
 fn sync_run_response(config: &ResolvedConfig, run_id: &str) -> Result<String, WebError> {
@@ -833,6 +847,20 @@ mod tests {
         assert!(response.starts_with("HTTP/1.1 200 OK"));
         assert!(response.contains(r#""id":"US-WEB""#));
         assert!(response.contains(r#""board_state":"Ready""#));
+    }
+
+    #[test]
+    fn agents_request_returns_agent_readiness_json() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = test_config(&temp_dir);
+
+        let response = handle_request(&config, "GET /api/agents HTTP/1.1\r\n\r\n").unwrap();
+
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.contains(r#""agents":["#));
+        assert!(response.contains(r#""adapter":"claudecode""#));
+        assert!(response.contains(r#""adapter":"codex""#));
+        assert!(response.contains(r#""adapter":"custom""#));
     }
 
     #[test]

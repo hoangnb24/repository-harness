@@ -312,6 +312,15 @@ agent:
   adapter: codex
 ```
 
+To use the Claude Code adapter (optionally pinning a model):
+
+```yaml
+version: 1
+agent:
+  adapter: claudecode
+  model: sonnet        # optional; omit to use Claude Code's default model
+```
+
 For a custom one-shot command adapter:
 
 ```yaml
@@ -327,6 +336,34 @@ Inspect the resolved configuration:
 ```bash
 target/debug/harness-symphony config show
 ```
+
+## Agent Prerequisites
+
+Choosing an adapter is not enough; the agent's own CLI must be installed and
+authenticated. `doctor` reports an `agent prerequisites` row for the configured
+adapter (binary presence and an auth check), and the Web UI shows an `Agents`
+strip with the same readiness per adapter. The auth check inspects known
+credential env vars, credential files, and a completed CLI login; if none are
+found it reports `needs-setup` (a warning), never a false `ready`.
+
+| Adapter | Install | Authenticate |
+| --- | --- | --- |
+| `claudecode` | `npm i -g @anthropic-ai/claude-code` (needs `claude` on `PATH`; override with `CLAUDE_EXECUTABLE`) | Run `claude` and log in (detected via `~/.claude.json`), or set `ANTHROPIC_API_KEY`, or use Bedrock/Vertex (`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX`) |
+| `codex` | Install the Codex CLI (needs `codex` on `PATH`) | `codex login`, or set `OPENAI_API_KEY` |
+| `custom` | Provide an executable `agent.command` | Handled by your command |
+
+When the harness itself runs inside a Claude Code session, the `claudecode`
+adapter starts the spawned agent as a clean top-level session (the inherited
+`CLAUDECODE` / `CLAUDE_CODE_CHILD_SESSION` flags are removed).
+
+Confirm readiness before a run:
+
+```bash
+target/debug/harness-symphony doctor
+```
+
+A `pass` on `agent prerequisites` means the binary is present and credentials
+were detected. A `warn` names the exact next step (install or authenticate).
 
 ## The Mental Model
 

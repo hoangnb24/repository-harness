@@ -346,6 +346,10 @@ fn print_config(config: &ResolvedConfig) {
     println!("single_active_run: {}", config.single_active_run);
     println!("agent_adapter: {}", config.agent_adapter);
     println!("agent_command: {}", config.agent_command.join(" "));
+    println!(
+        "agent_model: {}",
+        config.agent_model.as_deref().unwrap_or("(default)")
+    );
     println!("agent_timeout_minutes: {}", config.agent_timeout_minutes);
     println!("pull_request_create: {}", config.pull_request_create);
     println!("pull_request_provider: {}", config.pull_request_provider);

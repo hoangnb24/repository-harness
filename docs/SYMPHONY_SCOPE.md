@@ -324,9 +324,15 @@ agent:
 ```
 
 The Codex adapter speaks the `codex app-server` JSON-RPC protocol. The
-`custom` adapter remains available for one-shot command adapters, but Codex
-should be a named adapter rather than a command-string convention. Harness is
-meant to support multiple coding agents.
+`claudecode` adapter drives Claude Code headless (`claude -p ... --output-format
+stream-json`), a one-shot process whose terminal `result` event decides success.
+The `custom` adapter remains available for one-shot command adapters, but named
+adapters (Codex, Claude Code) are preferred over command-string conventions.
+Harness is meant to support multiple coding agents.
+
+Named adapters also report setup readiness (binary presence and a heuristic auth
+check) through `doctor` and the Web UI, so users can see which agents are ready
+before launching a run.
 
 #### 4.6 Finish Protocol
 
@@ -696,7 +702,8 @@ symphony:
   single_active_run: true
 
 agent:
-  adapter: codex
+  adapter: codex        # or: claudecode, custom
+  model: sonnet         # optional; used by named adapters (e.g. Claude Code)
   timeout_minutes: 10
 
 pull_request:
@@ -850,6 +857,7 @@ Risk: a Harness-native tool becomes Codex-only.
 Mitigation:
 
 - make Codex the first adapter, not the core model
+- ship a Claude Code adapter alongside Codex to keep the adapter boundary honest
 - support custom command adapters in v1
 - keep agent protocol file-based where possible
 
