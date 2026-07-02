@@ -25,4 +25,3 @@ not be touched during isolated runs.
   when `HARNESS_RUN_ID` is set.
 - Changesets can be applied repeatedly without duplicating state.
 - A fresh `harness.db` can be rebuilt from `.harness/changesets/`.
-

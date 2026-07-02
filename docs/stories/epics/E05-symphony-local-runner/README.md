@@ -29,4 +29,3 @@ status without mutating root durable state.
 - A completed local run is accepted only when summary, result, validation
   evidence, and forbidden-path checks pass.
 - Local status tells the next human action.
-

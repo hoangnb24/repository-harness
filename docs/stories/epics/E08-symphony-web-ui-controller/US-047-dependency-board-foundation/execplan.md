@@ -53,4 +53,3 @@ Pause for human confirmation if:
 - Dependencies require deleting or rewriting existing story records.
 - The schema needs more than direct blocker edges for the MVP.
 - Validation requirements need to be weakened.
-

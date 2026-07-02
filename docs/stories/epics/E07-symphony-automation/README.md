@@ -21,4 +21,3 @@ isolation, changesets, and sync semantics proven in v1/v2.
   isolation and result artifacts.
 - Queue and external work-source adapters exist only after single-run isolation
   is stable.
-

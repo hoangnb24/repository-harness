@@ -73,4 +73,3 @@ No process change. The browser verification gap should be closed by `US-053`.
 - In-app browser visual verification could not run because the browser bridge
   was unavailable in this session; full browser E2E remains assigned to
   `US-053`.
-

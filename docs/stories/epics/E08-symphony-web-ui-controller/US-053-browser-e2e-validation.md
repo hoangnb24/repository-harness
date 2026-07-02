@@ -62,4 +62,3 @@ mutation-heavy E2E against disposable Harness fixtures.
   installed Chromium.
 - `npm --prefix crates/harness-symphony/web-ui run e2e` passed: 1 Chromium
   browser test.
-

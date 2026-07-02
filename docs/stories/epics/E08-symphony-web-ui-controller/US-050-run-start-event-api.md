@@ -69,4 +69,3 @@ No process change.
 - `cargo clippy --workspace -- -D warnings` passed.
 - Live loopback smoke on `127.0.0.1:43218` verified `/`, `/api/board`, and
   `/api/runs/run_missing/events`.
-

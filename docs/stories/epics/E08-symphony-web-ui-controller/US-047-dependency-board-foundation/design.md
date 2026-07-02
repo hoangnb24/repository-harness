@@ -60,4 +60,3 @@ crashes.
 2. Store dependencies only in Symphony state. Rejected because the product
    contract says dependencies live in Harness and are produced during feature
    intake.
-

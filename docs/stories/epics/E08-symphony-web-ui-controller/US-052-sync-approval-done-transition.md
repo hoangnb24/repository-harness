@@ -63,4 +63,3 @@ No process change.
 - `cargo test --workspace` passed: 97 tests.
 - `cargo fmt --check` passed.
 - `cargo clippy --workspace -- -D warnings` passed.
-

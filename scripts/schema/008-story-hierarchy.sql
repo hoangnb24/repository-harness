@@ -15,4 +15,3 @@ CREATE INDEX IF NOT EXISTS idx_story_hierarchy_child
     ON story_hierarchy(child_story_id);
 
 INSERT INTO schema_version (version) VALUES (8);
-

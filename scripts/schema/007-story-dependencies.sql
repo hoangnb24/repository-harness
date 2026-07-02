@@ -15,4 +15,3 @@ CREATE INDEX IF NOT EXISTS idx_story_dependency_blocker
     ON story_dependency(blocks_story_id);
 
 INSERT INTO schema_version (version) VALUES (7);
-
