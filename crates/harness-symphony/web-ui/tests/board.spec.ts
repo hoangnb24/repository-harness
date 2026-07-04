@@ -15,7 +15,8 @@ function boardItem(id: string, title: string, board_state: string) {
     hierarchy_depth: 0,
     run_id: null,
     active_run: null,
-    reason: board_state === "Ready" ? "ready" : "story visible on the board"
+    reason: board_state === "Ready" ? "ready" : "story visible on the board",
+    failure_summary: null
   };
 }
 
@@ -223,6 +224,73 @@ test("board columns stay bounded and scroll dense task lists internally", async 
   expect(mobileReadyMetrics.scrollHeight).toBeGreaterThan(mobileReadyMetrics.clientHeight);
   await readyColumn.getByRole("button", { name: /US-900/ }).click();
   await expect(page.getByRole("dialog", { name: "Selected work detail" })).toBeVisible();
+});
+
+test("needs attention tasks show failure reason and evidence", async ({ page }) => {
+  const failureSummary = {
+    category: "Codex app-server timeout",
+    reason: "turn-state query timed out while waiting for Codex.",
+    latest_event: "turn/completed status failed",
+    latest_error: "turn-state query timed out while waiting for Codex.",
+    run_id: "run_timeout",
+    evidence_artifacts: [
+      ".harness/runs/run_timeout/APP_SERVER_EVENTS.jsonl",
+      ".harness/runs/run_timeout/RESULT.json"
+    ],
+    next_action: "Inspect APP_SERVER_EVENTS.jsonl and retry when safe."
+  };
+
+  await page.route("**/api/board", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          {
+            ...boardItem("US-066", "Needs Attention Failure Explanation", "Needs Attention"),
+            run_id: "run_timeout",
+            reason: failureSummary.reason,
+            failure_summary: failureSummary
+          }
+        ]
+      })
+    });
+  });
+  await page.route("**/api/runs/run_timeout/review", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        run_id: "run_timeout",
+        story_id: "US-066",
+        status: "failed",
+        outcome: "failed",
+        summary: null,
+        result: null,
+        validation: null,
+        changed_files: [],
+        changeset_preview: null,
+        pr_url: null,
+        pr_status: "missing",
+        artifact_paths: failureSummary.evidence_artifacts,
+        suggested_next_action: failureSummary.next_action,
+        failure_summary: failureSummary,
+        events: [{ method: "turn/completed", params: { turn: { status: "failed", error: { message: failureSummary.latest_error } } } }]
+      })
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByRole("button", { name: /US-066/ })).toContainText(failureSummary.reason);
+  await expect(page.getByRole("button", { name: /US-066/ })).toContainText("Codex app-server timeout");
+
+  await page.getByRole("button", { name: /US-066/ }).click();
+  const detail = page.getByRole("dialog", { name: "Selected work detail" });
+
+  await expect(detail.getByText("Codex app-server timeout").first()).toBeVisible();
+  await expect(detail.getByText("turn-state query timed out while waiting for Codex.").first()).toBeVisible();
+  await expect(detail.getByText("turn/completed status failed").first()).toBeVisible();
+  await expect(detail.getByText(".harness/runs/run_timeout/APP_SERVER_EVENTS.jsonl").first()).toBeVisible();
+  await expect(detail.getByText("Inspect APP_SERVER_EVENTS.jsonl and retry when safe.").first()).toBeVisible();
 });
 
 test("review logs render readable chat and progress entries while preserving raw artifacts", async ({ page }) => {
