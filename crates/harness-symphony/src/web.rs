@@ -107,6 +107,7 @@ struct BoardItemResponse {
     run_id: Option<String>,
     active_run: Option<String>,
     reason: String,
+    failure_summary: Option<FailureSummary>,
 }
 
 #[derive(Debug, Serialize)]
@@ -143,6 +144,18 @@ struct ReviewResponse {
     artifact_paths: Vec<String>,
     events: Vec<Value>,
     suggested_next_action: String,
+    failure_summary: Option<FailureSummary>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct FailureSummary {
+    category: String,
+    reason: String,
+    latest_event: Option<String>,
+    latest_error: Option<String>,
+    run_id: String,
+    evidence_artifacts: Vec<String>,
+    next_action: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -202,12 +215,11 @@ fn handle_request(config: &ResolvedConfig, request: &str) -> Result<HttpResponse
         (Some("GET"), Some("/health")) => json_response(200, &serde_json::json!({"ok": true})),
         (Some("GET"), Some("/api/board")) => {
             let items = list_board(&config.harness_db, &config.state_db)?;
-            json_response(
-                200,
-                &BoardResponse {
-                    items: items.into_iter().map(BoardItemResponse::from).collect(),
-                },
-            )
+            let items = items
+                .into_iter()
+                .map(|item| BoardItemResponse::from_item(config, item))
+                .collect::<Vec<_>>();
+            json_response(200, &BoardResponse { items })
         }
         (Some("POST"), Some(path)) if start_path_story_id(path).is_some() => {
             let story_id = start_path_story_id(path).unwrap_or_default();
@@ -460,7 +472,8 @@ fn review_response(config: &ResolvedConfig, run_id: &str) -> Result<HttpResponse
     let event_path = run_dir.join("APP_SERVER_EVENTS.jsonl");
 
     let summary = read_optional_text(&summary_path)?;
-    let result = read_optional_json(&result_path)?;
+    let result_artifact = read_optional_json_artifact(&result_path);
+    let result = result_artifact.value;
     let validation = result
         .as_ref()
         .and_then(|value| value.get("validation").cloned());
@@ -493,10 +506,12 @@ fn review_response(config: &ResolvedConfig, run_id: &str) -> Result<HttpResponse
     let artifact_paths = [&summary_path, &result_path, &changeset_path, &event_path]
         .into_iter()
         .filter(|path| path.exists())
-        .map(|path| path.display().to_string())
+        .map(|path| changeset_display_path(&config.repo_root, path))
         .collect::<Vec<_>>();
     let pr_status = run.pr_status.clone();
     let suggested_next_action = review_next_action(&run, summary.is_some(), result.is_some());
+    let events = read_events(&event_path)?;
+    let failure_summary = failure_summary_for_run(config, &run);
 
     json_response(
         200,
@@ -513,8 +528,9 @@ fn review_response(config: &ResolvedConfig, run_id: &str) -> Result<HttpResponse
             pr_url: run.pr_url,
             pr_status,
             artifact_paths,
-            events: read_events(&event_path)?,
+            events,
             suggested_next_action,
+            failure_summary,
         },
     )
 }
@@ -534,23 +550,331 @@ fn read_optional_text(path: &Path) -> Result<Option<String>, WebError> {
     }
 }
 
-fn read_optional_json(path: &Path) -> Result<Option<Value>, WebError> {
-    if path.exists() {
-        Ok(Some(serde_json::from_str(&fs::read_to_string(path)?)?))
-    } else {
-        Ok(None)
+struct JsonArtifact {
+    value: Option<Value>,
+    diagnostic: Option<String>,
+}
+
+fn read_optional_json_artifact(path: &Path) -> JsonArtifact {
+    if !path.exists() {
+        return JsonArtifact {
+            value: None,
+            diagnostic: Some(format!("{} is missing", artifact_name(path))),
+        };
+    }
+    match fs::read_to_string(path) {
+        Ok(text) => match serde_json::from_str(&text) {
+            Ok(value) => JsonArtifact {
+                value: Some(value),
+                diagnostic: None,
+            },
+            Err(error) => JsonArtifact {
+                value: None,
+                diagnostic: Some(format!("{} is malformed: {error}", artifact_name(path))),
+            },
+        },
+        Err(error) => JsonArtifact {
+            value: None,
+            diagnostic: Some(format!(
+                "{} could not be read: {error}",
+                artifact_name(path)
+            )),
+        },
     }
 }
 
 fn read_events(path: &Path) -> Result<Vec<Value>, WebError> {
+    Ok(read_events_artifact(path).events)
+}
+
+struct EventsArtifact {
+    events: Vec<Value>,
+    diagnostic: Option<String>,
+}
+
+fn read_events_artifact(path: &Path) -> EventsArtifact {
     if !path.exists() {
-        return Ok(Vec::new());
+        return EventsArtifact {
+            events: Vec::new(),
+            diagnostic: Some(format!("{} is missing", artifact_name(path))),
+        };
     }
-    let text = fs::read_to_string(path)?;
-    Ok(text
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) => {
+            return EventsArtifact {
+                events: Vec::new(),
+                diagnostic: Some(format!(
+                    "{} could not be read: {error}",
+                    artifact_name(path)
+                )),
+            };
+        }
+    };
+    let mut malformed = 0;
+    let events = text
         .lines()
-        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
-        .collect::<Vec<_>>())
+        .filter_map(|line| match serde_json::from_str::<Value>(line) {
+            Ok(value) => Some(value),
+            Err(_) => {
+                malformed += 1;
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    let diagnostic = (malformed > 0).then(|| {
+        format!(
+            "{} has {malformed} malformed JSON line(s); parsed events are still shown",
+            artifact_name(path)
+        )
+    });
+    EventsArtifact { events, diagnostic }
+}
+
+struct RunArtifactPaths {
+    summary: PathBuf,
+    result: PathBuf,
+    changeset: PathBuf,
+    events: PathBuf,
+}
+
+fn run_artifact_paths(config: &ResolvedConfig, run_id: &str) -> RunArtifactPaths {
+    let run_dir = config.runs_dir.join(run_id);
+    let review_changeset_path = run_dir.join("changeset.jsonl");
+    let committed_changeset_path = config
+        .changeset_directory
+        .join(format!("{run_id}.changeset.jsonl"));
+    let changeset = if review_changeset_path.exists() {
+        review_changeset_path
+    } else {
+        committed_changeset_path
+    };
+    RunArtifactPaths {
+        summary: run_dir.join("SUMMARY.md"),
+        result: run_dir.join("RESULT.json"),
+        changeset,
+        events: run_dir.join("APP_SERVER_EVENTS.jsonl"),
+    }
+}
+
+fn failure_summary_for_run(
+    config: &ResolvedConfig,
+    run: &crate::state::RunRecord,
+) -> Option<FailureSummary> {
+    if !run_needs_attention(run) {
+        return None;
+    }
+    let paths = run_artifact_paths(config, &run.run_id);
+    let result_artifact = read_optional_json_artifact(&paths.result);
+    let events_artifact = read_events_artifact(&paths.events);
+    let result = result_artifact.value.as_ref();
+    let latest_event = latest_event_message(&events_artifact.events);
+    let event_error = latest_event_error(&events_artifact.events);
+    let validation_failure = result.and_then(validation_failure_message);
+    let evidence_artifacts = available_artifacts(config, &paths);
+
+    let (category, reason, latest_error, next_action) = if run.pr_status == "failed"
+        || run.next_action.starts_with("pull request creation failed")
+    {
+        (
+            "PR creation failure".to_owned(),
+            compact_sentence(&run.next_action),
+            Some(run.next_action.clone()),
+            "Retry pull request creation after fixing the reported PR error.".to_owned(),
+        )
+    } else if let Some(message) = validation_failure {
+        (
+            "Validation failure".to_owned(),
+            compact_sentence(&message),
+            Some(message),
+            "Fix validation failure, rerun proof, then retry or handle manually.".to_owned(),
+        )
+    } else if let Some(message) = event_error {
+        let lower = message.to_lowercase();
+        if lower.contains("timeout") || lower.contains("timed out") {
+            (
+                "Codex app-server timeout".to_owned(),
+                compact_sentence(&message),
+                Some(message),
+                "Inspect APP_SERVER_EVENTS.jsonl and retry when safe; older timeout runs may need manual handling.".to_owned(),
+            )
+        } else {
+            (
+                "Codex run failure".to_owned(),
+                compact_sentence(&message),
+                Some(message),
+                "Inspect APP_SERVER_EVENTS.jsonl and retry when safe.".to_owned(),
+            )
+        }
+    } else if !paths.result.exists() {
+        (
+            "Missing artifact".to_owned(),
+            "RESULT.json is missing; the run cannot be reviewed yet.".to_owned(),
+            result_artifact.diagnostic.clone(),
+            "Inspect run artifacts and rerun the task when the missing artifact is understood."
+                .to_owned(),
+        )
+    } else if let Some(message) = result_artifact.diagnostic.clone() {
+        (
+            "Malformed artifact".to_owned(),
+            compact_sentence(&message),
+            Some(message),
+            "Inspect run artifacts and rerun the task when the malformed artifact is understood."
+                .to_owned(),
+        )
+    } else if !paths.summary.exists() {
+        (
+            "Missing artifact".to_owned(),
+            "SUMMARY.md is missing; the run needs manual review.".to_owned(),
+            Some(format!("{} is missing", artifact_name(&paths.summary))),
+            "Inspect run artifacts and rerun the task when the missing artifact is understood."
+                .to_owned(),
+        )
+    } else if let Some(message) = events_artifact.diagnostic.clone() {
+        (
+            if paths.events.exists() {
+                "Malformed event log".to_owned()
+            } else {
+                "Missing artifact".to_owned()
+            },
+            compact_sentence(&message),
+            Some(message),
+            "Inspect APP_SERVER_EVENTS.jsonl and handle missing or malformed event output manually."
+                .to_owned(),
+        )
+    } else {
+        (
+            "Manual follow-up".to_owned(),
+            compact_sentence(&run.next_action),
+            None,
+            if run.next_action.trim().is_empty() {
+                "Handle this run manually.".to_owned()
+            } else {
+                run.next_action.clone()
+            },
+        )
+    };
+
+    Some(FailureSummary {
+        category,
+        reason,
+        latest_event,
+        latest_error,
+        run_id: run.run_id.clone(),
+        evidence_artifacts,
+        next_action,
+    })
+}
+
+fn run_needs_attention(run: &crate::state::RunRecord) -> bool {
+    matches!(
+        run.status.as_str(),
+        "failed" | "cancelled" | "partial" | "blocked" | "needs_intake"
+    ) || (run.status == "completed" && (run.pr_status == "failed" || run.pr_url.is_none()))
+}
+
+fn available_artifacts(config: &ResolvedConfig, paths: &RunArtifactPaths) -> Vec<String> {
+    [
+        &paths.summary,
+        &paths.result,
+        &paths.changeset,
+        &paths.events,
+    ]
+    .into_iter()
+    .filter(|path| path.exists())
+    .map(|path| changeset_display_path(&config.repo_root, path))
+    .collect()
+}
+
+fn validation_failure_message(result: &Value) -> Option<String> {
+    let validation = result.get("validation")?;
+    if let Some(commands) = validation.get("commands").and_then(Value::as_array) {
+        for command in commands {
+            let result = command.get("result").and_then(Value::as_str);
+            if matches!(result, Some("fail" | "unavailable")) {
+                let command_text = command
+                    .get("command")
+                    .and_then(Value::as_str)
+                    .unwrap_or("validation command");
+                return Some(format!(
+                    "Validation `{command_text}` reported {}.",
+                    result.unwrap_or("unknown")
+                ));
+            }
+        }
+    }
+    validation
+        .get("unavailable")
+        .and_then(Value::as_str)
+        .filter(|message| !message.trim().is_empty())
+        .map(|message| format!("Validation unavailable: {message}"))
+}
+
+fn latest_event_message(events: &[Value]) -> Option<String> {
+    events.iter().rev().find_map(|event| {
+        let method = json_string(event, &["method"])?;
+        let status = json_string(event, &["params", "turn", "status"])
+            .or_else(|| json_string(event, &["result", "turn", "status"]))
+            .or_else(|| json_string(event, &["params", "status"]));
+        Some(match status {
+            Some(status) => format!("{method} status {status}"),
+            None => method.to_owned(),
+        })
+    })
+}
+
+fn latest_event_error(events: &[Value]) -> Option<String> {
+    events.iter().rev().find_map(|event| {
+        let explicit = json_string(event, &["params", "turn", "error", "message"])
+            .or_else(|| json_string(event, &["result", "turn", "error", "message"]))
+            .or_else(|| json_string(event, &["params", "error", "message"]))
+            .or_else(|| json_string(event, &["error", "message"]))
+            .or_else(|| json_string(event, &["params", "message"]))
+            .or_else(|| json_string(event, &["error"]));
+        if let Some(message) = explicit {
+            return Some(message.to_owned());
+        }
+        let status = json_string(event, &["params", "turn", "status"])
+            .or_else(|| json_string(event, &["result", "turn", "status"]));
+        if matches!(status, Some("failed" | "interrupted" | "cancelled")) {
+            return Some(format!(
+                "{} ended with status {}.",
+                json_string(event, &["method"]).unwrap_or("Codex turn"),
+                status.unwrap_or("unknown")
+            ));
+        }
+        let text = event.to_string();
+        let lower = text.to_lowercase();
+        if lower.contains("timeout") || lower.contains("timed out") {
+            Some(compact_sentence(&text))
+        } else {
+            None
+        }
+    })
+}
+
+fn json_string<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
+    let mut current = value;
+    for key in path {
+        current = current.get(*key)?;
+    }
+    current.as_str()
+}
+
+fn artifact_name(path: &Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("artifact")
+        .to_owned()
+}
+
+fn compact_sentence(value: &str) -> String {
+    let compact = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    if compact.chars().count() > 240 {
+        compact.chars().take(237).collect::<String>() + "..."
+    } else {
+        compact
+    }
 }
 
 fn review_next_action(
@@ -740,8 +1064,18 @@ fn content_type(path: &Path) -> &'static str {
     }
 }
 
-impl From<BoardItem> for BoardItemResponse {
-    fn from(item: BoardItem) -> Self {
+impl BoardItemResponse {
+    fn from_item(config: &ResolvedConfig, item: BoardItem) -> Self {
+        let failure_summary = item.run_id.as_deref().and_then(|run_id| {
+            RunStateStore::new(config.state_db.clone())
+                .show_run(run_id)
+                .ok()
+                .and_then(|run| failure_summary_for_run(config, &run))
+        });
+        let reason = failure_summary
+            .as_ref()
+            .map(|summary| summary.reason.clone())
+            .unwrap_or_else(|| item.reason.clone());
         Self {
             id: item.id,
             title: item.title,
@@ -756,7 +1090,8 @@ impl From<BoardItem> for BoardItemResponse {
             hierarchy_depth: item.hierarchy_depth,
             run_id: item.run_id,
             active_run: item.active_run,
-            reason: item.reason,
+            reason,
+            failure_summary,
         }
     }
 }
@@ -854,6 +1189,40 @@ mod tests {
             .output()
             .unwrap();
         assert!(commit.status.success());
+    }
+
+    fn add_test_run(config: &ResolvedConfig, run_id: &str, status: &str) {
+        RunStateStore::new(config.state_db.clone())
+            .add_run(crate::state::NewRunRecord {
+                run_id: run_id.to_owned(),
+                story_id: "US-ATTN".to_owned(),
+                branch: Some(format!("symphony/{run_id}")),
+                worktree: config.repo_root.join(".symphony/worktrees").join(run_id),
+                lightweight: false,
+                status: status.to_owned(),
+                result_path: Some(PathBuf::from(format!(".harness/runs/{run_id}/RESULT.json"))),
+                sync_status: "not_applied".to_owned(),
+                next_action: "inspect run".to_owned(),
+            })
+            .unwrap();
+    }
+
+    fn write_summary(config: &ResolvedConfig, run_id: &str) {
+        let run_dir = config.runs_dir.join(run_id);
+        fs::create_dir_all(&run_dir).unwrap();
+        fs::write(run_dir.join("SUMMARY.md"), "# Summary\n\nNeeds review.\n").unwrap();
+    }
+
+    fn write_result(config: &ResolvedConfig, run_id: &str, body: &str) {
+        let run_dir = config.runs_dir.join(run_id);
+        fs::create_dir_all(&run_dir).unwrap();
+        fs::write(run_dir.join("RESULT.json"), body).unwrap();
+    }
+
+    fn write_events(config: &ResolvedConfig, run_id: &str, body: &str) {
+        let run_dir = config.runs_dir.join(run_id);
+        fs::create_dir_all(&run_dir).unwrap();
+        fs::write(run_dir.join("APP_SERVER_EVENTS.jsonl"), body).unwrap();
     }
 
     #[cfg(unix)]
@@ -984,6 +1353,124 @@ mod tests {
         assert!(response.contains("https://example.test/pr/1"));
         assert!(response.contains("src/lib.rs"));
         assert!(response.contains("turn/completed"));
+    }
+
+    #[test]
+    fn review_request_summarizes_codex_timeout_failure() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = test_config(&temp_dir);
+        add_test_run(&config, "run_timeout", "failed");
+        write_summary(&config, "run_timeout");
+        write_events(
+            &config,
+            "run_timeout",
+            r#"{"method":"turn/completed","params":{"turn":{"status":"failed","error":{"message":"turn-state query timed out while waiting for Codex"}}}}"#,
+        );
+
+        let response =
+            handle_request(&config, "GET /api/runs/run_timeout/review HTTP/1.1\r\n\r\n").unwrap();
+
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.contains("Codex app-server timeout"));
+        assert!(response.contains("turn-state query timed out while waiting for Codex"));
+        assert!(response.contains("APP_SERVER_EVENTS.jsonl"));
+    }
+
+    #[test]
+    fn review_request_explains_missing_and_malformed_artifacts() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = test_config(&temp_dir);
+        add_test_run(&config, "run_missing", "failed");
+        write_summary(&config, "run_missing");
+
+        let missing =
+            handle_request(&config, "GET /api/runs/run_missing/review HTTP/1.1\r\n\r\n").unwrap();
+
+        assert!(missing.starts_with("HTTP/1.1 200 OK"));
+        assert!(missing.contains("Missing artifact"));
+        assert!(missing.contains("RESULT.json is missing"));
+
+        add_test_run(&config, "run_malformed", "failed");
+        write_summary(&config, "run_malformed");
+        write_result(&config, "run_malformed", "{not json");
+
+        let malformed = handle_request(
+            &config,
+            "GET /api/runs/run_malformed/review HTTP/1.1\r\n\r\n",
+        )
+        .unwrap();
+
+        assert!(malformed.starts_with("HTTP/1.1 200 OK"));
+        assert!(malformed.contains("Malformed artifact"));
+        assert!(malformed.contains("RESULT.json is malformed"));
+    }
+
+    #[test]
+    fn review_request_summarizes_pr_and_validation_failures() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = test_config(&temp_dir);
+        let store = RunStateStore::new(config.state_db.clone());
+        add_test_run(&config, "run_pr_fail", "completed");
+        store
+            .record_pr_failure("run_pr_fail", "gh auth failed")
+            .unwrap();
+        write_summary(&config, "run_pr_fail");
+        write_result(
+            &config,
+            "run_pr_fail",
+            r#"{"version":1,"run_id":"run_pr_fail","story_id":"US-ATTN","outcome":"completed","validation":{"commands":[{"command":"cargo test","result":"pass"}]}}"#,
+        );
+
+        let pr_failure =
+            handle_request(&config, "GET /api/runs/run_pr_fail/review HTTP/1.1\r\n\r\n").unwrap();
+
+        assert!(pr_failure.contains("PR creation failure"));
+        assert!(pr_failure.contains("gh auth failed"));
+
+        add_test_run(&config, "run_validation", "completed");
+        write_summary(&config, "run_validation");
+        write_result(
+            &config,
+            "run_validation",
+            r#"{"version":1,"run_id":"run_validation","story_id":"US-ATTN","outcome":"failed","validation":{"commands":[{"command":"npm test","result":"fail"}]}}"#,
+        );
+
+        let validation = handle_request(
+            &config,
+            "GET /api/runs/run_validation/review HTTP/1.1\r\n\r\n",
+        )
+        .unwrap();
+
+        assert!(validation.contains("Validation failure"));
+        assert!(validation.contains("Validation `npm test` reported fail."));
+    }
+
+    #[test]
+    fn review_request_explains_malformed_event_log() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = test_config(&temp_dir);
+        add_test_run(&config, "run_bad_events", "failed");
+        write_summary(&config, "run_bad_events");
+        write_result(
+            &config,
+            "run_bad_events",
+            r#"{"version":1,"run_id":"run_bad_events","story_id":"US-ATTN","outcome":"failed","validation":{"commands":[{"command":"cargo test","result":"pass"}]}}"#,
+        );
+        write_events(
+            &config,
+            "run_bad_events",
+            "not json\n{\"method\":\"thread/started\"}\n",
+        );
+
+        let response = handle_request(
+            &config,
+            "GET /api/runs/run_bad_events/review HTTP/1.1\r\n\r\n",
+        )
+        .unwrap();
+
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.contains("Malformed event log"));
+        assert!(response.contains("APP_SERVER_EVENTS.jsonl has 1 malformed JSON line"));
     }
 
     #[test]

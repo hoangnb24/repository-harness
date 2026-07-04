@@ -47,6 +47,7 @@ type BoardItem = {
   run_id: string | null;
   active_run: string | null;
   reason: string;
+  failure_summary: FailureSummary | null;
 };
 
 type BoardResponse = {
@@ -75,6 +76,17 @@ type ReviewResponse = {
   artifact_paths: string[];
   events: RunEvent[];
   suggested_next_action: string;
+  failure_summary: FailureSummary | null;
+};
+
+type FailureSummary = {
+  category: string;
+  reason: string;
+  latest_event: string | null;
+  latest_error: string | null;
+  run_id: string;
+  evidence_artifacts: string[];
+  next_action: string;
 };
 
 type SyncResponse = {
@@ -637,6 +649,12 @@ function TaskCard({
       </div>
       <h3 className="mt-2 line-clamp-3 text-sm font-bold leading-5">{item.title}</h3>
       <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.reason}</p>
+      {item.failure_summary ? (
+        <div className="mt-2 flex items-center gap-2 rounded-sm border border-destructive/20 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
+          <AlertTriangle className="size-3 shrink-0" />
+          <span className="truncate">{item.failure_summary.category}</span>
+        </div>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-1 border-t border-border/70 pt-2">
         <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs font-semibold text-muted-foreground">
           {item.board_state === "Ready" ? "Start" : item.board_state === "Blocked" ? "Start disabled" : item.lane}
@@ -857,6 +875,7 @@ function TaskDetail({
         </div>
         <h2 className="mt-3 text-2xl font-semibold leading-tight tracking-tight">{item.title}</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.reason}</p>
+        {item.failure_summary ? <FailureSummaryPanel summary={item.failure_summary} compact /> : null}
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Field label="Lane" value={item.lane} />
           <Field label="Proof" value={item.verify} />
@@ -947,6 +966,8 @@ function ReviewPanel({
         <Field label="Status" value={review.status} />
       </div>
 
+      {review.failure_summary ? <FailureSummaryPanel summary={review.failure_summary} /> : null}
+
       {review.pr_url ? (
         <a
           className="block break-all rounded-sm border border-border px-3 py-2 text-sm text-primary hover:bg-accent"
@@ -979,6 +1000,29 @@ function ReviewPanel({
           Approve Sync
         </Button>
       </div>
+    </div>
+  );
+}
+
+function FailureSummaryPanel({ summary, compact = false }: { summary: FailureSummary; compact?: boolean }) {
+  return (
+    <div className={cn("rounded-md border border-destructive/30 bg-destructive/10 p-3", compact ? "mt-3" : "")}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <AlertTriangle className="size-4 shrink-0 text-destructive" />
+          <strong className="break-words text-sm font-bold">{summary.category}</strong>
+        </div>
+        <Badge tone="attention">{summary.run_id}</Badge>
+      </div>
+      <p className="mt-2 break-words text-sm leading-6 text-foreground">{summary.reason}</p>
+      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+        <Field label="Latest event" value={summary.latest_event ?? "none"} />
+        <Field label="Latest error" value={summary.latest_error ?? "none"} />
+      </div>
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">{summary.next_action}</p>
+      {!compact ? (
+        <ListBlock title="Failure evidence" values={summary.evidence_artifacts} empty="No evidence artifacts found" />
+      ) : null}
     </div>
   );
 }
