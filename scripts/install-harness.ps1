@@ -63,6 +63,79 @@ function Write-SourceFile([string]$Relative, [string]$Target) {
     Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $Target
 }
 
+function Read-PayloadManifest {
+    if ($script:Source.Mode -eq "local") {
+        $path = Join-Path $script:Source.Root $script:PayloadManifest
+        if (!(Test-Path $path)) {
+            Fail "Payload manifest missing: $path"
+        }
+        return Get-Content -LiteralPath $path
+    }
+
+    $url = "$script:SourceBaseUrl/$script:PayloadManifest"
+    try {
+        return ((Read-RemoteText $url) -split "\r?\n")
+    } catch {
+        Fail "Could not download $url"
+    }
+}
+
+function Get-PayloadFiles {
+    foreach ($line in (Read-PayloadManifest)) {
+        $relative = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($relative) -or $relative.StartsWith("#")) {
+            continue
+        }
+        $relative
+    }
+}
+
+function Get-SchemaFiles {
+    if ($script:Source.Mode -eq "local") {
+        $schemaRoot = Join-Path $script:Source.Root $script:SchemaDir
+        if (!(Test-Path $schemaRoot)) {
+            Fail "Schema directory missing: $schemaRoot"
+        }
+        return Get-ChildItem -LiteralPath $schemaRoot -Filter "*.sql" -File |
+            Sort-Object Name |
+            ForEach-Object { "$script:SchemaDir/$($_.Name)" }
+    }
+
+    if ($script:SourceBaseUrl.StartsWith("file://")) {
+        $sourceRoot = ([uri]$script:SourceBaseUrl).LocalPath
+        $schemaRoot = Join-Path $sourceRoot $script:SchemaDir
+        if (!(Test-Path $schemaRoot)) {
+            Fail "Schema directory missing: $schemaRoot"
+        }
+        return Get-ChildItem -LiteralPath $schemaRoot -Filter "*.sql" -File |
+            Sort-Object Name |
+            ForEach-Object { "$script:SchemaDir/$($_.Name)" }
+    }
+
+    if ($script:SourceBaseUrl.StartsWith("https://raw.githubusercontent.com/")) {
+        $uri = [uri]$script:SourceBaseUrl
+        $parts = $uri.AbsolutePath.Trim("/").Split("/")
+        if ($parts.Count -lt 3) {
+            Fail "Cannot infer GitHub repository from $script:SourceBaseUrl"
+        }
+        $owner = $parts[0]
+        $repo = $parts[1]
+        $ref = $parts[2]
+        $apiUrl = "https://api.github.com/repos/$owner/$repo/git/trees/$ref`?recursive=1"
+        try {
+            $tree = Read-RemoteText $apiUrl | ConvertFrom-Json
+        } catch {
+            Fail "Could not download $apiUrl"
+        }
+        return $tree.tree |
+            Where-Object { $_.type -eq "blob" -and $_.path -like "$script:SchemaDir/*.sql" } |
+            Sort-Object path |
+            ForEach-Object { $_.path }
+    }
+
+    Fail "Cannot discover remote schema files from $script:SourceBaseUrl. Use a local source, file:// source, or raw.githubusercontent.com source."
+}
+
 function Merge-Gitignore([string]$Target) {
     $rules = @(
         "# Harness durable layer",
@@ -279,6 +352,8 @@ $script:Updated = 0
 $script:Skipped = 0
 $script:Source = Get-SourceMode
 $script:SourceBaseUrl = if ($env:HARNESS_SOURCE_BASE_URL) { $env:HARNESS_SOURCE_BASE_URL.TrimEnd("/") } else { "https://raw.githubusercontent.com/hoangnb24/repository-harness/main" }
+$script:PayloadManifest = "scripts/harness-install-files.txt"
+$script:SchemaDir = "scripts/schema"
 $script:CliBaseUrl = if ($env:HARNESS_CLI_BASE_URL) { $env:HARNESS_CLI_BASE_URL.TrimEnd("/") } else { Get-DefaultCliBaseUrl }
 $script:TargetDir = Resolve-TargetPath $Directory
 $script:BackupDir = Join-Path $script:TargetDir (".harness-backup/" + (Get-Date -Format "yyyyMMddHHmmss"))
@@ -340,50 +415,13 @@ if ($script:Source.Mode -eq "local") {
 Write-Step "Harness CLI source: $script:CliBaseUrl"
 Write-Step "Target project: $script:TargetDir"
 
-$files = @(
-    "AGENTS.md",
-    "README.md",
-    "docs/ARCHITECTURE.md",
-    "docs/CONTEXT_RULES.md",
-    "docs/FEATURE_INTAKE.md",
-    "docs/GLOSSARY.md",
-    "docs/HARNESS.md",
-    "docs/HARNESS_AUDIT.md",
-    "docs/HARNESS_BACKLOG.md",
-    "docs/HARNESS_COMPONENTS.md",
-    "docs/HARNESS_MATURITY.md",
-    "docs/IMPROVEMENT_PROTOCOL.md",
-    "docs/README.md",
-    "docs/TEST_MATRIX.md",
-    "docs/TOOL_REGISTRY.md",
-    "docs/TRACE_SPEC.md",
-    "docs/decisions/0001-harness-first-development.md",
-    "docs/decisions/0002-post-spec-product-lifecycle.md",
-    "docs/decisions/0003-generic-spec-intake-harness.md",
-    "docs/decisions/0004-sqlite-durable-layer.md",
-    "docs/decisions/0005-prebuilt-rust-harness-cli.md",
-    "docs/decisions/0006-phase-4-benchmark-triage.md",
-    "docs/decisions/0007-improvement-proposal-rules.md",
-    "docs/decisions/README.md",
-    "docs/product/README.md",
-    "docs/stories/README.md",
-    "docs/stories/backlog.md",
-    "docs/templates/decision.md",
-    "docs/templates/spec-intake.md",
-    "docs/templates/story.md",
-    "docs/templates/validation-report.md",
-    "docs/templates/high-risk-story/design.md",
-    "docs/templates/high-risk-story/execplan.md",
-    "docs/templates/high-risk-story/overview.md",
-    "docs/templates/high-risk-story/validation.md",
-    "scripts/README.md",
-    "scripts/schema/001-init.sql",
-    "scripts/schema/002-story-verify.sql",
-    "scripts/schema/003-tool-registry.sql",
-    "scripts/schema/004-intervention.sql",
-    "scripts/schema/005-tool-extensions.sql",
-    ".gitignore"
-)
+$files = @()
+$files += Get-PayloadFiles
+$files += Get-SchemaFiles
+$files = $files | Select-Object -Unique
+if (($files | Where-Object { $_ -like "$script:SchemaDir/*.sql" }).Count -eq 0) {
+    Fail "No schema migrations found in $script:SchemaDir"
+}
 
 foreach ($file in $files) {
     Copy-HarnessFile $file

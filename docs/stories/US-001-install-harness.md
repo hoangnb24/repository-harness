@@ -47,6 +47,10 @@ scripts, CI, tests, or product implementation.
 - A dry-run mode reports planned file operations without writing files.
 - The installer copies only Harness v0 operating files and does not scaffold
   application code, package scripts, CI, or validation commands.
+- The installer payload is declared once and shared by the Bash and PowerShell
+  installers.
+- Schema migrations under `scripts/schema/*.sql` are discovered automatically
+  instead of being manually listed in the installer payload.
 - The installer script and this installer story are not copied into target
   projects.
 
@@ -54,6 +58,8 @@ scripts, CI, tests, or product implementation.
 
 - Commands: `scripts/install-harness.sh [--directory path] [--yes] [--force] [--merge] [--refresh-agent-shim] [--dry-run]`
 - Remote install: `curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes`
+- Payload manifest: `scripts/harness-install-files.txt` for stable non-schema
+  files; `scripts/schema/*.sql` is discovered dynamically.
 - Queries: none.
 - API: none.
 - Tables: none.
@@ -98,6 +104,20 @@ implementation surfaces are not scaffolded.
 - `HARNESS_SOURCE_BASE_URL="file:///Users/themrb/Documents/personal/repository-harness" bash -s -- --directory "$REMOTE_TARGET" --yes < scripts/install-harness.sh`
 - `curl -fsSL "file:///Users/themrb/Documents/personal/repository-harness/scripts/install-harness.sh" | HARNESS_SOURCE_BASE_URL="file:///Users/themrb/Documents/personal/repository-harness" bash -s -- --directory "$TARGET" --yes`
 - `HARNESS_SOURCE_BASE_URL="file:///Users/themrb/Documents/personal/repository-harness" bash -s -- --directory "$DRY_TARGET" --yes --dry-run < scripts/install-harness.sh`
+- 2026-07-04 payload manifest refresh: `bash -n scripts/install-harness.sh`;
+  manifest/schema parity checks with `comm`; dry-run installer smoke showed
+  `scripts/schema/006-changeset-applied.sql`,
+  `scripts/schema/007-story-dependencies.sql`, and
+  `scripts/schema/008-story-hierarchy.sql`; full local install smoke used a
+  temporary file-based CLI release and installed the three schema files plus
+  `scripts/bin/harness-cli`; installed CLI reported `harness-cli 0.1.10`;
+  PowerShell runtime was unavailable locally, so `scripts/install-harness.ps1`
+  was reviewed structurally only.
+- 2026-07-04 schema discovery refinement: schema entries were removed from
+  `scripts/harness-install-files.txt`; Bash and PowerShell installers now
+  enumerate `scripts/schema/*.sql` from local, `file://`, or
+  `raw.githubusercontent.com` sources; dry-run and full local install smoke
+  still installed schema migrations `006`, `007`, and `008`.
 
 Validated behaviors: dry-run writes no files, real install creates the harness
 structure, existing `README.md` is left untouched by default, non-interactive
@@ -109,4 +129,6 @@ guides or appends the marked Harness block to custom files,
 interactive users can stop, merge missing files, or back up and override
 protected paths even when the script is piped into a shell, remote-source mode
 works when the script is piped into a shell, and target projects do not receive
-`scripts/install-harness.sh` or this installer story.
+`scripts/install-harness.sh` or this installer story. The installer payload is
+read from a single manifest by both platform installers, while schema
+migrations are discovered from the schema directory automatically.

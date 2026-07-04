@@ -1,0 +1,40 @@
+# Harness installer payload.
+# Add new files here once; Bash and PowerShell installers both read this list.
+# Schema migrations are discovered automatically from scripts/schema/*.sql.
+AGENTS.md
+README.md
+docs/ARCHITECTURE.md
+docs/CONTEXT_RULES.md
+docs/FEATURE_INTAKE.md
+docs/GLOSSARY.md
+docs/HARNESS.md
+docs/HARNESS_AUDIT.md
+docs/HARNESS_BACKLOG.md
+docs/HARNESS_COMPONENTS.md
+docs/HARNESS_MATURITY.md
+docs/IMPROVEMENT_PROTOCOL.md
+docs/README.md
+docs/TEST_MATRIX.md
+docs/TOOL_REGISTRY.md
+docs/TRACE_SPEC.md
+docs/decisions/0001-harness-first-development.md
+docs/decisions/0002-post-spec-product-lifecycle.md
+docs/decisions/0003-generic-spec-intake-harness.md
+docs/decisions/0004-sqlite-durable-layer.md
+docs/decisions/0005-prebuilt-rust-harness-cli.md
+docs/decisions/0006-phase-4-benchmark-triage.md
+docs/decisions/0007-improvement-proposal-rules.md
+docs/decisions/README.md
+docs/product/README.md
+docs/stories/README.md
+docs/stories/backlog.md
+docs/templates/decision.md
+docs/templates/spec-intake.md
+docs/templates/story.md
+docs/templates/validation-report.md
+docs/templates/high-risk-story/design.md
+docs/templates/high-risk-story/execplan.md
+docs/templates/high-risk-story/overview.md
+docs/templates/high-risk-story/validation.md
+scripts/README.md
+.gitignore

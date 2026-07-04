@@ -194,6 +194,89 @@ write_source_file() {
   curl -fsSL "$url" -o "$target" || fail "Could not download $url"
 }
 
+read_payload_manifest() {
+  if [ "$SOURCE_MODE" = "local" ]; then
+    local manifest="$SOURCE_ROOT/$PAYLOAD_MANIFEST"
+    [ -f "$manifest" ] || fail "Payload manifest missing: $manifest"
+    cat "$manifest"
+    return
+  fi
+
+  local url="$SOURCE_BASE_URL/$PAYLOAD_MANIFEST"
+  curl -fsSL "$url" || fail "Could not download $url"
+}
+
+discover_schema_files() {
+  if [ "$SOURCE_MODE" = "local" ]; then
+    local schema_root="$SOURCE_ROOT/$SCHEMA_DIR"
+    [ -d "$schema_root" ] || fail "Schema directory missing: $schema_root"
+    find "$schema_root" -maxdepth 1 -type f -name '*.sql' -print |
+      while IFS= read -r path; do
+        printf '%s/%s\n' "$SCHEMA_DIR" "$(basename "$path")"
+      done |
+      sort
+    return
+  fi
+
+  case "$SOURCE_BASE_URL" in
+    file://*)
+      local source_root="${SOURCE_BASE_URL#file://}"
+      local schema_root="$source_root/$SCHEMA_DIR"
+      [ -d "$schema_root" ] || fail "Schema directory missing: $schema_root"
+      find "$schema_root" -maxdepth 1 -type f -name '*.sql' -print |
+        while IFS= read -r path; do
+          printf '%s/%s\n' "$SCHEMA_DIR" "$(basename "$path")"
+        done |
+        sort
+      ;;
+    https://raw.githubusercontent.com/*)
+      local raw_path="${SOURCE_BASE_URL#https://raw.githubusercontent.com/}"
+      local owner repo ref api_url
+      IFS=/ read -r owner repo ref _rest <<EOF
+$raw_path
+EOF
+      [ -n "${owner:-}" ] && [ -n "${repo:-}" ] && [ -n "${ref:-}" ] ||
+        fail "Cannot infer GitHub repository from $SOURCE_BASE_URL"
+      api_url="https://api.github.com/repos/$owner/$repo/git/trees/$ref?recursive=1"
+      curl -fsSL "$api_url" |
+        sed -n "s#.*\"path\": \"\\($SCHEMA_DIR/[^\"]*\\.sql\\)\".*#\\1#p" |
+        sort
+      ;;
+    *)
+      fail "Cannot discover remote schema files from $SOURCE_BASE_URL. Use a local source, file:// source, or raw.githubusercontent.com source."
+      ;;
+  esac
+}
+
+copy_payload_files() {
+  local manifest
+  local relative
+  local copied_schema=0
+
+  manifest="$(read_payload_manifest)"
+  while IFS= read -r relative || [ -n "$relative" ]; do
+    relative="${relative%$'\r'}"
+    case "$relative" in
+      ""|\#*)
+        continue
+        ;;
+    esac
+    copy_file "$relative"
+  done <<EOF
+$manifest
+EOF
+
+  while IFS= read -r relative || [ -n "$relative" ]; do
+    [ -n "$relative" ] || continue
+    copy_file "$relative"
+    copied_schema=$((copied_schema + 1))
+  done <<EOF
+$(discover_schema_files)
+EOF
+
+  [ "$copied_schema" -gt 0 ] || fail "No schema migrations found in $SCHEMA_DIR"
+}
+
 agent_shim_block() {
   cat <<'EOF'
 <!-- HARNESS:BEGIN -->
@@ -755,6 +838,8 @@ SOURCE_ROOT=""
 SOURCE_MODE="remote"
 SOURCE_BASE_URL="${HARNESS_SOURCE_BASE_URL:-https://raw.githubusercontent.com/hoangnb24/repository-harness/main}"
 SOURCE_BASE_URL="${SOURCE_BASE_URL%/}"
+PAYLOAD_MANIFEST="scripts/harness-install-files.txt"
+SCHEMA_DIR="scripts/schema"
 CLI_BASE_URL="${HARNESS_CLI_BASE_URL:-}"
 CLI_BASE_URL="${CLI_BASE_URL%/}"
 
@@ -816,52 +901,7 @@ else
 fi
 log "Target project: $TARGET_DIR"
 
-while IFS= read -r relative; do
-  copy_file "$relative"
-done <<'EOF'
-AGENTS.md
-README.md
-docs/ARCHITECTURE.md
-docs/CONTEXT_RULES.md
-docs/FEATURE_INTAKE.md
-docs/GLOSSARY.md
-docs/HARNESS.md
-docs/HARNESS_AUDIT.md
-docs/HARNESS_BACKLOG.md
-docs/HARNESS_COMPONENTS.md
-docs/HARNESS_MATURITY.md
-docs/IMPROVEMENT_PROTOCOL.md
-docs/README.md
-docs/TEST_MATRIX.md
-docs/TOOL_REGISTRY.md
-docs/TRACE_SPEC.md
-docs/decisions/0001-harness-first-development.md
-docs/decisions/0002-post-spec-product-lifecycle.md
-docs/decisions/0003-generic-spec-intake-harness.md
-docs/decisions/0004-sqlite-durable-layer.md
-docs/decisions/0005-prebuilt-rust-harness-cli.md
-docs/decisions/0006-phase-4-benchmark-triage.md
-docs/decisions/0007-improvement-proposal-rules.md
-docs/decisions/README.md
-docs/product/README.md
-docs/stories/README.md
-docs/stories/backlog.md
-docs/templates/decision.md
-docs/templates/spec-intake.md
-docs/templates/story.md
-docs/templates/validation-report.md
-docs/templates/high-risk-story/design.md
-docs/templates/high-risk-story/execplan.md
-docs/templates/high-risk-story/overview.md
-docs/templates/high-risk-story/validation.md
-scripts/README.md
-scripts/schema/001-init.sql
-scripts/schema/002-story-verify.sql
-scripts/schema/003-tool-registry.sql
-scripts/schema/004-intervention.sql
-scripts/schema/005-tool-extensions.sql
-.gitignore
-EOF
+copy_payload_files
 
 refresh_agent_shim
 write_claude_shim

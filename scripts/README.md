@@ -147,6 +147,13 @@ application source folders, package scripts, CI, tests, platform shells, or fake
 validation commands. The installer script is not part of the installed project
 payload.
 
+The file payload is declared once in `scripts/harness-install-files.txt` and is
+read by both the Bash and PowerShell installers. Add new Harness docs,
+templates, or decisions there instead of duplicating file lists in each
+installer. Schema migrations are different: both installers discover
+`scripts/schema/*.sql` automatically from the source repository, so adding a
+new migration only requires committing the SQL file.
+
 By default the installer also downloads the prebuilt Rust Harness CLI for the
 current platform into `scripts/bin/harness-cli` on macOS/Linux or
 `scripts/bin/harness-cli.exe` on Windows, then verifies its `.sha256` checksum.
