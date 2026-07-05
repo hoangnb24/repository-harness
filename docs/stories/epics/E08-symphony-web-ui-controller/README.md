@@ -37,6 +37,8 @@ Symphony records.
 19. `US-065` - Unlimited Codex app-server task runtime.
 20. `US-066` - Needs Attention failure explanation.
 21. `US-067` - Needs Attention recovery action.
+22. `US-068` - Bounded work item cards.
+23. `US-069` - Web UI design principles and validation.
 
 ## Exit Criteria
 
@@ -54,6 +56,10 @@ Symphony records.
   a suggested next action from the Web UI.
 - Needs Attention tasks offer guarded retry or PR-retry recovery controls when
   the backend classifies the latest failure as recoverable.
+- Work-item cards stay bounded inside board columns and put full content in the
+  task detail popup.
+- Future Web UI work follows an explicit lightweight controller design contract
+  backed by build, Playwright, screenshot, and optional design-lint validation.
 - Dependency cycles are detected and shown as task breakdown problems.
 - Browser-level validation proves the board, task detail, event stream, review,
   and sync workflows.

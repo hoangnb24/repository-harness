@@ -47,6 +47,17 @@ Feature intake is responsible for producing:
 
 The Web UI does not create tasks in the MVP.
 
+## Board Card Presentation
+
+Board cards are summaries, not the full work-item record. The board must stay
+scannable across all six states, so each card should keep long titles, reasons,
+run IDs, blocker metadata, failure labels, and action hints bounded inside the
+column.
+
+The board must not create horizontal scrolling inside a column or inside a
+card. Dense task lists may scroll vertically within a column. Full work-item
+content belongs in the task detail popup or review surfaces.
+
 ## Dependency Model
 
 Dependencies live in Harness because they are produced during feature intake.
@@ -171,6 +182,23 @@ It should include:
 - Retry or mark-needs-attention actions when review artifacts are incomplete.
 
 Raw artifacts should remain accessible from the review surface.
+
+## Controller Design Principles
+
+The Web UI is a dense product controller for repeated operational work, not a
+marketing surface. It should prioritize scanability, stable controls, explicit
+state, and low-friction review over decorative composition.
+
+Local shadcn-style primitives are the default foundation for application
+controls and framed UI. Product-specific components should be extracted when a
+pattern repeats or when reuse prevents drift in board cards, detail popups,
+status tones, review panels, or log surfaces.
+
+Design validation should combine deterministic product proof with human visual
+review. Build and Playwright checks prove the UI works; desktop/mobile
+screenshots prove the layout fits; Impeccable or equivalent tooling can provide
+design vocabulary, anti-pattern detection, audit, and polish feedback when the
+tool is installed.
 
 ## Codex Event Source
 
