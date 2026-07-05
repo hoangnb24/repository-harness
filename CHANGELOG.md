@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-05 - PR #36
+
+- US-068: completed (@hoangnb24)
+- Merge commit: `5049c9704ca6f60f7446b9760603b2dcb4fecdf5`
+- Harness CLI release: not required
+- Changed files:
+  - `.harness/changesets/run_1783224245101133000_18033_0.changeset.jsonl`
+  - `crates/harness-symphony/web-ui/src/main.tsx`
+  - `crates/harness-symphony/web-ui/src/styles.css`
+  - `crates/harness-symphony/web-ui/tests/board.spec.ts`
+  - `docs/stories/epics/E08-symphony-web-ui-controller/US-068-bounded-work-item-cards.md`
+
 ## 2026-07-04 - PR #35
 
 - US-064: completed (@hoangnb24)
