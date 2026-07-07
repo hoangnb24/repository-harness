@@ -1,0 +1,3 @@
+{"base_schema_version":8,"op":"changeset.header","run_id":"run_1783530000000000000_impeccable_tool","version":1}
+{"id":"impeccable","op":"tool.register","payload":{"args":null,"capability":"design-validation","command":"skill:impeccable","description":"Project-local Impeccable design review skill for UI polish validation","kind":"skill","responsibility":"Verification","scan_target":".agents/skills/impeccable/SKILL.md"},"version":1}
+{"id":"impeccable","op":"tool.check","payload":{"detail":".agents/skills/impeccable/SKILL.md","status":"present"},"version":1}
