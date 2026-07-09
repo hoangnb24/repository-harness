@@ -1,7 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import {
+  Activity,
   AlertTriangle,
+  PanelTop,
   RefreshCw,
   Search
 } from "lucide-react";
@@ -250,43 +252,55 @@ function App() {
   );
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 md:p-4 lg:grid-cols-[224px_minmax(0,1fr)] xl:p-6">
+    <main className="min-h-screen bg-muted/45 text-foreground">
+      <div className="mx-auto grid w-full max-w-[1760px] grid-cols-1 gap-3 p-3 md:p-4 lg:grid-cols-[240px_minmax(0,1fr)] xl:p-5">
         <ControllerSidebar counts={counts} items={items} selectedId={selected?.id ?? null} onSelect={selectTask} />
 
         <div className="flex min-w-0 flex-col gap-3">
-          <header className="flex flex-col gap-3 border-b border-border pb-3 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <h1 className="text-[40px] font-semibold leading-none tracking-tight max-md:text-[28px]">
-                Symphony work board
-              </h1>
-              <p className="mt-2 max-w-3xl text-base font-medium leading-6 text-muted-foreground">
-                Kanban, blockers, and run logs in one focused view.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="relative block w-full sm:w-72">
-                <span className="sr-only">Find task</span>
-                <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="pl-9"
-                  placeholder="Find task"
-                  aria-label="Find task"
-                />
-              </label>
-              <Button variant="outline" onClick={() => void loadBoard()} disabled={loading}>
-                <RefreshCw data-icon="inline-start" className={cn(loading && "motion-safe:animate-spin")} />
-                Refresh
-              </Button>
+          <header className="rounded-lg border border-border bg-background p-3">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="inline-flex min-h-7 items-center gap-2 rounded-full border border-border bg-muted px-2.5">
+                    <PanelTop className="size-3.5" />
+                    Local operations surface
+                  </span>
+                  <span className="inline-flex min-h-7 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-emerald-800">
+                    <Activity className={cn("size-3.5", activeRun?.active_run && "motion-safe:animate-pulse")} />
+                    {activeRun?.active_run ? "Run active" : "No active run"}
+                  </span>
+                </div>
+                <h1 className="mt-2 text-2xl font-semibold leading-tight tracking-normal md:text-[32px]">
+                  Symphony Command Center
+                </h1>
+                <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-muted-foreground">
+                  Start safe work, watch the active run, review evidence, and sync accepted changes from one local controller.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                <label className="relative block w-full sm:w-80">
+                  <span className="sr-only">Find task</span>
+                  <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                  <Input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    className="h-10 bg-muted/60 pl-9"
+                    placeholder="Find task or story ID"
+                    aria-label="Find task"
+                  />
+                </label>
+                <Button variant="outline" onClick={() => void loadBoard()} disabled={loading} className="h-10 bg-background">
+                  <RefreshCw data-icon="inline-start" className={cn(loading && "motion-safe:animate-spin")} />
+                  Refresh
+                </Button>
+              </div>
             </div>
           </header>
 
-          <SummaryStrip activeRun={activeRun} counts={counts} className="order-3 md:order-none" />
+          <SummaryStrip activeRun={activeRun} counts={counts} className="order-1 md:order-none" />
 
           {error ? (
-            <Card role="alert" className="order-2 flex items-center gap-3 border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive md:order-none">
+            <Card role="alert" className="order-1 flex items-center gap-3 border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive md:order-none">
               <AlertTriangle className="size-4 shrink-0" />
               {error}
             </Card>
@@ -295,7 +309,7 @@ function App() {
           <section
             id="board"
             aria-busy={loading}
-            className="order-2 grid min-h-[calc(100dvh-220px)] grid-cols-1 gap-3 md:order-none"
+            className="command-board-surface order-2 grid min-h-[calc(100dvh-232px)] grid-cols-1 gap-3 rounded-lg border border-border bg-background p-2 md:order-none"
           >
             <div className="sr-only" role="status" aria-live="polite">
               {loading
@@ -330,7 +344,7 @@ function App() {
             </TaskDetailOverlay>
           ) : null}
 
-          <p className="text-xs leading-5 text-muted-foreground">
+          <p className="order-4 text-xs leading-5 text-muted-foreground md:order-none">
             Source: local Symphony API responses for board state, run events, review artifacts, PR status, and sync state.
           </p>
         </div>

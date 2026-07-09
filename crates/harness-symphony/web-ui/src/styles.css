@@ -4,19 +4,19 @@
 
 :root {
   --background: 0 0% 100%;
-  --foreground: 40 3% 4%;
+  --foreground: 222 22% 8%;
   --card: 0 0% 100%;
-  --card-foreground: 40 3% 4%;
-  --primary: 208 100% 44%;
+  --card-foreground: 222 22% 8%;
+  --primary: 211 100% 40%;
   --primary-foreground: 0 0% 100%;
-  --muted: 30 10% 96%;
-  --muted-foreground: 30 4% 36%;
-  --accent: 208 100% 94%;
-  --accent-foreground: 40 3% 4%;
+  --muted: 214 22% 96%;
+  --muted-foreground: 220 10% 34%;
+  --accent: 211 94% 94%;
+  --accent-foreground: 222 22% 8%;
   --destructive: 0 70% 42%;
   --destructive-foreground: 0 0% 100%;
-  --border: 30 5% 90%;
-  --input: 30 5% 88%;
+  --border: 216 16% 88%;
+  --input: 216 16% 84%;
   --ring: 208 92% 47%;
   --warning: 25 100% 43%;
 }
@@ -30,6 +30,14 @@ body {
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+button,
+input,
+summary,
+a {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .line-clamp-2 {
@@ -49,6 +57,14 @@ body {
 .bounded-text {
   overflow-wrap: anywhere;
   word-break: normal;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 .task-close-confetti-host {

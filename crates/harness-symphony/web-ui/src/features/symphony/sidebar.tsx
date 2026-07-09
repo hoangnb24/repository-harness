@@ -21,20 +21,25 @@ export function ControllerSidebar({
   return (
     <aside
       aria-label="Workspace navigation"
-      className="flex min-h-0 flex-col rounded-lg border border-border bg-muted p-3 lg:sticky lg:top-4 lg:min-h-[calc(100vh-48px)]"
+      className="flex min-h-0 flex-col rounded-lg border border-border bg-background p-3 lg:sticky lg:top-4 lg:min-h-[calc(100vh-40px)]"
     >
-      <div className="mb-3 flex items-center gap-2 p-2 text-sm font-bold">
-        <span className="grid size-6 place-items-center rounded-sm border border-border bg-background font-mono text-xs">
+      <div className="mb-3 rounded-md border border-border bg-muted/55 p-2.5">
+        <div className="flex items-center gap-2 text-sm font-bold">
+        <span className="grid size-7 place-items-center rounded-sm border border-border bg-background font-mono text-xs">
           S
         </span>
-        <span>Symphony</span>
+          <span>Symphony</span>
+        </div>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          Local run control for the current repository.
+        </p>
       </div>
 
-      <nav aria-label="Primary" className="flex gap-1 overflow-x-auto border-t border-border/70 py-2 lg:flex-col lg:overflow-visible">
+      <nav aria-label="Primary" className="scrollbar-none flex gap-1 overflow-x-auto border-t border-border/70 py-2 lg:flex-col lg:overflow-visible">
         <SidebarLabel>Workspace</SidebarLabel>
         <SidebarItem active href="#board" label="Work board" count={String(Object.values(counts).reduce((sum, count) => sum + count, 0))} />
         <details className="min-w-56 rounded-sm lg:min-w-0">
-          <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between rounded-sm px-2 text-sm font-semibold text-muted-foreground hover:bg-background hover:text-foreground">
+          <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between rounded-sm px-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
             <span>Dependencies</span>
             <span className="font-mono text-xs text-muted-foreground">{blockedItems.length}</span>
           </summary>
@@ -54,7 +59,7 @@ export function ControllerSidebar({
         <SidebarItem href="#logs" label="Run logs" count="live" />
       </nav>
 
-      <nav aria-label="Status" className="mt-2 flex gap-1 overflow-x-auto border-t border-border/70 py-2 lg:flex-col lg:overflow-visible">
+      <nav aria-label="Status" className="scrollbar-none mt-2 flex gap-1 overflow-x-auto border-t border-border/70 py-2 lg:flex-col lg:overflow-visible">
         <SidebarLabel>Status</SidebarLabel>
         <SidebarItem href={`#${columnId("Ready")}`} label="Ready" count={String(counts.Ready)} />
         <SidebarItem href={`#${columnId("Blocked")}`} label="Blocked" count={String(counts.Blocked)} />
@@ -95,7 +100,7 @@ function SidebarDependencyGraph({
               type="button"
               onClick={() => onSelect(item.id)}
               className={cn(
-                "w-full rounded-md border border-border bg-background p-2 text-left transition hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "w-full rounded-md border border-border bg-muted/45 p-2 text-left transition hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 item.id === selectedId && "border-primary bg-accent"
               )}
             >
@@ -131,7 +136,7 @@ function GraphLine({ left, right }: { left: string; right: string }) {
 }
 
 function SidebarLabel({ children }: { children: React.ReactNode }) {
-  return <p className="hidden px-2 py-2 text-xs font-bold uppercase tracking-widest text-muted-foreground lg:block">{children}</p>;
+  return <p className="hidden px-2 py-2 text-xs font-semibold text-muted-foreground lg:block">{children}</p>;
 }
 
 function SidebarItem({
@@ -150,8 +155,8 @@ function SidebarItem({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-9 min-w-max items-center justify-between gap-3 rounded-sm px-2 text-sm font-semibold text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-w-0",
-        active && "bg-background text-foreground"
+        "flex min-h-9 min-w-max items-center justify-between gap-3 rounded-sm px-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-w-0",
+        active && "bg-muted text-foreground"
       )}
     >
       <span>{label}</span>

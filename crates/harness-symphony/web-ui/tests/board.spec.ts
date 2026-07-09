@@ -43,7 +43,10 @@ async function expectReadableTaskCard(locator: Locator, label: string) {
 test("board renders task columns and detail controls", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Symphony work board" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Symphony Command Center" })).toBeVisible();
+  await expect(page.getByText("Local operations surface")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Command status rail" })).toBeVisible();
+  await expect(page.locator("#board")).toHaveClass(/command-board-surface/);
   await expect(page.getByRole("complementary", { name: "Workspace navigation" })).toBeVisible();
   await expect(page.getByText("Safe to start")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Ready", exact: true })).toBeVisible();
