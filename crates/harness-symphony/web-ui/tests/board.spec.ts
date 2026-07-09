@@ -321,6 +321,43 @@ test("ready task delete action confirms, retires, and refreshes the board", asyn
   await expect(page.getByRole("region", { name: "Ready column" }).getByText("No tasks")).toBeVisible();
 });
 
+test("ready card runs codex from the board without opening detail", async ({ page }) => {
+  let started = false;
+  page.on("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("Run US-076 with Codex");
+    await dialog.accept();
+  });
+  await page.route("**/api/board", async (route) => {
+    const item = boardItem("US-076", "Run Ready Story From Board Card", started ? "In Progress" : "Ready");
+    item.active_run = started ? "run_us_076" : null;
+    item.run_id = started ? "run_us_076" : null;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [item] })
+    });
+  });
+  await page.route("**/api/tasks/US-076/start", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    started = true;
+    await route.fulfill({
+      status: 202,
+      contentType: "application/json",
+      body: JSON.stringify({ run_id: "run_us_076", story_id: "US-076", status: "started" })
+    });
+  });
+
+  await page.goto("/");
+
+  const readyColumn = page.getByRole("region", { name: "Ready column" });
+  const readyCard = readyColumn.getByTestId("task-card").filter({ hasText: "US-076" });
+  await expect(readyCard.getByRole("button", { name: "Run with Codex" })).toBeVisible();
+  await readyCard.getByRole("button", { name: "Run with Codex" }).click();
+
+  await expect.poll(async () => started).toBe(true);
+  await expect(page.getByRole("dialog", { name: "Selected work detail" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "In Progress column" }).getByRole("button", { name: /US-076/ })).toBeVisible();
+});
+
 test("delete action is hidden for non-ready tasks", async ({ page }) => {
   await page.route("**/api/board", async (route) => {
     await route.fulfill({

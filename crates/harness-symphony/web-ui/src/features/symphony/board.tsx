@@ -1,6 +1,7 @@
-import { AlertTriangle, GitPullRequestArrow, PlayCircle, Radio, ShieldAlert } from "lucide-react";
+import { AlertTriangle, GitPullRequestArrow, Play, PlayCircle, Radio, ShieldAlert } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
 import { cn } from "../../lib/utils";
 import { columnId, stateIcon, states } from "./constants";
 import { StatusBadge, toneForState } from "./status-badge";
@@ -75,11 +76,17 @@ export function SummaryStrip({
 export function BoardGrid({
   items,
   selectedId,
-  onSelect
+  activeRunId,
+  startingId,
+  onSelect,
+  onRun
 }: {
   items: BoardItem[];
   selectedId: string | null;
+  activeRunId: string | null;
+  startingId: string | null;
   onSelect: (id: string) => void;
+  onRun: (item: BoardItem) => Promise<void>;
 }) {
   return (
     <div className="min-h-0 min-w-0 overflow-x-auto">
@@ -108,7 +115,15 @@ export function BoardGrid({
               </div>
               <div aria-label={`${state} tasks`} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
                 {stateItems.map((item) => (
-                  <TaskCard key={item.id} item={item} selected={item.id === selectedId} onSelect={onSelect} />
+                  <TaskCard
+                    key={item.id}
+                    item={item}
+                    selected={item.id === selectedId}
+                    activeRunId={activeRunId}
+                    startingId={startingId}
+                    onSelect={onSelect}
+                    onRun={onRun}
+                  />
                 ))}
                 {stateItems.length === 0 ? (
                   <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed border-border bg-background/65 px-3 text-center text-xs text-muted-foreground">
@@ -127,21 +142,28 @@ export function BoardGrid({
 function TaskCard({
   item,
   selected,
-  onSelect
+  activeRunId,
+  startingId,
+  onSelect,
+  onRun
 }: {
   item: BoardItem;
   selected: boolean;
+  activeRunId: string | null;
+  startingId: string | null;
   onSelect: (id: string) => void;
+  onRun: (item: BoardItem) => Promise<void>;
 }) {
   const blocked = item.board_state === "Blocked";
   const attention = item.board_state === "Needs Attention";
   const done = item.board_state === "Done";
+  const canRun = item.board_state === "Ready" && item.verify === "configured" && activeRunId === null;
+  const runDisabled = item.board_state !== "Ready" || item.verify !== "configured" || activeRunId !== null || startingId === item.id;
 
   return (
-    <button
-      onClick={() => onSelect(item.id)}
+    <div
       className={cn(
-        "group block min-h-[136px] w-full min-w-0 shrink-0 overflow-hidden rounded-md border bg-background p-3 text-left transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group block min-h-[136px] w-full min-w-0 shrink-0 overflow-hidden rounded-md border bg-background p-3 text-left transition-colors focus-within:ring-2 focus-within:ring-ring hover:border-primary",
         cardChrome[item.board_state],
         selected && "border-primary ring-2 ring-ring/25",
         blocked && "bg-zinc-100",
@@ -150,23 +172,25 @@ function TaskCard({
       )}
       data-testid="task-card"
     >
-      <div className="flex min-w-0 items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5 truncate font-mono text-xs font-bold text-muted-foreground">
-          <span className={cn("size-2 shrink-0 rounded-full", stateDot[item.board_state])} />
-          <span className="min-w-0 truncate">{item.id}</span>
-        </span>
-        <Badge className="max-w-[58%] shrink-0 truncate" tone={item.verify === "configured" ? toneForState(item.board_state) : "neutral"}>
-          {item.board_state === "In Progress" ? "active" : item.verify}
-        </Badge>
-      </div>
-      <h3 className="bounded-text mt-2 line-clamp-3 text-sm font-bold leading-5">{item.title}</h3>
-      <p className="bounded-text mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.reason}</p>
-      {item.failure_summary ? (
-        <div className="mt-2 flex min-w-0 items-start gap-2 overflow-hidden rounded-sm border border-destructive/20 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
-          <AlertTriangle className="size-3 shrink-0" />
-          <span className="bounded-text line-clamp-2 min-w-0">{item.failure_summary.category}</span>
+      <button type="button" onClick={() => onSelect(item.id)} className="block w-full min-w-0 text-left focus-visible:outline-none">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5 truncate font-mono text-xs font-bold text-muted-foreground">
+            <span className={cn("size-2 shrink-0 rounded-full", stateDot[item.board_state])} />
+            <span className="min-w-0 truncate">{item.id}</span>
+          </span>
+          <Badge className="max-w-[58%] shrink-0 truncate" tone={item.verify === "configured" ? toneForState(item.board_state) : "neutral"}>
+            {item.board_state === "In Progress" ? "active" : item.verify}
+          </Badge>
         </div>
-      ) : null}
+        <h3 className="bounded-text mt-2 line-clamp-3 text-sm font-bold leading-5">{item.title}</h3>
+        <p className="bounded-text mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.reason}</p>
+        {item.failure_summary ? (
+          <div className="mt-2 flex min-w-0 items-start gap-2 overflow-hidden rounded-sm border border-destructive/20 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
+            <AlertTriangle className="size-3 shrink-0" />
+            <span className="bounded-text line-clamp-2 min-w-0">{item.failure_summary.category}</span>
+          </div>
+        ) : null}
+      </button>
       <div className="mt-3 flex min-w-0 flex-wrap gap-1 border-t border-border/70 pt-2">
         <span className="max-w-full truncate rounded-full border border-border bg-background/80 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
           {item.board_state === "Ready" ? "Start" : item.board_state === "Blocked" ? "Start disabled" : item.lane}
@@ -175,7 +199,20 @@ function TaskCard({
           {item.blockers.length > 0 ? `${item.blockers.length} blockers` : item.run_id ?? "No run"}
         </span>
       </div>
-    </button>
+      {item.board_state === "Ready" ? (
+        <Button
+          type="button"
+          className="mt-3 h-8 w-full"
+          disabled={runDisabled}
+          aria-label="Run with Codex"
+          title={canRun ? "Start this Ready story with Codex" : "Cannot start while another run is active or proof is missing"}
+          onClick={() => void onRun(item)}
+        >
+          <Play />
+          {startingId === item.id ? "Starting" : "Run with Codex"}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

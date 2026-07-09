@@ -124,7 +124,8 @@ The primary board states are:
 2. UI shows task hierarchy and board states.
 3. User clicks a task and inspects the floating task detail popup without
    losing the board context.
-4. User starts a `Ready` task from the popup.
+4. User starts a `Ready` task from the popup or from the guarded `Run with
+   Codex` action on a Ready board card.
 5. The task moves to `In Progress`.
 6. Entering `In Progress` starts execution like `harness-symphony run`.
 7. UI shows live Codex App Server events for the active run.
@@ -190,6 +191,21 @@ Recovery from `Needs Attention` must be explicit and guarded:
   status, PR state, sync state, and the active-run lock.
 - Recovery is refused when another run is active, the story is no longer
   runnable, or the task is already in `Review` or `Done`.
+
+## Ready Run Action
+
+Ready board cards may expose a direct `Run with Codex` action for faster
+execution. The action is a convenience for the existing start endpoint, not a
+separate runner.
+
+The direct run action must be explicit and guarded:
+
+- It asks for confirmation before starting Symphony.
+- It is available only on `Ready` work with configured proof.
+- It is disabled while another run is active.
+- It starts the existing Symphony workflow through `/api/tasks/<story-id>/start`.
+- It must not bypass the active-run lock, dependency checks, review flow, PR
+  creation rules, merge gate, or sync approval.
 
 ## Review Surface
 

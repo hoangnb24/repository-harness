@@ -162,6 +162,16 @@ function App() {
     [loadBoard]
   );
 
+  const runTaskFromBoard = React.useCallback(
+    async (item: BoardItem) => {
+      if (!window.confirm(`Run ${item.id} with Codex? This starts Symphony and allows Codex to edit the repository.`)) {
+        return;
+      }
+      await startTask(item.id);
+    },
+    [startTask]
+  );
+
   const retireTask = React.useCallback(
     async (item: BoardItem) => {
       if (!window.confirm(`Retire ${item.id} ${item.title}? This removes it from active Ready work without deleting history.`)) {
@@ -381,7 +391,14 @@ function App() {
                     ? `Active run ${activeRun.active_run} is updating.`
                     : "Symphony board loaded."}
               </div>
-              <BoardGrid items={filtered} selectedId={selected?.id ?? null} onSelect={selectTask} />
+              <BoardGrid
+                items={filtered}
+                selectedId={selected?.id ?? null}
+                activeRunId={activeRun?.active_run ?? null}
+                startingId={startingId}
+                onSelect={selectTask}
+                onRun={runTaskFromBoard}
+              />
             </section>
           ) : (
             <GuidedIntakePanel creating={creatingStory} error={intakeError} onCreate={createGuidedStory} />
