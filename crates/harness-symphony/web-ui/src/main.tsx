@@ -12,6 +12,7 @@ import { Card } from "./components/ui/card";
 import { Input } from "./components/ui/input";
 import {
   fetchBoard,
+  postCreateGuidedIntake,
   postMarkPrMerged,
   postRecoverTask,
   postRetireTask,
@@ -21,11 +22,13 @@ import {
 } from "./features/symphony/api";
 import { BoardGrid, SummaryStrip } from "./features/symphony/board";
 import { ConfettiBurstHost, TaskDetail, TaskDetailOverlay } from "./features/symphony/detail";
+import { GuidedIntakePanel } from "./features/symphony/intake";
 import { states } from "./features/symphony/constants";
 import { ControllerSidebar } from "./features/symphony/sidebar";
 import type {
   BoardItem,
   BoardState,
+  GuidedIntakeDraft,
   PrMergedResponse,
   PrRetryResponse,
   RecoveryAction
@@ -39,8 +42,11 @@ type ConfettiBurst = {
   y: number;
 };
 
+type AppView = "board" | "intake";
+
 function App() {
   const [items, setItems] = React.useState<BoardItem[]>([]);
+  const [view, setView] = React.useState<AppView>("board");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [confettiBursts, setConfettiBursts] = React.useState<ConfettiBurst[]>([]);
   const [query, setQuery] = React.useState("");
@@ -52,6 +58,8 @@ function App() {
   const [syncingRunId, setSyncingRunId] = React.useState<string | null>(null);
   const [markingMergedRunId, setMarkingMergedRunId] = React.useState<string | null>(null);
   const [retryingPrRunId, setRetryingPrRunId] = React.useState<string | null>(null);
+  const [creatingStory, setCreatingStory] = React.useState(false);
+  const [intakeError, setIntakeError] = React.useState<string | null>(null);
   const confettiBurstIdRef = React.useRef(0);
   const boardRequestIdRef = React.useRef(0);
   const selectedOpenerRef = React.useRef<HTMLElement | null>(null);
@@ -251,6 +259,34 @@ function App() {
     [loadBoard]
   );
 
+  const createGuidedStory = React.useCallback(
+    async (draft: GuidedIntakeDraft) => {
+      if (!window.confirm("Create a durable Harness story from this guided intake? This writes intake and story records but does not start Symphony.")) {
+        return;
+      }
+      setCreatingStory(true);
+      setIntakeError(null);
+      try {
+        const story = await postCreateGuidedIntake(draft);
+        await loadBoard();
+        setQuery(story.story_id);
+        setView("board");
+      } catch (cause) {
+        setIntakeError(cause instanceof Error ? cause.message : "Create story failed");
+      } finally {
+        setCreatingStory(false);
+      }
+    },
+    [loadBoard]
+  );
+
+  function switchView(nextView: AppView) {
+    setView(nextView);
+    if (nextView === "intake") {
+      setSelectedId(null);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-muted/45 text-foreground">
       <div className="mx-auto grid w-full max-w-[1760px] grid-cols-1 gap-3 p-3 md:p-4 lg:grid-cols-[240px_minmax(0,1fr)] xl:p-5">
@@ -276,6 +312,32 @@ function App() {
                 <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-muted-foreground">
                   Start safe work, watch the active run, review evidence, and sync accepted changes from one local controller.
                 </p>
+                <div role="tablist" aria-label="Command Center views" className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={view === "board"}
+                    className={cn(
+                      "min-h-9 rounded-sm border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      view === "board" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => switchView("board")}
+                  >
+                    Work Board
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={view === "intake"}
+                    className={cn(
+                      "min-h-9 rounded-sm border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      view === "intake" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => switchView("intake")}
+                  >
+                    Guided Intake
+                  </button>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 xl:justify-end">
                 <label className="relative block w-full sm:w-80">
@@ -297,29 +359,33 @@ function App() {
             </div>
           </header>
 
-          <SummaryStrip activeRun={activeRun} counts={counts} className="order-1 md:order-none" />
+          {view === "board" ? <SummaryStrip activeRun={activeRun} counts={counts} className="order-1 md:order-none" /> : null}
 
-          {error ? (
+          {view === "board" && error ? (
             <Card role="alert" className="order-1 flex items-center gap-3 border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive md:order-none">
               <AlertTriangle className="size-4 shrink-0" />
               {error}
             </Card>
           ) : null}
 
-          <section
-            id="board"
-            aria-busy={loading}
-            className="command-board-surface order-2 grid min-h-[calc(100dvh-232px)] grid-cols-1 gap-3 rounded-lg border border-border bg-background p-2 md:order-none"
-          >
-            <div className="sr-only" role="status" aria-live="polite">
-              {loading
-                ? "Loading Symphony board."
-                : activeRun?.active_run
-                  ? `Active run ${activeRun.active_run} is updating.`
-                  : "Symphony board loaded."}
-            </div>
-            <BoardGrid items={filtered} selectedId={selected?.id ?? null} onSelect={selectTask} />
-          </section>
+          {view === "board" ? (
+            <section
+              id="board"
+              aria-busy={loading}
+              className="command-board-surface order-2 grid min-h-[calc(100dvh-232px)] grid-cols-1 gap-3 rounded-lg border border-border bg-background p-2 md:order-none"
+            >
+              <div className="sr-only" role="status" aria-live="polite">
+                {loading
+                  ? "Loading Symphony board."
+                  : activeRun?.active_run
+                    ? `Active run ${activeRun.active_run} is updating.`
+                    : "Symphony board loaded."}
+              </div>
+              <BoardGrid items={filtered} selectedId={selected?.id ?? null} onSelect={selectTask} />
+            </section>
+          ) : (
+            <GuidedIntakePanel creating={creatingStory} error={intakeError} onCreate={createGuidedStory} />
+          )}
 
           <ConfettiBurstHost bursts={confettiBursts} onBurstDone={clearConfettiBurst} />
 
@@ -345,7 +411,9 @@ function App() {
           ) : null}
 
           <p className="order-4 text-xs leading-5 text-muted-foreground md:order-none">
-            Source: local Symphony API responses for board state, run events, review artifacts, PR status, and sync state.
+            {view === "board"
+              ? "Source: local Symphony API responses for board state, run events, review artifacts, PR status, and sync state."
+              : "Source: local draft state until explicit create writes Harness intake and story records."}
           </p>
         </div>
       </div>

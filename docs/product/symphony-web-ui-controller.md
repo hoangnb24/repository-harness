@@ -36,7 +36,8 @@ of truth.
 
 ## Task Source
 
-Tasks come from Harness stories created during feature intake.
+Tasks come from Harness stories created during feature intake or from an
+explicit Guided Intake create action in the local Web UI.
 
 Feature intake is responsible for producing:
 
@@ -45,7 +46,29 @@ Feature intake is responsible for producing:
 - Runnable task boundaries.
 - Validation expectations.
 
-The Web UI does not create tasks in the MVP.
+The Web UI must not silently create tasks. It may create a Harness story only
+after the user explicitly confirms the Guided Intake draft.
+
+## Guided Intake
+
+The Web UI may help users shape a rough idea into a story draft before durable
+records exist. The draft surface stays advisory until the user explicitly
+confirms creation.
+
+The draft surface may collect:
+
+- rough idea
+- affected operator or audience
+- desired outcome
+- non-goals
+- validation proof
+- suggested lane
+
+The confirmed create action writes one intake row and one planned story row.
+The story should include the validation proof as its verify command so it can
+appear as Ready when it has no blockers. Creation must not mutate dependencies,
+start Symphony, create a run, create a PR, or sync changes. Durable Harness
+records remain the source of truth after creation.
 
 ## Board Card Presentation
 

@@ -71,6 +71,94 @@ test("board renders task columns and detail controls", async ({ page }) => {
   await expect(detail.getByRole("button", { name: /Start/ })).toBeVisible();
 });
 
+test("guided intake drafts a story before required proof is present", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("tab", { name: "Guided Intake" }).click();
+  await expect(page.getByRole("heading", { name: "Guided Intake" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Draft story preview" })).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Rough idea" }).fill("Make review evidence easier to scan");
+  await expect(page.getByRole("region", { name: "Draft story preview" })).toContainText("Make review evidence easier to scan");
+
+  await page.getByRole("textbox", { name: "Who benefits from this work?" }).fill("Maintainers reviewing local Symphony runs");
+  await page.getByRole("button", { name: "Next question" }).click();
+  await page.getByRole("textbox", { name: "What should be true when this succeeds?" }).fill("They can approve or reject a run without opening raw artifacts first");
+  await page.getByRole("button", { name: "Next question" }).click();
+  await page.getByRole("textbox", { name: "What should stay out of scope?" }).fill("No automatic Symphony run start");
+
+  const preview = page.getByRole("region", { name: "Draft story preview" });
+  await expect(preview).toContainText("Maintainers reviewing local Symphony runs");
+  await expect(preview).toContainText("They can approve or reject a run without opening raw artifacts first");
+  await expect(preview).toContainText("No automatic Symphony run start");
+  await expect(preview).toContainText("Normal lane");
+  await expect(page.getByRole("button", { name: "Create story" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Start" })).toHaveCount(0);
+});
+
+test("guided intake creates a story after explicit confirmation", async ({ page }) => {
+  let created = false;
+  let createRequested = false;
+  let startRequested = false;
+
+  page.on("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("Create a durable Harness story");
+    await dialog.accept();
+  });
+  await page.route("**/api/board", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: created ? [boardItem("US-075-DRAFT", "Make review evidence easier to scan", "Ready")] : []
+      })
+    });
+  });
+  await page.route("**/api/intake", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    const body = route.request().postDataJSON();
+    expect(body).toMatchObject({
+      idea: "Make review evidence easier to scan",
+      audience: "Maintainers reviewing local Symphony runs",
+      outcome: "They can approve or reject a run without opening raw artifacts first",
+      non_goals: "No automatic Symphony run start",
+      validation: "npm --prefix crates/harness-symphony/web-ui run e2e"
+    });
+    createRequested = true;
+    created = true;
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        story_id: "US-075-DRAFT",
+        title: "Make review evidence easier to scan",
+        status: "planned"
+      })
+    });
+  });
+  await page.route("**/api/tasks/**/start", async (route) => {
+    startRequested = true;
+    await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "unexpected" }) });
+  });
+
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Guided Intake" }).click();
+  await page.getByRole("textbox", { name: "Rough idea" }).fill("Make review evidence easier to scan");
+  await page.getByRole("textbox", { name: "Who benefits from this work?" }).fill("Maintainers reviewing local Symphony runs");
+  await page.getByRole("button", { name: "Next question" }).click();
+  await page.getByRole("textbox", { name: "What should be true when this succeeds?" }).fill("They can approve or reject a run without opening raw artifacts first");
+  await page.getByRole("button", { name: "Next question" }).click();
+  await page.getByRole("textbox", { name: "What should stay out of scope?" }).fill("No automatic Symphony run start");
+  await page.getByRole("button", { name: "Next question" }).click();
+  await page.getByRole("textbox", { name: "What proof should show it worked?" }).fill("npm --prefix crates/harness-symphony/web-ui run e2e");
+
+  await expect(page.getByRole("button", { name: "Create story" })).toBeEnabled();
+  await page.getByRole("button", { name: "Create story" }).click();
+
+  await expect.poll(async () => createRequested).toBe(true);
+  await expect(page.getByRole("region", { name: "Ready column" }).getByRole("button", { name: /US-075-DRAFT/ })).toBeVisible();
+  expect(startRequested).toBe(false);
+});
+
 test("task detail close button closes popup and plays bounded confetti", async ({ page }) => {
   await page.route("**/api/board", async (route) => {
     await route.fulfill({

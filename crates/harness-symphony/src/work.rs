@@ -12,6 +12,8 @@ pub enum WorkError {
     MissingDatabase(String),
     #[error("story {0} not found")]
     StoryNotFound(String),
+    #[error("{0}")]
+    InvalidInput(String),
     #[error("sqlite error: {0}")]
     Sqlite(#[from] rusqlite::Error),
     #[error("{0}")]
@@ -50,6 +52,22 @@ pub struct BoardItem {
     pub hierarchy_depth: usize,
     pub run_id: Option<String>,
     pub active_run: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GuidedIntakeDraft {
+    pub idea: String,
+    pub audience: String,
+    pub outcome: String,
+    pub non_goals: String,
+    pub validation: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreatedStory {
+    pub story_id: String,
+    pub title: String,
+    pub status: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -217,6 +235,49 @@ pub fn list_board(harness_db: &Path, state_db: &Path) -> Result<Vec<BoardItem>, 
     Ok(items)
 }
 
+pub fn create_story_from_guided_intake(
+    harness_db: &Path,
+    draft: GuidedIntakeDraft,
+) -> Result<CreatedStory, WorkError> {
+    if !harness_db.exists() {
+        return Err(WorkError::MissingDatabase(harness_db.display().to_string()));
+    }
+    let title = required(draft.idea.trim(), "rough idea")?.to_owned();
+    let outcome = required(draft.outcome.trim(), "outcome")?;
+    let validation = required(draft.validation.trim(), "validation")?.to_owned();
+    let mut connection = Connection::open(harness_db)?;
+    let transaction = connection.transaction()?;
+    let story_id = next_story_id(&transaction)?;
+    let notes = format!(
+        "Audience: {}\nOutcome: {}\nNon-goals: {}\nValidation: {}",
+        value_or_dash(draft.audience.trim()),
+        outcome,
+        value_or_dash(draft.non_goals.trim()),
+        validation
+    );
+    transaction.execute(
+        "INSERT INTO intake (input_type, summary, risk_lane, affected_docs, story_id, notes)
+         VALUES ('change_request', ?1, 'normal', ?2, ?3, ?4);",
+        params![
+            title,
+            serde_json::json!(["docs/product/symphony-web-ui-controller.md"]).to_string(),
+            story_id,
+            notes,
+        ],
+    )?;
+    transaction.execute(
+        "INSERT INTO story (id, title, risk_lane, contract_doc, verify_command, notes)
+         VALUES (?1, ?2, 'normal', 'docs/product/symphony-web-ui-controller.md', ?3, ?4);",
+        params![story_id, title, validation, notes],
+    )?;
+    transaction.commit()?;
+    Ok(CreatedStory {
+        story_id,
+        title,
+        status: "planned".to_owned(),
+    })
+}
+
 pub fn retire_story(harness_db: &Path, story_id: &str) -> Result<(), WorkError> {
     if !harness_db.exists() {
         return Err(WorkError::MissingDatabase(harness_db.display().to_string()));
@@ -230,6 +291,38 @@ pub fn retire_story(harness_db: &Path, story_id: &str) -> Result<(), WorkError> 
         return Err(WorkError::StoryNotFound(story_id.to_owned()));
     }
     Ok(())
+}
+
+fn next_story_id(connection: &Connection) -> Result<String, WorkError> {
+    let mut statement = connection.prepare("SELECT id FROM story WHERE id LIKE 'US-%';")?;
+    let ids = statement.query_map(params![], |row| row.get::<_, String>(0))?;
+    let mut max_id = 0_u32;
+    for id in ids {
+        let id = id?;
+        if let Some(number) = id
+            .strip_prefix("US-")
+            .and_then(|value| value.parse::<u32>().ok())
+        {
+            max_id = max_id.max(number);
+        }
+    }
+    Ok(format!("US-{:03}", max_id + 1))
+}
+
+fn required<'a>(value: &'a str, field: &str) -> Result<&'a str, WorkError> {
+    if value.is_empty() {
+        Err(WorkError::InvalidInput(format!("{field} is required")))
+    } else {
+        Ok(value)
+    }
+}
+
+fn value_or_dash(value: &str) -> &str {
+    if value.is_empty() {
+        "-"
+    } else {
+        value
+    }
 }
 
 fn classify(id: String, status: String, lane: String, verify_command: Option<String>) -> WorkItem {

@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
@@ -13,7 +13,10 @@ use crate::pr::{create_pr, PrError};
 use crate::run::{execute_prepared_run, prepare_run, PreparedRun, RunError};
 use crate::state::{RunStateStore, StateError};
 use crate::sync::{sync_changeset, SyncChange, SyncError};
-use crate::work::{list_board, retire_story, BoardItem, BoardState, WorkError};
+use crate::work::{
+    create_story_from_guided_intake, list_board, retire_story, BoardItem, BoardState, CreatedStory,
+    GuidedIntakeDraft, WorkError,
+};
 
 const WEB_DIST_DIR_ENV: &str = "HARNESS_SYMPHONY_WEB_DIST_DIR";
 
@@ -136,6 +139,22 @@ struct RetireTaskResponse {
     status: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct GuidedIntakeRequest {
+    idea: String,
+    audience: String,
+    outcome: String,
+    non_goals: String,
+    validation: String,
+}
+
+#[derive(Debug, Serialize)]
+struct CreateStoryResponse {
+    story_id: String,
+    title: String,
+    status: String,
+}
+
 #[derive(Debug, Serialize)]
 struct EventsResponse {
     run_id: String,
@@ -244,6 +263,7 @@ fn handle_request(config: &ResolvedConfig, request: &str) -> Result<HttpResponse
                 .collect::<Vec<_>>();
             json_response(200, &BoardResponse { items })
         }
+        (Some("POST"), Some("/api/intake")) => create_guided_intake_response(config, request),
         (Some("POST"), Some(path)) if start_path_story_id(path).is_some() => {
             let story_id = start_path_story_id(path).unwrap_or_default();
             start_run_response(config, &story_id)
@@ -277,7 +297,7 @@ fn handle_request(config: &ResolvedConfig, request: &str) -> Result<HttpResponse
             pr_retry_response(config, &run_id)
         }
         (Some("GET"), Some(path)) => static_response(config, path),
-        (Some(_), Some("/health" | "/api/board")) => json_response(
+        (Some(_), Some("/health" | "/api/board" | "/api/intake")) => json_response(
             405,
             &ErrorResponse {
                 error: "method not allowed".to_owned(),
@@ -306,6 +326,38 @@ fn handle_request(config: &ResolvedConfig, request: &str) -> Result<HttpResponse
                 error: "not found".to_owned(),
             },
         ),
+    }
+}
+
+fn create_guided_intake_response(
+    config: &ResolvedConfig,
+    request: &str,
+) -> Result<HttpResponse, WebError> {
+    let body = request_body(request);
+    let payload = match serde_json::from_str::<GuidedIntakeRequest>(body) {
+        Ok(payload) => payload,
+        Err(error) => {
+            return json_response(
+                400,
+                &ErrorResponse {
+                    error: format!("invalid intake request: {error}"),
+                },
+            );
+        }
+    };
+    match create_story_from_guided_intake(
+        &config.harness_db,
+        GuidedIntakeDraft {
+            idea: payload.idea,
+            audience: payload.audience,
+            outcome: payload.outcome,
+            non_goals: payload.non_goals,
+            validation: payload.validation,
+        },
+    ) {
+        Ok(story) => json_response(201, &CreateStoryResponse::from(story)),
+        Err(WorkError::InvalidInput(error)) => json_response(400, &ErrorResponse { error }),
+        Err(error) => Err(error.into()),
     }
 }
 
@@ -340,6 +392,16 @@ fn retire_task_response(config: &ResolvedConfig, story_id: &str) -> Result<HttpR
             status: "retired".to_owned(),
         },
     )
+}
+
+impl From<CreatedStory> for CreateStoryResponse {
+    fn from(story: CreatedStory) -> Self {
+        Self {
+            story_id: story.story_id,
+            title: story.title,
+            status: story.status,
+        }
+    }
 }
 
 fn recover_run_response(config: &ResolvedConfig, story_id: &str) -> Result<HttpResponse, WebError> {
@@ -1189,6 +1251,10 @@ fn parse_request_line(request: &str) -> (Option<String>, Option<String>) {
     )
 }
 
+fn request_body(request: &str) -> &str {
+    request.split_once("\r\n\r\n").map_or("", |(_, body)| body)
+}
+
 fn start_path_story_id(path: &str) -> Option<String> {
     let path = path.trim_end_matches('/');
     let story_id = path.strip_prefix("/api/tasks/")?.strip_suffix("/start")?;
@@ -1249,6 +1315,7 @@ fn safe_identifier(value: &str) -> bool {
 fn json_response<T: Serialize>(status: u16, body: &T) -> Result<HttpResponse, WebError> {
     let status_text = match status {
         200 => "OK",
+        201 => "Created",
         202 => "Accepted",
         400 => "Bad Request",
         404 => "Not Found",
@@ -1661,6 +1728,70 @@ mod tests {
 
         assert!(response.starts_with("HTTP/1.1 409 Conflict"));
         assert!(response.contains("only Ready stories can be retired"));
+    }
+
+    #[test]
+    fn guided_intake_create_writes_intake_and_story() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = test_config(&temp_dir);
+        let connection = Connection::open(&config.harness_db).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE intake (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    input_type TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    risk_lane TEXT NOT NULL,
+                    risk_flags TEXT,
+                    affected_docs TEXT,
+                    story_id TEXT,
+                    notes TEXT
+                );
+                CREATE TABLE story (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'planned',
+                    risk_lane TEXT NOT NULL,
+                    contract_doc TEXT,
+                    verify_command TEXT,
+                    notes TEXT
+                );",
+            )
+            .unwrap();
+        let body = serde_json::json!({
+            "idea": "Make review evidence easier to scan",
+            "audience": "Maintainers reviewing local Symphony runs",
+            "outcome": "They can approve or reject a run without opening raw artifacts first",
+            "non_goals": "No automatic Symphony run start",
+            "validation": "npm --prefix crates/harness-symphony/web-ui run e2e"
+        })
+        .to_string();
+        let request = format!(
+            "POST /api/intake HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+            body.len(),
+            body
+        );
+
+        let response = handle_request(&config, &request).unwrap();
+
+        assert!(response.starts_with("HTTP/1.1 201 Created"));
+        assert!(response.contains(r#""story_id":"US-001""#));
+        assert!(response.contains(r#""status":"planned""#));
+        let (intake_count, story_count): (i64, i64) = connection
+            .query_row(
+                "SELECT (SELECT COUNT(*) FROM intake), (SELECT COUNT(*) FROM story);",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!((intake_count, story_count), (1, 1));
+        let notes = connection
+            .query_row("SELECT notes FROM story WHERE id='US-001';", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .unwrap();
+        assert!(notes.contains("Audience: Maintainers reviewing local Symphony runs"));
+        assert!(notes.contains("Non-goals: No automatic Symphony run start"));
     }
 
     #[test]

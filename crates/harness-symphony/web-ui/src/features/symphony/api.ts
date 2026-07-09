@@ -2,8 +2,10 @@ import type {
   BoardItem,
   BoardResponse,
   BoardState,
+  CreatedStoryResponse,
   EventsResponse,
   FailureSummary,
+  GuidedIntakeDraft,
   PrMergedResponse,
   PrRetryResponse,
   RecoveryAction,
@@ -66,6 +68,15 @@ export async function postMarkPrMerged(runId: string): Promise<PrMergedResponse>
 export async function postRetryPr(action: RecoveryAction): Promise<PrRetryResponse> {
   const response = await fetch(action.endpoint, { method: "POST" });
   return readJson(response, parsePrRetryResponse, "PR retry failed");
+}
+
+export async function postCreateGuidedIntake(draft: GuidedIntakeDraft): Promise<CreatedStoryResponse> {
+  const response = await fetch("/api/intake", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(draft)
+  });
+  return readJson(response, parseCreatedStoryResponse, "Create story failed");
 }
 
 async function readJson<T>(response: Response, parser: (value: unknown) => T, fallback: string): Promise<T> {
@@ -193,6 +204,15 @@ function parsePrRetryResponse(value: unknown): PrRetryResponse {
     run_id: expectString(record.run_id, "run_id"),
     pr_status: expectString(record.pr_status, "pr_status"),
     pr_url: parseNullableString(record.pr_url, "pr_url")
+  };
+}
+
+function parseCreatedStoryResponse(value: unknown): CreatedStoryResponse {
+  const record = expectRecord(value, "created story response");
+  return {
+    story_id: expectString(record.story_id, "story_id"),
+    title: expectString(record.title, "title"),
+    status: expectString(record.status, "status")
   };
 }
 

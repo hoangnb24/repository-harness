@@ -46,6 +46,20 @@ export type BoardResponse = {
   items: BoardItem[];
 };
 
+export type GuidedIntakeDraft = {
+  idea: string;
+  audience: string;
+  outcome: string;
+  non_goals: string;
+  validation: string;
+};
+
+export type CreatedStoryResponse = {
+  story_id: string;
+  title: string;
+  status: string;
+};
+
 export type RunEvent = unknown;
 
 export type EventsResponse = {
