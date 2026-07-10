@@ -153,6 +153,8 @@ without parsing the human table.
 | `intake` | Task specification | Record a feature intake classification. | `--type`, `--summary`, `--lane` |
 | `story add` | Task state | Create a durable story record. | `--id`, `--title`, `--lane`, optional `--verify` |
 | `story update` | Task state | Update story status, proof flags, evidence, or verification command. | `--id`, optional proof/status fields |
+| `story dependency add` | Task state | Add a cycle-safe durable dependency edge. | `--blocker`, `--blocked` |
+| `story dependency remove` | Task state | Remove a durable dependency edge; missing edges are unchanged. | `--blocker`, `--blocked` |
 | `story verify` | Verification | Run one story `verify_command` and record pass/fail. | story id |
 | `story verify-all` | Verification | Run all configured story verification commands and skip stories without one. | none |
 | `decision add` | Project memory | Create a durable decision record. | `--id`, `--title`, optional `--doc`, `--verify` |
@@ -169,6 +171,7 @@ without parsing the human table.
 | `audit` | Entropy auditing | Run drift checks and compute entropy score. | none |
 | `propose` | Entropy auditing | Generate improvement proposals from friction, interventions, and audit findings. | optional `--commit` |
 | `query matrix` | Task state | Show durable story proof matrix. | optional `--numeric` |
+| `query dependencies` | Task state | Show story dependency edges. | optional `--story` |
 | `query backlog` | Entropy auditing | Show harness improvement backlog. | optional `--open`, `--closed` |
 | `query decisions` | Project memory | Show durable decision records. | none |
 | `query intakes` | Task specification | Show recent intake records. | none |

@@ -49,6 +49,18 @@ pub struct StoryUpdateInput {
 }
 
 #[derive(Debug)]
+pub struct StoryDependencyInput {
+    pub blocker: String,
+    pub blocked: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoryDependencyRecord {
+    pub blocker: String,
+    pub blocked: String,
+}
+
+#[derive(Debug)]
 pub struct DecisionAddInput {
     pub id: String,
     pub title: String,
@@ -176,6 +188,27 @@ impl HarnessService {
 
     pub fn update_story(&self, input: StoryUpdateInput) -> crate::infrastructure::Result<()> {
         self.repository.update_story(input)
+    }
+
+    pub fn add_story_dependency(
+        &self,
+        input: StoryDependencyInput,
+    ) -> crate::infrastructure::Result<bool> {
+        self.repository.add_story_dependency(input)
+    }
+
+    pub fn remove_story_dependency(
+        &self,
+        input: StoryDependencyInput,
+    ) -> crate::infrastructure::Result<bool> {
+        self.repository.remove_story_dependency(input)
+    }
+
+    pub fn query_story_dependencies(
+        &self,
+        story: Option<&str>,
+    ) -> crate::infrastructure::Result<Vec<StoryDependencyRecord>> {
+        self.repository.query_story_dependencies(story)
     }
 
     pub fn verify_story(&self, id: &str) -> crate::infrastructure::Result<StoryVerifyResult> {

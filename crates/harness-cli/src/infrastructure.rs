@@ -13,7 +13,8 @@ use crate::application::{
     BacklogAddInput, BacklogCloseInput, BrownfieldImportResult, ChangesetApplyResult,
     DbRebuildResult, DecisionAddInput, DecisionVerifyResult, HarnessContext, InitResult,
     IntakeInput, InterventionAddInput, InterventionFilter, MigrateResult, QueryTable,
-    StoryAddInput, StoryUpdateInput, StoryVerifyResult, ToolRegisterInput, TraceInput,
+    StoryAddInput, StoryDependencyInput, StoryDependencyRecord, StoryUpdateInput,
+    StoryVerifyResult, ToolRegisterInput, TraceInput,
 };
 use crate::domain::{
     compiled_tool_registry, normalize_token, score_context, score_trace, validate_tool_description,
@@ -40,6 +41,10 @@ pub enum HarnessInfraError {
     MissingStoryVerifyCommand(String),
     #[error("story update: story '{0}' not found")]
     StoryNotFound(String),
+    #[error("story dependency: a story cannot depend on itself ('{0}')")]
+    StoryDependencySelf(String),
+    #[error("story dependency: adding '{0}' -> '{1}' would create a cycle")]
+    StoryDependencyCycle(String, String),
     #[error("tool register: tool '{0}' already exists with command '{1}'")]
     ToolAlreadyExists(String, String),
     #[error("tool remove: tool '{0}' not found")]
@@ -90,6 +95,9 @@ pub trait HarnessRepository {
     fn record_intake(&self, input: IntakeInput) -> Result<i64>;
     fn add_story(&self, input: StoryAddInput) -> Result<()>;
     fn update_story(&self, input: StoryUpdateInput) -> Result<()>;
+    fn add_story_dependency(&self, input: StoryDependencyInput) -> Result<bool>;
+    fn remove_story_dependency(&self, input: StoryDependencyInput) -> Result<bool>;
+    fn query_story_dependencies(&self, story: Option<&str>) -> Result<Vec<StoryDependencyRecord>>;
     fn verify_story(&self, id: &str) -> Result<StoryVerifyResult>;
     fn verify_all_stories(&self) -> Result<StoryVerifyAllResult>;
     fn add_decision(&self, input: DecisionAddInput) -> Result<()>;
@@ -709,6 +717,77 @@ impl HarnessRepository for SqliteHarnessRepository {
                 })],
             ))
         })
+    }
+
+    fn add_story_dependency(&self, input: StoryDependencyInput) -> Result<bool> {
+        if input.blocker == input.blocked {
+            return Err(HarnessInfraError::StoryDependencySelf(input.blocker));
+        }
+
+        let mut connection = self.open_existing()?;
+        self.with_logged_write(&mut connection, |transaction| {
+            ensure_story_exists(transaction, &input.blocker)?;
+            ensure_story_exists(transaction, &input.blocked)?;
+            if dependency_path_exists(transaction, &input.blocked, &input.blocker)? {
+                return Err(HarnessInfraError::StoryDependencyCycle(
+                    input.blocker,
+                    input.blocked,
+                ));
+            }
+            let changed = transaction.execute(
+                "INSERT INTO story_dependency (story_id, blocks_story_id) VALUES (?1, ?2)
+                 ON CONFLICT(story_id, blocks_story_id) DO NOTHING;",
+                params![input.blocker, input.blocked],
+            )? > 0;
+            let operations = if changed {
+                vec![json!({
+                    "op": "story.dependency.add",
+                    "version": 1,
+                    "id": input.blocker,
+                    "payload": { "blocked": input.blocked },
+                })]
+            } else {
+                Vec::new()
+            };
+            Ok((changed, operations))
+        })
+    }
+
+    fn remove_story_dependency(&self, input: StoryDependencyInput) -> Result<bool> {
+        let mut connection = self.open_existing()?;
+        self.with_logged_write(&mut connection, |transaction| {
+            let changed = transaction.execute(
+                "DELETE FROM story_dependency WHERE story_id=?1 AND blocks_story_id=?2;",
+                params![input.blocker, input.blocked],
+            )? > 0;
+            let operations = if changed {
+                vec![json!({
+                    "op": "story.dependency.remove",
+                    "version": 1,
+                    "id": input.blocker,
+                    "payload": { "blocked": input.blocked },
+                })]
+            } else {
+                Vec::new()
+            };
+            Ok((changed, operations))
+        })
+    }
+
+    fn query_story_dependencies(&self, story: Option<&str>) -> Result<Vec<StoryDependencyRecord>> {
+        let connection = self.open_existing()?;
+        let mut statement = connection.prepare(
+            "SELECT story_id, blocks_story_id FROM story_dependency
+             WHERE (?1 IS NULL OR story_id=?1 OR blocks_story_id=?1)
+             ORDER BY story_id, blocks_story_id;",
+        )?;
+        let rows = statement.query_map(params![story], |row| {
+            Ok(StoryDependencyRecord {
+                blocker: row.get(0)?,
+                blocked: row.get(1)?,
+            })
+        })?;
+        collect_rows(rows)
     }
 
     fn verify_story(&self, id: &str) -> Result<StoryVerifyResult> {
@@ -2500,6 +2579,30 @@ fn apply_changeset_operation(
                 required_string(operation, "id")?,
             ],
         )?,
+        "story.dependency.add" => {
+            let blocker = required_string(operation, "id")?;
+            let blocked = required_string(payload, "blocked")?;
+            if blocker == blocked {
+                return Err(HarnessInfraError::StoryDependencySelf(blocker));
+            }
+            ensure_story_exists(transaction, &blocker)?;
+            ensure_story_exists(transaction, &blocked)?;
+            if dependency_path_exists(transaction, &blocked, &blocker)? {
+                return Err(HarnessInfraError::StoryDependencyCycle(blocker, blocked));
+            }
+            transaction.execute(
+                "INSERT INTO story_dependency (story_id, blocks_story_id) VALUES (?1, ?2)
+                 ON CONFLICT(story_id, blocks_story_id) DO NOTHING;",
+                params![blocker, blocked],
+            )?
+        }
+        "story.dependency.remove" => transaction.execute(
+            "DELETE FROM story_dependency WHERE story_id=?1 AND blocks_story_id=?2;",
+            params![
+                required_string(operation, "id")?,
+                required_string(payload, "blocked")?,
+            ],
+        )?,
         "story.verify" => transaction.execute(
             "UPDATE story
              SET last_verified_at=datetime('now'), last_verified_result=?1
@@ -2637,6 +2740,37 @@ fn apply_changeset_operation(
     Ok(())
 }
 
+fn ensure_story_exists(transaction: &Transaction<'_>, id: &str) -> Result<()> {
+    let exists = transaction
+        .query_row("SELECT 1 FROM story WHERE id=?1;", params![id], |_| Ok(()))
+        .optional()?
+        .is_some();
+    if exists {
+        Ok(())
+    } else {
+        Err(HarnessInfraError::StoryNotFound(id.to_owned()))
+    }
+}
+
+fn dependency_path_exists(transaction: &Transaction<'_>, from: &str, to: &str) -> Result<bool> {
+    transaction
+        .query_row(
+            "WITH RECURSIVE reachable(id) AS (
+                SELECT blocks_story_id FROM story_dependency WHERE story_id=?1
+                UNION
+                SELECT dependency.blocks_story_id
+                FROM story_dependency AS dependency
+                JOIN reachable ON dependency.story_id=reachable.id
+             )
+             SELECT 1 FROM reachable WHERE id=?2 LIMIT 1;",
+            params![from, to],
+            |_| Ok(()),
+        )
+        .optional()
+        .map(|value| value.is_some())
+        .map_err(HarnessInfraError::from)
+}
+
 fn required_string(value: &Value, field: &str) -> Result<String> {
     value
         .get(field)
@@ -2669,7 +2803,8 @@ mod tests {
     use super::*;
     use crate::application::{
         BacklogAddInput, BacklogCloseInput, DecisionAddInput, IntakeInput, InterventionAddInput,
-        InterventionFilter, StoryAddInput, StoryUpdateInput, ToolRegisterInput, TraceInput,
+        InterventionFilter, StoryAddInput, StoryDependencyInput, StoryUpdateInput,
+        ToolRegisterInput, TraceInput,
     };
     use crate::domain::{BacklogFilter, BoolFlag, CsvList, InputType, RiskLane, TraceQualityTier};
 
@@ -2793,6 +2928,119 @@ mod tests {
             })
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn story_dependency_command_validates_mutation_and_query_contract() {
+        let (_temp_dir, repository) = isolated_test_repository();
+        repository.init().unwrap();
+        for id in ["US-A", "US-B", "US-C"] {
+            repository
+                .add_story(StoryAddInput {
+                    id: id.to_owned(),
+                    title: id.to_owned(),
+                    risk_lane: RiskLane::Normal,
+                    contract_doc: None,
+                    verify_command: None,
+                    notes: None,
+                })
+                .unwrap();
+        }
+
+        assert!(repository
+            .add_story_dependency(StoryDependencyInput {
+                blocker: "US-A".to_owned(),
+                blocked: "US-B".to_owned(),
+            })
+            .unwrap());
+        assert!(!repository
+            .add_story_dependency(StoryDependencyInput {
+                blocker: "US-A".to_owned(),
+                blocked: "US-B".to_owned(),
+            })
+            .unwrap());
+        assert!(matches!(
+            repository.add_story_dependency(StoryDependencyInput {
+                blocker: "US-MISSING".to_owned(),
+                blocked: "US-B".to_owned(),
+            }),
+            Err(HarnessInfraError::StoryNotFound(id)) if id == "US-MISSING"
+        ));
+        assert!(matches!(
+            repository.add_story_dependency(StoryDependencyInput {
+                blocker: "US-A".to_owned(),
+                blocked: "US-A".to_owned(),
+            }),
+            Err(HarnessInfraError::StoryDependencySelf(id)) if id == "US-A"
+        ));
+        assert!(repository
+            .add_story_dependency(StoryDependencyInput {
+                blocker: "US-B".to_owned(),
+                blocked: "US-C".to_owned(),
+            })
+            .unwrap());
+        assert!(matches!(
+            repository.add_story_dependency(StoryDependencyInput {
+                blocker: "US-C".to_owned(),
+                blocked: "US-A".to_owned(),
+            }),
+            Err(HarnessInfraError::StoryDependencyCycle(blocker, blocked))
+                if blocker == "US-C" && blocked == "US-A"
+        ));
+
+        assert_eq!(
+            repository.query_story_dependencies(None).unwrap(),
+            vec![
+                StoryDependencyRecord {
+                    blocker: "US-A".to_owned(),
+                    blocked: "US-B".to_owned(),
+                },
+                StoryDependencyRecord {
+                    blocker: "US-B".to_owned(),
+                    blocked: "US-C".to_owned(),
+                },
+            ]
+        );
+        assert!(repository
+            .remove_story_dependency(StoryDependencyInput {
+                blocker: "US-A".to_owned(),
+                blocked: "US-B".to_owned(),
+            })
+            .unwrap());
+        assert!(!repository
+            .remove_story_dependency(StoryDependencyInput {
+                blocker: "US-A".to_owned(),
+                blocked: "US-B".to_owned(),
+            })
+            .unwrap());
+    }
+
+    #[test]
+    fn story_dependency_changeset_replays_idempotently() {
+        let (temp_dir, repository) = isolated_test_repository();
+        repository.init().unwrap();
+        let changeset_path = temp_dir.path().join("dependency.changeset.jsonl");
+        fs::write(
+            &changeset_path,
+            r#"{"op":"changeset.header","version":1,"run_id":"run_dependency","base_schema_version":8}
+{"op":"story.add","version":1,"id":"US-A","payload":{"title":"A","risk_lane":"normal","contract_doc":null,"verify_command":null,"notes":null}}
+{"op":"story.add","version":1,"id":"US-B","payload":{"title":"B","risk_lane":"normal","contract_doc":null,"verify_command":null,"notes":null}}
+{"op":"story.dependency.add","version":1,"id":"US-A","payload":{"blocked":"US-B"}}
+{"op":"story.dependency.remove","version":1,"id":"US-A","payload":{"blocked":"US-B"}}
+{"op":"story.dependency.add","version":1,"id":"US-A","payload":{"blocked":"US-B"}}
+"#,
+        )
+        .unwrap();
+
+        assert!(repository.apply_changeset(&changeset_path).unwrap().applied);
+        assert!(!repository.apply_changeset(&changeset_path).unwrap().applied);
+        assert_eq!(
+            repository.query_story_dependencies(None).unwrap(),
+            vec![StoryDependencyRecord {
+                blocker: "US-A".to_owned(),
+                blocked: "US-B".to_owned(),
+            }]
+        );
     }
 
     #[test]

@@ -9,7 +9,7 @@ use crate::application::{
     BacklogAddInput, BacklogCloseInput, BrownfieldImportResult, ChangesetApplyResult,
     DbRebuildResult, DecisionAddInput, HarnessContext, HarnessService, InitResult, IntakeInput,
     InterventionAddInput, InterventionFilter, MigrateResult, QueryTable, StoryAddInput,
-    StoryUpdateInput, ToolRegisterInput, TraceInput,
+    StoryDependencyInput, StoryUpdateInput, ToolRegisterInput, TraceInput,
 };
 use crate::domain::{
     normalize_capability, parse_optional_integer, parse_tool_args, proof_display,
@@ -110,6 +110,8 @@ enum StoryAction {
         after_help = "Proof flags use numeric booleans: --unit 1 --integration 1 --e2e 0 --platform 0. Do not use yes/no."
     )]
     Update(StoryUpdateArgs),
+    /// Add or remove a dependency edge where blocker -> blocked.
+    Dependency(StoryDependencyArgs),
     #[command(
         after_help = "story verify only accepts the story id. Configure proof with story add/update --verify, then record proof flags with story update."
     )]
@@ -119,6 +121,30 @@ enum StoryAction {
     },
     /// Verify every story, skipping stories without verify_command.
     VerifyAll,
+}
+
+#[derive(Args, Debug)]
+struct StoryDependencyArgs {
+    #[command(subcommand)]
+    action: StoryDependencyAction,
+}
+
+#[derive(Subcommand, Debug)]
+enum StoryDependencyAction {
+    /// Add a cycle-safe dependency edge.
+    Add(StoryDependencyMutationArgs),
+    /// Remove a dependency edge; a missing edge is unchanged.
+    Remove(StoryDependencyMutationArgs),
+}
+
+#[derive(Args, Debug)]
+struct StoryDependencyMutationArgs {
+    /// The story that must complete first.
+    #[arg(long)]
+    blocker: String,
+    /// The story blocked by --blocker.
+    #[arg(long)]
+    blocked: String,
 }
 
 #[derive(Args, Debug)]
@@ -406,6 +432,8 @@ struct BacklogQueryArgs {
 enum QueryView {
     /// Test matrix.
     Matrix(MatrixQueryArgs),
+    /// Story dependency edges, optionally filtered to one story.
+    Dependencies(DependenciesQueryArgs),
     /// Harness improvement proposals.
     Backlog(BacklogQueryArgs),
     /// Decision records.
@@ -424,6 +452,13 @@ enum QueryView {
     Stats,
     /// Run arbitrary SQL.
     Sql { query: Vec<String> },
+}
+
+#[derive(Args, Debug)]
+struct DependenciesQueryArgs {
+    /// Show edges where this story is either the blocker or blocked story.
+    #[arg(long)]
+    story: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -517,6 +552,32 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 })?;
                 println!("Story {} updated.", args.id);
             }
+            StoryAction::Dependency(args) => match args.action {
+                StoryDependencyAction::Add(args) => {
+                    let changed = service.add_story_dependency(StoryDependencyInput {
+                        blocker: args.blocker.clone(),
+                        blocked: args.blocked.clone(),
+                    })?;
+                    println!(
+                        "Story dependency {} -> {} {}.",
+                        args.blocker,
+                        args.blocked,
+                        if changed { "added" } else { "unchanged" }
+                    );
+                }
+                StoryDependencyAction::Remove(args) => {
+                    let changed = service.remove_story_dependency(StoryDependencyInput {
+                        blocker: args.blocker.clone(),
+                        blocked: args.blocked.clone(),
+                    })?;
+                    println!(
+                        "Story dependency {} -> {} {}.",
+                        args.blocker,
+                        args.blocked,
+                        if changed { "removed" } else { "unchanged" }
+                    );
+                }
+            },
             StoryAction::Verify { id } => {
                 let result = service.verify_story(&id)?;
                 println!("Running: {}", result.command);
@@ -683,6 +744,9 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
         },
         Command::Query(args) => match args.view {
             QueryView::Matrix(args) => print_matrix(&service.query_matrix()?, args.numeric),
+            QueryView::Dependencies(args) => {
+                print_dependencies(&service.query_story_dependencies(args.story.as_deref())?)
+            }
             QueryView::Backlog(args) => {
                 print_backlog(&service.query_backlog(backlog_filter(&args))?)
             }
@@ -1063,6 +1127,14 @@ fn print_matrix(records: &[StoryMatrixRecord], numeric: bool) {
     );
 }
 
+fn print_dependencies(records: &[crate::application::StoryDependencyRecord]) {
+    let rows = records
+        .iter()
+        .map(|record| vec![record.blocker.clone(), record.blocked.clone()])
+        .collect::<Vec<_>>();
+    print_table(&["blocker", "blocked"], &rows);
+}
+
 fn print_backlog(records: &[BacklogRecord]) {
     let rows = records
         .iter()
@@ -1416,12 +1488,65 @@ fn print_row(values: &[String], widths: &[usize]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
+    use clap::{CommandFactory, Parser};
     use std::path::Path;
 
     #[test]
     fn cli_definition_is_valid() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn story_dependency_command_parses_typed_edges() {
+        let cli = Cli::try_parse_from([
+            "harness-cli",
+            "story",
+            "dependency",
+            "add",
+            "--blocker",
+            "US-073",
+            "--blocked",
+            "US-074",
+        ])
+        .unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::Story(StoryArgs {
+                action: StoryAction::Dependency(StoryDependencyArgs {
+                    action: StoryDependencyAction::Add(StoryDependencyMutationArgs { blocker, blocked })
+                })
+            }) if blocker == "US-073" && blocked == "US-074"
+        ));
+
+        let cli = Cli::try_parse_from([
+            "harness-cli",
+            "story",
+            "dependency",
+            "remove",
+            "--blocker",
+            "US-073",
+            "--blocked",
+            "US-074",
+        ])
+        .unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::Story(StoryArgs {
+                action: StoryAction::Dependency(StoryDependencyArgs {
+                    action: StoryDependencyAction::Remove(StoryDependencyMutationArgs { blocker, blocked })
+                })
+            }) if blocker == "US-073" && blocked == "US-074"
+        ));
+
+        let cli =
+            Cli::try_parse_from(["harness-cli", "query", "dependencies", "--story", "US-074"])
+                .unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::Query(QueryArgs {
+                view: QueryView::Dependencies(DependenciesQueryArgs { story: Some(story) })
+            }) if story == "US-074"
+        ));
     }
 
     #[test]
