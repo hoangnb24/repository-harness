@@ -159,6 +159,7 @@ without parsing the human table.
 | `story backlog unlink` | Task state | Remove a relationship; closed resolver provenance remains immutable. | `--story`, `--backlog` |
 | `story backlog list` | Task state | Show story-to-backlog relationships. | optional `--story`, `--backlog` |
 | `story verify` | Verification | Run one story `verify_command` and record pass/fail. | story id |
+| `story complete` | Task state | Run fresh proof and atomically implement an eligible story plus accepted resolver backlog work. | story id |
 | `story verify-all` | Verification | Run all configured story verification commands and skip stories without one. | none |
 | `decision add` | Project memory | Create a durable decision record. | `--id`, `--title`, optional `--doc`, `--verify` |
 | `decision verify` | Verification | Run one decision verification command. | decision id |

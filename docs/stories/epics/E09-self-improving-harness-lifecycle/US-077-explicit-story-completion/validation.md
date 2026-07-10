@@ -40,4 +40,16 @@ git diff --check
 
 ## Acceptance Evidence
 
-Add exact completion, failure, Symphony, and rebuild output after implementation.
+- `cargo test -p harness-cli story_completion -- --nocapture`: 6 completion
+  tests passed, covering eligibility, stable intake/trace identity, failure,
+  rollback, concurrent idempotency, multi-resolver closure, reference
+  preservation, outcome baseline, and exact replay evidence.
+- `cargo test -p harness-symphony run_contract -- --nocapture`: 2 tests passed,
+  covering copied-story `in_progress` state and the explicit trace-before-complete
+  contract.
+- `scripts/validate-changeset-rebuild.sh`: restored 54 Symphony story rows from
+  committed changesets.
+- `cargo test --workspace`: 152 tests passed (`54` Harness CLI and `98`
+  Symphony).
+- `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, and
+  `git diff --check`: passed.

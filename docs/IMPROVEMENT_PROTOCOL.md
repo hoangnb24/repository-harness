@@ -50,6 +50,28 @@ Humans review accepted work with:
 scripts/bin/harness-cli query backlog --open
 ```
 
+## Complete Accepted Work
+
+After implementation, the resolving story follows one explicit sequence:
+
+```text
+story enters in_progress or changed
+  -> implementation finishes
+  -> matching completed implementation trace is recorded
+  -> story complete runs fresh verification
+  -> passing proof marks the story implemented
+  -> eligible accepted resolver backlog occurrences close in the same transaction
+```
+
+```bash
+scripts/bin/harness-cli story complete <US-NNN>
+```
+
+Failure leaves the story completion-eligible and closes nothing. Repeated or
+concurrent completion is idempotent. Resolution evidence records the story,
+proof command, completion identity, and completion time; it does not claim the
+later measured outcome.
+
 ## Review Rules
 
 - Tiny proposals may be implemented directly when they only clarify docs.

@@ -289,6 +289,7 @@ Each run must have a machine-readable contract:
   ],
   "agent_instructions": [
     "Follow AGENTS.md and Harness docs.",
+    "For resolver stories, record a completed implementation trace and then run story complete; story verify is proof-only.",
     "Implement only the assigned story scope.",
     "Use the copied harness.db.",
     "Run the configured verification command when available."
@@ -375,6 +376,12 @@ cancelled
 
 `blocked` and `needs_intake` are run outcomes in v1. They should not be written
 into `story.status` unless the Harness schema explicitly supports them.
+
+For completion-enabled resolver stories, Symphony's copied database moves the
+planned story to `in_progress` before the agent starts. The agent must record the
+completed implementation trace before invoking `harness-cli story complete`.
+That command owns fresh verification, the implemented transition, and atomic
+resolver backlog closure; `story verify` alone never completes the lifecycle.
 
 #### 4.7 Local Status
 

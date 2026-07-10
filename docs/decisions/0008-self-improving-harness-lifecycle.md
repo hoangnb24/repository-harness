@@ -8,8 +8,11 @@ Accepted
 
 ## Implementation Status
 
-Planned through E09. Decision 0007 remains the description of current CLI
-behavior until the relevant E09 stories are implemented and validated.
+Implemented through `US-077`: replay-safe identity, selective proposal
+decisions, story-to-backlog relationships, and explicit proof-backed atomic
+completion are live. `US-078` through `US-080` remain planned, so recurrence
+classification, outcome observation, daily health, and legacy reconciliation
+are not yet current CLI behavior.
 
 ## Context
 

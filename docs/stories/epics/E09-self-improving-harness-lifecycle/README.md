@@ -2,7 +2,8 @@
 
 ## Status
 
-planned
+in_progress — `US-073` through `US-077` implemented; `US-078` through
+`US-080` remain planned.
 
 ## Intake
 

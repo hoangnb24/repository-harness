@@ -2,7 +2,7 @@
 
 ## Status
 
-planned
+implemented
 
 ## Lane
 
@@ -15,10 +15,11 @@ story status, resolution evidence, and eligible accepted backlog closure.
 
 ## Current Behavior
 
-`story verify` records pass/fail independently from story status and Harness
-backlog state. A passing generic verification can occur while a story is still
-planned, and there is no atomic operation connecting completion proof with
-backlog closure.
+`story verify` records proof only. `story complete` is the explicit transition
+that requires completion eligibility, runs fresh proof, and atomically records
+implemented story state plus eligible resolver backlog closure. Completion
+evidence and semantic operations replay with the same completion identity and
+resolution evidence.
 
 ## Target Behavior
 

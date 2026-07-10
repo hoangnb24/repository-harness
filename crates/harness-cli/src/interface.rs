@@ -706,11 +706,29 @@ pub fn run(cli: Cli) -> Result<(), InterfaceError> {
                 println!("Running: {}", result.command);
                 print!("{}", result.stdout);
                 print!("{}", result.stderr);
+                if let Some(intake_uid) = &result.intake_uid {
+                    println!("Completion intake: {intake_uid}");
+                }
+                if let Some(trace_uid) = &result.implementation_trace_uid {
+                    println!("Implementation trace: {trace_uid}");
+                }
                 println!(
-                    "Story {id} completion: {}; closed backlog: {}",
+                    "Story {id} completion: {}; closed backlog: {}; already closed: {}; references: {}",
                     result.result,
                     result
                         .closed_backlog_ids
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    result
+                        .already_closed_backlog_ids
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    result
+                        .referenced_backlog_ids
                         .iter()
                         .map(ToString::to_string)
                         .collect::<Vec<_>>()

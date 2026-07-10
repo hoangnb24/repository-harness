@@ -439,7 +439,11 @@ pub struct StoryCompleteResult {
     pub stdout: String,
     pub stderr: String,
     pub result: String,
+    pub intake_uid: Option<String>,
+    pub implementation_trace_uid: Option<String>,
     pub closed_backlog_ids: Vec<i64>,
+    pub already_closed_backlog_ids: Vec<i64>,
+    pub referenced_backlog_ids: Vec<i64>,
 }
 
 #[derive(Debug, PartialEq, Eq)]

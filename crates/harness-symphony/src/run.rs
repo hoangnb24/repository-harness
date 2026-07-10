@@ -768,6 +768,55 @@ mod tests {
     }
 
     #[test]
+    fn run_contract_requires_explicit_story_completion_order() {
+        let contract = build_contract(
+            &config(),
+            "run_completion",
+            "US-077",
+            false,
+            Path::new("/repo/.symphony/worktrees/run_completion"),
+            Path::new("/repo/.symphony/worktrees/run_completion/harness.db"),
+        );
+
+        assert!(contract.agent_instructions.iter().any(|instruction| {
+            instruction.contains("record a completed implementation trace")
+                && instruction.contains("story complete <story-id>")
+                && instruction.contains("story verify is proof-only")
+        }));
+    }
+
+    #[test]
+    fn run_contract_copied_story_enters_in_progress_before_completion() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("harness.db");
+        write_story_db(&db_path, "US-077", "planned", "high_risk");
+
+        mark_story_in_progress(&db_path, "US-077").unwrap();
+
+        let connection = Connection::open(&db_path).unwrap();
+        let status: String = connection
+            .query_row("SELECT status FROM story WHERE id='US-077';", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(status, "in_progress");
+
+        connection
+            .execute(
+                "UPDATE story SET status='implemented' WHERE id='US-077';",
+                [],
+            )
+            .unwrap();
+        mark_story_in_progress(&db_path, "US-077").unwrap();
+        let terminal_status: String = connection
+            .query_row("SELECT status FROM story WHERE id='US-077';", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(terminal_status, "implemented");
+    }
+
+    #[test]
     fn here_contract_marks_lightweight_and_repo_root() {
         let config = config();
         let contract = build_contract(
