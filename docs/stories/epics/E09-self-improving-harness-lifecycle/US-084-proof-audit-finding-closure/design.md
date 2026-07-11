@@ -22,4 +22,3 @@ The rule applies uniformly to US-073 through US-084.
 
 Historical trace rows remain append-only. US-084 records a new detailed trace
 using comma-separated CLI values and an omitted empty errors option.
-

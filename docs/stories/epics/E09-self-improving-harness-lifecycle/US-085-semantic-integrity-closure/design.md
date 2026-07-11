@@ -20,4 +20,3 @@ malformed input returns a typed CLI error.
 Binary selection becomes a small injectable function. SQL proof validation is
 callable against fixture databases, while operation parser tests cover bad
 changesets separately.
-

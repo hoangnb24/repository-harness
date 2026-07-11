@@ -8,4 +8,3 @@
 
 Risk is high: replay semantics, durable proof validation, and existing
 high-risk lifecycle evidence all change.
-

@@ -24,4 +24,3 @@ covered by focused Rust tests.
 - Fully legacy resolver histories keep the conservative strict-seconds rule.
 - Fully precise histories retain strict nanosecond ordering.
 - Existing notes remain intact during rejection-reason backfill.
-

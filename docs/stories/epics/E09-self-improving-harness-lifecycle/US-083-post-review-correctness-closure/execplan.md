@@ -21,4 +21,3 @@ behavior, and validation integrity.
 
 Stop if compatibility would require fabricating historical nanosecond order or
 discarding existing evidence.
-

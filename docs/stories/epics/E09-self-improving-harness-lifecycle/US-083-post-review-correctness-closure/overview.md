@@ -25,4 +25,3 @@ structured state, and validation proves which executable it tested.
 - Replacing semantic changesets or the E09 lifecycle.
 - Inventing precise order for fully legacy events.
 - Removing verification timestamps from durable story state.
-

@@ -48,4 +48,3 @@ checks story proof and audit entropy, not only row presence.
    ties still need a deterministic order boundary.
 2. Leaving baseline defects open because they predate the branch. Rejected
    because the explicit goal is to complete every item in the ledger.
-

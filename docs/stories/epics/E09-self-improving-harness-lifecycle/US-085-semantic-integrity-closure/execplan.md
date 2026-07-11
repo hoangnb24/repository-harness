@@ -8,4 +8,3 @@
 
 High-risk gates: no history deletion, no v1 compatibility break, and no
 validator claim without a test that reaches the named branch.
-

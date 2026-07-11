@@ -6,4 +6,3 @@ CLI list input, and making validator tests causally exercise selection,
 operation parsing, and SQL proof validation independently.
 
 Historical version 1 operations and malformed traces remain untouched.
-

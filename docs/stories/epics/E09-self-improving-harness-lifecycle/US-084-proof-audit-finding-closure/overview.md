@@ -19,4 +19,3 @@ after semantic replay, and the latest closure trace is clean detailed evidence.
 - Deleting malformed historical traces.
 - Freezing verification timestamps.
 - Inventing precise order for legacy-only events.
-

@@ -43,4 +43,3 @@ Hard gates:
 
 Pause only if a correction requires changing the accepted lifecycle contract,
 deleting historical evidence, or weakening validation.
-
