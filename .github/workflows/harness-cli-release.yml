@@ -54,6 +54,17 @@ jobs:
           bash -n scripts/install-harness.sh
           bash -n scripts/build-harness-cli-release.sh
 
+      - name: Smoke Bash installer modes
+        run: tests/installer/test-install-harness-modes.sh
+
+      - name: Verify installer and maintenance contracts
+        run: |
+          tests/installer/assert-install-manifest-links.sh
+          tests/installer/assert-consumer-changeset-trackable.sh
+          tests/maintenance/test-harness-cli-release-classification.sh
+          tests/maintenance/test-render-changelog-files.sh
+          tests/release/test-release-workflow-contract.sh
+
   build:
     name: Build ${{ matrix.platform }}
     needs: verify
@@ -97,6 +108,12 @@ jobs:
         shell: bash
         run: scripts/build-harness-cli-release.sh --target "${{ matrix.target }}"
 
+      - name: Verify candidate checksum
+        shell: bash
+        run: |
+          cd dist
+          shasum -a 256 -c "${{ matrix.binary }}.sha256"
+
       - name: Smoke built CLI
         if: ${{ matrix.platform != 'windows-x64' }}
         shell: bash
@@ -106,6 +123,51 @@ jobs:
         if: ${{ matrix.platform == 'windows-x64' }}
         shell: pwsh
         run: tests/protocol/smoke-native-artifact.ps1 -Artifact "dist/${{ matrix.binary }}"
+
+      - name: Download initial protocol artifact
+        shell: bash
+        run: |
+          curl -fsSL \
+            "https://github.com/hoangnb24/repository-harness/releases/download/harness-cli-v0.1.14/${{ matrix.binary }}" \
+            -o "dist/us092-${{ matrix.binary }}"
+          curl -fsSL \
+            "https://github.com/hoangnb24/repository-harness/releases/download/harness-cli-v0.1.14/${{ matrix.binary }}.sha256" \
+            -o "dist/us092-${{ matrix.binary }}.sha256"
+          expected="$(awk '{print $1}' "dist/us092-${{ matrix.binary }}.sha256")"
+          actual="$(shasum -a 256 "dist/us092-${{ matrix.binary }}" | awk '{print $1}')"
+          [[ "$actual" == "$expected" ]]
+          if [[ "${{ matrix.platform }}" != windows-x64 ]]; then
+            chmod 755 "dist/us092-${{ matrix.binary }}"
+          fi
+
+      - name: Upgrade initial protocol binary to candidate
+        if: ${{ matrix.platform != 'windows-x64' }}
+        shell: bash
+        run: |
+          candidate_ref="${{ inputs.release_tag || github.ref_name }}"
+          if [[ ! "$candidate_ref" =~ ^harness-cli-v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9]+)*$ ]]; then
+            candidate_ref=harness-cli-v0.0.0-candidate
+          fi
+          tests/installer/test-cli-upgrade-candidate.sh \
+            "dist/us092-${{ matrix.binary }}" \
+            "dist/${{ matrix.binary }}" \
+            "${{ matrix.binary }}" \
+            "$candidate_ref"
+
+      - name: Smoke PowerShell installer modes and candidate upgrade
+        if: ${{ matrix.platform == 'windows-x64' }}
+        shell: pwsh
+        run: |
+          $candidateRef = "${{ inputs.release_tag || github.ref_name }}"
+          if ($candidateRef -notmatch '^harness-cli-v[0-9]+\.[0-9]+\.[0-9]+(?:[.-][A-Za-z0-9]+)*$') {
+            $candidateRef = "harness-cli-v0.0.0-candidate"
+          }
+          tests/protocol/smoke-native-artifact.ps1 `
+            -Artifact "dist/us092-${{ matrix.binary }}"
+          tests/installer/test-install-harness-modes.ps1 `
+            -CandidateArtifact "dist/${{ matrix.binary }}" `
+            -InitialArtifact "dist/us092-${{ matrix.binary }}" `
+            -CandidateRef $candidateRef
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

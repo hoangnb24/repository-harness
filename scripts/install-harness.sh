@@ -378,9 +378,18 @@ insert_agent_custom_section() {
       while ((getline line < custom_file) > 0) {
         print line
       }
+      inserted = 1
       next
     }
     { print }
+    END {
+      if (!inserted) {
+        print ""
+        while ((getline line < custom_file) > 0) {
+          print line
+        }
+      }
+    }
   ' custom_file="$custom" "$target" > "$tmp"
   mv "$tmp" "$target"
 }

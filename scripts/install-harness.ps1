@@ -48,6 +48,9 @@ function Get-SourceMode {
 }
 
 function Read-RemoteText([string]$Url) {
+    if ($Url.StartsWith("file://")) {
+        return Get-Content -LiteralPath ([uri]$Url).LocalPath -Raw
+    }
     return (Invoke-WebRequest -UseBasicParsing -Uri $Url).Content
 }
 
@@ -62,7 +65,11 @@ function Write-SourceFile([string]$Relative, [string]$Target) {
     }
 
     $url = "$script:SourceBaseUrl/$($Relative -replace '\\','/')"
-    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $Target
+    if ($url.StartsWith("file://")) {
+        Copy-Item -LiteralPath ([uri]$url).LocalPath -Destination $Target -Force
+    } else {
+        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $Target
+    }
 }
 
 function Read-PayloadManifest {
@@ -319,8 +326,13 @@ function Install-HarnessCliBinary {
     try {
         $binaryTmp = Join-Path $tmpDir $binaryName
         $checksumTmp = Join-Path $tmpDir "$binaryName.sha256"
-        Invoke-WebRequest -UseBasicParsing -Uri $binaryUrl -OutFile $binaryTmp
-        Invoke-WebRequest -UseBasicParsing -Uri $checksumUrl -OutFile $checksumTmp
+        if ($binaryUrl.StartsWith("file://")) {
+            Copy-Item -LiteralPath ([uri]$binaryUrl).LocalPath -Destination $binaryTmp
+            Copy-Item -LiteralPath ([uri]$checksumUrl).LocalPath -Destination $checksumTmp
+        } else {
+            Invoke-WebRequest -UseBasicParsing -Uri $binaryUrl -OutFile $binaryTmp
+            Invoke-WebRequest -UseBasicParsing -Uri $checksumUrl -OutFile $checksumTmp
+        }
 
         $expected = ((Get-Content -LiteralPath $checksumTmp -Raw) -split "\s+")[0].ToLowerInvariant()
         if ([string]::IsNullOrWhiteSpace($expected)) {
