@@ -9,7 +9,7 @@ supported. A machine consumer must discover support before any mutation.
 The immutable positive release tag is recorded here when US-092 is published:
 
 ```text
-HARNESS_PROTOCOL_V1_TAG=harness-cli-v0.1.13
+HARNESS_PROTOCOL_V1_TAG=harness-cli-v0.1.14
 ```
 
 CLI `0.1.11` and schema `12` are the pre-separation baseline, not protocol-v1

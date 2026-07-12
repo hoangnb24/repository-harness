@@ -372,7 +372,7 @@ if ($UpgradeCli) {
         Fail "-UpgradeCli requires -Ref <harness-cli-vX.Y.Z>"
     }
     if ($Ref -notmatch '^harness-cli-v[0-9]+\.[0-9]+\.[0-9]+(?:[-.][A-Za-z0-9]+)*$') {
-        Fail "-Ref must be an immutable Harness CLI release tag such as harness-cli-v0.1.13"
+        Fail "-Ref must be an immutable Harness CLI release tag such as harness-cli-v0.1.14"
     }
     $script:Source = @{ Mode = "remote"; Root = "" }
     $script:SourceBaseUrl = if ($env:HARNESS_SOURCE_BASE_URL) { $env:HARNESS_SOURCE_BASE_URL.TrimEnd("/") } else { "https://raw.githubusercontent.com/hoangnb24/repository-harness/$Ref" }

@@ -47,7 +47,7 @@ Examples:
   scripts/install-harness.sh ./my-project --force
   curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh | bash -s -- --yes
   curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh | bash -s -- --merge --yes
-  curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/harness-cli-v0.1.13/scripts/install-harness.sh | bash -s -- --merge --upgrade-cli --ref harness-cli-v0.1.13 --yes
+  curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/harness-cli-v0.1.14/scripts/install-harness.sh | bash -s -- --merge --upgrade-cli --ref harness-cli-v0.1.14 --yes
   curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh | bash -s -- --merge --refresh-agent-shim --yes
   curl -fsSL https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh | bash -s -- --claude --yes
 EOF
@@ -867,7 +867,7 @@ fi
 if [ "$UPGRADE_CLI" -eq 1 ]; then
   [ -n "$REQUESTED_REF" ] || fail "--upgrade-cli requires --ref <harness-cli-vX.Y.Z>"
   [[ "$REQUESTED_REF" =~ ^harness-cli-v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9]+)*$ ]] ||
-    fail "--ref must be an immutable Harness CLI release tag such as harness-cli-v0.1.13"
+    fail "--ref must be an immutable Harness CLI release tag such as harness-cli-v0.1.14"
   SOURCE_MODE="remote"
   SOURCE_ROOT=""
   SOURCE_BASE_URL="${HARNESS_SOURCE_BASE_URL:-https://raw.githubusercontent.com/hoangnb24/repository-harness/$REQUESTED_REF}"
