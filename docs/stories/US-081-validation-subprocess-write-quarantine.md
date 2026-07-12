@@ -10,7 +10,7 @@ normal
 
 ## Product Contract
 
-Harness verification subprocesses must run without the active Symphony run's
+Harness verification subprocesses must run without the active orchestrated run's
 operation-log environment. Their tests and fixture CLI writes must not append
 unrelated operations to the active story changeset; the Harness CLI's own
 post-verification proof record remains a legitimate run operation.
@@ -20,7 +20,7 @@ post-verification proof record remains a legitimate run operation.
 - `docs/HARNESS.md`
 - `docs/TRACE_SPEC.md`
 - `scripts/README.md`
-- `docs/stories/epics/E05-symphony-local-runner/README.md`
+- `docs/contracts/harness-orchestration-v1.md`
 
 ## Acceptance Criteria
 
@@ -28,7 +28,7 @@ post-verification proof record remains a legitimate run operation.
   verification command with `HARNESS_RUN_ID`, `HARNESS_RUN_MODE`, and
   `HARNESS_DB_PATH` removed.
 - The CLI's own verification result is still recorded normally after the child
-  process exits, including when the parent CLI is running under a Symphony run.
+  process exits, including when the parent CLI is running under a orchestrated run.
 - Regression tests set all three variables in the parent process and prove that
   a verification command cannot observe them through each supported verification
   entry point.
@@ -55,7 +55,7 @@ post-verification proof record remains a legitimate run operation.
 | --- | --- |
 | Unit | Focused Harness CLI tests prove child processes for `verify`, `verify-all`, and completion cannot read the three run-operation-log variables. |
 | Integration | Run the focused tests with parent `HARNESS_RUN_ID` set and confirm only the intended parent proof operation is recorded. |
-| E2E | A Symphony-style run environment can validate a story without fixture operations appearing in its changeset. |
+| E2E | A orchestrated run environment can validate a story without fixture operations appearing in its changeset. |
 | Platform | `scripts/validate-changeset-rebuild.sh` succeeds after the focused verification run. |
 | Release | `cargo fmt --check`, `cargo clippy -p harness-cli -- -D warnings`, and `git diff --check` pass. |
 

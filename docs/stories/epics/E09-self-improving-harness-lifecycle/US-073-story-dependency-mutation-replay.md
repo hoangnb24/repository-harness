@@ -13,13 +13,13 @@ normal
 Humans and agents can create, inspect, and remove Harness story dependency edges
 through the Rust CLI, and those edges survive semantic changeset apply and fresh
 database rebuild. This capability is required before downstream E09 stories are
-made runnable on the Symphony board.
+made runnable on the generic work board.
 
 ## Relevant Product Docs
 
 - `docs/stories/epics/E09-self-improving-harness-lifecycle/README.md`
-- `docs/SYMPHONY_SCOPE.md`
-- `docs/SYMPHONY_QUICKSTART.md`
+- `docs/contracts/harness-orchestration-v1.md`
+- `docs/contracts/harness-orchestration-v1.md`
 - `docs/TOOL_REGISTRY.md`
 - `scripts/schema/007-story-dependencies.sql`
 
@@ -42,7 +42,7 @@ made runnable on the Symphony board.
 - Dependency writes use `with_logged_write` when `HARNESS_RUN_ID` is set.
 - Semantic operations for dependency add/remove apply idempotently and survive
   `db rebuild`.
-- Symphony board derivation sees blocked and ready states from CLI-authored
+- generic work board derivation sees blocked and ready states from CLI-authored
   dependency rows.
 - CLI help and `docs/TOOL_REGISTRY.md` describe the new capability.
 - The implementation registers durable rows for `US-074` through `US-080` and
@@ -55,13 +55,13 @@ made runnable on the Symphony board.
   `story dependency remove --blocker <id> --blocked <id>`, and
   `query dependencies [--story <id>]`.
 - Queries: direct blocker and blocked relationships with deterministic ordering.
-- API: Rust CLI only; no Web UI API change.
+- API: Rust CLI only; no application API change.
 - Tables: existing `story_dependency`; no schema redesign.
 - Domain rules: an edge means `blocker -> blocked`; cycles are invalid planning
   state and must be rejected before write.
 - Changesets: add versioned `story.dependency.add` and
   `story.dependency.remove` operations.
-- UI surfaces: existing Symphony board consumes the resulting table; no UI code
+- UI surfaces: existing generic work board consumes the resulting table; no UI code
   change is required unless a test exposes a board integration defect.
 
 ## Validation
@@ -91,7 +91,7 @@ graphs can become board-visible and replay-safe through the supported CLI.
 ## Non-Goals
 
 - Do not add a durable epic row or story hierarchy behavior.
-- Do not change Symphony scheduling beyond consuming the existing dependency
+- Do not change external orchestrators scheduling beyond consuming the existing dependency
   table.
 - Do not implement proposal lifecycle behavior in this story.
 
@@ -99,5 +99,5 @@ graphs can become board-visible and replay-safe through the supported CLI.
 
 - Current local intake: `#177`; the canonical intake operation is in planning
   run `run_1783670632_e09_planning`, because numeric ids remap on rebuild.
-- Planning discovery: `story_dependency` exists and Symphony reads it, but the
+- Planning discovery: `story_dependency` exists and external orchestrators read it, but the
   current CLI and semantic changeset applier have no supported mutation path.

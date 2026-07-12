@@ -1,5 +1,5 @@
 -- Harness schema migration 007
--- Direct Harness story dependency edges for Symphony Web UI board derivation.
+-- Direct Harness story dependency edges for generic work-graph derivation.
 
 PRAGMA foreign_keys = ON;
 

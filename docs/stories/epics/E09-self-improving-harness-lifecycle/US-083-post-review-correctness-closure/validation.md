@@ -24,7 +24,7 @@ git diff --check
 ## Acceptance Evidence
 
 - The migration `post_review` regression and current `proof_audit` regressions passed.
-- Full workspace passed with 70 Harness CLI and 99 Symphony tests.
+- Full workspace passed with 70 Harness CLI and 99 external orchestrators tests.
 - Formatting and all-target clippy passed with warnings denied.
 - The current workspace CLI rebuilt 57 stories and reported zero entropy.
 - The live database also reports zero entropy.

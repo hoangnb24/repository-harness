@@ -15,7 +15,7 @@ operations, not direct SQLite diffing.
 
 ## Relevant Product Docs
 
-- `docs/SYMPHONY_SCOPE.md`
+- `docs/HARNESS.md`
 - `docs/TOOL_REGISTRY.md`
 
 ## Acceptance Criteria
@@ -49,7 +49,7 @@ When updating durable proof status, use numeric booleans:
 
 ## Harness Delta
 
-This is the core replay primitive that `harness-symphony sync` will call.
+This is the core replay primitive that external orchestrators will call.
 
 ## Evidence
 

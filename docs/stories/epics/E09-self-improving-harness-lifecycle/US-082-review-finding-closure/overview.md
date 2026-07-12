@@ -6,7 +6,7 @@ The branch review in
 `docs/reviews/feature-self-improving-harness-lifecycle-to-main-review.md`
 records eleven branch findings and two reproducible baseline defects. They cover
 lossy semantic replay, unstable proof ordering, audit identity, proposal input
-handling, lightweight Symphony state, committed rebuild drift, Unicode safety,
+handling, lightweight orchestrator state, committed rebuild drift, Unicode safety,
 and living documentation.
 
 ## Target Behavior
@@ -20,14 +20,14 @@ as the live database.
 
 - Harness CLI operators accepting, rejecting, completing, rebuilding, or
   observing improvement work.
-- Symphony operators running isolated or lightweight stories.
+- orchestrator operators running isolated or lightweight stories.
 - Agents relying on committed changesets as durable state.
 
 ## Affected Product Docs
 
 - `docs/IMPROVEMENT_PROTOCOL.md`
 - `docs/GLOSSARY.md`
-- `docs/SYMPHONY_SCOPE.md`
+- `docs/contracts/harness-orchestration-v1.md`
 - `docs/reviews/feature-self-improving-harness-lifecycle-to-main-review.md`
 
 ## Non-Goals

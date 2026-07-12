@@ -30,9 +30,9 @@ story complete <id>
        emit ordered semantic operations
 ```
 
-Symphony must ensure its copied story enters `in_progress`, performs the work,
-and records the detailed completed trace before completion is attempted. If the
-current runner does not enforce this order, its run contract must be updated as
+An external orchestrator must ensure its copied story enters `in_progress`,
+perform the work, and record the detailed completed trace before completion is
+attempted. If the current runner does not enforce this order, its run contract must be updated as
 part of this story.
 
 ## Interface Contract
@@ -55,7 +55,7 @@ or completion event identity for proof and closure.
 
 ## UI / Platform Impact
 
-No Web UI change. Symphony run preparation/contract may change only enough to
+No application UI change. Orchestrated run preparation may change only enough to
 establish completion-eligible copied story state and require the explicit CLI
 completion path.
 

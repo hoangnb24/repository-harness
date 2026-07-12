@@ -1,8 +1,8 @@
-# E04 Symphony CLI Prerequisites
+# E04 Isolated Durable State And Semantic Replay
 
 ## Goal
 
-Make `harness-cli` safe for isolated Symphony runs before any runner code exists.
+Make `harness-cli` safe for isolated repository workflows before any runner code exists.
 
 ## Product Contract
 

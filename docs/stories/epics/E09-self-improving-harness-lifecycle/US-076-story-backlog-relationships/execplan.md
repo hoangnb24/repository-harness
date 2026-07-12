@@ -26,7 +26,7 @@ Out of scope:
 
 - Story completion and backlog closure.
 - Multi-resolver or all-of aggregation.
-- Web UI relationship editing.
+- Application UI relationship editing.
 - Automatic inference from story or backlog prose.
 
 ## Risk Classification

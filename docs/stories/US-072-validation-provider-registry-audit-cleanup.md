@@ -11,8 +11,8 @@ normal
 ## Product Contract
 
 Harness should distinguish real validation gaps from unmodeled local proof
-commands. When this repository already depends on Cargo, npm build, Playwright
-E2E, Electron desktop smoke, or registered design review checks, those
+commands. When a repository depends on local test, build, browser, platform,
+or registered review checks, those
 capabilities should be visible through the tool registry or through an explicit
 verification contract. Audit and proposal output should then focus on current
 actionable drift, not retired stories or stale missing-provider wording.
@@ -26,7 +26,7 @@ actionable drift, not retired stories or stale missing-provider wording.
 
 ## Acceptance Criteria
 
-- Repo-local validation capabilities used by Symphony work are modeled clearly
+- Repo-local validation capabilities used by orchestrated work are modeled clearly
   enough that `query tools --capability <name> --status present` or the story
   verification contract explains the available proof path.
 - The `coverage` and `browser-e2e` capability gaps are resolved by registering
@@ -38,7 +38,7 @@ actionable drift, not retired stories or stale missing-provider wording.
   `US-067`, have durable verification state aligned with their story evidence.
 - `harness-cli propose` no longer emits stale suggestions that contradict the
   current tool registry state, such as treating design-validation as absent
-  when `impeccable` is registered and present.
+  when an appropriate review provider is registered and present.
 - The cleanup keeps source-of-truth boundaries intact: durable records,
   markdown story packets, and committed changesets remain explainable after a
   fresh rebuild.
@@ -49,7 +49,7 @@ actionable drift, not retired stories or stale missing-provider wording.
   `story verify`, and `story verify-all`.
 - Queries: inspect current providers by capability and audit drift categories
   before changing policy.
-- API: no Web UI API change in this story.
+- API: no application API change in this story.
 - Tables: likely uses existing `tool`, `story`, `trace`, and `backlog` tables;
   add schema only if audit semantics cannot be represented cleanly.
 - Domain rules: retired stories are historical records; audit should not treat
@@ -89,10 +89,10 @@ rediscovering local validation commands from prior traces.
     `design-validation`.
   - Registered present providers:
     - `cargo-workspace-tests` for `coverage`.
-    - `web-ui-build` for `build-verification`.
-    - `web-ui-e2e` for `browser-e2e`.
-    - `web-ui-desktop-smoke` for `platform-smoke`.
-    - Existing `impeccable` for `design-validation`.
+    - A project build provider for `build-verification`.
+    - A browser test provider for `browser-e2e`.
+    - A platform smoke provider for `platform-smoke`.
+    - A project review provider for `design-validation`.
   - Refreshed durable story verification for `US-066` and `US-067`; both now
     have `last_verified_result=pass`.
 - Validation passed:

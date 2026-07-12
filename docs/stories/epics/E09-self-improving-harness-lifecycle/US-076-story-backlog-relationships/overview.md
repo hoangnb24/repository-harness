@@ -30,7 +30,7 @@ relationship without raw SQL.
 
 - Humans approving Harness improvement work.
 - Agents shaping and implementing stories.
-- Symphony applying relationship changesets.
+- external consumers applying relationship changesets.
 - Reviewers inspecting closure authority.
 
 ## Affected Product Docs

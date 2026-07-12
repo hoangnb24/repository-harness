@@ -23,7 +23,7 @@
 - `--outcome-due` accepts valid RFC3339 timestamps for `Z`, positive offsets,
   and negative offsets.
 - Invalid or stale audit decisions remain actionable errors.
-- Lightweight Symphony copies enter `in_progress` before execution.
+- Lightweight external orchestrators copies enter `in_progress` before execution.
 
 ## Data Model
 
@@ -34,7 +34,7 @@
 
 ## UI / Platform Impact
 
-No new UI. Symphony isolated and lightweight execution must share the same
+No new UI. isolated and lightweight execution must share the same
 copied-story lifecycle state.
 
 ## Observability

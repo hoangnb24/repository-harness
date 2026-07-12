@@ -70,7 +70,7 @@ pending outcome reviews, ineffective improvements, and recurrences.
 - A neutral `legacy_recorded` observation created by `US-080` counts as preserved
   legacy outcome evidence and is displayed as such, not as confirmed impact. A
   later modern observation receives the next ordinal and becomes current.
-- The command does not accept proposals, start Symphony, create regression work,
+- The command does not accept proposals, start external orchestrators, create regression work,
   or apply repairs.
 - `docs/IMPROVEMENT_PROTOCOL.md` documents the daily loop and outcome distinction.
 
@@ -92,7 +92,7 @@ pending outcome reviews, ineffective improvements, and recurrences.
 
 - Do not run a daemon, cron job, or automatic outcome decision.
 - Do not overwrite `actual_outcome` or earlier observation events.
-- Do not accept proposals, start Symphony, or auto-create recurrence work.
+- Do not accept proposals, start external orchestrators, or auto-create recurrence work.
 - Do not add a generic event-sourcing framework or a rescheduling command.
 
 ## Validation
@@ -127,7 +127,7 @@ from proposal memory toward measurable H5 improvement.
 - `cargo test --workspace` passed 158 tests.
 - `cargo clippy --workspace -- -D warnings` and `cargo fmt --check` passed.
 - The planned story verification passed and changeset rebuild restored 54
-  Symphony story rows.
+  external orchestrators story rows.
 - A local release binary was checksum-verified by the installer; the fresh
   installed database initialized at schema 10 and returned improvement health
   with entropy 0 and no actionable drift.

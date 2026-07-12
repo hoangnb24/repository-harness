@@ -11,12 +11,12 @@ normal
 ## Product Contract
 
 `harness-cli` must respect `HARNESS_DB_PATH` as the canonical database path
-override for Symphony runs. When it is set, every durable command must read and
+override for isolated repository workflows. When it is set, every durable command must read and
 write only that database path.
 
 ## Relevant Product Docs
 
-- `docs/SYMPHONY_SCOPE.md`
+- `docs/HARNESS.md`
 - `docs/HARNESS.md`
 - `docs/decisions/0004-sqlite-durable-layer.md`
 
@@ -35,8 +35,8 @@ write only that database path.
 
 - Commands: all existing `harness-cli` commands.
 - Boundary: `resolve_context()` in the CLI interface.
-- Domain rule: root `harness.db` is not the source of truth during Symphony
-  runs.
+- Domain rule: root `harness.db` is not the source of truth during isolated
+  repository workflows.
 
 ## Validation
 
@@ -47,13 +47,13 @@ When updating durable proof status, use numeric booleans:
 | --- | --- |
 | Unit | Tests for env-var precedence and fallback behavior. |
 | Integration | Smoke creates two temp DBs and proves writes land only in `HARNESS_DB_PATH`. |
-| E2E | n/a until Symphony runner exists. |
+| E2E | n/a for this CLI-only capability. |
 | Platform | macOS/Linux shell smoke with the checked-in binary or cargo-run equivalent. |
 | Release | `cargo test --workspace`; `cargo fmt --check`; `cargo clippy --workspace -- -D warnings`. |
 
 ## Harness Delta
 
-This story implements the first v0 prerequisite from `docs/SYMPHONY_SCOPE.md`.
+This story implements the first v0 prerequisite for isolated durable state.
 
 ## Evidence
 

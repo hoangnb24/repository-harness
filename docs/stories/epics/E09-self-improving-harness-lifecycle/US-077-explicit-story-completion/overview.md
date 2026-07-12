@@ -33,7 +33,7 @@ closures atomically on pass.
 
 - Agents completing Harness improvement stories.
 - Humans reviewing closure and proof.
-- Symphony orchestrating isolated story runs and changesets.
+- external orchestrators coordinating isolated story runs and changesets.
 
 ## Affected Product Docs
 
@@ -41,7 +41,7 @@ closures atomically on pass.
 - `docs/decisions/0008-self-improving-harness-lifecycle.md`
 - `docs/HARNESS.md`
 - `docs/IMPROVEMENT_PROTOCOL.md`
-- `docs/SYMPHONY_SCOPE.md`
+- `docs/contracts/harness-orchestration-v1.md`
 
 ## Dependencies
 
@@ -53,7 +53,7 @@ closures atomically on pass.
 - `story complete <id>` refuses planned, retired, or missing-verification stories
   with actionable output; an already completed story returns its existing
   completion state without new writes.
-- Symphony's required order is: establish `in_progress` copied-story state,
+- the external orchestrator's required order is: establish `in_progress` copied-story state,
   implement the change, record its completed implementation trace, then invoke
   `story complete`.
 - A story with any `resolves` link must have at least one

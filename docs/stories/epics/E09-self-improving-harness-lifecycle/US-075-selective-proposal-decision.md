@@ -71,7 +71,7 @@ without creating implementation work.
 
 - Rejection creates or transitions one occurrence to status `rejected`, sets its
   closure time, records the nonblank reason and currently covered evidence, and
-  creates no observation schedule, intake, story, or Symphony run.
+  creates no observation schedule, intake, story, or orchestrated run.
 - Repeating the same rejection returns `unchanged`. A different reason for an
   already rejected occurrence fails without rewriting history. An accepted
   occurrence cannot be rejected through this command.
@@ -128,7 +128,7 @@ writer, and every accepted improvement leaves a concrete outcome-review trigger.
 
 - Do not classify post-closure recurrence; `US-078` owns that behavior.
 - Do not reconcile or mutate unkeyed legacy rows; `US-080` owns that behavior.
-- Do not create intake, story, or Symphony work automatically.
+- Do not create intake, story, or orchestrated work automatically.
 - Do not record measured outcome in this story.
 
 ## Evidence

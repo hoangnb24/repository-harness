@@ -12,9 +12,7 @@ structure is healthier than fake product truth.
 
 ## Current Product Contracts
 
-- `symphony-web-ui-controller.md` - Local Web UI controller for Harness Symphony
-  task execution, review, dependency blocking, Codex event logs, PR review, and
-  sync.
+No repository-specific product contract is currently defined.
 
 ## Update Rule
 

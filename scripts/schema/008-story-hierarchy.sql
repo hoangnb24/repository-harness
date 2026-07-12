@@ -1,5 +1,5 @@
 -- Harness schema migration 008
--- Parent-child Harness story hierarchy for Symphony Web UI task grouping.
+-- Parent-child Harness story hierarchy for generic work-item grouping.
 
 PRAGMA foreign_keys = ON;
 

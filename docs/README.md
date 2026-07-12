@@ -13,10 +13,8 @@ future user-provided spec.
 - `HARNESS_BACKLOG.md`: legacy improvement list; current improvement records
   are stored with `scripts/bin/harness-cli backlog`.
 - `GLOSSARY.md`: shared terms.
-- `SYMPHONY_QUICKSTART.md`: beginner-facing instructions for running Harness
-  stories through Symphony.
-- `SYMPHONY_SCOPE.md`: detailed scope for the Harness-native agent workbench
-  and orchestration layer.
+- `contracts/`: versioned machine-readable contracts for optional external
+  orchestrators.
 
 ## Folders
 

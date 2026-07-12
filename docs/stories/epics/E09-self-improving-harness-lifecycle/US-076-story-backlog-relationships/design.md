@@ -55,7 +55,7 @@ story_backlog_link(
 
 ## UI / Platform Impact
 
-CLI only. No Symphony Web UI change is required.
+CLI only. No external product UI change is required.
 
 ## Observability
 

@@ -26,6 +26,6 @@ git diff --check
 
 - Both focused `proof_audit` tests passed.
 - Validator contract shell tests passed all seven selection/proof scenarios.
-- Full workspace passed with 71 Harness CLI and 99 Symphony tests.
+- Full workspace passed with 71 Harness CLI and 99 external orchestrators tests.
 - Trace 232 is detailed with six clean actions and zero errors.
 - Rebuild restored 58 stories and both live/rebuilt audits have zero entropy.

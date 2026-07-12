@@ -22,7 +22,7 @@ Risk flags:
 
 - Database schema and migration.
 - Semantic replay compatibility.
-- Cross-command lifecycle and Symphony behavior.
+- Cross-command lifecycle and orchestrator behavior.
 
 Hard gates:
 
@@ -35,7 +35,7 @@ Hard gates:
 1. Add story and deterministic regression fixtures.
 2. Fix replay timestamps and resolver ordering.
 3. Fix audit/proposal decisions and Unicode/RFC3339 handling.
-4. Align Symphony and living docs.
+4. Align external orchestrators and living docs.
 5. Repair committed US-074 proof and strengthen rebuild validation.
 6. Run completion audit and close every ledger item.
 

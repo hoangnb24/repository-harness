@@ -16,7 +16,7 @@ must append a matching semantic operation to
 
 ## Relevant Product Docs
 
-- `docs/SYMPHONY_SCOPE.md`
+- `docs/HARNESS.md`
 - `docs/HARNESS.md`
 - `docs/TRACE_SPEC.md`
 
@@ -50,7 +50,7 @@ When updating durable proof status, use numeric booleans:
 | --- | --- |
 | Unit | Operation serialization tests for every supported operation type. |
 | Integration | Temp DB plus `HARNESS_RUN_ID` smoke verifies DB row and JSONL operation are both written. |
-| E2E | n/a until Symphony runner exists. |
+| E2E | n/a for this CLI-only capability. |
 | Platform | Verify relative `.harness/changesets/` path resolves from repo root on macOS/Linux. |
 | Release | `cargo test --workspace`; `cargo fmt --check`; `cargo clippy --workspace -- -D warnings`. |
 

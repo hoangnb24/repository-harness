@@ -89,7 +89,7 @@ scripts/bin/harness-cli propose --reject <proposal-key> --reason "Not worth the 
 
 Acceptance creates or reuses one `accepted` backlog occurrence and prints the
 next `harness_improvement` intake command. Rejection records one terminal reason
-and covered evidence without creating an intake, story, or Symphony run.
+and covered evidence without creating an intake, story, or orchestrated run.
 `propose --commit` is intentionally rejected; Harness never bulk-writes every
 currently displayed suggestion.
 

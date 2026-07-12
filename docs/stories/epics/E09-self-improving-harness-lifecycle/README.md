@@ -46,7 +46,7 @@ trace, friction, intervention, or audit evidence
   -> acceptance creates one accepted occurrence plus an outcome-review schedule
   -> harness_improvement intake
   -> one resolving story plus optional references
-  -> Symphony implementation
+  -> agent implementation
   -> completed implementation trace
   -> explicit story completion with fresh proof
   -> accepted backlog occurrence closes as implemented
@@ -74,7 +74,7 @@ Decision
 Work
   -> record intake
   -> link one resolving story
-  -> run the story through Symphony
+  -> run the story through external orchestrators
   -> record its completed implementation trace
 
 Completion
@@ -111,11 +111,10 @@ scripts/bin/harness-cli intake --type harness_improvement \
 scripts/bin/harness-cli story backlog link --story <US-NNN> \
   --backlog <local-id> --relationship resolves
 
-# 4. Review the isolated run contract, then explicitly authorize execution.
-target/debug/harness-symphony run <US-NNN> --prepare-only
-target/debug/harness-symphony run <US-NNN>
+# 4. Review the selected agent workflow, then explicitly authorize execution.
+#    Implementation runners are external to Harness and vary by consumer.
 
-# 5. Symphony records the implementation trace; completion runs fresh proof.
+# 5. Record the implementation trace; completion runs fresh proof.
 scripts/bin/harness-cli story complete <US-NNN>
 
 # 6. When the schedule is due, append the measured result.
@@ -160,7 +159,7 @@ authorize the following execution command by itself.
 
 | Story | Lane | Outcome | Depends on |
 | --- | --- | --- | --- |
-| `US-073` Story Dependency Mutation And Replay | normal | Add first-class, cycle-safe, replayable dependency authoring so this epic can be enforced by Symphony rather than only documented. | none |
+| `US-073` Story Dependency Mutation And Replay | normal | Add first-class, cycle-safe, replayable dependency authoring so this epic can be enforced by external orchestrators rather than only documented. | none |
 | `US-074` Replay-Safe Improvement Identity | high-risk | Add stable intake, proposal, backlog-occurrence, and evidence identity that survives separate changesets and fresh rebuilds. | `US-073` |
 | `US-075` Selective Proposal Decision | normal | Accept one key with an observation schedule or reject one key with a reason; both decisions are idempotent and replayable. | `US-074` |
 | `US-076` Story-To-Backlog Relationships | high-risk | Add replayable `resolves` and `references` links with one designated resolver. | `US-074` |
@@ -193,7 +192,7 @@ US-073 -> US-074 -> (US-075 + US-076) -> US-077 -> US-078
 
 `US-075` and `US-076` are dependency-independent after `US-074` and may execute
 in either order. `US-079` and `US-080` are likewise independent after their own
-dependencies. The local Symphony runner still executes one active story at a
+dependencies. The local external orchestrator still executes one active story at a
 time.
 
 ## Durable Registration Rule
@@ -202,7 +201,7 @@ Only `US-073` is registered as runnable during this planning pass. The current
 CLI can read dependency edges but cannot safely create or replay them. `US-073`
 must add that capability, then register `US-074` through `US-080` and the exact
 edges above in the same replayable planning changeset. Until then, the downstream
-packets are approved plans, not Symphony-ready work.
+packets are approved plans, not external orchestrators-ready work.
 
 ## Scope
 
@@ -218,7 +217,7 @@ In scope:
 
 Out of scope:
 
-- Symphony Web UI changes.
+- external product UI changes.
 - Daemon scheduling or unattended proposal acceptance.
 - Automatic implementation or automatic regression backlog creation.
 - LLM-based semantic grouping.
@@ -264,6 +263,6 @@ not accidentally download the previously published behavior.
 
 ## Execution Boundary
 
-This epic and its story packets are planning artifacts. Do not start Symphony
+This epic and its story packets are planning artifacts. Do not start external orchestrators
 until the human explicitly requests execution. When execution is approved,
 `US-073` is the only initial runnable story.

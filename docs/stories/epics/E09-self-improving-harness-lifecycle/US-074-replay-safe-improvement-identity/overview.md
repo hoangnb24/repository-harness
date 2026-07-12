@@ -33,7 +33,7 @@ close, suppress, and recur work without relying on local row numbers.
 
 - Humans reviewing Harness proposals and closed outcomes.
 - Agents implementing and verifying Harness improvement stories.
-- Symphony applying and rebuilding semantic changesets.
+- External consumers applying and rebuilding semantic changesets.
 - Maintainers migrating installed Harness databases.
 
 ## Affected Product Docs

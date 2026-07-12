@@ -47,4 +47,4 @@ flowchart LR
 - Delete or rewrite historical traces and interventions.
 - Automatically accept, reject, or implement proposals.
 - Change story verification or completion semantics.
-- Implement the Symphony pre-run discussion surface.
+- Implement the external orchestrators pre-run discussion surface.

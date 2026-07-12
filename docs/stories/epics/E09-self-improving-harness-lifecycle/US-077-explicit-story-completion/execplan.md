@@ -25,13 +25,13 @@ In scope:
 - Resolution evidence separate from actual outcome.
 - Completion-time baseline for trace-count outcome schedules.
 - Semantic changeset and rebuild parity.
-- Minimal Symphony run-state/contract alignment.
+- Minimal orchestrated run-state/contract alignment.
 
 Out of scope:
 
 - Proposal suppression and recurrence classification.
 - Outcome measurement.
-- Web UI completion controls.
+- Application UI completion controls.
 - Automatic reopening or regression creation.
 
 ## Risk Classification
@@ -56,7 +56,7 @@ Hard gates:
 3. Execute verification and write pass/fail safely.
 4. Add atomic implemented-status, baseline, and backlog-closure transaction.
 5. Add semantic operations and rebuild proof.
-6. Align Symphony copied-story state, implementation trace, and completion order.
+6. Align copied-story state, implementation trace, and completion order.
 7. Update lifecycle docs and release proof.
 
 ## Stop Conditions
@@ -64,6 +64,6 @@ Hard gates:
 Pause for human confirmation if:
 
 - Story completion cannot be atomic with backlog closure.
-- Symphony cannot establish `in_progress` without mutating root durable state.
+- An external orchestrator cannot establish `in_progress` without mutating root durable state.
 - Verification requirements would need to be weakened.
 - Completion would overwrite measured outcome or historical closure.

@@ -15,7 +15,7 @@ from committed changesets.
 
 ## Relevant Product Docs
 
-- `docs/SYMPHONY_SCOPE.md`
+- `docs/HARNESS.md`
 - `docs/HARNESS.md`
 
 ## Acceptance Criteria
@@ -23,7 +23,7 @@ from committed changesets.
 - `harness-cli db rebuild --from .harness/changesets` creates a fresh database.
 - Rebuild applies changesets in deterministic order.
 - Rebuild fails loudly on malformed or incompatible changesets.
-- Rebuild does not require `.symphony/` runtime state.
+- Rebuild does not require any external orchestrator runtime state.
 - Rebuilt DB can pass `query matrix`, `query decisions`, `query traces`, and
   `audit`.
 

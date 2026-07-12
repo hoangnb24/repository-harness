@@ -202,7 +202,7 @@ contain uid, backlog uid, ordinal, status, outcome, evidence, and original time.
 
 ## UI / Platform Impact
 
-No Web UI change. Installed databases receive an additive migration and the
+No application UI change. Installed databases receive an additive migration and the
 prebuilt CLI must understand it.
 
 ## Observability
