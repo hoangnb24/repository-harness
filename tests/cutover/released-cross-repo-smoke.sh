@@ -67,6 +67,7 @@ binary=$(find "$bundle" -type f \( -name harness-symphony -o -name harness-symph
 
 symphony_contract=$($binary version --json)
 actual_harness_version=${harness_label#harness-cli-v}
+actual_harness_version=${actual_harness_version%-candidate}
 jq -e --arg harness_version "$actual_harness_version" '
   .harness_protocol_version == 1 and
   (.symphony_version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
