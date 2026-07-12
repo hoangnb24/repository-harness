@@ -36,6 +36,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.checkout_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Verify release tag, source, and crate identity
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.release_tag != '' }}
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: scripts/verify-harness-cli-release-identity.sh "$RELEASE_TAG"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -64,6 +71,7 @@ jobs:
           tests/maintenance/test-harness-cli-release-classification.sh
           tests/maintenance/test-render-changelog-files.sh
           tests/release/test-release-workflow-contract.sh
+          tests/release/test-release-identity-guard.sh
 
   build:
     name: Build ${{ matrix.platform }}
@@ -98,6 +106,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.checkout_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Verify release tag, source, and crate identity
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.release_tag != '' }}
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: scripts/verify-harness-cli-release-identity.sh "$RELEASE_TAG"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
