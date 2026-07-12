@@ -356,7 +356,8 @@ function Install-HarnessCliBinary {
             Write-Step "created  scripts/bin/harness-cli.exe"
         }
         if (Test-Path $target) {
-            [System.IO.File]::Replace($binaryTmp, $target, $null)
+            $replacementBackup = Join-Path $tmpDir "replaced-harness-cli.exe"
+            [System.IO.File]::Replace($binaryTmp, $target, $replacementBackup)
         } else {
             Move-Item -LiteralPath $binaryTmp -Destination $target
         }
