@@ -22,7 +22,7 @@ function Invoke-Install([string]$Directory, [string[]]$Mode = @()) {
     $Arguments = @{ Directory = $Directory; Yes = $true }
     foreach ($Name in $Mode) { $Arguments[$Name] = $true }
     & $Installer @Arguments | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "installer failed for $Directory $Mode" }
+    if (!$?) { throw "installer failed for $Directory $Mode" }
 }
 
 try {
