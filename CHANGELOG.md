@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-07-13 - PR #45
+
+- feat(cutover): complete E11 repository separation (@hoangnb24)
+- Merge commit: `2f613bcad6b01985165ccab65c87312142b30026`
+- Harness CLI release: not required
+- Changed files: 24 total (first 20 shown)
+  - `docs/stories/epics/E11-symphony-repository-separation/README.md`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/design.md`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/README.md`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/canonical-target-ownership.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/canonical-target-ownership.json.sha256`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/cutover-readiness.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/proof/clean-install.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/proof/cleaned-contract.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/proof/cleaned-smoke.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/proof/initial-contract.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/proof/initial-smoke.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/proof/ownership-audit.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/proof/runtime-disposition.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/evidence/symphony-release.json`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/execplan.md`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/overview.md`
+  - `docs/stories/epics/E11-symphony-repository-separation/US-100-cutover-and-post-separation-audit/validation.md`
+  - `scripts/verify-e11-us100.sh`
+  - `tests/core/assert-durable-state-boundary.sh`
+  - `tests/cutover/assert-canonical-symphony-ownership.sh`
+  - _… 4 additional file(s) omitted from this entry._
+
 ## 2026-07-12 - PR #44
 
 - refactor(e11): complete Symphony repository separation (@hoangnb24)
