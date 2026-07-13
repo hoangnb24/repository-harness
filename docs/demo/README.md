@@ -137,7 +137,7 @@ should arrive only when a real story selects a real stack and needs them.
 
 ## Harness Delta
 
-Every task also asks whether the harness itself should improve.
+A change request also asks whether the harness itself should improve.
 
 If this demo revealed that many projects need the same intake example, the
 right follow-up might be:

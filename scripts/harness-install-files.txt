@@ -38,7 +38,9 @@ docs/templates/high-risk-story/execplan.md
 docs/templates/high-risk-story/overview.md
 docs/templates/high-risk-story/validation.md
 scripts/README.md
+scripts/agent-harness-block.md
 scripts/bootstrap-harness.sh
 scripts/bootstrap-harness.ps1
+scripts/claude-harness-block.md
 scripts/harness-cli-release-tag
 .gitignore

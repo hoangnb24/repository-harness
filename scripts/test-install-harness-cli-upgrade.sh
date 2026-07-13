@@ -16,6 +16,7 @@ printf '%s\n' '.gitignore' 'docs/HARNESS.md' > "$SOURCE/scripts/harness-install-
 printf '%s\n' '# fixture' > "$SOURCE/.gitignore"
 printf '%s\n' 'tagged template' > "$SOURCE/docs/HARNESS.md"
 printf '%s\n' 'SELECT 1;' > "$SOURCE/scripts/schema/001-fixture.sql"
+cp "$ROOT/scripts/agent-harness-block.md" "$SOURCE/scripts/agent-harness-block.md"
 printf '%s\n' 'old-cli' > "$TARGET/scripts/bin/harness-cli"
 chmod 755 "$TARGET/scripts/bin/harness-cli"
 printf '%s\n' 'new-cli' > "$ASSETS/harness-cli-$PLATFORM"

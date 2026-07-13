@@ -1,5 +1,3 @@
-# Agent Instructions
-
 <!-- HARNESS:BEGIN -->
 ## Harness
 

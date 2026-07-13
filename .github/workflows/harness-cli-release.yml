@@ -66,6 +66,7 @@ jobs:
 
       - name: Verify installer and maintenance contracts
         run: |
+          tests/installer/assert-agent-authority-contract.sh
           tests/installer/assert-install-manifest-links.sh
           tests/installer/assert-consumer-changeset-trackable.sh
           tests/maintenance/test-harness-cli-release-classification.sh

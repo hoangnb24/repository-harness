@@ -72,6 +72,19 @@ function Write-SourceFile([string]$Relative, [string]$Target) {
     }
 }
 
+function Read-SourceText([string]$Relative) {
+    if ($script:Source.Mode -eq "local") {
+        $source = Join-Path $script:Source.Root $Relative
+        if (!(Test-Path $source)) {
+            Fail "Source file missing: $source"
+        }
+        return Get-Content -LiteralPath $source -Raw
+    }
+
+    $url = "$script:SourceBaseUrl/$($Relative -replace '\\','/')"
+    return Read-RemoteText $url
+}
+
 function Read-PayloadManifest {
     if ($script:Source.Mode -eq "local") {
         $path = Join-Path $script:Source.Root $script:PayloadManifest
@@ -214,23 +227,21 @@ function Copy-HarnessFile([string]$Relative) {
 }
 
 function Get-AgentShimBlock {
-@'
-<!-- HARNESS:BEGIN -->
-## Harness
+    return (Read-SourceText "scripts/agent-harness-block.md").TrimEnd("`r", "`n")
+}
 
-This repo uses Harness. Before work, read:
-
-- `README.md`
-- `docs/HARNESS.md`
-- `docs/FEATURE_INTAKE.md`
-- `docs/ARCHITECTURE.md`
-- `docs/CONTEXT_RULES.md`
-- `scripts/bin/harness-cli query matrix` on macOS/Linux, or `.\scripts\bin\harness-cli.exe query matrix` on Windows
-
-Use the Rust Harness CLI at `scripts/bin/harness-cli` on macOS/Linux or
-`scripts/bin/harness-cli.exe` on Windows as the main operational tool.
-<!-- HARNESS:END -->
-'@
+function Assert-HarnessMarkers([string]$Content, [string]$Label) {
+    $begin = [regex]::Matches($Content, '<!-- HARNESS:BEGIN -->')
+    $end = [regex]::Matches($Content, '<!-- HARNESS:END -->')
+    if ($begin.Count -eq 0 -and $end.Count -eq 0) {
+        return
+    }
+    if ($begin.Count -ne 1 -or $end.Count -ne 1) {
+        Fail "$Label must contain exactly one complete Harness marker pair"
+    }
+    if ($begin[0].Index -ge $end[0].Index) {
+        Fail "$Label Harness markers are out of order"
+    }
 }
 
 function Refresh-AgentShimFile {
@@ -241,6 +252,9 @@ function Refresh-AgentShimFile {
     if (!(Test-Path $target)) {
         return
     }
+
+    $content = Get-Content -LiteralPath $target -Raw
+    Assert-HarnessMarkers $content "AGENTS.md"
 
     if ($DryRun) {
         Write-Step "refresh  AGENTS.md (replace marked Harness block, backup first)"
@@ -254,7 +268,6 @@ function Refresh-AgentShimFile {
         Copy-Item -LiteralPath $target -Destination $backup
     }
 
-    $content = Get-Content -LiteralPath $target -Raw
     $block = Get-AgentShimBlock
     if ($content -match "(?s)<!-- HARNESS:BEGIN -->.*?<!-- HARNESS:END -->") {
         $content = [regex]::Replace($content, "(?s)<!-- HARNESS:BEGIN -->.*?<!-- HARNESS:END -->", [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $block })
@@ -390,6 +403,7 @@ if ($UpgradeCli) {
     $script:Source = @{ Mode = "remote"; Root = "" }
     $script:SourceBaseUrl = if ($env:HARNESS_SOURCE_BASE_URL) { $env:HARNESS_SOURCE_BASE_URL.TrimEnd("/") } else { "https://raw.githubusercontent.com/hoangnb24/repository-harness/$Ref" }
     $script:CliBaseUrl = if ($env:HARNESS_CLI_BASE_URL) { $env:HARNESS_CLI_BASE_URL.TrimEnd("/") } else { "https://github.com/hoangnb24/repository-harness/releases/download/$Ref" }
+    $RefreshAgentShim = $true
 }
 $script:TargetDir = Resolve-TargetPath $Directory
 $script:BackupDir = Join-Path $script:TargetDir (".harness-backup/" + (Get-Date -Format "yyyyMMddHHmmss"))

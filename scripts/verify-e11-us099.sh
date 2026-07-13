@@ -22,6 +22,7 @@ tests/core/test-schema-replay-command-contract.sh
 tests/core/assert-durable-state-boundary.sh
 scripts/verify-e11-us098.sh
 tests/installer/test-install-harness-modes.sh
+tests/installer/assert-agent-authority-contract.sh
 tests/installer/assert-install-manifest-links.sh
 tests/installer/assert-consumer-changeset-trackable.sh
 scripts/test-install-harness-cli-upgrade.sh

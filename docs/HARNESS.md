@@ -48,11 +48,11 @@ The app is what users touch. The harness is what agents touch.
 +------------------+
 ```
 
-Every task has two possible outputs:
+A change request can have two outputs:
 
 1. Product delta: app code, tests, API shape, data model, or product docs.
-2. Harness delta: docs, templates, validation expectations, backlog items, or
-   decision records that make the next task easier.
+2. Harness delta, when warranted: docs, templates, validation expectations,
+   backlog items, or decision records that make the next change easier.
 
 ## Harness v0 Scope
 
@@ -224,26 +224,46 @@ Backlog risk uses the same lane vocabulary as intake and stories:
 `tiny`, `normal`, or `high-risk`. Use `--risk tiny` for low-risk follow-up
 items; `low` is not a valid lane.
 
-## Task Loop
+## Request-Class Loops
 
-For every task:
+Classify authority before running Harness commands. The request class decides
+whether repository state may change.
 
-1. Classify the request with `docs/FEATURE_INTAKE.md`.
-2. Record the classification with `scripts/bin/harness-cli intake`.
-3. Locate the affected product docs and story files.
-4. Check focused proof status with
+### Read-Only Requests
+
+Answer, explain, review, diagnose, plan, and status requests are read-only.
+
+1. Read `AGENTS.md` and only the files or evidence needed for the response.
+2. Use read-only inspection commands when useful.
+3. Do not run bootstrap, initialize or migrate a database, record intake,
+   update stories or backlog, or record a trace.
+4. Stop when the answer is supported by concrete repository evidence.
+
+For example, a request to diagnose why an installer test fails may inspect the
+test, installer, and captured output. It must not bootstrap a missing database
+or create an intake row merely to explain the failure.
+
+### Change Requests
+
+Change, build, and fix requests authorize the normal Harness mutation loop:
+
+1. Bootstrap the local ignored runtime with `scripts/bootstrap-harness.sh` on
+   macOS/Linux or `.\scripts\bootstrap-harness.ps1` on Windows.
+2. Classify the request with `docs/FEATURE_INTAKE.md` and record the
+   classification with `scripts/bin/harness-cli intake`.
+3. Check focused proof status with
    `scripts/bin/harness-cli query matrix --active --summary`, then use
-   `scripts/bin/harness-cli query matrix --story <id>` for the selected story.
-5. Work only inside the selected lane: tiny, normal, or high-risk.
+   `scripts/bin/harness-cli query matrix --story <id>` if a story is selected.
+4. Retrieve only the affected product, story, decision, and implementation
+   files required by the selected lane in `docs/CONTEXT_RULES.md`.
+5. Implement and validate inside that lane: tiny, normal, or high-risk.
 6. Before finishing, ask whether product truth, validation expectations,
    architecture rules, repeated failure patterns, or next-agent instructions
    changed.
 7. Record a trace with `scripts/bin/harness-cli trace`, using
-   `docs/TRACE_SPEC.md` for the expected trace tier and field depth.
-8. Review the trace score printed by `scripts/bin/harness-cli trace`; use
-   `scripts/bin/harness-cli score-trace --id <id>` only when re-checking a
-   specific historical trace.
-9. If harness friction was found, either fix it directly or record it with
+   `docs/TRACE_SPEC.md` for the expected trace tier and field depth, and review
+   the printed score.
+8. If Harness friction was found, fix it in scope or record it with
    `scripts/bin/harness-cli backlog add`.
 
 ## Story Verification
@@ -384,14 +404,18 @@ Agents should ask for human confirmation before:
 
 ## Done Definition
 
-A task is done only when:
+A read-only request is done when the response is supported by repository
+evidence, clearly separates facts from inference, and leaves repository and
+Harness state unchanged.
+
+A change request is done only when:
 
 - The requested change is completed or the blocker is documented.
 - Relevant docs, stories, and test matrix entries remain current.
 - Validation commands were run when they exist.
 - A trace has been recorded with `scripts/bin/harness-cli trace`.
-- Missing harness capabilities were recorded with
-  `scripts/bin/harness-cli backlog add`.
+- Missing Harness capabilities were recorded with
+  `scripts/bin/harness-cli backlog add` when relevant.
 - The final response says what changed and what was not attempted.
 
 ## Future Validation Ladder

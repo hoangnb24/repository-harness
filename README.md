@@ -112,8 +112,8 @@ project's local instructions.
 If the project is driven with Claude Code, add `--claude`. Claude Code never
 auto-loads `AGENTS.md`, so without this the installed harness is invisible to
 fresh sessions. The flag installs (or refreshes) a `CLAUDE.md` whose marked
-Harness block `@`-imports `AGENTS.md` and `docs/FEATURE_INTAKE.md` into every
-session's context. An existing `CLAUDE.md` gets the block appended after a
+Harness block imports only `AGENTS.md`, the canonical request-authority and
+retrieval entrypoint. An existing `CLAUDE.md` gets the block appended after a
 backup; plain installs without the flag never touch `CLAUDE.md`:
 
 ```bash

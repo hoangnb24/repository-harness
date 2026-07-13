@@ -13,7 +13,8 @@ Options:
       --merge            On protected-path conflict, keep existing files in
                          place and install only missing Harness files.
       --upgrade-cli      Replace the installed Harness CLI after checksum
-                         verification. Requires --ref.
+                         verification and refresh the marked AGENTS.md
+                         authority block. Requires --ref.
       --ref <tag>        Immutable Harness release tag used for both template
                          files and the CLI artifact (harness-cli-vX.Y.Z).
       --refresh-agent-shim
@@ -23,7 +24,7 @@ Options:
       --claude           Also install or refresh CLAUDE.md so Claude Code
                          auto-loads the harness context. Claude Code never
                          auto-loads AGENTS.md; the shim @-imports AGENTS.md
-                         and docs/FEATURE_INTAKE.md inside a marked block.
+                         as its single policy source inside a marked block.
                          Existing CLAUDE.md files get the block appended
                          after a backup; a stale block is refreshed in place.
       --override         On protected-path conflict, back up and replace
@@ -199,6 +200,20 @@ write_source_file() {
   curl -fsSL "$url" -o "$target" || fail "Could not download $url"
 }
 
+read_source_text() {
+  local relative="$1"
+
+  if [ "$SOURCE_MODE" = "local" ]; then
+    local source="$SOURCE_ROOT/$relative"
+    [ -f "$source" ] || fail "Source file missing: $source"
+    cat "$source"
+    return
+  fi
+
+  local url="$SOURCE_BASE_URL/$relative"
+  curl -fsSL "$url" || fail "Could not download $url"
+}
+
 read_payload_manifest() {
   if [ "$SOURCE_MODE" = "local" ]; then
     local manifest="$SOURCE_ROOT/$PAYLOAD_MANIFEST"
@@ -283,49 +298,11 @@ EOF
 }
 
 agent_shim_block() {
-  cat <<'EOF'
-<!-- HARNESS:BEGIN -->
-## Harness
-
-This repo uses Harness. Before work, read:
-
-- `README.md`
-- `docs/HARNESS.md`
-- `docs/FEATURE_INTAKE.md`
-- `docs/ARCHITECTURE.md`
-- `docs/CONTEXT_RULES.md`
-- `docs/TOOL_REGISTRY.md`
-- `scripts/bin/harness-cli query matrix`
-
-Use the Rust Harness CLI at `scripts/bin/harness-cli` as the main operational
-tool. Before a step that could use an external tool, run
-`scripts/bin/harness-cli query tools --capability <name> --status present` to
-see what is equipped; an absent capability is a clean skip.
-<!-- HARNESS:END -->
-EOF
+  read_source_text "scripts/agent-harness-block.md"
 }
 
 claude_shim_block() {
-  cat <<'EOF'
-<!-- HARNESS:BEGIN -->
-## Harness
-
-Claude Code loads this file into every session, but it does not auto-load
-`AGENTS.md`. The bare `@` lines below import the always-required harness
-context (the "Must in all lanes" set from `docs/CONTEXT_RULES.md`) at
-context-load time. Never wrap them in backticks; that disables the import.
-
-@AGENTS.md
-
-@docs/FEATURE_INTAKE.md
-
-Also run `scripts/bin/harness-cli query matrix` before starting work.
-
-Lane-dependent context (`README.md`, `docs/HARNESS.md`, `docs/ARCHITECTURE.md`,
-`docs/CONTEXT_RULES.md`, product docs, stories, decisions) is intentionally not
-imported — read it per lane, as `docs/CONTEXT_RULES.md` prescribes.
-<!-- HARNESS:END -->
-EOF
+  read_source_text "scripts/claude-harness-block.md"
 }
 
 is_old_harness_agent_file() {
@@ -396,8 +373,11 @@ insert_agent_custom_section() {
 
 append_or_replace_agent_harness_block() {
   local target="$TARGET_DIR/AGENTS.md"
-  local tmp
+  local block_tmp tmp
 
+  block_tmp="$(mktemp)"
+  agent_shim_block >"$block_tmp"
+  [ -s "$block_tmp" ] || fail "canonical AGENTS.md Harness block is empty"
   tmp="$(mktemp)"
   if grep -Fq "<!-- HARNESS:BEGIN -->" "$target" &&
      grep -Fq "<!-- HARNESS:END -->" "$target"; then
@@ -414,7 +394,7 @@ append_or_replace_agent_harness_block() {
         next
       }
       !in_block { print }
-    ' block_file=<(agent_shim_block) "$target" > "$tmp"
+    ' block_file="$block_tmp" "$target" > "$tmp"
   else
     {
       cat "$target"
@@ -423,6 +403,23 @@ append_or_replace_agent_harness_block() {
     } > "$tmp"
   fi
   mv "$tmp" "$target"
+  rm -f "$block_tmp"
+}
+
+validate_harness_markers() {
+  local target="$1" label="$2"
+  local begin_count end_count begin_line end_line
+  begin_count=$(grep -Fc '<!-- HARNESS:BEGIN -->' "$target" || true)
+  end_count=$(grep -Fc '<!-- HARNESS:END -->' "$target" || true)
+  if [ "$begin_count" -eq 0 ] && [ "$end_count" -eq 0 ]; then
+    return 0
+  fi
+  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    fail "$label must contain exactly one complete Harness marker pair"
+  fi
+  begin_line=$(grep -Fn '<!-- HARNESS:BEGIN -->' "$target" | cut -d: -f1)
+  end_line=$(grep -Fn '<!-- HARNESS:END -->' "$target" | cut -d: -f1)
+  [ "$begin_line" -lt "$end_line" ] || fail "$label Harness markers are out of order"
 }
 
 refresh_agent_shim() {
@@ -435,6 +432,8 @@ refresh_agent_shim() {
     log "skip     AGENTS.md (source file)"
     return 0
   fi
+
+  validate_harness_markers "$target" "AGENTS.md"
 
   if [ "$DRY_RUN" -eq 1 ]; then
     if is_old_harness_agent_file "$target"; then
@@ -482,6 +481,10 @@ write_claude_shim() {
     log "skip     CLAUDE.md (source file)"
     SKIPPED=$((SKIPPED + 1))
     return 0
+  fi
+
+  if [ -e "$target" ]; then
+    validate_harness_markers "$target" "CLAUDE.md"
   fi
 
   block_tmp="$(mktemp)"
@@ -883,6 +886,7 @@ if [ "$UPGRADE_CLI" -eq 1 ]; then
   SOURCE_BASE_URL="${SOURCE_BASE_URL%/}"
   CLI_BASE_URL="${HARNESS_CLI_BASE_URL:-https://github.com/hoangnb24/repository-harness/releases/download/$REQUESTED_REF}"
   CLI_BASE_URL="${CLI_BASE_URL%/}"
+  REFRESH_AGENT_SHIM=1
 fi
 
 if [ "$UPGRADE_CLI" -eq 0 ] && [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../AGENTS.md" ] && [ -f "$SCRIPT_DIR/../docs/HARNESS.md" ]; then

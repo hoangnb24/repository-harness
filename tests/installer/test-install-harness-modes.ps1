@@ -58,7 +58,7 @@ try {
     "local rule`n`n<!-- HARNESS:BEGIN -->`nstale`n<!-- HARNESS:END -->" | Set-Content (Join-Path $Shim "AGENTS.md")
     Invoke-Install $Shim @("Merge", "RefreshAgentShim")
     $ShimText = Get-Content -Raw (Join-Path $Shim "AGENTS.md")
-    if (!$ShimText.Contains("local rule") -or !$ShimText.Contains("docs/FEATURE_INTAKE.md") -or $ShimText.Contains("stale")) { throw "shim refresh failed" }
+    if (!$ShimText.Contains("local rule") -or !$ShimText.Contains("query matrix --active --summary") -or $ShimText.Contains("stale")) { throw "shim refresh failed" }
 
     $Dry = Join-Path $Temp "dry"
     & $Installer -Directory $Dry -Yes -DryRun | Out-Null
@@ -70,10 +70,14 @@ try {
         New-Item -ItemType Directory -Force (Join-Path $Upgrade "scripts/bin") | Out-Null
         Copy-Item $InitialArtifact (Join-Path $Upgrade "scripts/bin/harness-cli.exe")
         "consumer-owned" | Set-Content (Join-Path $Upgrade "KEEP.txt")
+        "local rule`n`n<!-- HARNESS:BEGIN -->`nstale authority`n<!-- HARNESS:END -->" | Set-Content (Join-Path $Upgrade "AGENTS.md")
         $env:HARNESS_SOURCE_BASE_URL = ([uri]$Root).AbsoluteUri.TrimEnd("/")
         & $Installer -Directory $Upgrade -Yes -Merge -UpgradeCli -Ref $CandidateRef | Out-Null
         if ((Get-FileHash -Algorithm SHA256 (Join-Path $Upgrade "scripts/bin/harness-cli.exe")).Hash.ToLowerInvariant() -ne $CandidateHash) { throw "candidate upgrade hash differs" }
         if ((Get-Content -Raw (Join-Path $Upgrade "KEEP.txt")).Trim() -ne "consumer-owned") { throw "upgrade changed consumer file" }
+        $UpgradeAgents = Get-Content -Raw (Join-Path $Upgrade "AGENTS.md")
+        if (!$UpgradeAgents.Contains("local rule") -or $UpgradeAgents.Contains("stale authority") -or !$UpgradeAgents.Contains("query matrix --active --summary")) { throw "upgrade did not refresh marked AGENTS authority" }
+        if (!(Get-ChildItem (Join-Path $Upgrade ".harness-backup") -Recurse -Filter "AGENTS.md" -File | Select-Object -First 1)) { throw "upgrade AGENTS backup missing" }
         & (Join-Path $Upgrade "scripts/bin/harness-cli.exe") --version | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "upgraded candidate does not execute" }
         $BinaryVersion = (& (Join-Path $Upgrade "scripts/bin/harness-cli.exe") --version).Split()[-1]

@@ -1,5 +1,3 @@
-# Project Rules
-
 <!-- HARNESS:BEGIN -->
 ## Harness
 

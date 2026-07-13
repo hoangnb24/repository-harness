@@ -19,6 +19,14 @@ install() {
     "$installer" "$@"
 }
 
+extract_block() {
+  awk '
+    /<!-- HARNESS:BEGIN -->/ { in_block = 1 }
+    in_block { print }
+    /<!-- HARNESS:END -->/ { exit }
+  ' "$1"
+}
+
 # Fresh mode produces the full declared payload, all migrations, ignored local
 # DB state, and the platform CLI without initializing an opaque database.
 fresh="$temp/fresh"
@@ -32,6 +40,18 @@ install --directory "$fresh" --yes >"$temp/fresh.out"
     "$(find "$root/scripts/schema" -type f -name '*.sql' | wc -l | tr -d ' ')" ]]
 git -C "$fresh" init -q
 git -C "$fresh" check-ignore -q harness.db
+cmp -s <(extract_block "$fresh/AGENTS.md") "$root/scripts/agent-harness-block.md"
+
+# Claude generation keeps custom instructions and imports only the canonical
+# AGENTS authority instead of restating intake or matrix policy.
+claude="$temp/claude"
+mkdir -p "$claude"
+printf '# Local Claude Rules\n\nKeep this Claude-only rule.\n' >"$claude/CLAUDE.md"
+install --directory "$claude" --claude --yes >"$temp/claude.out"
+grep -Fq 'Keep this Claude-only rule.' "$claude/CLAUDE.md"
+cmp -s <(extract_block "$claude/CLAUDE.md") "$root/scripts/claude-harness-block.md"
+[[ "$(grep -Fc '@AGENTS.md' "$claude/CLAUDE.md")" == 1 ]]
+! grep -Fq '@docs/FEATURE_INTAKE.md' "$claude/CLAUDE.md"
 
 # Merge preserves existing project material byte-for-byte while filling gaps.
 merge="$temp/merge"
@@ -85,6 +105,43 @@ grep -Fq 'Keep this exact local rule.' "$shim/AGENTS.md"
 shim_backup=$(find "$shim/.harness-backup" -name AGENTS.md -type f | head -n 1)
 [[ "$(shasum -a 256 "$shim_backup" | awk '{print $1}')" == "$shim_before" ]]
 
+# CLI upgrades also refresh stale marked authority, without replacing custom
+# project text or skipping the normal AGENTS backup.
+upgrade="$temp/upgrade"
+mkdir -p "$upgrade/docs" "$upgrade/scripts/bin"
+cat >"$upgrade/AGENTS.md" <<'EOF'
+# Project Agent Rules
+
+Keep this upgrade-local rule.
+
+<!-- HARNESS:BEGIN -->
+stale mutation authority
+<!-- HARNESS:END -->
+EOF
+upgrade_before=$(shasum -a 256 "$upgrade/AGENTS.md" | awk '{print $1}')
+HARNESS_SOURCE_BASE_URL="file://$root" \
+HARNESS_CLI_BASE_URL="file://$assets" \
+HARNESS_CLI_PLATFORM="$platform" \
+  "$installer" --directory "$upgrade" --merge --upgrade-cli \
+    --ref harness-cli-v0.1.14 --yes >"$temp/upgrade.out"
+grep -Fq 'Keep this upgrade-local rule.' "$upgrade/AGENTS.md"
+! grep -Fq 'stale mutation authority' "$upgrade/AGENTS.md"
+cmp -s <(extract_block "$upgrade/AGENTS.md") "$root/scripts/agent-harness-block.md"
+upgrade_backup=$(find "$upgrade/.harness-backup" -name AGENTS.md -type f | head -n 1)
+[[ "$(shasum -a 256 "$upgrade_backup" | awk '{print $1}')" == "$upgrade_before" ]]
+
+# Malformed or duplicate authority markers fail closed instead of appending a
+# second policy block that leaves precedence ambiguous.
+malformed="$temp/malformed"
+mkdir -p "$malformed/docs" "$malformed/scripts"
+printf 'custom\n<!-- HARNESS:BEGIN -->\nstale without end\n' >"$malformed/AGENTS.md"
+if install --directory "$malformed" --merge --refresh-agent-shim --yes \
+  >"$temp/malformed.out" 2>&1; then
+  echo "installer unexpectedly accepted malformed Harness markers" >&2
+  exit 1
+fi
+grep -Fq 'exactly one complete Harness marker pair' "$temp/malformed.out"
+
 # Dry-run reports the complete intent but creates neither target nor binary.
 dry="$temp/dry-run-target"
 install --directory "$dry" --dry-run --yes >"$temp/dry.out"
@@ -92,4 +149,4 @@ install --directory "$dry" --dry-run --yes >"$temp/dry.out"
 grep -Fq 'Dry run: no files will be written.' "$temp/dry.out"
 grep -Fq 'download harness-cli-fixture-platform -> scripts/bin/harness-cli' "$temp/dry.out"
 
-echo "Bash installer fresh, merge, override, shim-refresh, and dry-run modes passed"
+echo "Bash installer fresh, merge, override, canonical shims, upgrade refresh, and dry-run modes passed"

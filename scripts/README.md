@@ -8,8 +8,12 @@ The Rust Harness CLI is the primary interface for the durable layer. Installed
 projects use the prebuilt binary at `scripts/bin/harness-cli` on macOS/Linux or
 `scripts/bin/harness-cli.exe` on Windows for normal Harness work.
 
-After a fresh clone or install, bootstrap the local ignored runtime before
-querying state:
+Request authority comes before runtime setup. Answer, explain, review,
+diagnose, plan, and status requests remain read-only: inspect what is already
+present, and do not bootstrap, initialize/migrate, record intake, or trace.
+
+For a change, build, or fix request after a fresh clone or install, bootstrap
+the local ignored runtime before querying or changing state:
 
 ```bash
 scripts/bootstrap-harness.sh
@@ -184,7 +188,15 @@ curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/
 file is recognized as the old Harness-generated operating guide, the installer
 replaces it with the current shim. Otherwise it appends or replaces only the
 marked `<!-- HARNESS:BEGIN -->` block so project-specific instructions remain
-in place.
+in place. Both installers read that block from
+`scripts/agent-harness-block.md`; the Bash `--claude` path reads
+`scripts/claude-harness-block.md`, whose only import is `AGENTS.md`. This keeps
+root, fresh-install, and refresh behavior on the same authority text.
+
+`--upgrade-cli` (PowerShell: `-UpgradeCli`) also refreshes the marked
+`AGENTS.md` Harness block. This prevents a new binary from retaining stale
+request authority while preserving text outside the marked block and creating
+the normal backup. It does not overwrite arbitrary custom documentation.
 
 The installer must stay limited to harness files. Do not use it to scaffold
 application source folders, package scripts, CI, tests, platform shells, or fake
