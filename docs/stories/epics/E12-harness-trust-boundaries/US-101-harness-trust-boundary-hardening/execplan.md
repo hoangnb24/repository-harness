@@ -50,8 +50,8 @@ Hard gates:
 7. Add pre-merge contract/doc/eval enforcement; commit proof.
 8. Run the full release-grade validation wrapper, push, and open a pull request.
 
-Phases 1-7 and local phase-8 proof completed on 2026-07-13. Push, pull-request
-creation, and hosted Windows proof are the remaining delivery steps.
+All phases completed on 2026-07-13. Pull request #46 is open, and hosted run
+`29221331817` passed both Ubuntu and Windows validation jobs.
 
 ## Stop Conditions
 

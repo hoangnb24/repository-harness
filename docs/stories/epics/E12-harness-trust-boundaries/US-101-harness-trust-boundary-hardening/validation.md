@@ -71,5 +71,7 @@ fixture on `windows-latest`.
   state with the exact leaked story IDs instead of presenting it as coherent.
   It was not destructively rewritten because no verified replacement epoch is
   available in this checkout.
-- Local proof columns are unit/integration/E2E `yes`; platform remains `no`
-  until the new pull-request Windows job executes the PowerShell fixture.
+- Proof columns are unit/integration/E2E/platform `yes`. GitHub Actions run
+  `29221331817` passed both the Ubuntu repository contract and the hosted
+  Windows PowerShell installer fixture; the first Windows run also caught and
+  proved the `$LASTEXITCODE` versus `$?` fixture correction in `0db1de0`.
