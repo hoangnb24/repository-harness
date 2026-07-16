@@ -2,9 +2,9 @@
 
 Date: 2026-07-16
 
-Status: Direction accepted; execution contract reconciled; implementation not started
+Status: Direction accepted; implementation authorized; Phase 1 ready; Phases 2-8 unimplemented
 
-Planning stories: US-103 and US-104
+Planning stories: US-103 and US-104; implementation initiative: US-105
 
 ## Executive Outcome
 
@@ -67,11 +67,50 @@ The following accepted decisions are normative for V1:
 - Permanent V1 core commands are install, update, audit, scaffold, status, and
   version. Conversion from V0 is a separately versioned, time-bounded bridge,
   not a permanent V1 command.
+- Decision 0012 fixes the compatibility window, local-archive custody,
+  bridge-release retention, and Phase 8 eligibility and closure conditions.
 - Repository Harness validates its own source layering. V1 templates ask a
   target to describe and enforce its own architecture; they do not prescribe
   domain/application/infrastructure/interface layering to targets.
 
 Changing a locked decision requires a new explicit human decision.
+
+### Approved Compatibility And Retention Policy
+
+Decision 0012 opens Gate G0 with these exact values:
+
+- The compatibility window is `2027-01-01T00:00:00Z` through
+  `2027-12-31T23:59:59Z`, inclusive. Support covers security, data-loss,
+  archive/recovery, and supported-input compatibility defects or mitigations,
+  not new V0 features.
+- Local conversion archives are write-once, checksum-verified recovery evidence
+  under repository-owner custody and are retained indefinitely. No install,
+  update, audit, bridge command, uninstall, or Phase 8 action may automatically
+  delete, overwrite, truncate, or relocate them. Manual deletion must be
+  explicit and warn that V0 recovery is lost.
+- Every supported-platform bridge binary, checksum, authenticated index or
+  attestation, supported-input matrix, release notes, source tag, and
+  reproducible build instructions is retained through
+  `2028-06-30T23:59:59Z`, inclusive. Release maintainers own periodic
+  availability verification.
+- Phase 8 is eligible no earlier than `2028-01-01T00:00:00Z` and only after
+  Phase 7 acceptance; all support and recovery obligations close; no known
+  unresolved in-window recovery case remains; no unresolved supported-range
+  security, data-loss, or archive-integrity defect remains; bridge-asset
+  retention is verified; and separate removal authorization and validation
+  exist.
+
+The approved window assumes V1 core and bridge general availability on every
+declared platform by `2027-01-01T00:00:00Z`. If that does not occur, the window
+must not silently shrink. A new explicit decision must shift the start, end,
+bridge-asset retention, and Phase 8 eligibility together, reaffirm indefinite
+local-archive retention, and preserve at least 365 supported days.
+
+A conversion journal created before `2027-12-31T23:59:59Z` closes the window
+remains eligible for supported resume or rollback. Cause and effect: the end of
+the calendar window stops new ordinary window obligations, but it does not
+abandon an already-started recovery case; any known unresolved case delays
+actual Phase 8 removal.
 
 ## Product Boundary And Stable Repository Shape
 
@@ -255,8 +294,9 @@ check on this product's implementation, not a target architecture template.
 ## Legacy V0 Conversion And Recovery
 
 Decision 0011 makes conversion a separately versioned, time-bounded,
-repository-local harness-v0-migrate artifact. It is not a V1 core command and
-does not make V0 operational behavior permanent.
+repository-local harness-v0-migrate artifact. Decision 0012 supplies its exact
+window, retention, support, and retirement policy. The bridge is not a V1 core
+command and does not make V0 operational behavior permanent.
 
 ### Detection And Supported Inputs
 
@@ -281,7 +321,10 @@ payload digest, and disposition without making V0 task state part of V1.
 Before any target mutation, it writes a checksummed archive of the V0 database,
 recognized changesets, known V0 provenance, export, and archive manifest under
 .harness/legacy/v0-conversion/<conversion-id>/. This archive is tool-local and
-untracked; its digest is referenced, not copied, by the V1 receipt.
+untracked; its digest is referenced, not copied, by the V1 receipt. It is
+write-once recovery evidence retained indefinitely under repository-owner
+custody. Automated product actions never delete, overwrite, truncate, or move
+it; explicit manual deletion warns that V0 recovery will be lost.
 
 A transient untracked operation journal records only conversion filesystem
 operations and their before/after digests. It contains no task lifecycle
@@ -333,10 +376,11 @@ no phase relies on a pilot introduced later.
 ### Phase 1: Contracts And Release Inventory
 
 Define the role/asset model, manifest schemas, V0/V1 grammar matrix,
-authenticated payload index and disposition ledger, compatibility windows, and
-V0 fixtures. Freeze new V0 operational features. Acceptance: every current
-payload path and V0 data category has a disposition, and CI rejects forbidden
-V0 payload paths.
+authenticated payload index and disposition ledger, Decision 0012's exact
+compatibility/retention contracts, and V0 fixtures. Freeze new V0 operational
+features. Gate G0 is approved and this phase is ready but not started.
+Acceptance: every current payload path and V0 data category has a disposition,
+and CI rejects forbidden V0 payload paths.
 
 ### Phase 2: Pure V1 Core
 
@@ -387,11 +431,15 @@ criteria are met before tag promotion.
 
 ### Phase 8: V0 Removal After The Window
 
-After the published compatibility window and bridge support conditions close,
-remove V0 operational code and payload from the default product. Retain the
-separately versioned bridge archive/reader only for its declared window.
-Acceptance: fresh V1 installs create no SQLite database or changesets, and the
-top-level V1 grammar remains the six permanent commands.
+No earlier than `2028-01-01T00:00:00Z`, and only after all Decision 0012
+support, recovery, security, archive-integrity, asset-retention, and separate
+authorization/validation conditions pass, remove V0 operational code and
+payload from the default product. Retain the complete bridge release asset set
+through `2028-06-30T23:59:59Z`, inclusive, and every repository-owner local
+conversion archive indefinitely. Acceptance: fresh V1 installs create no
+SQLite database or changesets, the top-level V1 grammar remains the six
+permanent commands, no known in-window recovery case remains unresolved, and
+retained assets pass availability/integrity verification.
 
 ## Pilot Evaluation Protocol
 
@@ -468,7 +516,7 @@ Release promotion requires all of the following:
 | --- | --- |
 | A template becomes generic prose | Require target-native commands, evidence routes, or an explicit unresolved/disabled state. |
 | Brownfield or conversion loss | Preview, immutable reader, neutral export, pre-mutation archive, journal, kill points, and reject-and-preserve conflicts. |
-| V0 support becomes permanent | Separate bridge identity, declared compatibility window, and no V1 migrate grammar. |
+| V0 support becomes permanent | Separate bridge identity, Decision 0012's exact window/support scope, and no V1 migrate grammar. |
 | Audit grows into an orchestrator | Mechanical no-target-execution and mutation-boundary tests. |
 | Pilots hide human labor | Fixed cards, exact environment, intervention taxonomy, and total attention accounting. |
 | Dogfood biases a portable core | Unrelated pilots and no language/framework branches in core install/audit. |
@@ -478,8 +526,10 @@ classification, semantic context selection, language packs, universal scores,
 issue tracking, PR automation, deployment automation, daemon scheduling, and
 automatic conversion of unknown tool metadata.
 
-This document authorizes planning artifacts only. It does not authorize code,
-installer, payload, manifest, database, consumer-repository, release, tag,
-publish, or V0-removal changes. Implementation requires a separate accepted
-high-risk initiative with concrete commands, validation, rollback, and the
-compatibility-window dates required by Decision 0011.
+Decision 0012 resolves Gate G0. This document now authorizes Phase 1
+implementation under the US-105 high-risk initiative; Phase 1 is ready but has
+not started. Phases 2-8 remain unimplemented and depend on the preceding
+phase's accepted evidence. No V1 code, test, installer, payload, manifest,
+database, pilot, release, tag, publish action, phase acceptance, or V0 removal
+is created or authorized by this documentation update. Phase 8 additionally
+requires Decision 0012's separate removal authorization and validation.

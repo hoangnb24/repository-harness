@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Planned / gated**
+Status: **Implementation authorized / Phase 1 ready**
 
 ## Goal
 
@@ -9,14 +9,14 @@ without collapsing the permanent V1 seed-kit boundary into V0 operational
 behavior, losing target/V0 state, weakening release proof, or removing V0
 before its approved obligations end.
 
-Implementation authorization exists, but it is not presently executable. The
-exact compatibility-window start date, exact end date, and archive-retention
-policy are unapproved. Those three missing values form Gate G0, so this packet
-remains a plan and no Phase 1-7 product work may start.
+Decision 0012 supplies the exact compatibility-window, retention, support, and
+retirement policy. Gate G0 is approved/open, so Phase 1 is ready to begin in a
+separate implementation change. No phase has started or passed: Phases 2-8
+remain unstarted and depend on accepted evidence from their predecessors.
 
 ## Scope
 
-In scope for the future initiative, after its gates open:
+In scope for the implementation initiative, in dependency order:
 
 - Phase 1 contracts and authenticated release inventory.
 - Phase 2 permanent pure V1 core and its six-command grammar.
@@ -29,8 +29,10 @@ In scope for the future initiative, after its gates open:
 - Unit, integration, recovery, platform, release, and pilot evidence attached
   to the phase that creates the behavior.
 
-In scope for the current packet-writing change only:
+In scope for the current authorization-documentation change only:
 
+- `docs/decisions/0012-v0-compatibility-window-and-retention.md`
+- `docs/REFACTOR_PLAN.md`
 - `docs/stories/US-105-harness-v1-implementation/overview.md`
 - `docs/stories/US-105-harness-v1-implementation/design.md`
 - `docs/stories/US-105-harness-v1-implementation/execplan.md`
@@ -39,7 +41,8 @@ In scope for the current packet-writing change only:
 Out of scope for the current packet-writing change:
 
 - Every product, test, script, workflow, Cargo, lockfile, release, database,
-  `.harness`, plan, decision, story, and Herdr mutation outside those files.
+  `.harness`, unrelated plan/decision/story, and Herdr mutation outside those
+  files.
 - Harness CLI/database/changeset operations, pushing, publishing, tagging,
   releasing, opening a PR, or executing pilots.
 
@@ -74,11 +77,17 @@ Hard gates:
 
 - **G0 — compatibility authorization:** a human-approved exact window start
   date, exact window end date, and archive-retention policy must be durable
-  before any Phase 1-7 product implementation begins. Current state: closed.
+  before implementation begins. Current state: approved/open by Decision 0012.
+  The window is `2027-01-01T00:00:00Z` through
+  `2027-12-31T23:59:59Z`, inclusive; local archives are retained indefinitely;
+  and bridge release assets are retained through
+  `2028-06-30T23:59:59Z`, inclusive.
 - **G8 — retirement eligibility:** Phase 8 requires Phase 7 acceptance, proof
   that the approved end date has actually passed, and proof that every approved
-  distribution-ending, support, and archive-retention condition is satisfied.
-  Engineering readiness or a forecast is not elapsed-time proof.
+  support, recovery, security, archive-integrity, and asset-retention condition
+  is satisfied. It is eligible no earlier than `2028-01-01T00:00:00Z` and
+  requires separate removal authorization and validation. Engineering
+  readiness or a forecast is not elapsed-time proof.
 - Any change to a locked product decision requires a new explicit human
   decision before affected work resumes.
 
@@ -87,8 +96,8 @@ Hard gates:
 The dependency chain is intentionally linear:
 
 ```text
-G0 approved
-  -> Phase 1
+G0 approved/open by Decision 0012
+  -> Phase 1 ready, not started
   -> Phase 2
   -> Phase 3
   -> Phase 4
@@ -103,22 +112,27 @@ No phase may borrow acceptance from a later phase. For example, a successful
 pilot cannot excuse an unauthenticated payload, and a passing platform build
 cannot excuse a bridge rollback that overwrites a target edit.
 
+Current phase state: Phase 1 is ready and not started. Phases 2-8 are not
+started and remain dependent on the preceding phase's accepted evidence plus
+their own gates.
+
 Anticipated paths below identify review surfaces, not permission to modify
 them in this planning change. New filenames remain subject to the Phase 1
 contract inventory, but binary identities and boundaries are already locked.
 
 ### Phase 1: Contracts And Release Inventory
 
-**Dependency:** G0 is approved. This phase consumes the approved dates and
-retention policy; it does not choose defaults for them.
+**Dependency:** Satisfied by accepted Decision 0012. This phase is ready but
+not started and consumes the approved dates and retention policy; it does not
+choose defaults for them.
 
 **Implementation:**
 
 1. Freeze role/asset, repository-mode, command/exit, manifest, payload-index,
    machine-readable output, and compatibility contracts.
 2. Freeze the first bridge artifact identity, supported V0 schema 1..=13 and
-   exact documented changeset grammar range, compatibility statement, and
-   distribution-ending/support conditions.
+   exact documented changeset grammar range, Decision 0012 compatibility and
+   support statement, complete retained-asset set, and availability checks.
 3. Inventory every current source/install/release path and every V0 data
    category into one disposition ledger.
 4. Build immutable V0 fixtures from supported schemas/grammars without
@@ -237,7 +251,8 @@ must demonstrate no bridge object/path entered the V1 core index.
 ### Phase 5: Dogfood, Pilot Enrollment, And Baselines
 
 **Dependency:** Phases 1-4 pass deterministic acceptance. Pilot owners have
-separately authorized repository access and evaluation; G0 remains in force.
+separately authorized repository access and evaluation; Decision 0012 remains
+the controlling compatibility policy.
 
 **Implementation:**
 
@@ -333,10 +348,12 @@ implementation commit.
 
 ### Phase 8: V0 Removal After The Window
 
-**Dependency:** Phase 7 accepted, the approved window end has actually passed,
-and G8 has evidence for every approved distribution, support, recovery, and
-retention condition. This phase may not run on a planned date or an exception
-invented by the implementer.
+**Dependency:** Phase 7 accepted; the approved window end has actually passed;
+the time is no earlier than `2028-01-01T00:00:00Z`; and G8 has evidence for
+every approved support, recovery, security, archive-integrity, and
+asset-retention condition plus separate removal authorization and validation.
+This phase may not run on a planned date or an exception invented by the
+implementer.
 
 **Implementation:**
 
@@ -345,11 +362,17 @@ invented by the implementer.
 2. Remove V0 operational CLI/code, SQLite/schema/changeset payload, lifecycle
    docs, installer branches, and default release paths identified by the
    approved disposition ledger.
-3. End bridge distribution/support only as the approved policy permits; retain
-   or dispose of bridge reader/archive materials exactly as that policy says.
-4. Preserve accepted decisions and necessary historical evidence; removal of
+3. End bridge distribution/support only as Decision 0012 permits. Retain every
+   supported-platform binary, checksum, authenticated index or attestation,
+   supported-input matrix, release notes, source tag, and reproducible build
+   instructions through `2028-06-30T23:59:59Z`, inclusive, with periodic
+   availability verification.
+4. Leave every local conversion archive at its existing path and bytes. It is
+   retained indefinitely; Phase 8 may not automatically delete, overwrite,
+   truncate, or relocate it.
+5. Preserve accepted decisions and necessary historical evidence; removal of
    default behavior does not rewrite history.
-5. Re-run fresh V1, upgrade/recovery, six-command grammar, payload-negative,
+6. Re-run fresh V1, upgrade/recovery, six-command grammar, payload-negative,
    and platform proof.
 
 **Anticipated files/subsystems:** V0 `crates/harness-cli/`, `scripts/schema/`,
@@ -358,12 +381,13 @@ workspace metadata, documentation that claims current V0 operation, workflows,
 and historical/bridge assets classified by the approved retention ledger.
 Exact deletions come from the Phase 1 ledger plus a Phase 8 re-inventory.
 
-**Acceptance evidence:** timestamped G8 approval/evidence; current-user/support
-exit findings required by policy; post-removal disposition report; fresh V1
-install with no SQLite/database/changesets/V0 binary; top-level grammar exactly
-the six commands; bridge-retention/disposition proof; five-platform core
-artifacts; repository search and authenticated-index negatives for forbidden
-V0 payload.
+**Acceptance evidence:** timestamped G8 approval/evidence; closure of every
+known in-window recovery case and supported-range security, data-loss, and
+archive-integrity defect; post-removal disposition report; fresh V1 install
+with no SQLite/database/changesets/V0 binary; top-level grammar exactly the six
+commands; local-archive non-mutation proof; bridge-retention/availability proof;
+five-platform core artifacts; repository search and authenticated-index
+negatives for forbidden V0 payload.
 
 **Logical commit boundary:** V0 default-product removal and coupled regression
 updates form a dedicated, reversible review stack after G8. It cannot be mixed
@@ -373,7 +397,9 @@ with Phase 7 candidate promotion or used to retroactively shorten the window.
 
 Pause and preserve the current state if:
 
-- G0 lacks any exact date or any required archive-retention policy element.
+- Implementation cannot encode Decision 0012's exact dates, retention scope,
+  support scope, or Phase 8 preconditions without weakening or inventing a
+  value.
 - A proposed phase starts before its predecessor acceptance evidence is
   reviewed.
 - A change would add a permanent V1 command, alias V0/V1 identities, put the V0
@@ -394,9 +420,10 @@ Pause and preserve the current state if:
 - A pilot negative condition occurs; return to the owning phase and rerun
   invalidated downstream proof.
 - Product behavior, data ownership, archive custody, compatibility support, or
-  release criteria become ambiguous or depart from Decision 0011/the accepted
-  plan.
-- Phase 8 is requested before actual window closure, while any approved support
-  condition is unmet, or in conflict with the approved retention policy.
+  release criteria become ambiguous or depart from Decisions 0011 and 0012 or
+  the accepted plan.
+- Phase 8 is requested before `2028-01-01T00:00:00Z`, before actual window
+  closure, while any approved support/recovery/security/retention condition is
+  unmet, or without separate removal authorization and validation.
 - Scope expansion would modify consumer repositories, publish artifacts, or
   remove historical evidence without separate explicit authorization.

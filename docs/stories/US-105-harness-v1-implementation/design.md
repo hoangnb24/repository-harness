@@ -1,25 +1,33 @@
 # US-105 Repository Harness V1 Implementation Design
 
-Status: **Planned / gated**
+Status: **Implementation authorized / Phase 1 ready**
 
 ## Domain Model
 
 ### Compatibility authorization
 
-The compatibility decision is a predecessor to product implementation, not a
-value to be discovered while coding.
+Decision 0012 supplies the compatibility values that were a predecessor to
+product implementation. Gate G0 is approved/open, Phase 1 is ready but not
+started, and Phases 2-8 remain unstarted dependencies.
 
-| Required decision value | Current state | Effect while unset |
+| Approved value | Current policy | Cause and effect |
 | --- | --- | --- |
-| Exact compatibility-window start date | Unapproved; no date exists | Phases 1-7 may not begin. |
-| Exact compatibility-window end date | Unapproved; no date exists | Phases 1-7 may not begin, and Phase 8 cannot determine elapsed closure. |
-| Archive-retention policy | Unapproved; no policy exists | Phases 1-7 may not begin because conversion recovery obligations are unknown. |
+| Compatibility window | `2027-01-01T00:00:00Z` through `2027-12-31T23:59:59Z`, inclusive | Phase 1 can encode exact support and release contracts. Support covers security, data-loss, archive/recovery, and supported-input compatibility defects or mitigations, not new V0 features. |
+| Local conversion archives | Retained indefinitely as write-once, checksum-verified recovery evidence under repository-owner custody | No install, update, audit, bridge command, uninstall, or Phase 8 action may automatically delete, overwrite, truncate, or relocate an archive. Explicit manual deletion must warn that V0 recovery is lost. |
+| Bridge release assets | Retained through `2028-06-30T23:59:59Z`, inclusive | Release maintainers periodically verify every supported-platform binary, checksum, authenticated index or attestation, supported-input matrix, release notes, source tag, and reproducible build instructions. |
+| Phase 8 eligibility | No earlier than `2028-01-01T00:00:00Z` and only after every Decision 0012 closure condition passes | The timestamp does not itself authorize removal; an unresolved recovery/security/data-integrity condition or missing retained asset delays removal. |
 
-The approved retention policy must eventually identify the retained artifact
-classes, custody, minimum retention trigger/duration, integrity checks, access
-and recovery expectations, deletion/extension rules, and responsible owner.
-This list defines the questions that approval must answer; it supplies none of
-their values.
+The window assumes the V1 core and bridge are generally available on every
+declared platform by `2027-01-01T00:00:00Z`. If they are not, the window must
+not silently shrink. A new explicit decision must shift the start, end,
+bridge-asset retention, and Phase 8 eligibility, reaffirm indefinite local
+archive retention, and preserve at least 365 supported days.
+
+A conversion journal created before `2027-12-31T23:59:59Z` closes the window
+remains eligible for supported resume or rollback. A known unresolved in-window
+recovery case delays actual Phase 8 removal. Phase 8 also requires no unresolved
+supported-range security, data-loss, or archive-integrity defect, verified
+bridge-asset retention, and separate removal authorization and validation.
 
 ### Roles and assets
 
@@ -96,18 +104,20 @@ grammar range.
 
 ### Initiative gate and phase flow
 
-1. Record human approval of the exact start date, exact end date, and complete
-   archive-retention policy in the durable decision surface.
-2. Only then begin Phase 1 and make the approved values inputs to contracts and
-   release metadata.
+1. Use accepted Decision 0012 as the Gate G0 evidence for the exact dates,
+   retention, support, and removal-precondition policy.
+2. Begin Phase 1 only through a separately executed implementation change and
+   make the approved values inputs to contracts and release metadata. This
+   authorization documentation does not itself begin Phase 1.
 3. Complete Phases 1 through 7 linearly; each phase consumes the preceding
    phase's reviewed proof rather than assuming a later pilot or release will
    repair an earlier contract gap.
 4. Keep Phase 8 dormant while the compatibility window is open, even if Phase
    7 release proof has passed.
-5. Begin Phase 8 only after wall-clock evidence proves the approved end date
-   has passed and the separately approved distribution, support, and retention
-   exit conditions are met.
+5. Begin Phase 8 no earlier than `2028-01-01T00:00:00Z`, and only after
+   wall-clock evidence and every Decision 0012 support, recovery, security,
+   archive-integrity, asset-retention, and separate authorization/validation
+   condition pass.
 
 ### V1 install and update
 
@@ -283,8 +293,10 @@ temporary-manifest write, and atomic commit. Before commit they must prove V0
 inputs unchanged and no success receipt; afterward they must prove a coherent
 completed receipt or an explicit recoverable failure.
 
-Archive deletion is not designed here because its retention policy is
-unapproved. No implementation may substitute a default retention duration.
+Local conversion archives are write-once, checksum-verified recovery evidence
+retained indefinitely under repository-owner custody. Automated product
+actions may not delete, overwrite, truncate, or relocate them. Manual deletion
+is outside the bridge workflow and must warn that V0 recovery is lost.
 
 ## UI / Platform Impact
 

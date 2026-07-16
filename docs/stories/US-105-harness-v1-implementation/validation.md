@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Planned / gated**
+Status: **Implementation authorized / Phase 1 ready**
 
 ## Proof Strategy
 
@@ -29,10 +29,14 @@ atomic commit, conversion safety has failed. A later successful `resume`, pilot
 run, or Windows artifact cannot repair that proof; Phase 4 returns to work and
 all dependent evidence is rerun for the corrected candidate.
 
-All product proof in this document is prospective. No V1 implementation,
-test, release, platform artifact, pilot result, compatibility date, or
-retention policy exists at packet creation. Every matrix row is therefore
-**planned / gated**, not passed.
+All product proof in this document is prospective. No V1 implementation, test,
+release, platform artifact, pilot result, or phase acceptance exists. Decision
+0012 is current authorization evidence: Gate G0 is approved/open, the window is
+`2027-01-01T00:00:00Z` through `2027-12-31T23:59:59Z`, inclusive, local
+archives are retained indefinitely, bridge release assets are retained through
+`2028-06-30T23:59:59Z`, inclusive, and Phase 8 is eligible no earlier than
+`2028-01-01T00:00:00Z` after all closure conditions pass. Phase 1 is ready but
+not started; Phases 2-8 are unstarted dependencies. No matrix row is passed.
 
 ## Test Plan
 
@@ -55,7 +59,7 @@ retention policy exists at packet creation. Every matrix row is therefore
 | Audit is structural and read-only. | Manifest asks audit to run a target test or a malicious fixture exposes a process hook. | No process starts; audit reports only structural state. | Phase 2 process-denial integration proof on all release platforms. |
 | Conversion commits once. | Crash before manifest/receipt atomic rename. | No success receipt exists; V0 inputs hash identically; resume/rollback is safe. | Phase 4 parameterized kill-point report. |
 | Unknown state is preserved. | `.harness/foreign-tool.json` exists beside recognized V0 state. | Inspect/preview report unknown/unowned; apply/resume/rollback leave its digest unchanged. | Phase 4 unknown-metadata fixture. |
-| Phase 8 is time/policy gated. | Engineering is ready but window remains open or support/retention evidence is incomplete. | Retirement command/change is blocked and V0 default artifacts remain. | G8 decision/policy evidence plus Phase 8 precondition report. |
+| Phase 8 is time/policy gated. | Engineering is ready but it is before `2028-01-01T00:00:00Z`, a supported recovery/security/data-loss/archive-integrity case remains open, retained assets are unverified, or separate removal authorization/validation is missing. | Retirement change is blocked, V0 default artifacts remain, and local archives are never automatically removed. | Decision 0012, G8 evidence, and the Phase 8 precondition report. |
 
 ## Requirement-To-Proof Matrix
 
@@ -63,24 +67,24 @@ retention policy exists at packet creation. Every matrix row is therefore
 
 | Requirement | Positive cases | Negative / boundary cases | Required acceptance proof | Status |
 | --- | --- | --- | --- | --- |
-| `install` | Fresh selected roles; V0-path adoption where permitted; explicit brownfield mapping; valid unresolved install. | Unsafe destination; ambiguous ownership; mixed-invalid state; bad payload digest; crash before manifest commit. | Exact preview; byte/digest before-after report; atomic-manifest kill point; no database/changesets; target-owned bytes unchanged; resulting mode/readiness. | Planned / gated by G0 and Phases 1-3. |
-| `update` | Replace-if-base; supported manifest transition; explicit three-way review; idempotent rerun. | Edited base; target-owned asset; unsupported downgrade; interrupted write; payload/template/CLI range mismatch. | Policy matrix, conflict output, backups, unchanged target bytes, no false success, rerun equivalence. | Planned / gated by G0 and Phases 1-3. |
-| `audit` | Ready exit 0; unresolved exit 2; deterministic repeated result. | Bad schema/path/digest/marker/link/forbidden field exit 3; malicious target-tool hook; V0-only repository. | Golden machine/human output, filesystem/process monitor showing no writes/spawns, no V0 database open, stable exits. | Planned / gated by G0 and Phase 2. |
-| `scaffold` | Explicit selected neutral template at safe target path; repeated preview. | Stack inference; overwrite existing target content; lifecycle/task record creation; unsafe path. | Payload/template identity, exact preview/diff, collision rejection, manifest/provenance result, no operational fields. | Planned / gated by G0 and Phases 1-2. |
-| `status` | Fresh-v1, brownfield-v1, v0-legacy, conversion-in-progress, converted-with-archive; valid and unresolved exit 0. | Mixed-invalid or corrupt manifest exit 3; attempt to repair state. | Mode/identity/readiness golden outputs, read-only filesystem/database/process proof, exact invalid reason. | Planned / gated by G0 and Phases 1-4. |
-| `version` and `--version` | Same V1 version and accepted manifest/template ranges on every platform. | Alias to V0, mismatched output, unrecognized/downgrade range. | Byte-equivalent normalized output, binary identity/digest, grammar snapshot with only six commands. | Planned / gated by G0 and Phases 1-2/7. |
+| `install` | Fresh selected roles; V0-path adoption where permitted; explicit brownfield mapping; valid unresolved install. | Unsafe destination; ambiguous ownership; mixed-invalid state; bad payload digest; crash before manifest commit. | Exact preview; byte/digest before-after report; atomic-manifest kill point; no database/changesets; target-owned bytes unchanged; resulting mode/readiness. | Not started; depends on Phases 1-3. |
+| `update` | Replace-if-base; supported manifest transition; explicit three-way review; idempotent rerun. | Edited base; target-owned asset; unsupported downgrade; interrupted write; payload/template/CLI range mismatch. | Policy matrix, conflict output, backups, unchanged target bytes, no false success, rerun equivalence. | Not started; depends on Phases 1-3. |
+| `audit` | Ready exit 0; unresolved exit 2; deterministic repeated result. | Bad schema/path/digest/marker/link/forbidden field exit 3; malicious target-tool hook; V0-only repository. | Golden machine/human output, filesystem/process monitor showing no writes/spawns, no V0 database open, stable exits. | Not started; depends on Phase 2. |
+| `scaffold` | Explicit selected neutral template at safe target path; repeated preview. | Stack inference; overwrite existing target content; lifecycle/task record creation; unsafe path. | Payload/template identity, exact preview/diff, collision rejection, manifest/provenance result, no operational fields. | Not started; depends on Phases 1-2. |
+| `status` | Fresh-v1, brownfield-v1, v0-legacy, conversion-in-progress, converted-with-archive; valid and unresolved exit 0. | Mixed-invalid or corrupt manifest exit 3; attempt to repair state. | Mode/identity/readiness golden outputs, read-only filesystem/database/process proof, exact invalid reason. | Not started; depends on Phases 1-4. |
+| `version` and `--version` | Same V1 version and accepted manifest/template ranges on every platform. | Alias to V0, mismatched output, unrecognized/downgrade range. | Byte-equivalent normalized output, binary identity/digest, grammar snapshot with only six commands. | Not started; depends on Phases 1-2 and 7. |
 
 ### V0 Bridge Commands
 
 | Requirement | Positive cases | Negative / boundary cases | Required acceptance proof | Status |
 | --- | --- | --- | --- | --- |
-| `inspect` | Recognized V0 schema 1..=13 and published changeset grammar; known provenance; companion layout. | Schema outside range; unreadable DB; arbitrary `.harness`; foreign metadata. | Read-only-open instrumentation, categorized inventory, before/after source hashes, unsupported/preserved output. | Planned / gated by G0 and Phase 4. |
-| `export` | Neutral `repository-harness-v0-export/v1` for every supported category. | Unknown category, corrupt row, grammar outside range, partial output. | Schema validation, stable category/source/payload digests, no V0 task fields in V1 manifest, safe retry. | Planned / gated by G0 and Phase 4. |
-| `preview` | Exact archive/export identity, planned operations, preserved paths, role/readiness outcome. | Input changes after inspect/export; ambiguous ownership; unsafe destination; unsupported V1 range. | Zero target mutation, expected/actual digest conflict, complete operation ledger, deterministic repeated preview. | Planned / gated by G0 and Phase 4. |
-| `apply` | Archived supported input; all selected idempotent operations; deterministic V1 audit; atomic receipt. | Kill at every point; target conflict; input digest drift; audit invalid; receipt rename failure. | Full kill-point matrix, V0 immutability, no pre-commit success, completed receipt binds bridge/export/archive digests. | Planned / gated by G0 and Phase 4. |
-| `resume` | Continue only incomplete operations from a validated journal; repeated resume after completion is harmless. | Journal tamper; changed source/post-image; unsupported bridge; unknown operation. | Operation execution counts, journal/digest verification, reject-and-preserve conflict, unchanged completed operations. | Planned / gated by G0 and Phase 4. |
-| `rollback` | Restore/remove only journal-owned matching writes before commit. | Human edit after apply; path now foreign; rollback after unsupported state; request to delete archive/V0 DB. | Pre/post byte hashes, conflict preservation, archive/source survival, recovery-required result when ownership/digest fails. | Planned / gated by G0 and Phase 4. |
-| `version` | Bridge version, platform, schema 1..=13, exact changeset grammar range, compatibility statement. | Pretends to be V1 core/V0 CLI; range differs from release metadata; unsupported platform. | Binary/index identity match, cross-platform golden output, separate artifact/payload scan. | Planned / gated by G0 and Phases 1/4/7. |
+| `inspect` | Recognized V0 schema 1..=13 and published changeset grammar; known provenance; companion layout. | Schema outside range; unreadable DB; arbitrary `.harness`; foreign metadata. | Read-only-open instrumentation, categorized inventory, before/after source hashes, unsupported/preserved output. | Not started; depends on Phase 4. |
+| `export` | Neutral `repository-harness-v0-export/v1` for every supported category. | Unknown category, corrupt row, grammar outside range, partial output. | Schema validation, stable category/source/payload digests, no V0 task fields in V1 manifest, safe retry. | Not started; depends on Phase 4. |
+| `preview` | Exact archive/export identity, planned operations, preserved paths, role/readiness outcome. | Input changes after inspect/export; ambiguous ownership; unsafe destination; unsupported V1 range. | Zero target mutation, expected/actual digest conflict, complete operation ledger, deterministic repeated preview. | Not started; depends on Phase 4. |
+| `apply` | Archived supported input; all selected idempotent operations; deterministic V1 audit; atomic receipt. | Kill at every point; target conflict; input digest drift; audit invalid; receipt rename failure. | Full kill-point matrix, V0 immutability, no pre-commit success, completed receipt binds bridge/export/archive digests. | Not started; depends on Phase 4. |
+| `resume` | Continue only incomplete operations from a validated journal; repeated resume after completion is harmless. | Journal tamper; changed source/post-image; unsupported bridge; unknown operation. | Operation execution counts, journal/digest verification, reject-and-preserve conflict, unchanged completed operations. | Not started; depends on Phase 4. |
+| `rollback` | Restore/remove only journal-owned matching writes before commit. | Human edit after apply; path now foreign; rollback after unsupported state; request to delete archive/V0 DB. | Pre/post byte hashes, conflict preservation, archive/source survival, recovery-required result when ownership/digest fails. | Not started; depends on Phase 4. |
+| `version` | Bridge version, platform, schema 1..=13, exact changeset grammar range, compatibility statement. | Pretends to be V1 core/V0 CLI; range differs from release metadata; unsupported platform. | Binary/index identity match, cross-platform golden output, separate artifact/payload scan. | Not started; depends on Phases 1, 4, and 7. |
 
 ### Supported Platforms
 
@@ -89,11 +93,11 @@ V1 or bridge artifact currently exists.
 
 | Platform label | Installation / executable surfaces | Required acceptance proof | Status |
 | --- | --- | --- | --- |
-| `macos-arm64` | Bash installer; direct `harness`; bridge during approved window. | Authenticated artifact/index; install/update/audit parity; recovery/atomic rename; spaces/Unicode and LF paths; correct identities. | Planned / gated by G0 and Phase 7. |
-| `macos-x64` | Bash installer; direct `harness`; bridge during approved window. | Same contract and normalized manifest/exit outcomes as macOS arm64 plus architecture identity. | Planned / gated by G0 and Phase 7. |
-| `linux-x64` | Bash installer; direct `harness`; bridge during approved window. | Authenticated artifact, core/bridge separation, filesystem recovery, fixture matrix, normalized parity. | Planned / gated by G0 and Phase 7. |
-| `linux-arm64` | Bash installer; direct `harness`; bridge during approved window. | Same contract and normalized outcomes as Linux x64 plus architecture identity. | Planned / gated by G0 and Phase 7. |
-| `windows-x64` | PowerShell installer; direct `harness.exe`; bridge `.exe` during approved window. | Authenticated `.exe` artifacts; CRLF/LF, Unicode/spaces, Windows path/safe-rename/recovery, normalized manifest/exit parity. | Planned / gated by G0 and Phase 7. |
+| `macos-arm64` | Bash installer; direct `harness`; bridge during approved window. | Authenticated artifact/index; install/update/audit parity; recovery/atomic rename; spaces/Unicode and LF paths; correct identities. | Not started; depends on Phase 7. |
+| `macos-x64` | Bash installer; direct `harness`; bridge during approved window. | Same contract and normalized manifest/exit outcomes as macOS arm64 plus architecture identity. | Not started; depends on Phase 7. |
+| `linux-x64` | Bash installer; direct `harness`; bridge during approved window. | Authenticated artifact, core/bridge separation, filesystem recovery, fixture matrix, normalized parity. | Not started; depends on Phase 7. |
+| `linux-arm64` | Bash installer; direct `harness`; bridge during approved window. | Same contract and normalized outcomes as Linux x64 plus architecture identity. | Not started; depends on Phase 7. |
+| `windows-x64` | PowerShell installer; direct `harness.exe`; bridge `.exe` during approved window. | Authenticated `.exe` artifacts; CRLF/LF, Unicode/spaces, Windows path/safe-rename/recovery, normalized manifest/exit parity. | Not started; depends on Phase 7. |
 
 Every supported artifact must prove candidate identity before promotion. A
 missing artifact means that platform is unsupported; another platform's test
@@ -103,15 +107,15 @@ does not substitute for it.
 
 | Kill / conflict case | Expected state after interruption | Required resume proof | Required rollback proof | Status |
 | --- | --- | --- | --- | --- |
-| After V0 detection | V0 inputs unchanged; no export/archive/journal/success manifest required. | Reinspect from immutable inputs and reach same inventory. | No-op; never touches V0. | Planned / gated by G0 and Phase 4. |
-| After export write | Verified or safely replaceable export; no target mutation or success manifest. | Validate/recreate export deterministically, then continue once. | Remove only journal-owned incomplete export if policy permits; V0 unchanged. | Planned / gated by G0 and Phase 4. |
-| After archive write/verification | Checksummed archive present; no target mutation or success manifest. | Verify archive/export digests and continue without rewriting V0. | Preserve archive; no target/V0 mutation. | Planned / gated by G0 and Phase 4. |
-| After each planned filesystem operation | Journal names completed operation and before/after digest; no success receipt before commit. | Parameterized test repeats only remaining operations; completed post-images unchanged. | Restore/remove only matching journal-owned operations in reverse-safe order; stop on changed post-image. | Planned / gated by G0 and Phase 4. |
-| After temporary manifest/receipt write | Temporary files uncommitted; old manifest state remains authoritative. | Revalidate all operations/audit and atomically commit once. | Remove only matching temporaries and roll back matching journal-owned writes; preserve archive/V0. | Planned / gated by G0 and Phase 4. |
-| Immediately after atomic commit | One coherent manifest/receipt references verified export/archive; state is committed/completable. | Detect committed identity, finish bookkeeping idempotently, never replay target writes. | No automatic pre-commit rollback claim; follow documented post-commit recovery while preserving V0/archive. | Planned / gated by G0 and Phase 4. |
-| Input changes between preview and apply | No mutation; digest conflict and recovery/represent action required. | Reinspect/re-export only after explicit new preview. | No-op; preserve all evidence. | Planned / gated by G0 and Phase 4. |
-| Target edit after a recorded file operation | Recovery-required; human bytes preserved. | Stop because post-image digest differs; require human decision. | Stop and reject overwrite; preserve journal/archive/V0. | Planned / gated by G0 and Phase 4. |
-| Journal/archive/export tamper | Invalid/recovery-required; no further mutation. | Refuse until trusted evidence is restored or a human chooses a new conversion. | Never use untrusted digests to overwrite paths. | Planned / gated by G0 and Phase 4. |
+| After V0 detection | V0 inputs unchanged; no export/archive/journal/success manifest required. | Reinspect from immutable inputs and reach same inventory. | No-op; never touches V0. | Not started; depends on Phase 4. |
+| After export write | Verified or safely replaceable export; no target mutation or success manifest. | Validate/recreate export deterministically, then continue once. | Remove only journal-owned incomplete export if policy permits; V0 unchanged. | Not started; depends on Phase 4. |
+| After archive write/verification | Checksummed archive present; no target mutation or success manifest. | Verify archive/export digests and continue without rewriting V0. | Preserve archive; no target/V0 mutation. | Not started; depends on Phase 4. |
+| After each planned filesystem operation | Journal names completed operation and before/after digest; no success receipt before commit. | Parameterized test repeats only remaining operations; completed post-images unchanged. | Restore/remove only matching journal-owned operations in reverse-safe order; stop on changed post-image. | Not started; depends on Phase 4. |
+| After temporary manifest/receipt write | Temporary files uncommitted; old manifest state remains authoritative. | Revalidate all operations/audit and atomically commit once. | Remove only matching temporaries and roll back matching journal-owned writes; preserve archive/V0. | Not started; depends on Phase 4. |
+| Immediately after atomic commit | One coherent manifest/receipt references verified export/archive; state is committed/completable. | Detect committed identity, finish bookkeeping idempotently, never replay target writes. | No automatic pre-commit rollback claim; follow documented post-commit recovery while preserving V0/archive. | Not started; depends on Phase 4. |
+| Input changes between preview and apply | No mutation; digest conflict and recovery/represent action required. | Reinspect/re-export only after explicit new preview. | No-op; preserve all evidence. | Not started; depends on Phase 4. |
+| Target edit after a recorded file operation | Recovery-required; human bytes preserved. | Stop because post-image digest differs; require human decision. | Stop and reject overwrite; preserve journal/archive/V0. | Not started; depends on Phase 4. |
+| Journal/archive/export tamper | Invalid/recovery-required; no further mutation. | Refuse until trusted evidence is restored or a human chooses a new conversion. | Never use untrusted digests to overwrite paths. | Not started; depends on Phase 4. |
 
 ### Pilot Cards P0-P7
 
@@ -122,14 +126,14 @@ records actor, timestamp, taxonomy, minutes, and outcome effect.
 
 | Card | Requirement | Acceptance proof | Mandatory failure examples | Status |
 | --- | --- | --- | --- | --- |
-| P0 | Install or brownfield adoption. | Valid manifest/path report; target-owned before/after hashes; correct unresolved/ready status; install intervention total. | Overwrite, guessed completion, wrong readiness, missing identity. | Planned / gated by G0 and Phases 5-6. |
-| P1 | V0 conversion when eligible. | Export/archive/receipt digests; selected kill-point recovery; no V0 mutation or document move. Written inapplicability if no V0. | Data mutation/loss, hidden move, missing archive, unlogged recovery help. | Planned / gated by G0 and Phases 5-6. |
-| P2 | Ordinary small task. | Target-native acceptance passes with zero core Harness commands and no plan created merely for Harness. | Mandatory Harness call, artificial durable plan, functional regression. | Planned / gated by G0 and Phases 5-6. |
-| P3 | Interrupted complex task. | Fresh agent resumes from target durable plan and passes target acceptance without human reconstruction. | Human reconstructs state, missing decision/progress, changed environment without rerun. | Planned / gated by G0 and Phases 5-6. |
-| P4 | Native invariant repair. | Seeded representative violation fails a named check; agent uses output to repair; same check passes. | Check absent/non-runnable, correction relayed without logging, unrelated rewrite. | Planned / gated by G0 and Phases 5-6. |
-| P5 | Direct feedback repair. | From clean worktree, agent uses applicable target tests/compiler, CI/build, review, rendered docs/links, runtime/UI/observability, deployment, or recovery feedback and passes target proof. | Evaluator supplies hidden evidence, target feedback not used, candidate regression. | Planned / gated by G0 and Phases 5-6. |
-| P6 | Capability inheritance. | Repeated correction becomes a durable target capability; held-out agent discovers and uses it without original discussion. | Capability exists only in chat, evaluator points it out, held-out task is not comparable. | Planned / gated by G0 and Phases 5-6. |
-| P7 | Gardening convergence. | First run makes bounded relevant repair; second identical-condition run finds no repeat drift or unrelated rewrite. | Repeated churn, scope expansion, undocumented evaluator cleanup. | Planned / gated by G0 and Phases 5-6. |
+| P0 | Install or brownfield adoption. | Valid manifest/path report; target-owned before/after hashes; correct unresolved/ready status; install intervention total. | Overwrite, guessed completion, wrong readiness, missing identity. | Not started; depends on Phases 5-6. |
+| P1 | V0 conversion when eligible. | Export/archive/receipt digests; selected kill-point recovery; no V0 mutation or document move. Written inapplicability if no V0. | Data mutation/loss, hidden move, missing archive, unlogged recovery help. | Not started; depends on Phases 5-6. |
+| P2 | Ordinary small task. | Target-native acceptance passes with zero core Harness commands and no plan created merely for Harness. | Mandatory Harness call, artificial durable plan, functional regression. | Not started; depends on Phases 5-6. |
+| P3 | Interrupted complex task. | Fresh agent resumes from target durable plan and passes target acceptance without human reconstruction. | Human reconstructs state, missing decision/progress, changed environment without rerun. | Not started; depends on Phases 5-6. |
+| P4 | Native invariant repair. | Seeded representative violation fails a named check; agent uses output to repair; same check passes. | Check absent/non-runnable, correction relayed without logging, unrelated rewrite. | Not started; depends on Phases 5-6. |
+| P5 | Direct feedback repair. | From clean worktree, agent uses applicable target tests/compiler, CI/build, review, rendered docs/links, runtime/UI/observability, deployment, or recovery feedback and passes target proof. | Evaluator supplies hidden evidence, target feedback not used, candidate regression. | Not started; depends on Phases 5-6. |
+| P6 | Capability inheritance. | Repeated correction becomes a durable target capability; held-out agent discovers and uses it without original discussion. | Capability exists only in chat, evaluator points it out, held-out task is not comparable. | Not started; depends on Phases 5-6. |
+| P7 | Gardening convergence. | First run makes bounded relevant repair; second identical-condition run finds no repeat drift or unrelated rewrite. | Repeated churn, scope expansion, undocumented evaluator cleanup. | Not started; depends on Phases 5-6. |
 
 Release comparison additionally requires at least two unrelated eligible pilots,
 no functional regression, all applicable cards, and one concrete fully
@@ -140,14 +144,14 @@ may be inapplicable only with a written evaluator finding.
 
 | Requirement | Precondition / negative case | Required acceptance proof | Status |
 | --- | --- | --- | --- |
-| Actual window closure | Forecasted date, local clock assumption, or early engineering completion is insufficient. | Approved exact end date plus authoritative timestamp/evidence that it has passed. | Planned / gated by G8; no approved date exists. |
-| Support/distribution exit | Any approved support case, conversion obligation, or distribution-ending condition remains open. | Policy checklist signed by responsible owner with referenced issue/support/distribution evidence. | Planned / gated by Phase 8. |
-| Archive retention/disposition | Deletion or loss would violate the approved policy. | Inventory and digest report showing each archive/reader/evidence class retained, transferred, or disposed exactly as approved. | Planned / gated by G0 policy and Phase 8. |
-| Default payload contains no V0 | Any V0 CLI, schema, DB, changeset, lifecycle doc, or bridge-only path enters the V1 core artifact. | Authenticated-index/ledger scan and extracted-artifact negative tests on all platforms. | Planned / gated by Phase 8. |
-| Fresh V1 has no V0 state | Install creates/opens SQLite, changesets, or V0 binary. | Clean-repository install diff and process/file-open monitor; no forbidden path. | Planned / gated by Phase 8. |
-| Permanent grammar remains six commands | `migrate`, V0 lifecycle verb, alias, or bridge verb appears in core help/dispatch. | Command snapshot for `install`, `update`, `audit`, `scaffold`, `status`, `version` only; unknown commands rejected. | Planned / gated by Phase 8. |
-| History remains auditable | Removal rewrites accepted decisions or destroys required historical/recovery evidence. | Post-removal ownership/disposition review; decisions and required policy evidence still readable. | Planned / gated by Phase 8. |
-| Bridge is not core | Retained reader/archive material is linked, indexed, or installed by default core. | Dependency/object scan plus payload separation proof; any retained artifact follows approved policy only. | Planned / gated by Phase 8. |
+| Actual window closure | Forecasted date, local clock assumption, or early engineering completion is insufficient. | Decision 0012's exact end date plus authoritative timestamp/evidence that it has passed. | Not started; depends on G8 and Phase 8. |
+| Support/distribution exit | Any approved support case, conversion obligation, or distribution-ending condition remains open. | Policy checklist signed by responsible owner with referenced issue/support/distribution evidence. | Not started; depends on Phase 8. |
+| Archive retention/disposition | Deletion or loss would violate Decision 0012. | Inventory/digest proof that local archives remain unchanged indefinitely and required bridge assets remain available through `2028-06-30T23:59:59Z`. | Not started; depends on Phase 8. |
+| Default payload contains no V0 | Any V0 CLI, schema, DB, changeset, lifecycle doc, or bridge-only path enters the V1 core artifact. | Authenticated-index/ledger scan and extracted-artifact negative tests on all platforms. | Not started; depends on Phase 8. |
+| Fresh V1 has no V0 state | Install creates/opens SQLite, changesets, or V0 binary. | Clean-repository install diff and process/file-open monitor; no forbidden path. | Not started; depends on Phase 8. |
+| Permanent grammar remains six commands | `migrate`, V0 lifecycle verb, alias, or bridge verb appears in core help/dispatch. | Command snapshot for `install`, `update`, `audit`, `scaffold`, `status`, `version` only; unknown commands rejected. | Not started; depends on Phase 8. |
+| History remains auditable | Removal rewrites accepted decisions or destroys required historical/recovery evidence. | Post-removal ownership/disposition review; decisions and required policy evidence still readable. | Not started; depends on Phase 8. |
+| Bridge is not core | Retained reader/archive material is linked, indexed, or installed by default core. | Dependency/object scan plus payload separation proof; any retained artifact follows approved policy only. | Not started; depends on Phase 8. |
 
 ## Fixtures
 
@@ -199,7 +203,7 @@ story=docs/stories/US-105-harness-v1-implementation
 for file in overview.md design.md execplan.md validation.md
 do
   test -s "$story/$file"
-  rg -q '^Status: \*\*Planned / gated\*\*$' "$story/$file"
+  rg -q '^Status: \*\*Implementation authorized / Phase 1 ready\*\*$' "$story/$file"
 done
 
 for heading in \
@@ -239,10 +243,10 @@ do
   rg -q "^### $heading$" "$story/validation.md"
 done
 
-rg -q 'Phases 1-7 may not begin' "$story/design.md"
-rg -q 'Phase 8 cannot' "$story/design.md"
-rg -q 'Current state: closed' "$story/execplan.md"
-rg -q 'no approved date exists' "$story/validation.md"
+rg -q 'Gate G0 is approved/open' "$story/design.md"
+rg -q 'Current state: approved/open by Decision 0012' "$story/execplan.md"
+rg -q 'Phase 1 is ready but' "$story/validation.md"
+rg -q 'Phases 2-8 are unstarted dependencies' "$story/validation.md"
 
 git diff --check
 git status --short
@@ -250,20 +254,20 @@ git status --short
 
 ## Acceptance Evidence
 
-Current product acceptance evidence: **none**. The initiative is planned and
-G0 is closed because the exact compatibility-window dates and archive-retention
-policy are not approved.
+Current product acceptance evidence: **none**. Decision 0012 is the current
+authorization evidence: G0 is approved/open and Phase 1 is ready but not
+started. It is not V1 product or phase-acceptance evidence.
 
 | Phase | Required evidence location/record | Current result |
 | --- | --- | --- |
-| 1 | Contracts, schemas, disposition ledger, fixtures, G0 reference, CI negatives. | Not started; gated. |
-| 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | Not started; gated. |
-| 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | Not started; gated. |
-| 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | Not started; gated. |
-| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | Not started; gated. |
-| 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | Not started; gated. |
-| 7 | Fixture matrix, five-platform exact artifacts, authentication, identity, and release proof. | Not started; gated. |
-| 8 | G8 closure/policy evidence, removal ledger, fresh-install/core-grammar/platform regressions. | Not started; additionally gated by actual window closure. |
+| 1 | Contracts, schemas, disposition ledger, fixtures, G0 reference, CI negatives. | Ready; not started. G0 evidence: Decision 0012. |
+| 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | Not started; depends on Phase 1 acceptance. |
+| 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | Not started; depends on Phase 2 acceptance. |
+| 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | Not started; depends on Phase 3 acceptance. |
+| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | Not started; depends on Phase 4 acceptance. |
+| 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | Not started; depends on Phase 5 acceptance. |
+| 7 | Fixture matrix, five-platform exact artifacts, authentication, identity, and release proof. | Not started; depends on Phase 6 acceptance. |
+| 8 | G8 closure/policy evidence, removal ledger, fresh-install/core-grammar/platform regressions. | Not started; depends on Phase 7, G8, and separate removal authorization/validation. |
 
 Planning-packet verification may prove only that these four documents are
 present, structurally complete, whitespace-clean, and scoped. Record the exact
