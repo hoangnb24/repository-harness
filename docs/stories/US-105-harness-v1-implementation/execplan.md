@@ -1,0 +1,402 @@
+# US-105 Repository Harness V1 Implementation Exec Plan
+
+Status: **Planned / gated**
+
+## Goal
+
+Deliver the accepted Repository Harness V1 refactor through all eight phases
+without collapsing the permanent V1 seed-kit boundary into V0 operational
+behavior, losing target/V0 state, weakening release proof, or removing V0
+before its approved obligations end.
+
+Implementation authorization exists, but it is not presently executable. The
+exact compatibility-window start date, exact end date, and archive-retention
+policy are unapproved. Those three missing values form Gate G0, so this packet
+remains a plan and no Phase 1-7 product work may start.
+
+## Scope
+
+In scope for the future initiative, after its gates open:
+
+- Phase 1 contracts and authenticated release inventory.
+- Phase 2 permanent pure V1 core and its six-command grammar.
+- Phase 3 safe V1 install/update transitions and recovery.
+- Phase 4 separately versioned, immutable-input V0 bridge.
+- Phase 5 dogfood, pilot enrollment, and fixed baselines.
+- Phase 6 capability evaluation with cards P0-P7.
+- Phase 7 portability, cross-platform artifacts, and release proof.
+- Phase 8 V0 removal from the default product after actual window closure.
+- Unit, integration, recovery, platform, release, and pilot evidence attached
+  to the phase that creates the behavior.
+
+In scope for the current packet-writing change only:
+
+- `docs/stories/US-105-harness-v1-implementation/overview.md`
+- `docs/stories/US-105-harness-v1-implementation/design.md`
+- `docs/stories/US-105-harness-v1-implementation/execplan.md`
+- `docs/stories/US-105-harness-v1-implementation/validation.md`
+
+Out of scope for the current packet-writing change:
+
+- Every product, test, script, workflow, Cargo, lockfile, release, database,
+  `.harness`, plan, decision, story, and Herdr mutation outside those files.
+- Harness CLI/database/changeset operations, pushing, publishing, tagging,
+  releasing, opening a PR, or executing pilots.
+
+Out of scope for V1 core:
+
+- V0 database/changeset semantics and a permanent `migrate` command.
+- Mandatory Harness calls during ordinary target work.
+- Task/run/prompt/result/trace/telemetry state, a daemon, or scheduler.
+- Semantic prose scoring, target-tool execution by audit, target stack
+  selection, and language-specific installation branches.
+- Automatic downgrade to V0 or conversion of unknown/foreign metadata.
+
+## Risk Classification
+
+Risk flags:
+
+- **Data model and loss:** V0 SQLite/changesets, V1 manifest transitions,
+  conversion archive, rollback, and final V0 removal.
+- **Audit/security:** authenticated payload identity, digest enforcement,
+  no-target-execution, safe paths, and unknown ownership.
+- **Public contracts:** three binary identities, six V1 commands, seven bridge
+  commands, exit behavior, manifests, release assets, and support window.
+- **Cross-platform:** Bash, PowerShell, five binary labels, line endings,
+  Unicode/spaces, and atomic filesystem behavior.
+- **Existing behavior:** V0 is implemented and distributed today.
+- **Weak proof:** V1 code, fixtures, releases, pilots, and acceptance evidence do
+  not yet exist.
+- **Multi-domain:** CLI, filesystem, installers, release integrity, migration,
+  recovery, docs/templates, evaluation, and retirement.
+
+Hard gates:
+
+- **G0 — compatibility authorization:** a human-approved exact window start
+  date, exact window end date, and archive-retention policy must be durable
+  before any Phase 1-7 product implementation begins. Current state: closed.
+- **G8 — retirement eligibility:** Phase 8 requires Phase 7 acceptance, proof
+  that the approved end date has actually passed, and proof that every approved
+  distribution-ending, support, and archive-retention condition is satisfied.
+  Engineering readiness or a forecast is not elapsed-time proof.
+- Any change to a locked product decision requires a new explicit human
+  decision before affected work resumes.
+
+## Work Phases
+
+The dependency chain is intentionally linear:
+
+```text
+G0 approved
+  -> Phase 1
+  -> Phase 2
+  -> Phase 3
+  -> Phase 4
+  -> Phase 5
+  -> Phase 6
+  -> Phase 7
+  -> wait for actual window closure + support/retention proof (G8)
+  -> Phase 8
+```
+
+No phase may borrow acceptance from a later phase. For example, a successful
+pilot cannot excuse an unauthenticated payload, and a passing platform build
+cannot excuse a bridge rollback that overwrites a target edit.
+
+Anticipated paths below identify review surfaces, not permission to modify
+them in this planning change. New filenames remain subject to the Phase 1
+contract inventory, but binary identities and boundaries are already locked.
+
+### Phase 1: Contracts And Release Inventory
+
+**Dependency:** G0 is approved. This phase consumes the approved dates and
+retention policy; it does not choose defaults for them.
+
+**Implementation:**
+
+1. Freeze role/asset, repository-mode, command/exit, manifest, payload-index,
+   machine-readable output, and compatibility contracts.
+2. Freeze the first bridge artifact identity, supported V0 schema 1..=13 and
+   exact documented changeset grammar range, compatibility statement, and
+   distribution-ending/support conditions.
+3. Inventory every current source/install/release path and every V0 data
+   category into one disposition ledger.
+4. Build immutable V0 fixtures from supported schemas/grammars without
+   altering their source state.
+5. Freeze new V0 operational feature development.
+
+**Anticipated files/subsystems:** `docs/contracts/`, V1/bridge schema and fixture
+definitions under `tests/fixtures/`, current payload input
+`scripts/harness-install-files.txt`, release/build metadata, `tests/core/`,
+`tests/installer/`, `tests/release/`, and `.github/workflows/`. Historical
+decision documents remain history rather than being rewritten.
+
+**Acceptance evidence:** schema validation fixtures; grammar/exit snapshots;
+one-to-one path disposition report; V0 category/range inventory; payload-index
+authentication verification; negative CI fixtures proving unindexed and
+forbidden V0 paths cannot enter core; durable reference to the approved G0
+decision values.
+
+**Logical commit boundary:** contracts, fixtures, inventory, and failing/pass
+contract enforcement land together; no Phase 2 V1 application behavior or
+Phase 4 conversion writes enter this boundary.
+
+### Phase 2: Pure V1 Core
+
+**Dependency:** Phase 1 contracts and inventory are reviewed and passing.
+
+**Implementation:**
+
+1. Create the distinct repository-local V1 binary identity.
+2. Implement only `install`, `update`, `audit`, `scaffold`, `status`, and
+   `version` through domain/application, filesystem/release/manifest
+   infrastructure, and CLI interface ports.
+3. Enforce manifest forbidden fields, safe paths, deterministic structural
+   audit, read/write command boundaries, and absence of V0 database access.
+4. Make `version` and `--version` equivalent and reject every unrecognized
+   top-level command, including `migrate`.
+
+**Anticipated files/subsystems:** workspace metadata (`Cargo.toml` and eventual
+lockfile changes), a distinct V1 Rust binary/crate surface under `crates/`,
+repository-local `scripts/bin/harness[.exe]` packaging, manifest/release/
+filesystem ports, `tests/core/`, and command snapshot/contract fixtures. The
+existing `crates/harness-cli/` remains the V0 identity during the window.
+
+**Acceptance evidence:** six-command help/grammar snapshot; unit tests for role
+and readiness transitions; manifest schema negative tests; integration tests
+showing audit/status/version are read-only; process-spawn denial proof for
+audit; dependency/build inspection proving no SQLite/V0 reader in core; fresh
+install proof that no database or changesets appear.
+
+**Logical commit boundary:** the pure six-command V1 core and its mechanical
+boundary tests form one reviewable stack after Phase 1; installer recovery,
+bridge reader, pilot evidence, and release promotion stay out.
+
+### Phase 3: Install/Update Recovery
+
+**Dependency:** Phase 2 core command and mutation boundaries pass.
+
+**Implementation:**
+
+1. Implement fresh selection, V0-path adoption without conversion, and explicit
+   brownfield role mapping where repository mode permits it.
+2. Add exact previews, backups, atomic manifest writes, idempotency, supported
+   manifest transitions, and safe rerun/recovery.
+3. Enforce `replace-if-base`, `three-way-review`, and `never-auto-patch` at the
+   managed surface boundary.
+4. Reject target edits, unsafe paths, unsupported downgrade, and mixed-invalid
+   state without claiming success.
+
+**Anticipated files/subsystems:** V1 application/filesystem/manifest code under
+`crates/`, Bash and PowerShell V1 installer/update surfaces in `scripts/`,
+authenticated payload material, `tests/installer/`, `tests/fixtures/`, and
+recovery/idempotency integration tests.
+
+**Acceptance evidence:** fresh and brownfield fixtures; managed-file,
+managed-block, and target-owned matrices; repeated-install/update idempotency;
+crash-before-commit fixtures; three-way conflicts; unsupported downgrade;
+target-edit preservation; unresolved versus invalid exit proofs; no false
+success manifest after any failure.
+
+**Logical commit boundary:** install/update mutation and recovery behavior plus
+its fixtures land after the pure core boundary; no V0 reader or bridge command
+is linked into the V1 artifact.
+
+### Phase 4: Isolated V0 Bridge
+
+**Dependency:** Phase 3 provides a stable V1 manifest commit/recovery target;
+Phase 1 has frozen the bridge compatibility and archive contracts.
+
+**Implementation:**
+
+1. Build a separate bridge binary and release index with an immutable,
+   read-only V0 reader.
+2. Implement `inspect`, `export`, `preview`, `apply`, `resume`, `rollback`, and
+   `version` around the export/archive/journal state machine.
+3. Add conservative V0 detection, unknown/unowned preservation,
+   mixed-version detection, atomic receipt commit, and conflict-safe recovery.
+4. Execute the complete parameterized kill-point suite.
+
+**Anticipated files/subsystems:** a separate bridge/reader crate or binary under
+`crates/`, bridge-only release/build metadata and repository-local binary path,
+immutable copies of supported V0 fixtures under `tests/fixtures/`, conversion
+and cutover tests under `tests/cutover/`, and bridge artifact checks in
+`tests/release/` and `.github/workflows/`. The reader may understand V0; the V1
+core crate and payload may not depend on it.
+
+**Acceptance evidence:** schema 1..=13 and exact-grammar fixture results;
+database/changeset before-and-after hashes proving immutability; export and
+archive digest verification; unknown metadata preservation; every kill point;
+idempotent apply/resume; target-edit rollback conflict; mixed-invalid
+detection; core artifact scan proving bridge/V0 reader absence.
+
+**Logical commit boundary:** bridge reader, commands, recovery, fixtures, and
+separate packaging form an isolated review stack. The last commit in that stack
+must demonstrate no bridge object/path entered the V1 core index.
+
+### Phase 5: Dogfood, Pilot Enrollment, And Baselines
+
+**Dependency:** Phases 1-4 pass deterministic acceptance. Pilot owners have
+separately authorized repository access and evaluation; G0 remains in force.
+
+**Implementation:**
+
+1. Dogfood V1 against Repository Harness's current useful paths without a
+   cosmetic move or mandatory ordinary-task command.
+2. Enroll at least two unrelated target repositories with immutable starting
+   revisions, eligibility findings, owners, evidence custody, and environment
+   locks.
+3. Freeze signed cards P0-P7 and run applicable baseline cards before candidate
+   capability evaluation.
+4. Record written evaluator findings for any inapplicable card; do not silently
+   omit it.
+
+**Anticipated files/subsystems:** Repository Harness role mappings/templates,
+`tests/evals/`, external pilot repositories only under separate owner
+authorization, and future evidence beneath
+`docs/stories/US-105-harness-v1-implementation/evidence/phase-5/`. Pilot
+revisions and raw evidence must not be fabricated in this packet.
+
+**Acceptance evidence:** no-path-move diff; ordinary-task transcript with zero
+Harness commands; two or more eligibility records; immutable revision and
+environment records; signed card hashes; baseline results or explicit
+inapplicability findings; complete baseline intervention/time accounting.
+
+**Logical commit boundary:** repository-owned dogfood mappings and evaluation
+protocol/evidence references are reviewable separately from candidate outcomes.
+External pilot changes, if any, remain in their repositories and are never
+silently folded into this repository's commit.
+
+### Phase 6: Capability Evaluation
+
+**Dependency:** Phase 5 enrollment, cards, environment locks, and baseline
+evidence are complete. A missing baseline cannot be reconstructed after seeing
+candidate results.
+
+**Implementation:**
+
+1. Instantiate selected planning, invariant, feedback,
+   capability-inheritance, and gardening contracts in each authorized pilot.
+2. Run the same fixed cards with candidate identities while holding model,
+   reasoning, tools, permissions, evaluator, and comparable revision constant.
+3. Record every intervention and total human attention.
+4. Fail the candidate on any protocol negative condition; do not explain away
+   a failed acceptance test.
+
+**Anticipated files/subsystems:** target-native docs/checks/feedback in
+authorized pilots, `tests/evals/`, evaluation tooling that does not enter the
+V1 installed payload, and future evidence beneath
+`docs/stories/US-105-harness-v1-implementation/evidence/phase-6/`.
+
+**Acceptance evidence:** card-by-card candidate results P0-P7; acceptance-test
+outputs; baseline/candidate identity comparison; intervention logs with actor,
+timestamp, reason, minutes, and outcome effect; negative-condition report;
+held-out discovery proof for P6; two-run bounded convergence proof for P7.
+
+**Logical commit boundary:** candidate capability/evaluation evidence is
+separate from baseline enrollment and from Phase 7 release mechanics. Any
+candidate product correction triggered by a failed card returns to its owning
+earlier phase and reruns dependent evidence rather than being hidden in an
+evidence-only commit.
+
+### Phase 7: Portability And Release Proof
+
+**Dependency:** Phase 6 cards pass with valid comparable evidence, and all
+earlier deterministic product proofs remain green for the exact candidate.
+
+**Implementation:**
+
+1. Exercise fresh, brownfield, nested-instruction, docs-only, monorepo-shaped,
+   spaces/Unicode, line-ending, custom-update, and bridge fixtures.
+2. Build and authenticate exact candidate artifacts for macOS arm64/x64, Linux
+   x64/arm64, and Windows x64.
+3. Prove Bash, PowerShell, and direct-binary behavior is equivalent at the
+   manifest/audit boundary and no language manifest is interpreted.
+4. Bind candidate CLI, template, payload-index, and bridge identities to the
+   already-run pilot evidence before promotion.
+
+**Anticipated files/subsystems:** `scripts/build-*` and installer surfaces,
+release identity/checksum/authentication metadata, `.github/workflows/`,
+`tests/installer/`, `tests/protocol/`, `tests/release/`, portability fixtures,
+and future evidence beneath
+`docs/stories/US-105-harness-v1-implementation/evidence/phase-7/`.
+
+**Acceptance evidence:** five-platform artifact matrix; installer/direct-binary
+smokes; authenticated index/digest proof; platform-equivalent manifest and exit
+outcomes; fixture matrix; candidate identity lock; complete pilot comparison;
+all release criteria and negative conditions checked before any tag promotion.
+
+**Logical commit boundary:** release packaging/workflows and exact-candidate
+proof form the final pre-promotion stack. Promotion/tag/publish is a later
+explicit release action, never an automatic side effect of merging an
+implementation commit.
+
+### Phase 8: V0 Removal After The Window
+
+**Dependency:** Phase 7 accepted, the approved window end has actually passed,
+and G8 has evidence for every approved distribution, support, recovery, and
+retention condition. This phase may not run on a planned date or an exception
+invented by the implementer.
+
+**Implementation:**
+
+1. Re-inventory the default payload and source ownership immediately before
+   removal.
+2. Remove V0 operational CLI/code, SQLite/schema/changeset payload, lifecycle
+   docs, installer branches, and default release paths identified by the
+   approved disposition ledger.
+3. End bridge distribution/support only as the approved policy permits; retain
+   or dispose of bridge reader/archive materials exactly as that policy says.
+4. Preserve accepted decisions and necessary historical evidence; removal of
+   default behavior does not rewrite history.
+5. Re-run fresh V1, upgrade/recovery, six-command grammar, payload-negative,
+   and platform proof.
+
+**Anticipated files/subsystems:** V0 `crates/harness-cli/`, `scripts/schema/`,
+V0 installer/bootstrap/release paths, V0 payload entries and tests, Cargo
+workspace metadata, documentation that claims current V0 operation, workflows,
+and historical/bridge assets classified by the approved retention ledger.
+Exact deletions come from the Phase 1 ledger plus a Phase 8 re-inventory.
+
+**Acceptance evidence:** timestamped G8 approval/evidence; current-user/support
+exit findings required by policy; post-removal disposition report; fresh V1
+install with no SQLite/database/changesets/V0 binary; top-level grammar exactly
+the six commands; bridge-retention/disposition proof; five-platform core
+artifacts; repository search and authenticated-index negatives for forbidden
+V0 payload.
+
+**Logical commit boundary:** V0 default-product removal and coupled regression
+updates form a dedicated, reversible review stack after G8. It cannot be mixed
+with Phase 7 candidate promotion or used to retroactively shorten the window.
+
+## Stop Conditions
+
+Pause and preserve the current state if:
+
+- G0 lacks any exact date or any required archive-retention policy element.
+- A proposed phase starts before its predecessor acceptance evidence is
+  reviewed.
+- A change would add a permanent V1 command, alias V0/V1 identities, put the V0
+  reader in core, or make ordinary work call Harness.
+- Manifest or payload design introduces operational database/task/telemetry
+  state, or audit would execute a target process.
+- A path's ownership is ambiguous, a digest differs, an input version is
+  unsupported, or unknown metadata would be claimed, moved, or deleted.
+- Resume/rollback cannot prove an operation is journal-owned and its current
+  digest matches the expected safe image.
+- A failed operation would leave a success manifest/receipt or require
+  weakening a kill-point, target-edit, or immutability test.
+- A supported platform cannot produce the authenticated exact-candidate
+  artifact or equivalent contract result.
+- A pilot lacks owner authorization, immutable revision, environment lock,
+  comparable baseline, complete intervention log, or applicable acceptance
+  proof.
+- A pilot negative condition occurs; return to the owning phase and rerun
+  invalidated downstream proof.
+- Product behavior, data ownership, archive custody, compatibility support, or
+  release criteria become ambiguous or depart from Decision 0011/the accepted
+  plan.
+- Phase 8 is requested before actual window closure, while any approved support
+  condition is unmet, or in conflict with the approved retention policy.
+- Scope expansion would modify consumer repositories, publish artifacts, or
+  remove historical evidence without separate explicit authorization.
