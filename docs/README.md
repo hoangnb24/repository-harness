@@ -5,6 +5,8 @@ future user-provided spec.
 
 ## Main Files
 
+- `REFACTOR_PLAN.md`: accepted planning direction for the template-first,
+  repository-native V1 refactor; implementation is not yet authorized.
 - `HARNESS.md`: how humans and agents collaborate.
 - `FEATURE_INTAKE.md`: how prompts become tiny, normal, or high-risk work.
 - `ARCHITECTURE.md`: architecture discovery and boundary rules.
@@ -34,3 +36,7 @@ installers, and pull-request/release automation. These documents are also
 distributed as a generic template, so they do not imply that an installed
 consumer repository already has application code, a chosen stack, consumer
 tests, deployment automation, or consumer CI.
+
+`REFACTOR_PLAN.md` defines the intended V1 simplification. Until its separately
+authorized implementation phases land, V0 remains the released behavior and
+the current operating instructions still apply.
