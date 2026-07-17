@@ -3,24 +3,41 @@
 Contract: `repository-harness-command-grammar/v1`
 
 The machine-readable design authority is
-`release/contracts/v1/command-grammars.json`. Phase 1 intentionally contains
-neither runtime, so it cannot claim live CLI derivation. The closed
-`command-implementation-binding.json` names the grammar and schema by exact
-path/digest, declares `contract-only-entrypoints-absent`, and reserves these
-future entrypoints:
+`release/contracts/v1/command-grammars.json`. Phase 1 accepted both runtimes as
+absent. Phase 2 evolves the closed `command-implementation-binding.json` to
+`core-live-bridge-absent` while retaining the exact grammar and schema digests.
+It binds these identities:
 
-- Phase 2 core: `scripts/bin/harness` and `scripts/bin/harness.exe`.
+- Phase 2 core: live platform-native `scripts/bin/harness`; Cargo binary name
+  `harness`, which produces the Windows identity `scripts/bin/harness.exe`.
 - Phase 4 bridge: `scripts/bin/harness-v0-migrate` and
-  `scripts/bin/harness-v0-migrate.exe`.
+  `scripts/bin/harness-v0-migrate.exe`, both still reserved absent.
 
-The Phase 1 verifier proves all four are absent. If one appears while the
-binding remains contract-only, verification fails instead of pretending the
-grammar still represents the implementation. Phase 2 and Phase 4 acceptance
-must replace the corresponding absence declaration with live CLI-help and
-source-command extraction parity, including exact options, exits, and mutation
-boundaries. The grammar schema and implementation-binding schema are closed;
-an unknown field, reordered command, changed digest, mismatched entrypoint, or
-seventh core command is a contract failure.
+The evolved Phase 1 verifier builds the core, installs the native executable at
+the exact repository-local identity, parses `harness --help` as machine JSON,
+extracts the JSON command definition directly from
+`crates/harness-core/src/command_spec.rs`, and compares both with the frozen
+grammar. Phase 2 negative proof fails on an extra/reordered command or any
+option, exit, or mutation-boundary drift. The same verifier proves both bridge
+entrypoints remain absent. The schemas remain closed; an unknown field,
+changed digest, mismatched identity, or seventh core command is a contract
+failure.
+
+## Phase 2 mutation boundary
+
+The Phase 2 core provides real parsing, strict release verification through an
+injected release port, manifest inspection, deterministic audit/status/version,
+and deterministic install/update/scaffold planning. It does not execute a
+write. `--preview` can succeed when an authenticated release is injected; a
+non-preview mutation returns conflict exit 4. The repository-local CLI has no
+promoted Phase 2 payload, so its mutation commands return the explicit
+`authenticated-release-unavailable` or Phase 3 recovery refusal without
+creating `.harness` state.
+
+Cause and effect: `harness install --resume op-1` parses as the frozen install
+grammar, but atomic journal ownership does not exist yet. It therefore returns
+exit 4 and leaves every byte unchanged. Phase 3 may implement that option's
+atomic backup/journal execution without changing the six-command grammar.
 
 ## Permanent V1 core
 

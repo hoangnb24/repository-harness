@@ -19,7 +19,10 @@
     },
     "tag_namespace": "harness-v0-bridge-v*",
     "workflow_lifecycle": {
-      "phase1_state": "reserved-absent",
+      "external_evidence": {
+        "pinned_artifact_attestation": "not-applicable-until-live-source",
+        "repository_protection": "not-applicable-until-live-source"
+      },
       "production_bootstrap_acceptance": "blocked-until-promotion-gate",
       "promotion_gate": {
         "mode": "all-required",
@@ -30,7 +33,9 @@
           "phase-live-workflow-identity-validation-passes"
         ]
       },
-      "reserved_for_phase": 4
+      "reserved_for_phase": 4,
+      "source_path": null,
+      "state": "reserved-absent"
     }
   },
   "core": {
@@ -51,7 +56,10 @@
     },
     "tag_namespace": "harness-v1-core-v*",
     "workflow_lifecycle": {
-      "phase1_state": "reserved-absent",
+      "external_evidence": {
+        "pinned_artifact_attestation": "required-not-present",
+        "repository_protection": "required-not-present"
+      },
       "production_bootstrap_acceptance": "blocked-until-promotion-gate",
       "promotion_gate": {
         "mode": "all-required",
@@ -62,7 +70,9 @@
           "phase-live-workflow-identity-validation-passes"
         ]
       },
-      "reserved_for_phase": 2
+      "reserved_for_phase": 2,
+      "source_path": ".github/workflows/harness-v1-release.yml",
+      "state": "source-present-unpromoted"
     }
   },
   "downloaded_key": "trusted",

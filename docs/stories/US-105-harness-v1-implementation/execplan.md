@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phase 1 accepted / Phase 2 ready**
+Status: **Implementation in progress / Phase 1 accepted / Phase 2 validated, re-acceptance pending / Phase 3 blocked**
 
 ## Goal
 
@@ -11,8 +11,9 @@ before its approved obligations end.
 
 Decision 0012 supplies the exact compatibility-window, retention, support, and
 retirement policy. Gate G0 is approved/open. Decision 0013 and US-106 implement
-and prove Phase 1, so Phase 2 is ready. Phases 2-8 remain unimplemented and
-depend on accepted evidence from their predecessors.
+and prove Phase 1; US-107 implements and proves Phase 2. Phase 3 is ready.
+Phases 3-8 remain unimplemented and depend on accepted evidence from their
+predecessors.
 
 ## Scope
 
@@ -69,7 +70,8 @@ Risk flags:
   Unicode/spaces, and atomic filesystem behavior.
 - **Existing behavior:** V0 is implemented and distributed today.
 - **Weak proof:** Phase 1 contract fixtures and acceptance evidence now exist;
-  V1 runtime, release artifacts, pilots, and Phase 2-8 evidence do not.
+  Phase 2 core runtime evidence exists; atomic mutation/recovery, promoted
+  release artifacts, pilots, and Phase 3-8 evidence do not.
 - **Multi-domain:** CLI, filesystem, installers, release integrity, migration,
   recovery, docs/templates, evaluation, and retirement.
 
@@ -98,8 +100,8 @@ The dependency chain is intentionally linear:
 ```text
 G0 approved/open by Decision 0012
   -> Phase 1 accepted by Decision 0013 and US-106
-  -> Phase 2 ready, not started
-  -> Phase 3
+  -> Phase 2 implemented/validated by US-107; review re-acceptance pending
+  -> Phase 3 blocked, not started
   -> Phase 4
   -> Phase 5
   -> Phase 6
@@ -112,9 +114,11 @@ No phase may borrow acceptance from a later phase. For example, a successful
 pilot cannot excuse an unauthenticated payload, and a passing platform build
 cannot excuse a bridge rollback that overwrites a target edit.
 
-Current phase state: Phase 1 is implemented and accepted. Phase 2 is ready but
-not started. Phases 2-8 remain unimplemented and dependent on the preceding
-phase's accepted evidence plus their own gates.
+Current phase state: Phase 1 is implemented and accepted. Phase 2 is
+implemented and fully validated, but commit `9b84ba8` was rejected and review
+re-acceptance is pending. Phase 3 is blocked and not started. Phases 3-8 remain
+unimplemented and dependent on the preceding phase's accepted evidence plus
+their own gates.
 
 Anticipated paths below identify review surfaces, not permission to modify
 them in this planning change. New filenames remain subject to the Phase 1
@@ -162,12 +166,14 @@ Phase 4 conversion writes enter this boundary.
 ### Phase 2: Pure V1 Core
 
 **Dependency:** Phase 1 contracts and inventory are reviewed and passing.
+**Status: implemented and fully validated by US-107; review re-acceptance
+pending.**
 
 **Implementation:**
 
 1. Create the distinct repository-local V1 binary identity.
 2. Implement only `install`, `update`, `audit`, `scaffold`, `status`, and
-   `version` through domain/application, filesystem/release/manifest
+   `version` through domain/application, filesystem/release/trust/manifest
    infrastructure, and CLI interface ports.
 3. Enforce manifest forbidden fields, safe paths, deterministic structural
    audit, read/write command boundaries, and absence of V0 database access.
@@ -184,7 +190,10 @@ existing `crates/harness-cli/` remains the V0 identity during the window.
 and readiness transitions; manifest schema negative tests; integration tests
 showing audit/status/version are read-only; process-spawn denial proof for
 audit; dependency/build inspection proving no SQLite/V0 reader in core; fresh
-install proof that no database or changesets appear.
+inspection proof that no database or changesets appear. Result: passed by 21
+Phase 2 Rust tests, `scripts/verify-v1-phase2-core.sh` (eight proof groups),
+the evolved nine-group Phase 1 verifier, workspace check/test/clippy, and full
+premerge; see US-107 validation evidence.
 
 **Logical commit boundary:** the pure six-command V1 core and its mechanical
 boundary tests form one reviewable stack after Phase 1; installer recovery,

@@ -2,9 +2,10 @@
 
 Date: 2026-07-16
 
-Status: Direction accepted; Phase 1 implemented and accepted; Phase 2 ready; Phases 2-8 unimplemented
+Status: Direction and Phase 1 accepted; Phase 2 implemented/validated with review re-acceptance pending; Phase 3 blocked; Phases 3-8 unimplemented
 
-Planning stories: US-103 and US-104; implementation initiative: US-105
+Planning stories: US-103 and US-104; implementation initiative: US-105;
+Phase 2 implementation: US-107
 
 ## Executive Outcome
 
@@ -382,8 +383,8 @@ features. **Implemented and accepted:** Decision 0013, `docs/contracts/v1/`,
 `release/contracts/v1/`, the US-106 packet, and deterministic Phase 1 fixtures
 freeze this boundary. `scripts/verify-v1-phase1-contracts.sh` proves every
 current payload path and V0 data category has one disposition and rejects
-unindexed or forbidden V0 core paths. Phase 2 is ready; no Phase 2 runtime or
-Phase 4 conversion behavior is implemented.
+unindexed or forbidden V0 core paths. This Phase remains accepted and unchanged
+under the evolved core-live/bridge-absent lifecycle.
 
 ### Phase 2: Pure V1 Core
 
@@ -391,6 +392,23 @@ Build only V1 install/update/audit/scaffold/status/version around filesystem,
 release, and manifest ports. Acceptance: no operational database dependency,
 no migrate grammar, deterministic audit, mechanical seed-kit boundary tests,
 and no target tools executed by audit.
+
+**Implemented and fully validated; review re-acceptance pending:** US-107 adds
+the separate `harness-core` package and native
+`scripts/bin/harness[.exe]` identity. Forty-six Rust tests, eleven Phase 2
+mechanical proof groups, the evolved nine-group Phase 1 verifier, 72
+reproducible fixtures, 138 workspace Rust tests, workspace
+check/test/clippy, and full premerge prove exact live/source/contract grammar
+parity; independently pinned trust-bundle/release lifecycle; indexed core-only
+payload planning; pinned Unix snapshot and race refusal; schema/CommonMark/
+Unicode/output determinism; the executable canary plus unchanged-tree
+no-spawn boundary; and no-op/refusal for writes that require Phase 3. This is
+not described as universal syscall/event proof. The reserved bridge remains
+absent and the release workflow remains present but unpromoted. Because commit
+`9b84ba8` was review-rejected, Phase 3 stays blocked until the hardened tree is
+amended and re-accepted; atomic writes, backup/journal/recovery, production
+trust/promotion, safe non-Unix handle behavior, portable event evidence, and
+five-platform artifact parity are not Phase 2 acceptance.
 
 ### Phase 3: Install/Update Recovery
 
@@ -533,10 +551,12 @@ Decision 0012 resolves Gate G0. Decision 0013 and US-106 now supply accepted
 Phase 1 security, schema, grammar, inventory, fixture, and enforcement evidence.
 That evidence includes strict vetted-library Ed25519 point/scalar rejection,
 descriptor-anchored pre/copy/post capture, exact bootstrap/command/release
-arrays, and complete-set calendar-month availability receipts.
-Phase 1 is implemented and accepted, so Phase 2 is ready. Phases 2-8 remain
-unimplemented and depend on the preceding phase's accepted evidence. No V1
-runtime binary, installer mutation, bridge conversion write, production key,
-pilot, release, tag, publish action, or V0 removal is created or authorized by
-Phase 1. Phase 8 additionally requires Decision 0012's separate removal
-authorization and validation.
+arrays, and complete-set calendar-month availability receipts. US-107 supplies
+accepted Phase 2 evidence for the live six-command core, authenticated payload
+boundary, deterministic structural audit, no-target-execution canary, and safe
+mutation refusal. Phase 3 is therefore ready. Phases 3-8 remain unimplemented
+and depend on the preceding phase's accepted evidence. No atomic installer
+mutation, bridge conversion write, production key, promoted release, pilot,
+tag, publish action, or V0 removal is created or authorized by Phase 2. Phase 8
+additionally requires Decision 0012's separate removal authorization and
+validation.

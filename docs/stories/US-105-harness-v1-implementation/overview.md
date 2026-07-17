@@ -1,13 +1,16 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation in progress / Phase 1 accepted / Phase 2 ready**
+Status: **Implementation in progress / Phase 1 accepted / Phase 2 validated, re-acceptance pending / Phase 3 blocked**
 
 This is the durable implementation initiative packet for the eight phases in
 `docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement
-proof is implemented and accepted by US-106. No V1 runtime binary, installer
-mutation, bridge conversion write, production release, pilot, or Phase 2-8
-acceptance exists. Decision 0012 supplies authorization policy; Decisions 0013
-and US-106 supply the accepted Phase 1 implementation boundary.
+proof is accepted by US-106. The separate pure V1 core and its hardened Phase 2
+boundary pass the full US-107 validation, but review re-acceptance is pending
+after commit `9b84ba8` was rejected. Atomic installer mutation, bridge conversion
+writes, production release, pilots, and Phase 3-8 acceptance do not exist.
+Decision 0012 supplies authorization policy; Decision 0013 and US-106 supply
+accepted Phase 1. US-107 supplies validated Phase 2 implementation evidence,
+not authority to self-approve the rejected review.
 
 ## Current Behavior
 
@@ -22,7 +25,8 @@ The repository currently implements Harness V0:
 - V0 ordinary work uses a local SQLite database and may emit semantic
   changesets.
 
-The accepted V1 direction now has a Phase 1 contract layer but no runtime:
+The accepted V1 direction now has the Phase 1 contract layer and the Phase 2
+pure core runtime:
 
 - `docs/REFACTOR_PLAN.md` defines the eight implementation phases.
 - Decision 0011 accepts a separate, time-bounded `harness-v0-migrate` bridge.
@@ -34,6 +38,14 @@ The accepted V1 direction now has a Phase 1 contract layer but no runtime:
   freeze the schemas, grammars, ledgers, V0 inputs, and negative boundaries.
 - `scripts/verify-v1-phase1-contracts.sh` mechanically enforces Phase 1 and is
   part of premerge.
+- `crates/harness-core/` builds the separate `scripts/bin/harness[.exe]`
+  identity with exactly the six frozen commands. Phase 2 audit/status/version
+  inspect declared V1 state; authenticated preview plans are deterministic;
+  mutation requests refuse because Phase 3 recovery is absent.
+- `scripts/verify-v1-phase2-core.sh` proves live help/source/contract parity,
+  payload and path rejection, deterministic output, no-exec audit, no-op
+  mutation boundaries, core-live/bridge-absent binding, and the unpromoted
+  release workflow guard.
 - US-104 reconciles the execution contracts but explicitly implements no V1
   product behavior.
 
@@ -42,9 +54,10 @@ The approved compatibility window is `2027-01-01T00:00:00Z` through
 indefinitely, bridge release assets are retained through
 `2028-06-30T23:59:59Z`, inclusive, and Phase 8 is eligible no earlier than
 `2028-01-01T00:00:00Z` after every closure condition passes. Cause and effect:
-those values resolve Gate G0. Phase 1 then froze and proved the contract
-boundary, so Phase 2 is ready. Phases 2-8 remain unimplemented and dependent on
-preceding phase acceptance.
+those values resolve Gate G0. Phase 1 froze the contract boundary and Phase 2
+implemented and validated the pure core against it. Phase 3 remains blocked
+until Phase 2 review re-acceptance. Phases 3-8 remain unimplemented and
+dependent on preceding phase acceptance.
 
 For example, the presence of `.harness/` cannot currently authorize a V1
 conversion. It may contain V0 changesets, another tool's metadata, or unrelated
@@ -119,10 +132,13 @@ The accepted behavior is defined by:
 - `docs/stories/US-104-refactor-plan-execution-contracts/**`
 - `docs/stories/US-105-harness-v1-implementation/**`
 - `docs/stories/US-106-v1-phase1-contracts-and-release-inventory/**`
+- `docs/stories/US-107-v1-pure-core/**`
 
 This packet maps those contracts into implementation and proof. Decision 0012
 authorizes the schedule/retention boundary; Decision 0013 plus US-106 provide
-Phase 1 acceptance. They do not provide Phase 2 runtime or later phase proof.
+Phase 1 acceptance, and US-107 provides Phase 2 implementation/validation with
+review re-acceptance pending. They do not provide Phase 3 mutation/recovery or
+later phase proof.
 
 ## Non-Goals
 

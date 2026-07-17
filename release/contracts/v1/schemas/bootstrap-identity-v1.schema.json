@@ -20,29 +20,50 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["root", "root_rotation", "release"],
-      "properties": {
-        "root": {"type": "string"},
-        "root_rotation": {"type": "string"},
-        "release": {"type": "string"}
-      }
+      "properties": {"root": {"type": "string"}, "root_rotation": {"type": "string"}, "release": {"type": "string"}}
     },
-    "workflow_lifecycle": {
+    "promotion_gate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["phase1_state", "reserved_for_phase", "production_bootstrap_acceptance", "promotion_gate"],
+      "required": ["mode", "requirements"],
       "properties": {
-        "phase1_state": {"const": "reserved-absent"},
-        "reserved_for_phase": {"enum": [2, 4]},
+        "mode": {"const": "all-required"},
+        "requirements": {"const": ["reserved-workflow-file-present", "repository-protection-evidence-binds-protected-workflow", "pinned-github-artifact-attestation-binds-exact-repository-workflow-artifact-and-digest", "phase-live-workflow-identity-validation-passes"]}
+      }
+    },
+    "external_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_protection", "pinned_artifact_attestation"],
+      "properties": {
+        "repository_protection": {"enum": ["required-not-present", "not-applicable-until-live-source"]},
+        "pinned_artifact_attestation": {"enum": ["required-not-present", "not-applicable-until-live-source"]}
+      }
+    },
+    "core_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reserved_for_phase", "source_path", "production_bootstrap_acceptance", "promotion_gate", "external_evidence"],
+      "properties": {
+        "state": {"const": "source-present-unpromoted"},
+        "reserved_for_phase": {"const": 2},
+        "source_path": {"const": ".github/workflows/harness-v1-release.yml"},
         "production_bootstrap_acceptance": {"const": "blocked-until-promotion-gate"},
-        "promotion_gate": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["mode", "requirements"],
-          "properties": {
-            "mode": {"const": "all-required"},
-            "requirements": {"const": ["reserved-workflow-file-present", "repository-protection-evidence-binds-protected-workflow", "pinned-github-artifact-attestation-binds-exact-repository-workflow-artifact-and-digest", "phase-live-workflow-identity-validation-passes"]}
-          }
-        }
+        "promotion_gate": {"$ref": "#/$defs/promotion_gate"},
+        "external_evidence": {"$ref": "#/$defs/external_evidence"}
+      }
+    },
+    "bridge_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reserved_for_phase", "source_path", "production_bootstrap_acceptance", "promotion_gate", "external_evidence"],
+      "properties": {
+        "state": {"const": "reserved-absent"},
+        "reserved_for_phase": {"const": 4},
+        "source_path": {"type": "null"},
+        "production_bootstrap_acceptance": {"const": "blocked-until-promotion-gate"},
+        "promotion_gate": {"$ref": "#/$defs/promotion_gate"},
+        "external_evidence": {"$ref": "#/$defs/external_evidence"}
       }
     },
     "core": {
@@ -52,24 +73,10 @@
       "properties": {
         "tag_namespace": {"const": "harness-v1-core-v*"},
         "protected_workflow": {"const": ".github/workflows/harness-v1-release.yml@refs/heads/main"},
-        "workflow_lifecycle": {"$ref": "#/$defs/workflow_lifecycle"},
+        "workflow_lifecycle": {"$ref": "#/$defs/core_lifecycle"},
         "roles": {"$ref": "#/$defs/roles"},
-        "sequence_namespaces": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["root", "release"],
-          "properties": {"root": {"const": "core-root"}, "release": {"const": "core-release"}}
-        },
-        "signature_domains": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["trust_bundle", "payload_index", "rollback_authorization"],
-          "properties": {
-            "trust_bundle": {"const": "repository-harness-core-trust-bundle-v1"},
-            "payload_index": {"const": "repository-harness-payload-index-v1"},
-            "rollback_authorization": {"const": "repository-harness-core-rollback-authorization-v1"}
-          }
-        }
+        "sequence_namespaces": {"type": "object", "additionalProperties": false, "required": ["root", "release"], "properties": {"root": {"const": "core-root"}, "release": {"const": "core-release"}}},
+        "signature_domains": {"type": "object", "additionalProperties": false, "required": ["trust_bundle", "payload_index", "rollback_authorization"], "properties": {"trust_bundle": {"const": "repository-harness-core-trust-bundle-v1"}, "payload_index": {"const": "repository-harness-payload-index-v1"}, "rollback_authorization": {"const": "repository-harness-core-rollback-authorization-v1"}}}
       }
     },
     "bridge": {
@@ -79,25 +86,10 @@
       "properties": {
         "tag_namespace": {"const": "harness-v0-bridge-v*"},
         "protected_workflow": {"const": ".github/workflows/harness-v0-bridge-release.yml@refs/heads/main"},
-        "workflow_lifecycle": {"$ref": "#/$defs/workflow_lifecycle"},
+        "workflow_lifecycle": {"$ref": "#/$defs/bridge_lifecycle"},
         "roles": {"$ref": "#/$defs/roles"},
-        "sequence_namespaces": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["root", "release"],
-          "properties": {"root": {"const": "bridge-root"}, "release": {"const": "bridge-release"}}
-        },
-        "signature_domains": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["trust_bundle", "payload_index", "rollback_authorization", "availability_receipt"],
-          "properties": {
-            "trust_bundle": {"const": "repository-harness-bridge-trust-bundle-v1"},
-            "payload_index": {"const": "repository-harness-bridge-payload-index-v1"},
-            "rollback_authorization": {"const": "repository-harness-bridge-rollback-authorization-v1"},
-            "availability_receipt": {"const": "repository-harness-bridge-availability-receipt-v1"}
-          }
-        }
+        "sequence_namespaces": {"type": "object", "additionalProperties": false, "required": ["root", "release"], "properties": {"root": {"const": "bridge-root"}, "release": {"const": "bridge-release"}}},
+        "signature_domains": {"type": "object", "additionalProperties": false, "required": ["trust_bundle", "payload_index", "rollback_authorization", "availability_receipt"], "properties": {"trust_bundle": {"const": "repository-harness-bridge-trust-bundle-v1"}, "payload_index": {"const": "repository-harness-bridge-payload-index-v1"}, "rollback_authorization": {"const": "repository-harness-bridge-rollback-authorization-v1"}, "availability_receipt": {"const": "repository-harness-bridge-availability-receipt-v1"}}}
       }
     }
   }

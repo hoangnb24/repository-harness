@@ -1,0 +1,112 @@
+name: Repository Harness V1 Proof (Unpromoted)
+
+# Phase 2 supplies workflow source identity and cross-platform proof structure only.
+# Production promotion remains blocked until repository protection and a pinned
+# artifact attestation are supplied as external evidence.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: Exact source ref to prove
+        required: true
+        type: string
+      request_promotion:
+        description: Exercise the deliberately closed promotion guard
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-v1-proof-${{ inputs.candidate_ref }}
+  cancel-in-progress: false
+
+jobs:
+  repository-identity:
+    name: Verify reserved repository/workflow identity
+    if: github.repository == 'hoangnb24/repository-harness'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Prove unpromoted workflow identity
+        shell: bash
+        run: |
+          test "$GITHUB_WORKFLOW_REF" = "hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/main"
+          test "${{ inputs.candidate_ref }}" != ""
+
+  prove-before-promotion:
+    name: Prove ${{ matrix.platform }} core source
+    needs: repository-identity
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            target: aarch64-apple-darwin
+            runner: macos-15
+          - platform: macos-x64
+            target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - platform: linux-x64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+          - platform: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - platform: windows-x64
+            target: x86_64-pc-windows-msvc
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Check and test pure core
+        shell: bash
+        run: |
+          cargo check --workspace --locked
+          cargo test -p harness-core --locked
+          cargo clippy -p harness-core --all-targets --locked -- -D warnings
+
+      - name: Build exact platform binary identity
+        shell: bash
+        run: cargo build -p harness-core --bin harness --target "${{ matrix.target }}" --locked
+
+      - name: Prove Unix binary help identity
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p scripts/bin
+          install -m 755 "target/${{ matrix.target }}/debug/harness" scripts/bin/harness
+          scripts/bin/harness --help > harness-machine-grammar.json
+          python3 -m json.tool harness-machine-grammar.json >/dev/null
+
+      - name: Prove Windows binary help identity
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force scripts/bin | Out-Null
+          Copy-Item "target/${{ matrix.target }}/debug/harness.exe" scripts/bin/harness.exe
+          scripts/bin/harness.exe --help | Set-Content -Encoding utf8 harness-machine-grammar.json
+          Get-Content harness-machine-grammar.json | ConvertFrom-Json | Out-Null
+
+  promotion-blocked:
+    name: Production promotion guard
+    needs: prove-before-promotion
+    if: inputs.request_promotion
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Refuse promotion without external protection and attestation evidence
+        shell: bash
+        run: |
+          echo "Production V1 promotion is blocked: repository-protection and pinned artifact-attestation evidence are not present." >&2
+          exit 1

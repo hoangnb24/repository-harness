@@ -554,7 +554,7 @@ def generate_contract_negatives() -> None:
     role_crossover["bridge"]["roles"]["release"] = bootstrap["core"]["roles"]["release"]
     write_json(NEG / "bootstrap-role-crossover.json", role_crossover)
     workflow_state_mismatch = json.loads(json.dumps(bootstrap))
-    workflow_state_mismatch["core"]["workflow_lifecycle"]["phase1_state"] = "live"
+    workflow_state_mismatch["core"]["workflow_lifecycle"]["state"] = "reserved-absent"
     write_json(NEG / "bootstrap-workflow-state-mismatch.json", workflow_state_mismatch)
     workflow_path_mismatch = json.loads(json.dumps(bootstrap))
     workflow_path_mismatch["bridge"]["protected_workflow"] = ".github/workflows/not-the-reserved-bridge-release.yml@refs/heads/main"
@@ -578,7 +578,7 @@ def generate_contract_negatives() -> None:
     entrypoint_mismatch["surfaces"]["bridge"]["future_entrypoints"][0] = "scripts/bin/harness-v0-convert"
     write_json(NEG / "command-binding-entrypoint-mismatch.json", entrypoint_mismatch)
     binding_state_mismatch = json.loads(json.dumps(command_binding))
-    binding_state_mismatch["surfaces"]["core"]["phase1_entrypoint_state"] = "present"
+    binding_state_mismatch["surfaces"]["core"]["entrypoint_state"] = "absent"
     write_json(NEG / "command-binding-state-mismatch.json", binding_state_mismatch)
     binding_unknown_field = json.loads(json.dumps(command_binding))
     binding_unknown_field["surfaces"]["core"]["live_command_source"] = "scripts/bin/harness"

@@ -65,11 +65,10 @@ stops counting only after a higher-sequence root-threshold-signed bundle is
 accepted.
 
 The core tag namespace is `harness-v1-core-v*`; the bridge namespace is
-`harness-v0-bridge-v*`. Their distinct protected workflow paths are reserved
-future identities frozen in `bootstrap-identity.json`, not live Phase 1
-workflows. The core path is reserved for Phase 2 and the bridge path for Phase
-4; both must be absent while the lifecycle state is `reserved-absent`. An
-artifact or attestation with the wrong repository, workflow, tag namespace,
+`harness-v0-bridge-v*`. Their distinct protected workflow paths are frozen in
+`bootstrap-identity.json`. Phase 2 makes the core workflow source
+`source-present-unpromoted`; the bridge remains `reserved-absent` for Phase 4.
+An artifact or attestation with the wrong repository, workflow, tag namespace,
 trust domain, or role fails closed. The bootstrap file and its schema also
 freeze the exact verification-order array, signature-domain strings, roles,
 sequence namespaces, lifecycle states, reserved phases, and promotion-gate
@@ -87,11 +86,13 @@ Ed25519 threshold.
 
 This rule does not modify the current V0 installers in Phase 1.
 
-Production bootstrap acceptance remains blocked until the later phase creates
-the reserved workflow and supplies repository-protection evidence, a pinned
-attestation for the exact repository/workflow/artifact/digest, and passing live
-workflow-identity validation. Current V0 release workflow/build sources are
-inventory evidence only; they do not satisfy either future promotion gate.
+Production core bootstrap acceptance remains blocked even though the Phase 2
+workflow source exists. The repository-protection evidence and pinned
+attestation for the exact repository/workflow/artifact/digest are external and
+explicitly `required-not-present`. The workflow has read-only permissions,
+proves before its promotion job, and its promotion job deliberately exits 1.
+Current V0 release sources and the Phase 2 source workflow do not satisfy the
+production promotion gate.
 
 ## Path-disposition ledger
 
@@ -109,6 +110,11 @@ Core artifact construction is an allowlist join between a verified core index
 and ledger entries classified `managed-v1` or `optional-v1`. Missing ledger
 rows, duplicate dispositions, unindexed files, destination disagreement, and
 all other dispositions are errors. Bridge-only is not a core exception.
+
+The V1 core accepts adjacent ledger bytes only when their canonical JCS digest
+matches the digest supplied by the independent trust configuration. The
+release-material transport cannot rewrite a row, reason, or disposition and
+then choose the digest that makes its own rewrite authoritative.
 
 Cause and effect: even if `scripts/schema/013-changeset-content-sha.sql` has a
 correct digest and a valid bridge signature, its ledger disposition is

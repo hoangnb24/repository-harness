@@ -63,6 +63,8 @@
     {"path": "CLAUDE.md", "surface": "installed-generated", "disposition": "target-owned-destination", "reason": "Optional target instruction destination, never replaced wholesale"},
     {"path": "scripts/bin/harness-cli", "surface": "installed-generated", "disposition": "forbidden-v0-operational", "reason": "V0 operational binary"},
     {"path": "scripts/bin/harness-cli.exe", "surface": "installed-generated", "disposition": "forbidden-v0-operational", "reason": "V0 operational binary"},
+    {"path": "scripts/bin/harness", "surface": "installed-generated", "disposition": "managed-v1", "reason": "Phase 2 platform-native V1 core binary identity"},
+    {"path": "scripts/bin/harness.exe", "surface": "installed-generated", "disposition": "managed-v1", "reason": "Phase 2 Windows V1 core binary identity"},
 
     {"path": "dist/harness-cli-macos-arm64", "surface": "release-artifact", "disposition": "forbidden-v0-operational", "reason": "V0 release binary"},
     {"path": "dist/harness-cli-macos-arm64.sha256", "surface": "release-artifact", "disposition": "forbidden-v0-operational", "reason": "V0 adjacent checksum"},
@@ -80,6 +82,7 @@
     {"path": "scripts/harness-install-files.txt", "surface": "release-source", "disposition": "source-only", "reason": "Current V0 installer inventory input"},
     {"path": "scripts/build-harness-cli-release.sh", "surface": "release-source", "disposition": "source-only", "reason": "Current V0 build source"},
     {"path": ".github/workflows/harness-cli-release.yml", "surface": "release-source", "disposition": "source-only", "reason": "Current V0 release workflow source"},
+    {"path": ".github/workflows/harness-v1-release.yml", "surface": "release-source", "disposition": "source-only", "reason": "Phase 2 present-but-unpromoted V1 proof workflow source"},
 
     {"path": "release/contracts/v1/README.md", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Phase 1 contract catalog, not installed payload"},
     {"path": "release/contracts/v1/audit-rules.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Core implementation input, not installed payload"},

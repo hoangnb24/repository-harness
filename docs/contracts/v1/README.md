@@ -2,7 +2,7 @@
 
 Contract version: `1`
 
-Status: Normative for Phase 1; runtime implementation is deferred.
+Status: Normative; Phase 1 accepted and the Phase 2 core runtime is live.
 
 These documents and the machine-readable material in
 `release/contracts/v1/` freeze the inputs to Phases 2–8. If prose and JSON
@@ -14,9 +14,9 @@ by a reviewed contract change before implementation proceeds.
   fields, and deterministic output.
 - `command-grammars.md` defines the permanent six-command V1 grammar and the
   separate seven-command bridge grammar, including exits, preview,
-  non-interactive confirmation, recovery options, and the Phase 1
-  contract-only/absent implementation binding that later phases must replace
-  with live CLI and source parity.
+  non-interactive confirmation, recovery options, and the implementation
+  binding. Phase 2 replaces the core's former absence state with live CLI and
+  source parity while the Phase 4 bridge remains absent.
 - `payload-trust.md` defines indexes, detached signatures, threshold bundles,
   canonicalization, freshness, bootstrap identity, destination rules, and the
   path-disposition ledger.
@@ -27,7 +27,7 @@ by a reviewed contract change before implementation proceeds.
 - `v0-compatibility.md` freezes schemas 1–13, the changeset parser matrix, V0
   feature surface, and category dispositions without extending V0 behavior.
 
-Example dependency: Phase 2 can parse `manifest-v1.schema.json`, but it cannot
-invent a seventh core command. Phase 4 can read the frozen V0 schema copies,
+Example dependency: the Phase 2 core parses `manifest-v1.schema.json`, but it
+cannot invent a seventh core command. Phase 4 can read the frozen V0 schema copies,
 but those bridge-only files cannot enter the core index. A later release cannot
 claim acceptance if either boundary check fails.

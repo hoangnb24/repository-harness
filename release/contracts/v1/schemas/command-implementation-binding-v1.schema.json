@@ -4,44 +4,65 @@
   "title": "Repository Harness command implementation binding",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "phase1_binding_state", "grammar_contract", "grammar_contract_sha256", "grammar_schema", "grammar_schema_sha256", "phase1_guard", "surfaces"],
+  "required": ["schema", "binding_state", "grammar_contract", "grammar_contract_sha256", "grammar_schema", "grammar_schema_sha256", "surfaces"],
   "properties": {
     "schema": {"const": "repository-harness-command-implementation-binding/v1"},
-    "phase1_binding_state": {"const": "contract-only-entrypoints-absent"},
+    "binding_state": {"const": "core-live-bridge-absent"},
     "grammar_contract": {"const": "release/contracts/v1/command-grammars.json"},
     "grammar_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "grammar_schema": {"const": "release/contracts/v1/schemas/command-grammar-v1.schema.json"},
     "grammar_schema_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "phase1_guard": {"const": "fail-if-any-future-entrypoint-exists-before-live-binding-gate"},
     "surfaces": {
       "type": "object",
       "additionalProperties": false,
       "required": ["core", "bridge"],
       "properties": {
-        "core": {"$ref": "#/$defs/surface"},
-        "bridge": {"$ref": "#/$defs/surface"}
+        "core": {"$ref": "#/$defs/core_surface"},
+        "bridge": {"$ref": "#/$defs/bridge_surface"}
       }
     }
   },
   "$defs": {
-    "surface": {
+    "core_surface": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["future_phase", "future_entrypoints", "phase1_entrypoint_state", "live_binding_gate"],
+      "required": ["phase", "entrypoints", "entrypoint_state", "live_binding"],
       "properties": {
-        "future_phase": {"enum": [2, 4]},
-        "future_entrypoints": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"type": "string"}},
-        "phase1_entrypoint_state": {"const": "absent"},
+        "phase": {"const": 2},
+        "entrypoints": {"const": ["scripts/bin/harness", "scripts/bin/harness.exe"]},
+        "entrypoint_state": {"const": "live-platform-native"},
+        "live_binding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["native_cli", "windows_cli", "cargo_package", "cargo_binary", "source_command_definitions", "help_argument", "requirements"],
+          "properties": {
+            "native_cli": {"const": "scripts/bin/harness"},
+            "windows_cli": {"const": "scripts/bin/harness.exe"},
+            "cargo_package": {"const": "harness-core"},
+            "cargo_binary": {"const": "harness"},
+            "source_command_definitions": {"const": "crates/harness-core/src/command_spec.rs"},
+            "help_argument": {"const": "--help"},
+            "requirements": {"const": ["platform-native-entrypoint-file-present", "live-cli-help-extraction-equals-command-grammars", "live-source-command-extraction-equals-command-grammars", "options-exits-and-mutation-boundaries-equal-command-grammars", "windows-cargo-binary-identity-is-harness.exe"]}
+          }
+        }
+      }
+    },
+    "bridge_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["future_phase", "future_entrypoints", "entrypoint_state", "live_binding_gate"],
+      "properties": {
+        "future_phase": {"const": 4},
+        "future_entrypoints": {"const": ["scripts/bin/harness-v0-migrate", "scripts/bin/harness-v0-migrate.exe"]},
+        "entrypoint_state": {"const": "absent"},
         "live_binding_gate": {
           "type": "object",
           "additionalProperties": false,
           "required": ["phase_acceptance", "replacement_state", "requirements"],
           "properties": {
-            "phase_acceptance": {"enum": ["required-before-phase-2-acceptance", "required-before-phase-4-acceptance"]},
+            "phase_acceptance": {"const": "required-before-phase-4-acceptance"},
             "replacement_state": {"const": "live-cli-and-source-extraction-parity"},
-            "requirements": {
-              "const": ["future-entrypoint-files-present", "live-cli-help-extraction-equals-command-grammars", "live-source-command-extraction-equals-command-grammars", "options-exits-and-mutation-boundaries-equal-command-grammars"]
-            }
+            "requirements": {"const": ["future-entrypoint-files-present", "live-cli-help-extraction-equals-command-grammars", "live-source-command-extraction-equals-command-grammars", "options-exits-and-mutation-boundaries-equal-command-grammars"]}
           }
         }
       }

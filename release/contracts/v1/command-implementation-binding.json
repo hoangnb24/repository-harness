@@ -1,31 +1,35 @@
 {
   "schema": "repository-harness-command-implementation-binding/v1",
-  "phase1_binding_state": "contract-only-entrypoints-absent",
+  "binding_state": "core-live-bridge-absent",
   "grammar_contract": "release/contracts/v1/command-grammars.json",
   "grammar_contract_sha256": "1afaf1eec75d10e7d474d5817144e1f3dc8add8b3ee9cdbb3f7610708cac6ef9",
   "grammar_schema": "release/contracts/v1/schemas/command-grammar-v1.schema.json",
   "grammar_schema_sha256": "99ef2353ec1dfd884f2583be91175a35577109808af804d47350e159198c42ee",
-  "phase1_guard": "fail-if-any-future-entrypoint-exists-before-live-binding-gate",
   "surfaces": {
     "core": {
-      "future_phase": 2,
-      "future_entrypoints": ["scripts/bin/harness", "scripts/bin/harness.exe"],
-      "phase1_entrypoint_state": "absent",
-      "live_binding_gate": {
-        "phase_acceptance": "required-before-phase-2-acceptance",
-        "replacement_state": "live-cli-and-source-extraction-parity",
+      "phase": 2,
+      "entrypoints": ["scripts/bin/harness", "scripts/bin/harness.exe"],
+      "entrypoint_state": "live-platform-native",
+      "live_binding": {
+        "native_cli": "scripts/bin/harness",
+        "windows_cli": "scripts/bin/harness.exe",
+        "cargo_package": "harness-core",
+        "cargo_binary": "harness",
+        "source_command_definitions": "crates/harness-core/src/command_spec.rs",
+        "help_argument": "--help",
         "requirements": [
-          "future-entrypoint-files-present",
+          "platform-native-entrypoint-file-present",
           "live-cli-help-extraction-equals-command-grammars",
           "live-source-command-extraction-equals-command-grammars",
-          "options-exits-and-mutation-boundaries-equal-command-grammars"
+          "options-exits-and-mutation-boundaries-equal-command-grammars",
+          "windows-cargo-binary-identity-is-harness.exe"
         ]
       }
     },
     "bridge": {
       "future_phase": 4,
       "future_entrypoints": ["scripts/bin/harness-v0-migrate", "scripts/bin/harness-v0-migrate.exe"],
-      "phase1_entrypoint_state": "absent",
+      "entrypoint_state": "absent",
       "live_binding_gate": {
         "phase_acceptance": "required-before-phase-4-acceptance",
         "replacement_state": "live-cli-and-source-extraction-parity",
