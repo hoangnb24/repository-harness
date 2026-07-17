@@ -238,7 +238,9 @@ is linked into the V1 artifact.
 twenty-five signed integration), every one of 18 install, 15 update, and 13
 committed-update rollback checkpoints, 89 total `harness-core` tests, 181
 workspace Rust tests, and 11/11 Phase 3 mechanical proof groups. Phase 1/2 gates
-remain unchanged; Phase 4 and Phase 7 remain closed pending acceptance.
+remain unchanged. The evidence covers exact emitted-preview binding, root-bound
+recovery ownership, and read-only refusal of damaged staged/backup probe
+evidence. Phase 4 and Phase 7 remain closed pending acceptance.
 
 ### Phase 4: Isolated V0 Bridge
 
