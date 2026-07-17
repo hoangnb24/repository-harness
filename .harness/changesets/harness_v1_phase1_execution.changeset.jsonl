@@ -1,0 +1,4 @@
+{"base_schema_version":13,"op":"changeset.header","run_id":"harness_v1_phase1_execution","version":1}
+{"id":"US-106","op":"story.add","payload":{"contract_doc":"docs/stories/US-106-v1-contracts-release-inventory/overview.md","notes":"Phase 1 child of US-105: schemas, authenticated payload/trust contracts, V0 grammar and path disposition inventories, fixtures, and CI enforcement only.","risk_lane":"high_risk","title":"V1 contracts and release inventory","verify_command":"scripts/verify-v1-phase1-contracts.sh"},"version":1}
+{"id":"US-105","op":"story.hierarchy.add","payload":{"child":"US-106"},"version":1}
+{"id":"US-106","op":"story.update","payload":{"e2e_proof":null,"evidence":null,"integration_proof":null,"platform_proof":null,"status":"in_progress","unit_proof":null,"verify_command":null},"version":1}

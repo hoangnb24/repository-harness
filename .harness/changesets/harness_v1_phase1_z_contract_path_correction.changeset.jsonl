@@ -1,0 +1,2 @@
+{"base_schema_version":13,"op":"changeset.header","run_id":"harness_v1_phase1_z_contract_path_correction","version":1}
+{"id":"US-106","op":"story.update","payload":{"contract_doc":"docs/stories/US-106-v1-phase1-contracts-and-release-inventory/overview.md","e2e_proof":null,"evidence":null,"integration_proof":null,"platform_proof":null,"status":null,"unit_proof":null,"verify_command":null},"version":1}
