@@ -1,0 +1,4 @@
+{"base_schema_version":13,"op":"changeset.header","run_id":"harness_v1_phase3_authorization","version":1}
+{"id":"US-108","op":"story.add","payload":{"contract_doc":"docs/stories/US-108-v1-install-update-recovery/overview.md","notes":"Phase 3 child of US-105: implement authenticated install/update/scaffold filesystem mutations, backups, atomic manifest commit, idempotency, update-policy enforcement, and bounded recovery; no V0 reader, bridge grammar, operational database, or release promotion.","risk_lane":"high_risk","title":"V1 install and update recovery","verify_command":"scripts/verify-v1-phase3-recovery.sh"},"version":1}
+{"id":"US-105","op":"story.hierarchy.add","payload":{"child":"US-108"},"version":1}
+{"id":"US-108","op":"story.update","payload":{"contract_doc":null,"e2e_proof":null,"evidence":null,"integration_proof":null,"platform_proof":null,"status":"in_progress","unit_proof":null,"verify_command":null},"version":1}
