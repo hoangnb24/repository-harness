@@ -11,8 +11,8 @@ use std::path::PathBuf;
 use crate::domain::{Manifest, MANIFEST_SCHEMA, SUPPORTED_V0_BRIDGE_RELEASE};
 use crate::path::validate_relative;
 use crate::ports::{
-    CompatibilityObservation, FileSystemPort, ManifestPort, PortError, ReleaseMaterial,
-    ReleasePort, ReleaseTrustInput, RepositoryRootIdentity, TrustPort,
+    CompatibilityObservation, FileSystemPort, ManifestPort, PinnedPrivateDirectory, PortError,
+    ReleaseMaterial, ReleasePort, ReleaseTrustInput, RepositoryRootIdentity, TrustPort,
 };
 #[cfg(unix)]
 use crate::strict_json::hex_sha256;
@@ -146,33 +146,58 @@ impl FileSystemPort for OsFileSystem {
         }
     }
 
-    fn validate_private_directory(&self, path: &str) -> Result<(), PortError> {
+    fn pin_private_directory(&self, path: &str) -> Result<PinnedPrivateDirectory, PortError> {
         #[cfg(unix)]
         {
-            self.validate_private_directory_unix(path)
+            self.pin_private_directory_unix(path)
         }
         #[cfg(not(unix))]
         {
             validate_relative(path, true)?;
             Err(PortError::Io {
                 path: path.into(),
-                message: "safe private-directory validation is unavailable on this platform until Phase 7"
-                    .into(),
+                message:
+                    "safe private-directory pinning is unavailable on this platform until Phase 7"
+                        .into(),
             })
         }
     }
 
-    fn read_private_declared(
+    fn read_pinned_declared(
         &self,
+        directory: &PinnedPrivateDirectory,
+        path: &str,
+    ) -> Result<Vec<u8>, PortError> {
+        #[cfg(unix)]
+        {
+            self.read_pinned_directory_unix(directory, path, None, false)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = directory;
+            validate_relative(path, true)?;
+            Err(PortError::Io {
+                path: path.into(),
+                message:
+                    "safe pinned-directory reads are unavailable on this platform until Phase 7"
+                        .into(),
+            })
+        }
+    }
+
+    fn read_pinned_private(
+        &self,
+        directory: &PinnedPrivateDirectory,
         path: &str,
         expected_length: Option<usize>,
     ) -> Result<Vec<u8>, PortError> {
         #[cfg(unix)]
         {
-            self.read_declared_unix_checked(path, expected_length, true, |_| {})
+            self.read_pinned_directory_unix(directory, path, expected_length, true)
         }
         #[cfg(not(unix))]
         {
+            let _ = directory;
             let _ = expected_length;
             validate_relative(path, true)?;
             Err(PortError::Io {
@@ -180,6 +205,26 @@ impl FileSystemPort for OsFileSystem {
                 message:
                     "safe private-file validation is unavailable on this platform until Phase 7"
                         .into(),
+            })
+        }
+    }
+
+    fn validate_pinned_private_directory(
+        &self,
+        directory: &PinnedPrivateDirectory,
+    ) -> Result<(), PortError> {
+        #[cfg(unix)]
+        {
+            let _ = self.open_pinned_private_directory_unix(directory)?;
+            self.validate_root_namespace()
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = directory;
+            Err(PortError::Io {
+                path: ".".into(),
+                message: "safe private-directory revalidation is unavailable on this platform until Phase 7"
+                    .into(),
             })
         }
     }
@@ -297,7 +342,7 @@ impl OsFileSystem {
     }
 
     #[cfg(unix)]
-    fn validate_private_directory_unix(&self, path: &str) -> Result<(), PortError> {
+    fn pin_private_directory_unix(&self, path: &str) -> Result<PinnedPrivateDirectory, PortError> {
         use rustix::fs::{fstat, FileType};
 
         let first = self.open_chain(path)?;
@@ -316,17 +361,134 @@ impl OsFileSystem {
                 "private directory has wrong type, mode, or owner: {path}"
             )));
         }
-        let second = self.open_chain(path)?;
-        let after = fstat(
-            second
-                .last()
-                .expect("validated relative path has a final descriptor"),
-        )
-        .map_err(|error| map_errno(path, error))?;
-        if !same_stat(&before, &after) {
+        let pinned = PinnedPrivateDirectory {
+            path: path.into(),
+            device: before.st_dev.to_string(),
+            inode: before.st_ino.to_string(),
+        };
+        let _ = self.open_pinned_private_directory_unix(&pinned)?;
+        self.validate_root_namespace()?;
+        Ok(pinned)
+    }
+
+    #[cfg(unix)]
+    fn open_pinned_private_directory_unix(
+        &self,
+        directory: &PinnedPrivateDirectory,
+    ) -> Result<std::os::fd::OwnedFd, PortError> {
+        use rustix::fs::{fstat, FileType};
+
+        let mut chain = self.open_chain(&directory.path)?;
+        let descriptor = chain
+            .pop()
+            .expect("validated private directory has a final descriptor");
+        let stat = fstat(&descriptor).map_err(|error| map_errno(&directory.path, error))?;
+        if !FileType::from_raw_mode(stat.st_mode).is_dir()
+            || !private_directory_metadata_valid(
+                u32::from(stat.st_mode),
+                stat.st_uid,
+                self.root_stat.st_uid,
+            )
+            || stat.st_dev.to_string() != directory.device
+            || stat.st_ino.to_string() != directory.inode
+        {
+            return Err(PortError::Changed(directory.path.clone()));
+        }
+        Ok(descriptor)
+    }
+
+    #[cfg(unix)]
+    fn read_pinned_directory_unix(
+        &self,
+        directory: &PinnedPrivateDirectory,
+        path: &str,
+        expected_length: Option<usize>,
+        private: bool,
+    ) -> Result<Vec<u8>, PortError> {
+        use rustix::fs::{fstat, openat, FileType, Mode, OFlags};
+
+        validate_relative(path, true)?;
+        let prefix = format!("{}/", directory.path);
+        let relative = path
+            .strip_prefix(&prefix)
+            .ok_or_else(|| PortError::UnsafePath(path.into()))?;
+        crate::path::validate_repository_relative(relative)?;
+        let base = self.open_pinned_private_directory_unix(directory)?;
+        let components = relative.split('/').collect::<Vec<_>>();
+        let mut chain = Vec::new();
+        let mut pinned_stats =
+            vec![fstat(&base).map_err(|error| map_errno(&directory.path, error))?];
+        for (index, component) in components.iter().enumerate() {
+            let mut flags = OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW;
+            if index + 1 < components.len() {
+                flags |= OFlags::DIRECTORY;
+            }
+            let parent = chain.last().unwrap_or(&base);
+            let opened = openat(parent, *component, flags, Mode::empty())
+                .map_err(|error| map_errno(path, error))?;
+            pinned_stats.push(fstat(&opened).map_err(|error| map_errno(path, error))?);
+            chain.push(opened);
+        }
+        let final_descriptor = chain
+            .pop()
+            .expect("validated pinned descendant has a final descriptor");
+        let before = *pinned_stats
+            .last()
+            .expect("pinned descendant has final metadata");
+        if !FileType::from_raw_mode(before.st_mode).is_file() {
+            return Err(PortError::Io {
+                path: path.into(),
+                message: "declared path is not a regular file".into(),
+            });
+        }
+        if private
+            && !private_file_metadata_valid(
+                u32::from(before.st_mode),
+                before.st_uid,
+                self.root_stat.st_uid,
+                before.st_size,
+                expected_length,
+            )
+        {
+            return Err(PortError::Conflict(format!(
+                "private file has wrong mode, owner, or length: {path}"
+            )));
+        }
+        let mut file = File::from(final_descriptor);
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)
+            .map_err(|error| map_io(path, error))?;
+        let after_first = fstat(&file).map_err(|error| map_errno(path, error))?;
+        file.seek(SeekFrom::Start(0))
+            .map_err(|error| map_io(path, error))?;
+        let mut verification_bytes = Vec::new();
+        file.read_to_end(&mut verification_bytes)
+            .map_err(|error| map_io(path, error))?;
+        let after_second = fstat(&file).map_err(|error| map_errno(path, error))?;
+        if !same_stat(&before, &after_first)
+            || !same_stat(&before, &after_second)
+            || after_second.st_size != bytes.len() as i64
+            || bytes != verification_bytes
+        {
             return Err(PortError::Changed(path.into()));
         }
-        self.validate_root_namespace()
+
+        for (index, component) in components.iter().enumerate() {
+            let mut flags = OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW;
+            if index + 1 < components.len() {
+                flags |= OFlags::DIRECTORY;
+            }
+            let parent = if index == 0 { &base } else { &chain[index - 1] };
+            let reopened = openat(parent, *component, flags, Mode::empty())
+                .map_err(|error| map_errno(path, error))?;
+            let reopened_stat = fstat(&reopened).map_err(|error| map_errno(path, error))?;
+            if !same_stat(&reopened_stat, &pinned_stats[index + 1]) {
+                return Err(PortError::Changed(path.into()));
+            }
+        }
+        let _ = self.open_pinned_private_directory_unix(directory)?;
+        self.validate_root_namespace()?;
+        Ok(bytes)
     }
 
     #[cfg(unix)]
@@ -503,6 +665,7 @@ fn validate_manifest_schema(manifest: &Manifest) -> Result<(), PortError> {
             || !is_sha256(&receipt.standalone_backup_sha256)
             || !is_sha256(&receipt.payload_sha256)
             || !is_sha256(&receipt.source_sha256)
+            || !is_sha256(&receipt.custody_identity_sha256)
             || !matches!(
                 receipt.confidentiality_mode.as_str(),
                 "encrypted-age-x25519" | "plaintext-explicit-override"

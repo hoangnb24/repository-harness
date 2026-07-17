@@ -15,8 +15,8 @@ use crate::domain::{
 use crate::markdown::parse_commonmark;
 use crate::path::{validate_exact_destination, validate_relative};
 use crate::ports::{
-    FileSystemPort, ManifestPort, MutationPort, PortError, ReleasePort, RepositoryRootIdentity,
-    TrustPort,
+    FileSystemPort, ManifestPort, MutationPort, PinnedPrivateDirectory, PortError, ReleasePort,
+    RepositoryRootIdentity, TrustPort,
 };
 use crate::recovery::{
     MutationFailure, MutationRequest, MutationResult, PlannedWrite, RecoveryAsset,
@@ -394,8 +394,10 @@ impl<'a> HarnessCore<'a> {
                 "V0 archive manifest is outside reserved custody".into(),
             ));
         }
-        self.authenticate_v0_archive_custody()?;
-        let manifest_bytes = self.filesystem.read_declared(manifest_path)?;
+        let custody = self.authenticate_v0_archive_custody()?;
+        let manifest_bytes = self
+            .filesystem
+            .read_pinned_declared(&custody, manifest_path)?;
         let value = crate::strict_json::parse(&manifest_bytes)
             .map_err(|error| PortError::ManifestInvalid(format!("V0 archive JSON: {error}")))?;
         let archive: V0ArchiveManifestInput = serde_json::from_value(value)
@@ -456,7 +458,9 @@ impl<'a> HarnessCore<'a> {
             }
         }
         let payload_path = format!("{directory}/{}", archive.payload_path);
-        let payload = self.filesystem.read_declared(&payload_path)?;
+        let payload = self
+            .filesystem
+            .read_pinned_declared(&custody, &payload_path)?;
         if payload.len() as u64 != archive.payload_bytes
             || hex_sha256(&payload) != archive.payload_sha256
         {
@@ -464,6 +468,8 @@ impl<'a> HarnessCore<'a> {
                 "V0 archive payload differs from its manifest".into(),
             ));
         }
+        self.filesystem
+            .validate_pinned_private_directory(&custody)?;
         Ok(V0ArchiveReceipt {
             schema: "repository-harness-v0-archive-receipt/v1".into(),
             archive_id: archive.archive_id,
@@ -475,19 +481,25 @@ impl<'a> HarnessCore<'a> {
             payload_sha256: archive.payload_sha256,
             source_sha256: archive.source_sha256,
             confidentiality_mode: archive.confidentiality_mode,
+            custody_identity_sha256: custody_identity_sha256(&custody),
         })
     }
 
-    fn authenticate_v0_archive_custody(&self) -> Result<(), PortError> {
-        self.filesystem
-            .validate_private_directory(V0_ARCHIVE_CUSTODY_ROOT)?;
+    fn authenticate_v0_archive_custody(&self) -> Result<PinnedPrivateDirectory, PortError> {
+        let custody = self
+            .filesystem
+            .pin_private_directory(V0_ARCHIVE_CUSTODY_ROOT)?;
         let root = self.filesystem.root_identity()?;
-        let key = self
-            .filesystem
-            .read_private_declared(".harness-v0-archive/custody.key", Some(32))?;
-        let marker_bytes = self
-            .filesystem
-            .read_private_declared(".harness-v0-archive/custody.json", None)?;
+        let key = self.filesystem.read_pinned_private(
+            &custody,
+            ".harness-v0-archive/custody.key",
+            Some(32),
+        )?;
+        let marker_bytes = self.filesystem.read_pinned_private(
+            &custody,
+            ".harness-v0-archive/custody.json",
+            None,
+        )?;
         let value = crate::strict_json::parse(&marker_bytes)
             .map_err(|_| PortError::Conflict("archive custody marker is malformed".into()))?;
         let marker: V0ArchiveCustodyInput = serde_json::from_value(value)
@@ -510,7 +522,9 @@ impl<'a> HarnessCore<'a> {
                 "reserved archive custody is foreign or unauthenticated".into(),
             ));
         }
-        Ok(())
+        self.filesystem
+            .validate_pinned_private_directory(&custody)?;
+        Ok(custody)
     }
 
     fn plan_mutation(
@@ -1910,6 +1924,16 @@ fn shell_argument(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
+fn custody_identity_sha256(directory: &PinnedPrivateDirectory) -> String {
+    hex_sha256(
+        format!(
+            "repository-harness-v0-archive-custody-directory/v1\0{}\0{}\0{}",
+            directory.path, directory.device, directory.inode
+        )
+        .as_bytes(),
+    )
+}
+
 #[derive(Default)]
 struct AuditResult {
     unresolved: bool,
@@ -1971,6 +1995,7 @@ fn validate_manifest_header(manifest: &Manifest, violations: &mut Vec<String>) {
             || !is_sha256(&receipt.standalone_backup_sha256)
             || !is_sha256(&receipt.payload_sha256)
             || !is_sha256(&receipt.source_sha256)
+            || !is_sha256(&receipt.custody_identity_sha256)
             || !matches!(
                 receipt.confidentiality_mode.as_str(),
                 "encrypted-age-x25519" | "plaintext-explicit-override"

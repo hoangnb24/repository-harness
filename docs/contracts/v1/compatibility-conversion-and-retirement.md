@@ -46,6 +46,12 @@ receipt: the directory must be an owner-matched no-follow `0700` directory;
 files; the key is exactly 32 bytes; and the marker's root identity, key digest,
 and HMAC must match. Missing, malformed, linked, wrong-mode, wrong-owner,
 wrong-length, wrong-root, or wrong-HMAC custody fails closed.
+The directory device/inode is pinned before key access. Every key, marker,
+manifest, and payload read is anchored to that same ancestor, followed by a
+final pathname-identity check. The receipt stores a domain-separated custody
+identity digest, so preview, manifest commit, recovery, and later audit reject
+a rename/replacement even when the replacement copies valid marker and archive
+bytes.
 Each attempt uses a new unique staging directory and atomically publishes to a
 new unique final directory with no-replace semantics.
 

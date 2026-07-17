@@ -75,7 +75,8 @@ tests and 10 Phase 4 proof groups. The evidence covers every schema 1..=13,
 WAL-only recovery, unknown metadata, active-writer refusal, encrypted and
 explicit-risk plaintext archives, unique staging and atomic no-replace
 publication, abandoned/foreign custody preservation, exact live/archive export,
-Phase 3 receipt recovery, immutable fixture digests, and the structural core
+Phase 3 receipt recovery, pinned custody-directory swap rejection across
+preview/recovery/audit, immutable fixture digests, and the structural core
 boundary. The bridge never mutates V1 and has exactly four commands. Phase 4
 remains `in_progress` pending independent acceptance; Phase 5 is closed.
 Five-platform promotion and Windows safe capture/atomic publication remain

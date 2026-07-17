@@ -198,6 +198,8 @@ def proof_core_boundary_and_receipt_recovery() -> None:
         "fresh_install_recovery_commits_exact_v0_archive_receipt_without_reading_sqlite", "--", "--exact",
     ])
     for test in [
+        "custody_replacement_between_pin_and_first_read_is_rejected_without_manifest",
+        "recovery_revalidates_the_previewed_custody_directory_identity",
         "fake_or_missing_custody_cannot_become_a_v1_archive_receipt",
         "archive_member_capture_and_bridge_release_are_closed_contracts",
         "identical_preexisting_asset_commits_brownfield_mode_and_target_ownership",

@@ -26,8 +26,10 @@ SCHEMAS = CONTRACT / "schemas"
 FIXTURES = ROOT / "tests" / "fixtures" / "v1-phase1"
 POS = FIXTURES / "positive"
 NEG = FIXTURES / "negative"
-ACCEPTED_PHASE1_FIXTURE_COUNT = 96
-ACCEPTED_PHASE1_FIXTURE_TREE_SHA256 = "b9ee10aff7cec2a1c6761d6c6cc4bc30c55cd4ab928181a5488e8fd5f6710880"
+ACCEPTED_PHASE1_TRACKED_FILE_COUNT = 96
+ACCEPTED_PHASE1_EVIDENCE_COUNT = 94
+ACCEPTED_PHASE1_EVIDENCE_TREE_SHA256 = "829d1bf7154057cef15f1090fcaac110b79fb268472d829db0546dde3810be09"
+PHASE1_AUTHORITY_FILES = {"README.md", "generate.py"}
 SUPPORTED_BRIDGE_RELEASE = "1.0.0"
 
 WINDOWS_DEVICES = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
@@ -176,16 +178,37 @@ def proof(label: str, function: Callable[[], None]) -> None:
 
 
 def proof_accepted_fixture_baseline() -> None:
-    """Bind every accepted Phase 1 fixture path and byte to base 9ad31ce."""
+    """Bind accepted evidence bytes and prove the generator fails controlled."""
+    files = sorted(candidate for candidate in FIXTURES.rglob("*") if candidate.is_file())
+    check(len(files) == ACCEPTED_PHASE1_TRACKED_FILE_COUNT,
+          "Phase 1 tracked fixture file count changed")
     entries = []
-    for path in sorted(candidate for candidate in FIXTURES.rglob("*") if candidate.is_file()):
+    for path in files:
         relative = path.relative_to(FIXTURES).as_posix()
+        if relative in PHASE1_AUTHORITY_FILES:
+            continue
         entries.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}\n")
-    check(len(entries) == ACCEPTED_PHASE1_FIXTURE_COUNT,
-          "accepted Phase 1 fixture file count changed")
+    check(len(entries) == ACCEPTED_PHASE1_EVIDENCE_COUNT,
+          "accepted Phase 1 evidence file count changed")
     tree_digest = hashlib.sha256("".join(entries).encode("utf-8")).hexdigest()
-    check(tree_digest == ACCEPTED_PHASE1_FIXTURE_TREE_SHA256,
-          "accepted Phase 1 fixture path/byte baseline differs from 9ad31ce")
+    check(tree_digest == ACCEPTED_PHASE1_EVIDENCE_TREE_SHA256,
+          "accepted Phase 1 evidence path/byte baseline differs from 9ad31ce")
+    generator = FIXTURES / "generate.py"
+    controlled = subprocess.run(
+        [os.sys.executable, str(generator), "--check"], cwd=ROOT,
+        stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False,
+    )
+    check(controlled.returncode == 2 and not controlled.stdout,
+          "historical generator check did not use the controlled unsupported exit")
+    check("scripts/verify-v1-phase1-contracts.sh" in controlled.stderr
+          and "historical-only" in controlled.stderr and "Traceback" not in controlled.stderr,
+          "historical generator check did not point cleanly to the baseline verifier")
+    help_result = subprocess.run(
+        [os.sys.executable, str(generator), "--help"], cwd=ROOT,
+        stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False,
+    )
+    check(help_result.returncode == 0 and "Historical-only" in help_result.stdout,
+          "historical generator help does not match its controlled behavior")
 
 
 def duplicate_rejecting_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -807,6 +830,7 @@ def proof_schemas_and_examples() -> None:
         "payload_sha256": "4" * 64,
         "source_sha256": "5" * 64,
         "confidentiality_mode": "encrypted-age-x25519",
+        "custody_identity_sha256": "6" * 64,
     }
     validate_manifest(receipt_manifest)
     unsupported_receipt = json.loads(json.dumps(receipt_manifest))
@@ -1447,7 +1471,7 @@ def proof_docs_and_scope() -> None:
 
 def main() -> None:
     os.chdir(ROOT)
-    proof("cryptographic accepted Phase 1 fixture baseline", proof_accepted_fixture_baseline)
+    proof("cryptographic Phase 1 evidence baseline and controlled historical generator", proof_accepted_fixture_baseline)
     proof("closed schemas, manifest fields, and deterministic envelopes", proof_schemas_and_examples)
     proof("core-live/bridge-live-unpromoted six/four-command grammar and source/CLI parity", proof_grammar)
     proof("one-to-one current install/release path ledger and core exclusions", proof_path_inventory)

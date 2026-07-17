@@ -14,9 +14,10 @@ command -v cargo >/dev/null 2>&1 || {
   exit 1
 }
 
-# The Python verifier hashes every accepted Phase 1 fixture path and byte
-# against the frozen 9ad31ce baseline. Unlike a working-tree diff, that proof
-# detects drift already present in a candidate commit.
+# The Python verifier hashes every accepted Phase 1 evidence path and byte
+# against the frozen 9ad31ce baseline, and proves the historical generator's
+# controlled unsupported behavior. Unlike a working-tree diff, this detects
+# drift already present in a candidate commit.
 cargo build --quiet --locked --package v1-contract-crypto
 cargo build --quiet --locked --package harness-core --bin harness
 cargo build --quiet --locked --package harness-v0-migrate --bin harness-v0-migrate

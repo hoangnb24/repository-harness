@@ -64,7 +64,6 @@ Run after implementation:
 scripts/verify-v1-phase1-contracts.sh
 bash -n scripts/verify-v1-phase1-contracts.sh
 python3 -m py_compile scripts/verify_v1_phase1_contracts.py tests/fixtures/v1-phase1/generate.py
-python3 tests/fixtures/v1-phase1/generate.py --check
 cargo fmt --all -- --check
 cargo check --workspace --locked
 cargo test --workspace --locked
@@ -89,10 +88,11 @@ Acceptance verified on 2026-07-17:
 - `bash -n scripts/verify-v1-phase1-contracts.sh`: passed with no output.
 - `python3 -m py_compile` for the verifier and fixture generator: passed with
   no output using an isolated bytecode cache.
-- `python3 tests/fixtures/v1-phase1/generate.py --check`: passed; all 72 listed
-  generated fixture files matched byte-for-byte temporary regeneration, and
-  the committed WAL fixture was verified immutable rather than regenerated
-  with nondeterministic WAL salts.
+- At original Phase 1 acceptance,
+  `python3 tests/fixtures/v1-phase1/generate.py --check` passed temporary
+  regeneration. Decision 0014 subsequently removed required inputs; it is now
+  historical provenance and exits 2 in a controlled way pointing to the
+  cryptographic baseline verifier. The accepted evidence bytes remain frozen.
 - `cargo fmt --all -- --check`: passed with no output.
 - `cargo check --workspace --locked`: passed.
 - `cargo test --workspace --locked`: passed, 92 tests total (90 V0 workspace

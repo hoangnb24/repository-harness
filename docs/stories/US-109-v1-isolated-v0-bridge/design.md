@@ -59,6 +59,10 @@ Recovery therefore belongs to core install, not the bridge.
 Authentication is shared as a contract, not an implementation dependency:
 core applies the bridge-compatible root-identity/HMAC semantics through its
 filesystem port while remaining free of SQLite, V0 readers, and bridge code.
+The port also pins the authenticated custody directory device/inode across key,
+marker, manifest, and payload reads, rechecks it at completion, and binds its
+domain-separated digest into the receipt. Phase 3 candidate validation repeats
+that check during commit and recovery, preventing a valid-copy directory swap.
 Both archive and receipt contracts accept bridge release `1.0.0` exactly.
 Unknown releases and capture enum values fail closed before preview or recovery.
 

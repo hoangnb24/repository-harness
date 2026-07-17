@@ -183,6 +183,7 @@ pub struct V0ArchiveReceipt {
     pub payload_sha256: String,
     pub source_sha256: String,
     pub confidentiality_mode: String,
+    pub custody_identity_sha256: String,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

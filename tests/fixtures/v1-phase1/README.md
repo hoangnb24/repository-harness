@@ -1,4 +1,4 @@
-# Phase 1 Deterministic Fixtures
+# Phase 1 Frozen Historical Fixtures
 
 All key material here is test-only. `generate.py` derives deterministic private
 seeds from labels containing `UNSAFE TEST ONLY`; those seeds are deliberately
@@ -26,7 +26,11 @@ The fixture set covers:
 
 The focused verifier materializes symlinks and path swaps in a temporary
 directory from `path-cases.json`; it never mutates these committed fixtures.
-`generate.py --check` regenerates every path listed in `generated-files.txt`
-under a temporary directory and compares exact bytes. The SQLite WAL fixture
-has engine-generated salts, so the generator verifies its committed hashes
-instead of pretending to regenerate it deterministically.
+Decision 0014 removed inputs that the historical generator consumed, so
+`generate.py` is retained only as provenance and is not a supported fixture
+authority. Both direct regeneration and `generate.py --check` exit with a
+controlled historical-only message. Use
+`scripts/verify-v1-phase1-contracts.sh` for the cryptographic accepted-baseline
+check. It binds the 94 immutable evidence artifacts to `9ad31ce` while allowing
+this README and the historical generator wrapper to state their current
+authority honestly; the directory still contains exactly 96 tracked files.

@@ -13,7 +13,7 @@ Status: **in_progress pending independent acceptance**
 | Crash/retry | An abandoned staging path is not accepted, adopted, deleted, or overwritten; retry safely publishes a fresh unique archive. |
 | Ownership | Foreign `.harness/legacy`, `.harness/recovery`, and unauthenticated `.harness-v0-archive` remain unchanged and unowned. |
 | Core boundary | Core grammar stays six commands and source/dependencies contain no SQLite or bridge implementation. |
-| Receipt recovery | First install preview binds the archive; interruption resumes through Phase 3; manifest contains exact receipt in fresh/brownfield mode; payload tamper is invalid. |
+| Receipt recovery | First install preview binds the archive and pinned custody identity; an ordinary-directory swap between pin/read or preview/recovery is rejected with no manifest; restoring the exact ancestor permits safe resume. |
 | Platform | macOS/Linux exercise descriptor behavior. Windows compiles, exposes four-command help, and repository capture exits controlled-unsupported 5 until Phase 7. |
 | Fixtures | Inventory size/SHA checks pass before and after; tracked fixture bytes have no diff. |
 
@@ -31,6 +31,10 @@ Status: **in_progress pending independent acceptance**
    reports them unknown/unowned and their bytes remain unchanged.
 5. Run `inspect` on Windows. The crate parses the command but opens no repository
    capture handle and exits 5, proving the Phase 7 boundary is controlled.
+6. Pin custody A, rename it away, and replace it with an exact-copy B. If reads
+   were independently reopened, B could supply the key/archive. The production
+   filesystem port instead rejects B's device/inode; recovery likewise rejects
+   B until the exact previewed A is restored.
 
 ## Commands
 

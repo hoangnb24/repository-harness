@@ -725,7 +725,8 @@ fn archive_receipt_without_its_exact_manifest_and_payload_is_invalid() {
         "standalone_backup_sha256": "b".repeat(64),
         "payload_sha256": "c".repeat(64),
         "source_sha256": "e".repeat(64),
-        "confidentiality_mode": "encrypted-age-x25519"
+        "confidentiality_mode": "encrypted-age-x25519",
+        "custody_identity_sha256": "f".repeat(64)
     });
     let filesystem = MemoryFileSystem::default()
         .with("managed.md", bytes)
@@ -930,7 +931,8 @@ fn runtime_manifest_validation_matches_closed_schema_constraints() {
         "standalone_backup_sha256": "1".repeat(64),
         "payload_sha256": "2".repeat(64),
         "source_sha256": "4".repeat(64),
-        "confidentiality_mode": "encrypted-age-x25519"
+        "confidentiality_mode": "encrypted-age-x25519",
+        "custody_identity_sha256": "5".repeat(64)
     });
     for (pointer, invalid_value) in [
         (
@@ -968,6 +970,10 @@ fn runtime_manifest_validation_matches_closed_schema_constraints() {
         (
             "/v0_archive_receipt/confidentiality_mode",
             serde_json::json!("unknown"),
+        ),
+        (
+            "/v0_archive_receipt/custody_identity_sha256",
+            serde_json::json!("5".repeat(63)),
         ),
     ] {
         let mut archived = archive_base.clone();

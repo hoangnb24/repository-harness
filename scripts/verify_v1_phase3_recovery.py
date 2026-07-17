@@ -169,6 +169,8 @@ def proof_signed_mutation_behaviors() -> None:
         "scaffold_is_exact_and_update_preserves_target_owned_bytes",
         "identical_preexisting_asset_commits_brownfield_mode_and_target_ownership",
         "fresh_install_recovery_commits_exact_v0_archive_receipt_without_reading_sqlite",
+        "custody_replacement_between_pin_and_first_read_is_rejected_without_manifest",
+        "recovery_revalidates_the_previewed_custody_directory_identity",
         "managed_file_drift_returns_exact_three_way_review_without_writing",
         "managed_block_update_replaces_only_authenticated_interior",
     ]

@@ -112,10 +112,11 @@ It prints nine ordered proof groups and a final count. A failed invariant exits
 1 with the exact contract error. It takes no mutation options and does not read
 or create root Harness workflow state.
 
-Before those groups, the wrapper runs `generate.py --check`, builds only the
-non-publishable `v1-contract-crypto` test helper, and passes its exact path to
-the Python checker. That helper is verification infrastructure, not the Phase
-2 `harness` runtime or an installable release artifact.
+Decision 0014 later retired fixture regeneration because its old inputs no
+longer exist. The wrapper now cryptographically binds the frozen evidence bytes
+and asserts that `generate.py --check` returns the documented historical-only
+exit without a traceback. It also builds only the non-publishable
+`v1-contract-crypto` test helper and passes its exact path to the Python checker.
 
 ## Data Model
 

@@ -9,8 +9,17 @@ embed a top-level `v0_archive_receipt`; this records evidence linkage, not
 converted operational state. It is accepted only from an explicit
 `--v0-archive-manifest` path under authenticated `.harness-v0-archive` custody.
 The receipt binds the exact archive manifest, neutral export, standalone backup,
-payload, source capture, confidentiality mode, archive ID, and bridge release.
-It is write-once: later install/update cannot replace it.
+payload, source capture, confidentiality mode, archive ID, bridge release, and
+a domain-separated digest of the authenticated custody directory identity. It
+is write-once: later install/update cannot replace it.
+
+Core pins the owner-matched `0700` custody directory identity before reading
+the key. Key, marker, archive manifest, and payload reads must all reopen
+through that exact device/inode ancestor, and the custody pathname is checked
+again after the complete read set. Preview stores the identity digest in the
+candidate receipt; commit, recovery, status, and audit revalidate it. Therefore
+renaming authenticated custody A away and replacing it with otherwise-valid B
+cannot mix bytes or complete the receipt transaction.
 
 The closed V1 receipt contract supports bridge release `1.0.0` exactly. Both
 the archive manifest and embedded receipt use that literal; any other string,

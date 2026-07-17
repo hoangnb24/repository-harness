@@ -45,24 +45,48 @@ pub trait FileSystemPort {
         ))
     }
 
-    /// Prove that a reserved custody directory is a repository-owner-owned,
-    /// no-follow directory with mode 0700.
-    fn validate_private_directory(&self, path: &str) -> Result<(), PortError> {
+    /// Pin a repository-owner-owned, no-follow directory with mode 0700.
+    fn pin_private_directory(&self, path: &str) -> Result<PinnedPrivateDirectory, PortError> {
         Err(PortError::Conflict(format!(
-            "private directory validation is unavailable: {path}"
+            "private directory pinning is unavailable: {path}"
         )))
     }
 
-    /// Read a no-follow, repository-owner-owned file with mode 0600 and an
-    /// optional exact length while retaining the command's pinned root.
-    fn read_private_declared(
+    /// Read a declared descendant through the exact pinned private ancestor.
+    fn read_pinned_declared(
         &self,
+        directory: &PinnedPrivateDirectory,
+        path: &str,
+    ) -> Result<Vec<u8>, PortError> {
+        let _ = directory;
+        Err(PortError::Conflict(format!(
+            "pinned directory reads are unavailable: {path}"
+        )))
+    }
+
+    /// Read a no-follow, owner-matched 0600 descendant through the exact
+    /// pinned private ancestor, with an optional exact length.
+    fn read_pinned_private(
+        &self,
+        directory: &PinnedPrivateDirectory,
         path: &str,
         expected_length: Option<usize>,
     ) -> Result<Vec<u8>, PortError> {
+        let _ = directory;
         let _ = expected_length;
         Err(PortError::Conflict(format!(
-            "private file validation is unavailable: {path}"
+            "pinned private file reads are unavailable: {path}"
+        )))
+    }
+
+    /// Revalidate the private directory pathname after the complete read set.
+    fn validate_pinned_private_directory(
+        &self,
+        directory: &PinnedPrivateDirectory,
+    ) -> Result<(), PortError> {
+        Err(PortError::Conflict(format!(
+            "private directory revalidation is unavailable: {}",
+            directory.path
         )))
     }
 
@@ -77,6 +101,13 @@ pub trait FileSystemPort {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryRootIdentity {
+    pub device: String,
+    pub inode: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PinnedPrivateDirectory {
+    pub path: String,
     pub device: String,
     pub inode: String,
 }

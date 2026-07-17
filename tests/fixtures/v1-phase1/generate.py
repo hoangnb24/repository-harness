@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate deterministic, unmistakably test-only Phase 1 fixtures."""
+"""Historical Phase 1 fixture generator retained for provenance only."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import base64
 import hashlib
 import json
 from pathlib import Path
-import tempfile
+import sys
 import unicodedata
 
 HERE = Path(__file__).resolve().parent
@@ -652,21 +652,21 @@ def generate_all(output: Path) -> set[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true", help="regenerate in a temporary directory and compare exact committed bytes")
-    arguments = parser.parse_args()
-    if arguments.check:
-        with tempfile.TemporaryDirectory(prefix="harness-v1-fixture-check-") as temporary:
-            generated = generate_all(Path(temporary))
-            for relative in sorted(generated):
-                expected = HERE / relative
-                actual = Path(temporary) / relative
-                if not expected.is_file() or expected.read_bytes() != actual.read_bytes():
-                    raise RuntimeError(f"committed generated fixture differs: {relative}; run generate.py")
-        print(f"deterministic fixture regeneration check passed ({len(generated)} files)")
-    else:
-        generated = generate_all(HERE)
-        print(f"generated {len(generated)} deterministic fixture files and verified immutable WAL fixture")
+    parser = argparse.ArgumentParser(
+        description="Historical-only Phase 1 generator; regeneration is unsupported after Decision 0014."
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="report the controlled historical-only status; use the cryptographic baseline verifier",
+    )
+    parser.parse_args()
+    print(
+        "Phase 1 fixture regeneration is historical-only after Decision 0014; "
+        "run scripts/verify-v1-phase1-contracts.sh for the cryptographic accepted-baseline check.",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
 
 
 if __name__ == "__main__":

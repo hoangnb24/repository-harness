@@ -4,7 +4,7 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use harness_core::application::HarnessCore;
 use harness_core::domain::{
@@ -13,8 +13,9 @@ use harness_core::domain::{
 use harness_core::infrastructure::{JsonManifestPort, OsFileSystem, UnavailableReleasePort};
 use harness_core::interface::{parse, Parsed};
 use harness_core::ports::{
-    ManifestPort, PinnedRootKey, PortError, ReleaseFreshness, ReleaseMaterial, ReleasePort,
-    ReleaseTrustInput, TrustPolicy, TrustPort, TrustedRootState,
+    CompatibilityObservation, FileSystemPort, ManifestPort, PinnedPrivateDirectory, PinnedRootKey,
+    PortError, ReleaseFreshness, ReleaseMaterial, ReleasePort, ReleaseTrustInput, TrustPolicy,
+    TrustPort, TrustedRootState,
 };
 use harness_core::recovery::OsMutationPort;
 use hmac::{Hmac, Mac};
@@ -382,6 +383,86 @@ fn copy_tree(source: &Path, destination: &Path) {
     visit(source, source, destination);
 }
 
+fn replace_custody_with_exact_copy(root: &Path) -> PathBuf {
+    let custody = root.join(".harness-v0-archive");
+    let original = root.join("custody-original");
+    std::fs::rename(&custody, &original).unwrap();
+    std::fs::create_dir(&custody).unwrap();
+    std::fs::set_permissions(&custody, std::fs::Permissions::from_mode(0o700)).unwrap();
+    copy_tree(&original, &custody);
+    original
+}
+
+struct SwapAfterCustodyPinFileSystem {
+    inner: OsFileSystem,
+    root: PathBuf,
+    swapped: Cell<bool>,
+}
+
+impl SwapAfterCustodyPinFileSystem {
+    fn new(root: &Path) -> Self {
+        Self {
+            inner: OsFileSystem::new(root).unwrap(),
+            root: root.to_owned(),
+            swapped: Cell::new(false),
+        }
+    }
+}
+
+impl FileSystemPort for SwapAfterCustodyPinFileSystem {
+    fn read_declared(&self, path: &str) -> Result<Vec<u8>, PortError> {
+        self.inner.read_declared(path)
+    }
+
+    fn exists_declared(&self, path: &str) -> Result<bool, PortError> {
+        self.inner.exists_declared(path)
+    }
+
+    fn validate_snapshot(&self) -> Result<(), PortError> {
+        self.inner.validate_snapshot()
+    }
+
+    fn root_identity(&self) -> Result<harness_core::ports::RepositoryRootIdentity, PortError> {
+        self.inner.root_identity()
+    }
+
+    fn pin_private_directory(&self, path: &str) -> Result<PinnedPrivateDirectory, PortError> {
+        self.inner.pin_private_directory(path)
+    }
+
+    fn read_pinned_declared(
+        &self,
+        directory: &PinnedPrivateDirectory,
+        path: &str,
+    ) -> Result<Vec<u8>, PortError> {
+        self.inner.read_pinned_declared(directory, path)
+    }
+
+    fn read_pinned_private(
+        &self,
+        directory: &PinnedPrivateDirectory,
+        path: &str,
+        expected_length: Option<usize>,
+    ) -> Result<Vec<u8>, PortError> {
+        if !self.swapped.replace(true) {
+            replace_custody_with_exact_copy(&self.root);
+        }
+        self.inner
+            .read_pinned_private(directory, path, expected_length)
+    }
+
+    fn validate_pinned_private_directory(
+        &self,
+        directory: &PinnedPrivateDirectory,
+    ) -> Result<(), PortError> {
+        self.inner.validate_pinned_private_directory(directory)
+    }
+
+    fn observe_compatibility(&self) -> Result<CompatibilityObservation, PortError> {
+        self.inner.observe_compatibility()
+    }
+}
+
 fn prepare_managed_block_update(root: &Path) -> Vec<u8> {
     let digest = preview(root, Command::Install).0;
     assert!(matches!(
@@ -572,6 +653,87 @@ fn fresh_install_recovery_commits_exact_v0_archive_receipt_without_reading_sqlit
         .details
         .violations
         .contains(&"v0-archive-receipt-invalid".into()));
+}
+
+#[test]
+fn custody_replacement_between_pin_and_first_read_is_rejected_without_manifest() {
+    let temporary = tempfile::tempdir().unwrap();
+    std::fs::write(temporary.path().join("harness.db"), b"opaque V0 bytes").unwrap();
+    let archive_manifest = write_archive_fixture(temporary.path());
+    let filesystem = SwapAfterCustodyPinFileSystem::new(temporary.path());
+    let mutations = OsMutationPort::new(temporary.path()).unwrap();
+    let release = SignedFixtureRelease;
+    let rejected = HarnessCore::with_mutations(
+        &filesystem,
+        &JsonManifestPort,
+        &release,
+        &release,
+        &mutations,
+    )
+    .execute(&Command::Install(MutatorOptions {
+        preview: true,
+        v0_archive_manifest: Some(archive_manifest),
+        ..MutatorOptions::default()
+    }));
+    assert!(filesystem.swapped.get());
+    assert!(matches!(rejected.exit_code, 3 | 4 | 74), "{rejected:?}");
+    assert!(!temporary.path().join(".harness/manifest.json").exists());
+}
+
+#[test]
+fn recovery_revalidates_the_previewed_custody_directory_identity() {
+    let temporary = tempfile::tempdir().unwrap();
+    std::fs::write(temporary.path().join("harness.db"), b"opaque V0 bytes").unwrap();
+    let archive_manifest = write_archive_fixture(temporary.path());
+    let previewed = execute(
+        temporary.path(),
+        Command::Install(MutatorOptions {
+            preview: true,
+            v0_archive_manifest: Some(archive_manifest.clone()),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert!(matches!(previewed.exit_code, 0 | 2), "{previewed:?}");
+    let digest = notice(&previewed.notices, "preview-sha256").message.clone();
+    let operation = notice(&previewed.notices, "operation-id").message.clone();
+    let interrupted = execute(
+        temporary.path(),
+        Command::Install(MutatorOptions {
+            non_interactive: true,
+            accept_preview_sha256: Some(digest),
+            v0_archive_manifest: Some(archive_manifest),
+            ..MutatorOptions::default()
+        }),
+        Some(14),
+    );
+    assert!(matches!(interrupted.exit_code, 4 | 74), "{interrupted:?}");
+    assert!(!temporary.path().join(".harness/manifest.json").exists());
+
+    let original = replace_custody_with_exact_copy(temporary.path());
+    let rejected = execute(
+        temporary.path(),
+        Command::Install(MutatorOptions {
+            resume: Some(operation.clone()),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert!(matches!(rejected.exit_code, 3 | 4 | 74), "{rejected:?}");
+    assert!(!temporary.path().join(".harness/manifest.json").exists());
+
+    std::fs::remove_dir_all(temporary.path().join(".harness-v0-archive")).unwrap();
+    std::fs::rename(original, temporary.path().join(".harness-v0-archive")).unwrap();
+    let resumed = execute(
+        temporary.path(),
+        Command::Install(MutatorOptions {
+            resume: Some(operation),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert!(matches!(resumed.exit_code, 0 | 2), "{resumed:?}");
+    assert!(temporary.path().join(".harness/manifest.json").is_file());
 }
 
 #[test]

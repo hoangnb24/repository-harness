@@ -99,7 +99,8 @@ PYTHONPYCACHEPREFIX=<temporary> python3 -m py_compile \
   scripts/verify_v1_phase1_contracts.py \
   scripts/verify_v1_phase2_core.py \
   tests/fixtures/v1-phase1/generate.py
-python3 tests/fixtures/v1-phase1/generate.py --check
+# Controlled historical-only exit 2 is asserted by the Phase 1 verifier.
+scripts/verify-v1-phase1-contracts.sh
 cargo fmt --all -- --check
 cargo check --workspace --locked
 cargo test --workspace --locked
