@@ -3,18 +3,21 @@
 use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::Path;
 
 use harness_core::application::HarnessCore;
-use harness_core::domain::{Command, Envelope, Mutation, MutatorOptions, Notice, ScaffoldOptions};
+use harness_core::domain::{
+    Command, Envelope, ManifestRepositoryMode, Mutation, MutatorOptions, Notice, ScaffoldOptions,
+};
 use harness_core::infrastructure::{JsonManifestPort, OsFileSystem, UnavailableReleasePort};
 use harness_core::interface::{parse, Parsed};
 use harness_core::ports::{
-    PinnedRootKey, PortError, ReleaseFreshness, ReleaseMaterial, ReleasePort, ReleaseTrustInput,
-    TrustPolicy, TrustPort, TrustedRootState,
+    ManifestPort, PinnedRootKey, PortError, ReleaseFreshness, ReleaseMaterial, ReleasePort,
+    ReleaseTrustInput, TrustPolicy, TrustPort, TrustedRootState,
 };
 use harness_core::recovery::OsMutationPort;
+use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 
 const INDEX: &[u8] =
@@ -224,6 +227,7 @@ fn sha256(bytes: &[u8]) -> String {
 }
 
 fn write_archive_fixture(root: &Path) -> String {
+    write_bridge_compatible_custody(root);
     let directory = root.join(".harness-v0-archive/archive-test");
     std::fs::create_dir_all(&directory).unwrap();
     let payload = b"opaque encrypted archive fixture";
@@ -253,6 +257,36 @@ fn write_archive_fixture(root: &Path) -> String {
     bytes.push(b'\n');
     std::fs::write(directory.join("archive-manifest.json"), bytes).unwrap();
     ".harness-v0-archive/archive-test/archive-manifest.json".into()
+}
+
+fn write_bridge_compatible_custody(root: &Path) {
+    let custody = root.join(".harness-v0-archive");
+    std::fs::create_dir_all(&custody).unwrap();
+    std::fs::set_permissions(&custody, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let key = [0x42_u8; 32];
+    let key_path = custody.join("custody.key");
+    std::fs::write(&key_path, key).unwrap();
+    std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let metadata = std::fs::metadata(root).unwrap();
+    let message = format!(
+        "repository-harness-v0-archive-custody/v1\0.harness-v0-archive\0{}\0{}",
+        metadata.dev(),
+        metadata.ino()
+    );
+    let mut mac = Hmac::<Sha256>::new_from_slice(&key).unwrap();
+    mac.update(message.as_bytes());
+    let marker = serde_json::json!({
+        "schema": "repository-harness-v0-archive-custody/v1",
+        "path": ".harness-v0-archive",
+        "root": {"device": metadata.dev().to_string(), "inode": metadata.ino().to_string()},
+        "key_sha256": sha256(&key),
+        "authentication": format!("{:x}", mac.finalize().into_bytes())
+    });
+    let marker_path = custody.join("custody.json");
+    let mut marker_bytes = serde_json::to_vec(&marker).unwrap();
+    marker_bytes.push(b'\n');
+    std::fs::write(&marker_path, marker_bytes).unwrap();
+    std::fs::set_permissions(&marker_path, std::fs::Permissions::from_mode(0o600)).unwrap();
 }
 
 fn canonical_json_digest(value: &serde_json::Value) -> String {
@@ -541,6 +575,103 @@ fn fresh_install_recovery_commits_exact_v0_archive_receipt_without_reading_sqlit
 }
 
 #[test]
+fn fake_or_missing_custody_cannot_become_a_v1_archive_receipt() {
+    use std::os::unix::fs::symlink;
+
+    for case in [
+        "missing-marker",
+        "malformed-marker",
+        "symlinked-marker",
+        "wrong-directory-mode",
+        "wrong-key-mode",
+        "wrong-key-length",
+        "wrong-root",
+        "wrong-hmac",
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        std::fs::write(temporary.path().join("harness.db"), b"opaque V0 bytes").unwrap();
+        let archive_manifest = write_archive_fixture(temporary.path());
+        let custody = temporary.path().join(".harness-v0-archive");
+        let marker_path = custody.join("custody.json");
+        let key_path = custody.join("custody.key");
+        match case {
+            "missing-marker" => std::fs::remove_file(&marker_path).unwrap(),
+            "malformed-marker" => std::fs::write(&marker_path, b"{not-json").unwrap(),
+            "symlinked-marker" => {
+                let outside = temporary.path().join("foreign-custody.json");
+                std::fs::rename(&marker_path, &outside).unwrap();
+                symlink(&outside, &marker_path).unwrap();
+            }
+            "wrong-directory-mode" => {
+                std::fs::set_permissions(&custody, std::fs::Permissions::from_mode(0o755)).unwrap();
+            }
+            "wrong-key-mode" => {
+                std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o644))
+                    .unwrap();
+            }
+            "wrong-key-length" => std::fs::write(&key_path, [0x42_u8; 31]).unwrap(),
+            "wrong-root" | "wrong-hmac" => {
+                let mut marker: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&marker_path).unwrap()).unwrap();
+                if case == "wrong-root" {
+                    marker["root"]["inode"] = serde_json::json!("0");
+                } else {
+                    marker["authentication"] = serde_json::json!("0".repeat(64));
+                }
+                std::fs::write(&marker_path, serde_json::to_vec(&marker).unwrap()).unwrap();
+            }
+            _ => unreachable!(),
+        }
+        let rejected = execute(
+            temporary.path(),
+            Command::Install(MutatorOptions {
+                preview: true,
+                v0_archive_manifest: Some(archive_manifest),
+                ..MutatorOptions::default()
+            }),
+            None,
+        );
+        assert!(
+            matches!(rejected.exit_code, 3 | 4 | 74),
+            "case {case}: {rejected:?}"
+        );
+        assert!(
+            !temporary.path().join(".harness/manifest.json").exists(),
+            "case {case} created a V1 receipt"
+        );
+    }
+}
+
+#[test]
+fn archive_member_capture_and_bridge_release_are_closed_contracts() {
+    for field in ["capture", "bridge-release"] {
+        let temporary = tempfile::tempdir().unwrap();
+        std::fs::write(temporary.path().join("harness.db"), b"opaque V0 bytes").unwrap();
+        let archive_manifest = write_archive_fixture(temporary.path());
+        let manifest_path = temporary.path().join(&archive_manifest);
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+        if field == "capture" {
+            manifest["members"][0]["capture"] = serde_json::json!("self-authored-copy");
+        } else {
+            manifest["bridge_release"] = serde_json::json!("1.0.1");
+        }
+        std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        let rejected = execute(
+            temporary.path(),
+            Command::Install(MutatorOptions {
+                preview: true,
+                v0_archive_manifest: Some(archive_manifest),
+                ..MutatorOptions::default()
+            }),
+            None,
+        );
+        assert_eq!(rejected.exit_code, 3, "field {field}: {rejected:?}");
+        assert!(!temporary.path().join(".harness/manifest.json").exists());
+    }
+}
+
+#[test]
 fn preview_sha256_matches_the_exact_emitted_operations_array() {
     let temporary = tempfile::tempdir().unwrap();
     let (_, _, preview) = preview(temporary.path(), Command::Install);
@@ -814,11 +945,13 @@ fn identical_preexisting_asset_commits_brownfield_mode_and_target_ownership() {
     let digest = preview(temporary.path(), Command::Install).0;
     let committed = execute(temporary.path(), Command::Install(confirm(digest)), None);
     assert!(matches!(committed.exit_code, 0 | 2), "{committed:?}");
-    let manifest: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(temporary.path().join(".harness/manifest.json")).unwrap(),
-    )
-    .unwrap();
+    let manifest_bytes = std::fs::read(temporary.path().join(".harness/manifest.json")).unwrap();
+    let manifest: serde_json::Value = serde_json::from_slice(&manifest_bytes).unwrap();
     assert_eq!(manifest["repository_mode"], "brownfield-v1");
+    let parsed = JsonManifestPort
+        .parse_bytes(&manifest_bytes)
+        .expect("core-generated brownfield manifest must satisfy the runtime contract");
+    assert_eq!(parsed.repository_mode, ManifestRepositoryMode::BrownfieldV1);
     let role = manifest["roles"]
         .as_array()
         .unwrap()

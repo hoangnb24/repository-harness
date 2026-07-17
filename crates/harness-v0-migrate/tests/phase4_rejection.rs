@@ -145,3 +145,33 @@ fn prepositioned_export_and_archive_manifest_path_are_never_replaced() {
     });
     assert!(matches!(result, Err(BridgeError::Usage(_))));
 }
+
+#[test]
+fn unsupported_bridge_release_and_capture_value_fail_closed() {
+    for field in ["bridge_release", "capture"] {
+        let fixture = copy_fixture("schema-13");
+        let archived = Bridge::new(fixture.path())
+            .execute(&Command::Archive {
+                archive: plaintext(),
+            })
+            .unwrap();
+        let manifest = archived.archive_manifest_path.unwrap();
+        let manifest_path = fixture.path().join(&manifest);
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+        if field == "bridge_release" {
+            value["bridge_release"] = serde_json::json!("1.0.1");
+        } else {
+            value["members"][0]["capture"] = serde_json::json!("self-authored-copy");
+        }
+        std::fs::write(&manifest_path, serde_json::to_vec(&value).unwrap()).unwrap();
+        let inspected = Bridge::new(fixture.path()).execute(&Command::Inspect {
+            json: true,
+            source: SourceOptions {
+                archive_manifest: Some(manifest),
+                age_identity_file: None,
+            },
+        });
+        assert!(matches!(inspected, Err(BridgeError::Invalid(_))), "{field}");
+    }
+}

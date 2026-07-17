@@ -207,7 +207,7 @@ in Phase 1; this packet does not invent them.
 
 ### Repository modes and errors
 
-The durable manifest modes are `fresh-v1` and `brownfield-adopted`. Either may
+The durable manifest modes are `fresh-v1` and `brownfield-v1`. Either may
 contain a write-once authenticated V0 archive receipt. Live V0 input blocks
 ordinary first install unless the explicit archive manifest is supplied; a
 receipt records evidence linkage, never converted operational state.

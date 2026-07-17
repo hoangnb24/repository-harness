@@ -130,6 +130,9 @@ def proof_live_and_archive_export_are_exact() -> None:
         archived = json.loads(bridge(["archive", "--archive-plaintext", "--acknowledge-plaintext-recovery-risk"], root).stdout)
         manifest = archived["archive_manifest_path"]
         check(manifest.startswith(".harness-v0-archive/"), "archive escaped reserved custody")
+        archive_contract = json.loads((root / manifest).read_text(encoding="utf-8"))
+        check(archive_contract["bridge_release"] == "1.0.0",
+              "archive did not emit the closed supported bridge release")
         bridge(["export", "--output", "archive-export.sqlite3", "--archive-manifest", manifest], root)
         check((root / "archive-export.sqlite3").read_bytes() == live_bytes, "archive export does not preserve exact neutral bytes")
         for path, digest in source_before.items():
@@ -171,6 +174,10 @@ def proof_custody_permissions_and_foreign_paths() -> None:
         check({".harness/legacy", ".harness/recovery"} <= set(report["unknown_unowned"]), "foreign custody roots were not reported unowned")
         custody = root / ".harness-v0-archive"
         check(stat.S_IMODE(custody.stat().st_mode) == 0o700, "archive custody root is not 0700")
+        check(stat.S_IMODE((custody / "custody.key").stat().st_mode) == 0o600,
+              "archive custody key is not 0600")
+        check(stat.S_IMODE((custody / "custody.json").stat().st_mode) == 0o600,
+              "archive custody marker is not 0600")
         manifest = root / report["archive_manifest_path"]
         check(stat.S_IMODE(manifest.stat().st_mode) == 0o600, "archive manifest is not 0600")
 
@@ -190,6 +197,15 @@ def proof_core_boundary_and_receipt_recovery() -> None:
         "cargo", "test", "--locked", "--offline", "--package", "harness-core", "--test", "phase3_recovery",
         "fresh_install_recovery_commits_exact_v0_archive_receipt_without_reading_sqlite", "--", "--exact",
     ])
+    for test in [
+        "fake_or_missing_custody_cannot_become_a_v1_archive_receipt",
+        "archive_member_capture_and_bridge_release_are_closed_contracts",
+        "identical_preexisting_asset_commits_brownfield_mode_and_target_ownership",
+    ]:
+        run([
+            "cargo", "test", "--locked", "--offline", "--package", "harness-core",
+            "--test", "phase3_recovery", test, "--", "--exact",
+        ])
 
 
 def proof_windows_phase7_boundary() -> None:

@@ -37,12 +37,48 @@ pub trait FileSystemPort {
     fn exists_declared(&self, path: &str) -> Result<bool, PortError>;
     fn validate_snapshot(&self) -> Result<(), PortError>;
 
+    /// Return the identity of the repository root pinned for this command.
+    /// Archive custody authentication binds its marker to this identity.
+    fn root_identity(&self) -> Result<RepositoryRootIdentity, PortError> {
+        Err(PortError::Conflict(
+            "repository root identity is unavailable".into(),
+        ))
+    }
+
+    /// Prove that a reserved custody directory is a repository-owner-owned,
+    /// no-follow directory with mode 0700.
+    fn validate_private_directory(&self, path: &str) -> Result<(), PortError> {
+        Err(PortError::Conflict(format!(
+            "private directory validation is unavailable: {path}"
+        )))
+    }
+
+    /// Read a no-follow, repository-owner-owned file with mode 0600 and an
+    /// optional exact length while retaining the command's pinned root.
+    fn read_private_declared(
+        &self,
+        path: &str,
+        expected_length: Option<usize>,
+    ) -> Result<Vec<u8>, PortError> {
+        let _ = expected_length;
+        Err(PortError::Conflict(format!(
+            "private file validation is unavailable: {path}"
+        )))
+    }
+
     /// Structural compatibility observation only. Implementations may inspect
     /// path identities, but this boundary never opens SQLite, parses V0
     /// changesets, or depends on the conversion bridge.
     fn observe_compatibility(&self) -> Result<CompatibilityObservation, PortError> {
         Ok(CompatibilityObservation::default())
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RepositoryRootIdentity {
+    pub device: String,
+    pub inode: String,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

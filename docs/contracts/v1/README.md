@@ -34,3 +34,15 @@ Example dependency: the Phase 2 core parses `manifest-v1.schema.json`, but it
 cannot invent a seventh core command. Phase 4 can read the frozen V0 schema copies,
 but those bridge-only files cannot enter the core index. A later release cannot
 claim acceptance if either boundary check fails.
+
+## Frozen Phase 1 fixture authority
+
+The accepted `tests/fixtures/v1-phase1` tree is immutable evidence from commit
+`9ad31ce`. Verification binds all 96 relative paths and exact bytes to a
+committed aggregate SHA-256, so both committed and working-tree drift fail.
+`generate.py` is retained as the historical generator that produced that
+evidence; it is not authority to regenerate fixtures after later contract
+decisions. Because the superseding archive-only contracts can make that old
+generator fail, verification does not describe or accept a failing generator
+as deterministic. New Phase 4 evidence stays in its separately inventoried
+`tests/fixtures/v1-phase4` tree.

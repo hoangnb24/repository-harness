@@ -138,9 +138,10 @@ impl SecureRoot {
                 fchmod(&descriptor, Mode::from_bits_truncate(0o700))
                     .map_err(|error| map_errno(relative, error))?;
             }
-            if private && stat.st_mode as u32 & 0o077 != 0 {
+            if private && (stat.st_mode as u32 & 0o777 != 0o700 || stat.st_uid != self.stat.st_uid)
+            {
                 return Err(BridgeError::Conflict(format!(
-                    "archive custody directory is not private 0700: {relative}"
+                    "archive custody directory is not owner-matched 0700: {relative}"
                 )));
             }
             parent = Some(descriptor);

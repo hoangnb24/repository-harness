@@ -7,6 +7,7 @@ use crate::strict_json::digest;
 pub const OUTPUT_SCHEMA: &str = "repository-harness-output/v1";
 pub const MANIFEST_SCHEMA: &str = "repository-harness-manifest/v1";
 pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const SUPPORTED_V0_BRIDGE_RELEASE: &str = "1.0.0";
 pub const UNBOUND_RELEASE_SHA256: &str =
     "8d55b3997149d0b961ed34e71d2dc8cba69b38ee02ce45eb087802ae1162d7d0";
 

@@ -250,7 +250,7 @@ unsupported downgrade. A template release declares its required V1 CLI range.
 Status reports the three identities and compatibility decision without changing
 state.
 
-Repository modes are `fresh-v1` and `brownfield-adopted`; either may carry a
+Repository modes are `fresh-v1` and `brownfield-v1`; either may carry a
 write-once authenticated V0 archive receipt. Receipt presence proves evidence
 linkage only. It never claims that V0 operational rows were imported.
 

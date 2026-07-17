@@ -56,7 +56,13 @@ copies only receipt metadata into the candidate V1 manifest. The ordinary Phase
 manifest-last commit protect this receipt exactly like every other install byte.
 Recovery therefore belongs to core install, not the bridge.
 
-The repository mode stays `fresh-v1` or `brownfield-adopted`. This matters:
+Authentication is shared as a contract, not an implementation dependency:
+core applies the bridge-compatible root-identity/HMAC semantics through its
+filesystem port while remaining free of SQLite, V0 readers, and bridge code.
+Both archive and receipt contracts accept bridge release `1.0.0` exactly.
+Unknown releases and capture enum values fail closed before preview or recovery.
+
+The repository mode stays `fresh-v1` or `brownfield-v1`. This matters:
 receipt presence says “this archive was preserved,” not “these V0 rows became
 V1 operational state.”
 

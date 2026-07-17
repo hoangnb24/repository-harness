@@ -26,6 +26,9 @@ SCHEMAS = CONTRACT / "schemas"
 FIXTURES = ROOT / "tests" / "fixtures" / "v1-phase1"
 POS = FIXTURES / "positive"
 NEG = FIXTURES / "negative"
+ACCEPTED_PHASE1_FIXTURE_COUNT = 96
+ACCEPTED_PHASE1_FIXTURE_TREE_SHA256 = "b9ee10aff7cec2a1c6761d6c6cc4bc30c55cd4ab928181a5488e8fd5f6710880"
+SUPPORTED_BRIDGE_RELEASE = "1.0.0"
 
 WINDOWS_DEVICES = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
 FORBIDDEN_FIELDS = {
@@ -170,6 +173,19 @@ def proof(label: str, function: Callable[[], None]) -> None:
     function()
     PASS_COUNT += 1
     print(f"ok {PASS_COUNT:02d} - {label}")
+
+
+def proof_accepted_fixture_baseline() -> None:
+    """Bind every accepted Phase 1 fixture path and byte to base 9ad31ce."""
+    entries = []
+    for path in sorted(candidate for candidate in FIXTURES.rglob("*") if candidate.is_file()):
+        relative = path.relative_to(FIXTURES).as_posix()
+        entries.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}\n")
+    check(len(entries) == ACCEPTED_PHASE1_FIXTURE_COUNT,
+          "accepted Phase 1 fixture file count changed")
+    tree_digest = hashlib.sha256("".join(entries).encode("utf-8")).hexdigest()
+    check(tree_digest == ACCEPTED_PHASE1_FIXTURE_TREE_SHA256,
+          "accepted Phase 1 fixture path/byte baseline differs from 9ad31ce")
 
 
 def duplicate_rejecting_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -490,10 +506,12 @@ def validate_manifest(value: dict[str, Any]) -> None:
             check(all(pattern.fullmatch(marker) for marker in role["unresolved_markers"]), "unresolved marker identity/path contract")
         else:
             check(not role["unresolved_markers"], "non-unresolved role cannot list unresolved markers")
-    check(value["repository_mode"] in {"fresh-v1", "brownfield-adopted"}, "automatic conversion mode survived Decision 0014")
+    check(value["repository_mode"] in {"fresh-v1", "brownfield-v1"}, "repository mode is outside the accepted V1 contract")
     if "v0_archive_receipt" in value:
         receipt = value["v0_archive_receipt"]
         check(receipt["schema"] == "repository-harness-v0-archive-receipt/v1", "archive receipt schema mismatch")
+        check(receipt["bridge_release"] == SUPPORTED_BRIDGE_RELEASE,
+              "archive receipt bridge release is unsupported")
         safe_path(receipt["archive_manifest_path"])
         expected_prefix = f".harness-v0-archive/{receipt['archive_id']}/"
         check(receipt["archive_manifest_path"] == expected_prefix + "archive-manifest.json", "archive receipt custody mismatch")
@@ -501,6 +519,8 @@ def validate_manifest(value: dict[str, Any]) -> None:
 
 def validate_archive_manifest(value: dict[str, Any]) -> None:
     validate_schema(value, load_json(SCHEMAS / "archive-manifest-v1.schema.json"))
+    check(value["bridge_release"] == SUPPORTED_BRIDGE_RELEASE,
+          "archive manifest bridge release is unsupported")
     collisions: set[str] = set()
     for member in value["members"]:
         collision = safe_path(member["path"])
@@ -779,7 +799,7 @@ def proof_schemas_and_examples() -> None:
     receipt_manifest["v0_archive_receipt"] = {
         "schema": "repository-harness-v0-archive-receipt/v1",
         "archive_id": "v0-fixture-archive",
-        "bridge_release": "1.0.0-test.1",
+        "bridge_release": SUPPORTED_BRIDGE_RELEASE,
         "archive_manifest_path": ".harness-v0-archive/v0-fixture-archive/archive-manifest.json",
         "archive_manifest_sha256": "1" * 64,
         "export_sha256": "2" * 64,
@@ -789,11 +809,15 @@ def proof_schemas_and_examples() -> None:
         "confidentiality_mode": "encrypted-age-x25519",
     }
     validate_manifest(receipt_manifest)
+    unsupported_receipt = json.loads(json.dumps(receipt_manifest))
+    unsupported_receipt["v0_archive_receipt"]["bridge_release"] = "1.0.1"
+    expect_failure(lambda: validate_manifest(unsupported_receipt),
+                   "unsupported archive receipt bridge release")
     validate_schema(load_json(POS / "output-envelope.json"), load_json(SCHEMAS / "output-envelope-v1.schema.json"))
     current_archive = {
         "schema": "repository-harness-v0-archive-manifest/v1",
         "archive_id": "v0-fixture-archive",
-        "bridge_release": "1.0.0-test.1",
+        "bridge_release": SUPPORTED_BRIDGE_RELEASE,
         "source_schema": 13,
         "source_sha256": "1" * 64,
         "capture_members_sha256": "2" * 64,
@@ -812,6 +836,10 @@ def proof_schemas_and_examples() -> None:
         "custody": "repository-owner-indefinite-write-once",
     }
     validate_archive_manifest(current_archive)
+    unsupported_archive = json.loads(json.dumps(current_archive))
+    unsupported_archive["bridge_release"] = "1.0.1"
+    expect_failure(lambda: validate_archive_manifest(unsupported_archive),
+                   "unsupported archive manifest bridge release")
     historical_archive = load_json(POS / "archive" / "manifest.json")
     check(
         historical_archive["schema"] == "repository-harness-v0-archive-manifest/v1"
@@ -1419,6 +1447,7 @@ def proof_docs_and_scope() -> None:
 
 def main() -> None:
     os.chdir(ROOT)
+    proof("cryptographic accepted Phase 1 fixture baseline", proof_accepted_fixture_baseline)
     proof("closed schemas, manifest fields, and deterministic envelopes", proof_schemas_and_examples)
     proof("core-live/bridge-live-unpromoted six/four-command grammar and source/CLI parity", proof_grammar)
     proof("one-to-one current install/release path ledger and core exclusions", proof_path_inventory)

@@ -62,7 +62,7 @@
       "properties": {
         "schema": {"const": "repository-harness-v0-archive-receipt/v1"},
         "archive_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
-        "bridge_release": {"type": "string"},
+        "bridge_release": {"const": "1.0.0"},
         "archive_manifest_path": {"type": "string", "pattern": "^\\.harness-v0-archive/[a-z0-9][a-z0-9-]*/archive-manifest\\.json$"},
         "archive_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "export_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

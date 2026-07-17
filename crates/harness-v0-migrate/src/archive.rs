@@ -183,12 +183,25 @@ fn verify_directory(
     let unique_staging = directory.starts_with(&format!("{CUSTODY_ROOT}/.staging-"));
     if (!unique_staging && directory != expected_directory)
         || manifest.schema != ARCHIVE_SCHEMA
+        || manifest.bridge_release != crate::command_spec::BRIDGE_VERSION
+        || !(1..=13).contains(&manifest.source_schema)
         || manifest.custody != "repository-owner-indefinite-write-once"
         || !is_sha256(&manifest.source_sha256)
         || !is_sha256(&manifest.capture_members_sha256)
         || !is_sha256(&manifest.export_sha256)
         || !is_sha256(&manifest.standalone_backup_sha256)
         || !is_sha256(&manifest.payload_sha256)
+        || manifest.members.is_empty()
+        || manifest.members.iter().any(|member| {
+            harness_core::path::validate_repository_relative(&member.path).is_err()
+                || !is_sha256(&member.sha256)
+                || !matches!(
+                    member.capture.as_str(),
+                    "pre-copy-post-equal"
+                        | "private-staged-wal-recovery-online-backup"
+                        | "neutral-read-only-export"
+                )
+        })
     {
         return Err(BridgeError::Invalid(
             "archive manifest identity or digest fields are invalid".into(),

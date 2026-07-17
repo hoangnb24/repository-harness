@@ -2,17 +2,22 @@
 
 use std::collections::BTreeSet;
 
+use hmac::{Hmac, Mac};
 use semver::Version;
+use sha2::Sha256;
 
 use crate::domain::{
     public_operation_digest, Activation, Command, Compatibility, Disposition, Envelope, Manifest,
     ManifestRepositoryMode, Mutation, Notice, Operation, OperationKind, Origin, Outcome, Ownership,
     PayloadIdentity, Readiness, ReleaseOutput, RepositoryMode, Role, ScaffoldOptions, UpdatePolicy,
-    V0ArchiveReceipt, CORE_VERSION,
+    V0ArchiveReceipt, CORE_VERSION, SUPPORTED_V0_BRIDGE_RELEASE,
 };
 use crate::markdown::parse_commonmark;
 use crate::path::{validate_exact_destination, validate_relative};
-use crate::ports::{FileSystemPort, ManifestPort, MutationPort, PortError, ReleasePort, TrustPort};
+use crate::ports::{
+    FileSystemPort, ManifestPort, MutationPort, PortError, ReleasePort, RepositoryRootIdentity,
+    TrustPort,
+};
 use crate::recovery::{
     MutationFailure, MutationRequest, MutationResult, PlannedWrite, RecoveryAsset,
     RecoveryAuthorization, RecoveryMode, RecoveryProbe, RecoveryScope,
@@ -49,6 +54,19 @@ struct V0ArchiveMemberInput {
     #[serde(rename = "bytes")]
     _bytes: u64,
     capture: String,
+}
+
+const V0_ARCHIVE_CUSTODY_ROOT: &str = ".harness-v0-archive";
+const V0_ARCHIVE_CUSTODY_SCHEMA: &str = "repository-harness-v0-archive-custody/v1";
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct V0ArchiveCustodyInput {
+    schema: String,
+    path: String,
+    root: RepositoryRootIdentity,
+    key_sha256: String,
+    authentication: String,
 }
 
 pub fn version_envelope() -> Envelope {
@@ -376,6 +394,7 @@ impl<'a> HarnessCore<'a> {
                 "V0 archive manifest is outside reserved custody".into(),
             ));
         }
+        self.authenticate_v0_archive_custody()?;
         let manifest_bytes = self.filesystem.read_declared(manifest_path)?;
         let value = crate::strict_json::parse(&manifest_bytes)
             .map_err(|error| PortError::ManifestInvalid(format!("V0 archive JSON: {error}")))?;
@@ -386,7 +405,7 @@ impl<'a> HarnessCore<'a> {
             .expect("exact path suffix was checked");
         if archive.schema != "repository-harness-v0-archive-manifest/v1"
             || archive.archive_id != parts[1]
-            || archive.bridge_release != "1.0.0"
+            || archive.bridge_release != SUPPORTED_V0_BRIDGE_RELEASE
             || !(1..=13).contains(&archive.source_schema)
             || archive.custody != "repository-owner-indefinite-write-once"
             || !is_sha256(&archive.source_sha256)
@@ -398,7 +417,12 @@ impl<'a> HarnessCore<'a> {
             || archive.members.iter().any(|member| {
                 crate::path::validate_repository_relative(&member.path).is_err()
                     || !is_sha256(&member.sha256)
-                    || member.capture.is_empty()
+                    || !matches!(
+                        member.capture.as_str(),
+                        "pre-copy-post-equal"
+                            | "private-staged-wal-recovery-online-backup"
+                            | "neutral-read-only-export"
+                    )
             })
             || !archive
                 .members
@@ -452,6 +476,41 @@ impl<'a> HarnessCore<'a> {
             source_sha256: archive.source_sha256,
             confidentiality_mode: archive.confidentiality_mode,
         })
+    }
+
+    fn authenticate_v0_archive_custody(&self) -> Result<(), PortError> {
+        self.filesystem
+            .validate_private_directory(V0_ARCHIVE_CUSTODY_ROOT)?;
+        let root = self.filesystem.root_identity()?;
+        let key = self
+            .filesystem
+            .read_private_declared(".harness-v0-archive/custody.key", Some(32))?;
+        let marker_bytes = self
+            .filesystem
+            .read_private_declared(".harness-v0-archive/custody.json", None)?;
+        let value = crate::strict_json::parse(&marker_bytes)
+            .map_err(|_| PortError::Conflict("archive custody marker is malformed".into()))?;
+        let marker: V0ArchiveCustodyInput = serde_json::from_value(value)
+            .map_err(|_| PortError::Conflict("archive custody marker is invalid".into()))?;
+        let message = format!(
+            "{V0_ARCHIVE_CUSTODY_SCHEMA}\0{V0_ARCHIVE_CUSTODY_ROOT}\0{}\0{}",
+            root.device, root.inode
+        );
+        let mut mac = Hmac::<Sha256>::new_from_slice(&key)
+            .map_err(|_| PortError::Conflict("archive custody HMAC key is invalid".into()))?;
+        mac.update(message.as_bytes());
+        let authentication = format!("{:x}", mac.finalize().into_bytes());
+        if marker.schema != V0_ARCHIVE_CUSTODY_SCHEMA
+            || marker.path != V0_ARCHIVE_CUSTODY_ROOT
+            || marker.root != root
+            || marker.key_sha256 != hex_sha256(&key)
+            || marker.authentication != authentication
+        {
+            return Err(PortError::Conflict(
+                "reserved archive custody is foreign or unauthenticated".into(),
+            ));
+        }
+        Ok(())
     }
 
     fn plan_mutation(
@@ -1899,6 +1958,7 @@ fn validate_manifest_header(manifest: &Manifest, violations: &mut Vec<String>) {
     }
     if let Some(receipt) = &manifest.v0_archive_receipt {
         if receipt.schema != "repository-harness-v0-archive-receipt/v1"
+            || receipt.bridge_release != SUPPORTED_V0_BRIDGE_RELEASE
             || !receipt
                 .archive_manifest_path
                 .starts_with(".harness-v0-archive/")

@@ -8,7 +8,7 @@
   "properties": {
     "schema": {"const": "repository-harness-v0-archive-manifest/v1"},
     "archive_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
-    "bridge_release": {"type": "string"},
+    "bridge_release": {"const": "1.0.0"},
     "source_schema": {"type": "integer", "minimum": 1, "maximum": 13},
     "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "capture_members_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

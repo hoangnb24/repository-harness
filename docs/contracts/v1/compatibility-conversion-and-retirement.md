@@ -40,6 +40,12 @@ source database is never opened writable. Existing `.harness/legacy` and
 The reserved custody root is `.harness-v0-archive`. Its authenticated ownership
 marker is bound to the repository root and a private custody key. If the path
 already exists without valid ownership, `archive` fails and changes nothing.
+Core independently verifies the same marker before creating or auditing a
+receipt: the directory must be an owner-matched no-follow `0700` directory;
+`custody.key` and `custody.json` must be owner-matched no-follow `0600` regular
+files; the key is exactly 32 bytes; and the marker's root identity, key digest,
+and HMAC must match. Missing, malformed, linked, wrong-mode, wrong-owner,
+wrong-length, wrong-root, or wrong-HMAC custody fails closed.
 Each attempt uses a new unique staging directory and atomically publishes to a
 new unique final directory with no-replace semantics.
 
@@ -75,6 +81,9 @@ private identity. Plaintext requires both `--archive-plaintext` and
 Archive tamper, digest mismatch, missing captured category, or confidentiality
 record disagreement blocks archive `inspect`, archived `export`, and core
 receipt binding. No bridge rollback exists because no bridge command mutates V1.
+Archive member capture values are closed to the three schema literals, and
+bridge release support is exactly `1.0.0`; an unknown capture value or release
+cannot become a receipt.
 
 ## Availability obligations
 

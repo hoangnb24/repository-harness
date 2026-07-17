@@ -575,7 +575,7 @@ def generate_contract_negatives() -> None:
 
     command_binding = json.loads((ROOT / "release/contracts/v1/command-implementation-binding.json").read_text(encoding="utf-8"))
     entrypoint_mismatch = json.loads(json.dumps(command_binding))
-    entrypoint_mismatch["surfaces"]["bridge"]["entrypoints"][0] = "scripts/bin/harness-v0-convert"
+    entrypoint_mismatch["surfaces"]["bridge"]["future_entrypoints"][0] = "scripts/bin/harness-v0-convert"
     write_json(NEG / "command-binding-entrypoint-mismatch.json", entrypoint_mismatch)
     binding_state_mismatch = json.loads(json.dumps(command_binding))
     binding_state_mismatch["surfaces"]["core"]["entrypoint_state"] = "absent"

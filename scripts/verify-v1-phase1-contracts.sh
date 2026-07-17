@@ -14,14 +14,9 @@ command -v cargo >/dev/null 2>&1 || {
   exit 1
 }
 
-# Decision 0014 deliberately preserves the generated Phase 1 conversion
-# fixtures as historical evidence. Regenerating them from the superseding
-# archive-only contracts would rewrite accepted bytes, so prove that this
-# candidate has not modified the tracked fixture tree instead.
-git diff --quiet -- tests/fixtures || {
-  echo "tracked fixture bytes differ from the accepted baseline" >&2
-  exit 1
-}
+# The Python verifier hashes every accepted Phase 1 fixture path and byte
+# against the frozen 9ad31ce baseline. Unlike a working-tree diff, that proof
+# detects drift already present in a candidate commit.
 cargo build --quiet --locked --package v1-contract-crypto
 cargo build --quiet --locked --package harness-core --bin harness
 cargo build --quiet --locked --package harness-v0-migrate --bin harness-v0-migrate

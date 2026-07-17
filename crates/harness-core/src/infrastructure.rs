@@ -8,11 +8,11 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
-use crate::domain::{Manifest, MANIFEST_SCHEMA};
+use crate::domain::{Manifest, MANIFEST_SCHEMA, SUPPORTED_V0_BRIDGE_RELEASE};
 use crate::path::validate_relative;
 use crate::ports::{
     CompatibilityObservation, FileSystemPort, ManifestPort, PortError, ReleaseMaterial,
-    ReleasePort, ReleaseTrustInput, TrustPort,
+    ReleasePort, ReleaseTrustInput, RepositoryRootIdentity, TrustPort,
 };
 #[cfg(unix)]
 use crate::strict_json::hex_sha256;
@@ -127,6 +127,63 @@ impl FileSystemPort for OsFileSystem {
         }
     }
 
+    fn root_identity(&self) -> Result<RepositoryRootIdentity, PortError> {
+        #[cfg(unix)]
+        {
+            self.validate_root_namespace()?;
+            Ok(RepositoryRootIdentity {
+                device: self.root_stat.st_dev.to_string(),
+                inode: self.root_stat.st_ino.to_string(),
+            })
+        }
+        #[cfg(not(unix))]
+        {
+            Err(PortError::Io {
+                path: ".".into(),
+                message: "safe repository identity is unavailable on this platform until Phase 7"
+                    .into(),
+            })
+        }
+    }
+
+    fn validate_private_directory(&self, path: &str) -> Result<(), PortError> {
+        #[cfg(unix)]
+        {
+            self.validate_private_directory_unix(path)
+        }
+        #[cfg(not(unix))]
+        {
+            validate_relative(path, true)?;
+            Err(PortError::Io {
+                path: path.into(),
+                message: "safe private-directory validation is unavailable on this platform until Phase 7"
+                    .into(),
+            })
+        }
+    }
+
+    fn read_private_declared(
+        &self,
+        path: &str,
+        expected_length: Option<usize>,
+    ) -> Result<Vec<u8>, PortError> {
+        #[cfg(unix)]
+        {
+            self.read_declared_unix_checked(path, expected_length, true, |_| {})
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = expected_length;
+            validate_relative(path, true)?;
+            Err(PortError::Io {
+                path: path.into(),
+                message:
+                    "safe private-file validation is unavailable on this platform until Phase 7"
+                        .into(),
+            })
+        }
+    }
+
     fn observe_compatibility(&self) -> Result<CompatibilityObservation, PortError> {
         let legacy_artifact_present = self.exists_declared("harness.db")?;
         let archive_custody_present = self.exists_declared(".harness-v0-archive/custody.json")?;
@@ -141,13 +198,24 @@ impl FileSystemPort for OsFileSystem {
 impl OsFileSystem {
     #[cfg(unix)]
     fn read_declared_unix(&self, path: &str) -> Result<Vec<u8>, PortError> {
-        self.read_declared_unix_with_hook(path, |_| {})
+        self.read_declared_unix_checked(path, None, false, |_| {})
     }
 
-    #[cfg(unix)]
+    #[cfg(all(test, unix))]
     fn read_declared_unix_with_hook(
         &self,
         path: &str,
+        checkpoint: impl FnMut(ReadCheckpoint),
+    ) -> Result<Vec<u8>, PortError> {
+        self.read_declared_unix_checked(path, None, false, checkpoint)
+    }
+
+    #[cfg(unix)]
+    fn read_declared_unix_checked(
+        &self,
+        path: &str,
+        expected_length: Option<usize>,
+        private: bool,
         mut checkpoint: impl FnMut(ReadCheckpoint),
     ) -> Result<Vec<u8>, PortError> {
         use rustix::fs::{fstat, openat, FileType, Mode, OFlags};
@@ -170,6 +238,19 @@ impl OsFileSystem {
                 path: path.into(),
                 message: "declared path is not a regular file".into(),
             });
+        }
+        if private
+            && !private_file_metadata_valid(
+                u32::from(before.st_mode),
+                before.st_uid,
+                self.root_stat.st_uid,
+                before.st_size,
+                expected_length,
+            )
+        {
+            return Err(PortError::Conflict(format!(
+                "private file has wrong mode, owner, or length: {path}"
+            )));
         }
         let mut file = File::from(final_descriptor);
         let mut bytes = Vec::new();
@@ -216,6 +297,39 @@ impl OsFileSystem {
     }
 
     #[cfg(unix)]
+    fn validate_private_directory_unix(&self, path: &str) -> Result<(), PortError> {
+        use rustix::fs::{fstat, FileType};
+
+        let first = self.open_chain(path)?;
+        let first_descriptor = first
+            .last()
+            .expect("validated relative path has a final descriptor");
+        let before = fstat(first_descriptor).map_err(|error| map_errno(path, error))?;
+        if !FileType::from_raw_mode(before.st_mode).is_dir()
+            || !private_directory_metadata_valid(
+                u32::from(before.st_mode),
+                before.st_uid,
+                self.root_stat.st_uid,
+            )
+        {
+            return Err(PortError::Conflict(format!(
+                "private directory has wrong type, mode, or owner: {path}"
+            )));
+        }
+        let second = self.open_chain(path)?;
+        let after = fstat(
+            second
+                .last()
+                .expect("validated relative path has a final descriptor"),
+        )
+        .map_err(|error| map_errno(path, error))?;
+        if !same_stat(&before, &after) {
+            return Err(PortError::Changed(path.into()));
+        }
+        self.validate_root_namespace()
+    }
+
+    #[cfg(unix)]
     fn validate_root_namespace(&self) -> Result<(), PortError> {
         use rustix::fs::{fstat, open, Mode, OFlags};
 
@@ -250,6 +364,24 @@ fn same_stat(left: &rustix::fs::Stat, right: &rustix::fs::Stat) -> bool {
         && left.st_mtime_nsec == right.st_mtime_nsec
         && left.st_ctime == right.st_ctime
         && left.st_ctime_nsec == right.st_ctime_nsec
+}
+
+#[cfg(unix)]
+fn private_file_metadata_valid(
+    mode: u32,
+    owner: u32,
+    root_owner: u32,
+    size: i64,
+    expected_length: Option<usize>,
+) -> bool {
+    (mode & 0o777) == 0o600
+        && owner == root_owner
+        && expected_length.is_none_or(|length| size == length as i64)
+}
+
+#[cfg(unix)]
+fn private_directory_metadata_valid(mode: u32, owner: u32, root_owner: u32) -> bool {
+    (mode & 0o777) == 0o700 && owner == root_owner
 }
 
 #[cfg(unix)]
@@ -357,6 +489,7 @@ fn validate_manifest_schema(manifest: &Manifest) -> Result<(), PortError> {
     }
     if let Some(receipt) = &manifest.v0_archive_receipt {
         if receipt.schema != "repository-harness-v0-archive-receipt/v1"
+            || receipt.bridge_release != SUPPORTED_V0_BRIDGE_RELEASE
             || !is_lower_kebab_schema(&receipt.archive_id)
             || !receipt
                 .archive_manifest_path
@@ -573,5 +706,41 @@ mod tests {
             }
         });
         assert!(matches!(result, Err(PortError::Changed(_))));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_custody_metadata_rejects_wrong_owner_mode_and_length() {
+        assert!(private_file_metadata_valid(
+            0o100600,
+            501,
+            501,
+            32,
+            Some(32)
+        ));
+        assert!(!private_file_metadata_valid(
+            0o100600,
+            502,
+            501,
+            32,
+            Some(32)
+        ));
+        assert!(!private_file_metadata_valid(
+            0o100644,
+            501,
+            501,
+            32,
+            Some(32)
+        ));
+        assert!(!private_file_metadata_valid(
+            0o100600,
+            501,
+            501,
+            31,
+            Some(32)
+        ));
+        assert!(private_directory_metadata_valid(0o40700, 501, 501));
+        assert!(!private_directory_metadata_valid(0o40700, 502, 501));
+        assert!(!private_directory_metadata_valid(0o40755, 501, 501));
     }
 }

@@ -12,6 +12,11 @@ The receipt binds the exact archive manifest, neutral export, standalone backup,
 payload, source capture, confidentiality mode, archive ID, and bridge release.
 It is write-once: later install/update cannot replace it.
 
+The closed V1 receipt contract supports bridge release `1.0.0` exactly. Both
+the archive manifest and embedded receipt use that literal; any other string,
+including a later semantic version, fails before mutation until a reviewed
+contract and core release explicitly add support.
+
 The manifest declares:
 
 - its schema version and repository mode;
@@ -70,7 +75,7 @@ surface safely.
 | Mode | Required evidence | Mutating V1 behavior |
 | --- | --- | --- |
 | `fresh-v1` | Valid manifest initialized from repository files. It may contain an authenticated V0 archive receipt. | Allowed within the six-command core contract; archived V0 rows are never active state. |
-| `brownfield-adopted` | Valid explicit target mappings initialized from existing repository files. It may contain an authenticated V0 archive receipt. | Allowed; target-owned bytes remain immutable. |
+| `brownfield-v1` | Valid explicit target mappings initialized from existing repository files. It may contain an authenticated V0 archive receipt. | Allowed; target-owned bytes remain immutable. |
 
 Recognized live `harness.db` without an explicit first-install archive receipt
 blocks mutation: the user must freeze and archive it first. A foreign or
