@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phase 1 accepted / Phase 2 validated, re-acceptance pending / Phase 3 blocked**
+Status: **Implementation in progress / Phases 1-2 accepted / Phase 3 ready, not started**
 
 ## Goal
 
@@ -100,8 +100,8 @@ The dependency chain is intentionally linear:
 ```text
 G0 approved/open by Decision 0012
   -> Phase 1 accepted by Decision 0013 and US-106
-  -> Phase 2 implemented/validated by US-107; review re-acceptance pending
-  -> Phase 3 blocked, not started
+  -> Phase 2 accepted by US-107 at exact candidate 1b1add5
+  -> Phase 3 unblocked, not started
   -> Phase 4
   -> Phase 5
   -> Phase 6
@@ -114,11 +114,11 @@ No phase may borrow acceptance from a later phase. For example, a successful
 pilot cannot excuse an unauthenticated payload, and a passing platform build
 cannot excuse a bridge rollback that overwrites a target edit.
 
-Current phase state: Phase 1 is implemented and accepted. Phase 2 is
-implemented and fully validated, but commit `9b84ba8` was rejected and review
-re-acceptance is pending. Phase 3 is blocked and not started. Phases 3-8 remain
-unimplemented and dependent on the preceding phase's accepted evidence plus
-their own gates.
+Current phase state: Phases 1 and 2 are implemented and accepted. Independent
+security and behavior review accepted exact Phase 2 candidate `1b1add5`, which
+was integrated as `e77e028` with the identical Git tree. Phase 3 is unblocked
+and not started. Phases 3-8 remain unimplemented and dependent on the preceding
+phase's accepted evidence plus their own gates.
 
 Anticipated paths below identify review surfaces, not permission to modify
 them in this planning change. New filenames remain subject to the Phase 1
@@ -166,8 +166,7 @@ Phase 4 conversion writes enter this boundary.
 ### Phase 2: Pure V1 Core
 
 **Dependency:** Phase 1 contracts and inventory are reviewed and passing.
-**Status: implemented and fully validated by US-107; review re-acceptance
-pending.**
+**Status: implemented, fully validated, and accepted by US-107.**
 
 **Implementation:**
 
@@ -190,8 +189,8 @@ existing `crates/harness-cli/` remains the V0 identity during the window.
 and readiness transitions; manifest schema negative tests; integration tests
 showing audit/status/version are read-only; process-spawn denial proof for
 audit; dependency/build inspection proving no SQLite/V0 reader in core; fresh
-inspection proof that no database or changesets appear. Result: passed by 21
-Phase 2 Rust tests, `scripts/verify-v1-phase2-core.sh` (eight proof groups),
+inspection proof that no database or changesets appear. Result: passed by 46
+Phase 2 Rust tests, `scripts/verify-v1-phase2-core.sh` (eleven proof groups),
 the evolved nine-group Phase 1 verifier, workspace check/test/clippy, and full
 premerge; see US-107 validation evidence.
 

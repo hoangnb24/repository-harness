@@ -1,13 +1,14 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation in progress / Phase 1 accepted / Phase 2 validated, re-acceptance pending / Phase 3 blocked**
+Status: **Implementation in progress / Phases 1-2 accepted / Phase 3 ready, not started**
 
 This is the durable implementation initiative packet for the eight phases in
 `docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement
 proof is accepted by US-106. The separate pure V1 core and its hardened Phase 2
-boundary pass the full US-107 validation, but review re-acceptance is pending
-after commit `9b84ba8` was rejected. Atomic installer mutation, bridge conversion
-writes, production release, pilots, and Phase 3-8 acceptance do not exist.
+boundary pass the full US-107 validation and independent review at exact
+candidate `1b1add5`, integrated as `e77e028` with the identical Git tree.
+Atomic installer mutation, bridge conversion writes, production release,
+pilots, and Phase 3-8 acceptance do not exist.
 Decision 0012 supplies authorization policy; Decision 0013 and US-106 supply
 accepted Phase 1. US-107 supplies validated Phase 2 implementation evidence,
 not authority to self-approve the rejected review.
@@ -55,9 +56,9 @@ indefinitely, bridge release assets are retained through
 `2028-06-30T23:59:59Z`, inclusive, and Phase 8 is eligible no earlier than
 `2028-01-01T00:00:00Z` after every closure condition passes. Cause and effect:
 those values resolve Gate G0. Phase 1 froze the contract boundary and Phase 2
-implemented and validated the pure core against it. Phase 3 remains blocked
-until Phase 2 review re-acceptance. Phases 3-8 remain unimplemented and
-dependent on preceding phase acceptance.
+implemented, validated, and accepted the pure core against it. Phase 3 is
+unblocked but not started. Phases 3-8 remain unimplemented and dependent on
+preceding phase acceptance.
 
 For example, the presence of `.harness/` cannot currently authorize a V1
 conversion. It may contain V0 changesets, another tool's metadata, or unrelated
@@ -136,9 +137,8 @@ The accepted behavior is defined by:
 
 This packet maps those contracts into implementation and proof. Decision 0012
 authorizes the schedule/retention boundary; Decision 0013 plus US-106 provide
-Phase 1 acceptance, and US-107 provides Phase 2 implementation/validation with
-review re-acceptance pending. They do not provide Phase 3 mutation/recovery or
-later phase proof.
+Phase 1 acceptance, and US-107 provides accepted Phase 2 implementation and
+validation. They do not provide Phase 3 mutation/recovery or later phase proof.
 
 ## Non-Goals
 

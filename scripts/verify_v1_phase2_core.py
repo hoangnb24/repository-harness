@@ -495,7 +495,7 @@ def proof_story_packet_and_phase3_boundary() -> None:
         check(phrase in design, f"US-107 design omits concrete boundary: {phrase}")
     for phrase in [
         "Residual Phase 3 Gates", "Residual Phase 4 And Phase 7 Gates",
-        "46 tests", "11/11 proof groups", "review re-acceptance remains", "pending until",
+        "46 tests", "11/11 proof groups", "accepted exact candidate", "integrated as `e77e028`",
         "journal ownership", "target edit", "exit 4",
     ]:
         check(phrase in validation, f"US-107 validation omits residual gate: {phrase}")

@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Design
 
-Status: **Implementation in progress / Phase 1 accepted / Phase 2 validated, re-acceptance pending / Phase 3 blocked**
+Status: **Implementation in progress / Phases 1-2 accepted / Phase 3 ready, not started**
 
 ## Domain Model
 
@@ -8,9 +8,10 @@ Status: **Implementation in progress / Phase 1 accepted / Phase 2 validated, re-
 
 Decision 0012 supplies the compatibility values that were a predecessor to
 product implementation. Gate G0 is approved/open. Decision 0013 and US-106
-freeze and prove Phase 1. US-107 implements and validates the hardened pure
-Phase 2 core, but review re-acceptance remains pending after the rejected
-commit, so Phase 3 stays blocked. Phases 3-8 remain unimplemented dependencies.
+freeze and prove Phase 1. US-107 implements, validates, and independently
+accepts the hardened pure Phase 2 core at exact candidate `1b1add5`, integrated
+as `e77e028` with the identical Git tree. Phase 3 is unblocked but not started;
+Phases 3-8 remain unimplemented dependencies.
 
 | Approved value | Current policy | Cause and effect |
 | --- | --- | --- |

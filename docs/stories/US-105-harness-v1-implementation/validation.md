@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Implementation in progress / Phase 1 accepted / Phase 2 validated, re-acceptance pending / Phase 3 blocked**
+Status: **Implementation in progress / Phases 1-2 accepted / Phase 3 ready, not started**
 
 ## Proof Strategy
 
@@ -29,10 +29,10 @@ atomic commit, conversion safety has failed. A later successful `resume`, pilot
 run, or Windows artifact cannot repair that proof; Phase 4 returns to work and
 all dependent evidence is rerun for the corrected candidate.
 
-Phase 2 core implementation proof passes, but review re-acceptance after the
-rejected commit remains pending; Phase 3-8 product proof remains prospective.
-No mutation/recovery implementation, promoted release, five-platform artifact
-set, pilot result, bridge, or later phase acceptance exists. Decision
+Phase 2 core implementation proof and independent review pass; Phase 3-8
+product proof remains prospective. No mutation/recovery implementation,
+promoted release, five-platform artifact set, pilot result, bridge, or later
+phase acceptance exists. Decision
 0012 is authorization evidence: Gate G0 is approved/open, the window is
 `2027-01-01T00:00:00Z` through `2027-12-31T23:59:59Z`, inclusive, local
 archives are retained indefinitely, bridge release assets are retained through
@@ -71,12 +71,12 @@ Phase 3 is ready; Phases 3-8 remain unimplemented dependencies. Only the Phase
 
 | Requirement | Positive cases | Negative / boundary cases | Required acceptance proof | Status |
 | --- | --- | --- | --- | --- |
-| `install` | Fresh selected roles; V0-path adoption where permitted; explicit brownfield mapping; valid unresolved install. | Unsafe destination; ambiguous ownership; mixed-invalid state; bad payload digest; crash before manifest commit. | Exact preview; byte/digest before-after report; atomic-manifest kill point; no database/changesets; target-owned bytes unchanged; resulting mode/readiness. | **Phase 2 implementation proof passed; review pending:** independently anchored authenticated planning audits existing state and preserves safe no-op snapshots. Phase 3 filesystem commit/recovery proof is not started. |
-| `update` | Replace-if-base; supported manifest transition; explicit three-way review; idempotent rerun. | Edited base; target-owned asset; unsupported downgrade; interrupted write; payload/template/CLI range mismatch. | Policy matrix, conflict output, backups, unchanged target bytes, no false success, rerun equivalence. | **Phase 2 implementation proof passed; review pending:** existing state is semantically audited, unresolved remains valid, payload transitions are bound, and recovery options refuse. Phase 3 update policy/write/recovery proof is not started. |
-| `audit` | Ready exit 0; unresolved exit 2; deterministic repeated result. | Bad schema/path/digest/marker/link/forbidden field exit 3; malicious target-tool hook; V0-only repository. | Golden machine/human output, filesystem/process monitor showing no writes/spawns, no V0 database open, stable exits. | **Phase 2 implementation proof passed; review pending:** pinned Unix snapshot tests, deterministic structural exits, unchanged canary tree/sentinel, and no process/DB port. This is not universal event proof; safe non-Unix inspection and portable event evidence remain Phase 7. |
-| `scaffold` | Explicit selected neutral template at safe target path; repeated preview. | Stack inference; overwrite existing target content; lifecycle/task record creation; unsafe path. | Payload/template identity, exact preview/diff, collision rejection, manifest/provenance result, no operational fields. | **Phase 2 implementation proof passed; review pending:** authenticated exact-destination preview, corrupt-state refusal, collision/path rejection, and no operational fields. Phase 3 write/recovery proof is not started. |
-| `status` | Fresh-v1, brownfield-v1, v0-legacy, conversion-in-progress, converted-with-archive; valid and unresolved exit 0. | Mixed-invalid or corrupt manifest exit 3; attempt to repair state. | Mode/identity/readiness golden outputs, read-only filesystem/database/process proof, exact invalid reason. | **Phase 2 implementation proof passed; review pending:** absent/ready/unresolved/invalid V1 structural states are deterministic and read-only on the safe Unix adapter. V0/bridge modes remain Phase 4; non-Unix safe handles remain Phase 7. |
-| `version` and `--version` | Same V1 version and accepted manifest/template ranges on every platform. | Alias to V0, mismatched output, unrecognized/downgrade range. | Byte-equivalent normalized output, binary identity/digest, grammar snapshot with only six commands. | **Phase 2 implementation proof passed; review pending:** native alias output and exact six-command grammar match. Five-platform promoted artifacts remain Phase 7. |
+| `install` | Fresh selected roles; V0-path adoption where permitted; explicit brownfield mapping; valid unresolved install. | Unsafe destination; ambiguous ownership; mixed-invalid state; bad payload digest; crash before manifest commit. | Exact preview; byte/digest before-after report; atomic-manifest kill point; no database/changesets; target-owned bytes unchanged; resulting mode/readiness. | **Phase 2 accepted:** independently anchored authenticated planning audits existing state and preserves safe no-op snapshots. Phase 3 filesystem commit/recovery proof is not started. |
+| `update` | Replace-if-base; supported manifest transition; explicit three-way review; idempotent rerun. | Edited base; target-owned asset; unsupported downgrade; interrupted write; payload/template/CLI range mismatch. | Policy matrix, conflict output, backups, unchanged target bytes, no false success, rerun equivalence. | **Phase 2 accepted:** existing state is semantically audited, unresolved remains valid, payload transitions are bound, and recovery options refuse. Phase 3 update policy/write/recovery proof is not started. |
+| `audit` | Ready exit 0; unresolved exit 2; deterministic repeated result. | Bad schema/path/digest/marker/link/forbidden field exit 3; malicious target-tool hook; V0-only repository. | Golden machine/human output, filesystem/process monitor showing no writes/spawns, no V0 database open, stable exits. | **Phase 2 accepted:** pinned Unix snapshot tests, deterministic structural exits, unchanged canary tree/sentinel, and no process/DB port. This is not universal event proof; safe non-Unix inspection and portable event evidence remain Phase 7. |
+| `scaffold` | Explicit selected neutral template at safe target path; repeated preview. | Stack inference; overwrite existing target content; lifecycle/task record creation; unsafe path. | Payload/template identity, exact preview/diff, collision rejection, manifest/provenance result, no operational fields. | **Phase 2 accepted:** authenticated exact-destination preview, corrupt-state refusal, collision/path rejection, and no operational fields. Phase 3 write/recovery proof is not started. |
+| `status` | Fresh-v1, brownfield-v1, v0-legacy, conversion-in-progress, converted-with-archive; valid and unresolved exit 0. | Mixed-invalid or corrupt manifest exit 3; attempt to repair state. | Mode/identity/readiness golden outputs, read-only filesystem/database/process proof, exact invalid reason. | **Phase 2 accepted:** absent/ready/unresolved/invalid V1 structural states are deterministic and read-only on the safe Unix adapter. V0/bridge modes remain Phase 4; non-Unix safe handles remain Phase 7. |
+| `version` and `--version` | Same V1 version and accepted manifest/template ranges on every platform. | Alias to V0, mismatched output, unrecognized/downgrade range. | Byte-equivalent normalized output, binary identity/digest, grammar snapshot with only six commands. | **Phase 2 accepted:** native alias output and exact six-command grammar match. Five-platform promoted artifacts remain Phase 7. |
 
 ### V0 Bridge Commands
 
@@ -207,7 +207,7 @@ story=docs/stories/US-105-harness-v1-implementation
 for file in overview.md design.md execplan.md validation.md
 do
   test -s "$story/$file"
-  rg -q '^Status: \*\*Implementation in progress / Phase 1 accepted / Phase 2 validated, re-acceptance pending / Phase 3 blocked\*\*$' "$story/$file"
+  rg -q '^Status: \*\*Implementation in progress / Phases 1-2 accepted / Phase 3 ready, not started\*\*$' "$story/$file"
 done
 
 for heading in \
@@ -260,8 +260,8 @@ git status --short
 
 ## Acceptance Evidence
 
-Current product evidence: **Phase 1 accepted; Phase 2 implementation fully
-validated with review re-acceptance pending**. Decision 0012 is G0
+Current product evidence: **Phases 1-2 accepted; Phase 3 ready but not
+started**. Decision 0012 is G0
 authorization evidence; Decision 0013 is the accepted security/data-integrity
 decision; US-106 supplies versioned contracts, frozen V0 inputs, complete
 dispositions, deterministic fixtures, and mechanical enforcement. US-107 adds
@@ -277,8 +277,8 @@ asset sets, and non-reproducible generated fixtures.
 | Phase | Required evidence location/record | Current result |
 | --- | --- | --- |
 | 1 | Contracts, schemas, disposition ledger, fixtures, G0 reference, CI negatives. | **Passed.** Nine focused proof groups and full premerge passed; Decision 0013 and US-106 are durable evidence. |
-| 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | **Implementation validation passed; review re-acceptance pending.** Forty-six Rust tests (24 unit, 22 integration), eleven mechanical proof groups, 72 deterministic fixtures, 138 workspace Rust tests, evolved nine-group Phase 1 proof, workspace check/test/clippy, and full premerge passed. The canary/tree/architecture proof is not claimed as universal syscall evidence; US-107 records the boundary. |
-| 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | Not started and blocked; depends on Phase 2 review acceptance. |
+| 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | **Accepted.** Forty-six Rust tests (24 unit, 22 integration), eleven mechanical proof groups, 72 deterministic fixtures, 138 workspace Rust tests, evolved nine-group Phase 1 proof, workspace check/test/clippy, and full premerge passed. Independent security and behavior review accepted exact candidate `1b1add5`, integrated as `e77e028` with the identical Git tree. The canary/tree/architecture proof is not claimed as universal syscall evidence; US-107 records the boundary. |
+| 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | Not started and unblocked; depends on the accepted Phase 2 tree and its own implementation/review evidence. |
 | 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | Not started; depends on Phase 3 acceptance. |
 | 5 | Dogfood, enrollment, signed card, environment, and baseline records. | Not started; depends on Phase 4 acceptance. |
 | 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | Not started; depends on Phase 5 acceptance. |

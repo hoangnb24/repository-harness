@@ -1,6 +1,6 @@
 # US-107 V1 Pure Core Validation
 
-Status: **Implemented and fully validated; review re-acceptance pending**
+Status: **Implemented, fully validated, and accepted**
 
 ## Proof Strategy
 
@@ -127,10 +127,11 @@ Validation evidence passes on the same working tree:
   verifier, the Phase 2 verifier, V0 CLI/install/release regressions, live-doc
   checks, and workflow proof.
 
-These are implementation-validation results, not authority to self-approve a
-review. Commit `9b84ba8` was rejected, so Phase 2 review re-acceptance remains
-pending until the orchestrator amends and the reviewer accepts this hardened
-tree.
+These implementation-validation results were independently reviewed. The
+security reviewer (`gpt-5.4`, high reasoning) and behavior reviewer
+(`gpt-5.6-sol`, medium reasoning) accepted exact candidate `1b1add5`; it was
+integrated as `e77e028`, whose Git tree is identical. Phase 2 is accepted and
+Phase 3 is unblocked, while every residual gate below remains closed.
 
 ## Residual Phase 3 Gates
 

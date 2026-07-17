@@ -2,7 +2,7 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phase 1 accepted; Phase 2 implemented/validated with review re-acceptance pending; Phase 3 blocked; Phases 3-8 unimplemented
+Status: Direction and Phases 1-2 accepted; Phase 3 ready but not started; Phases 3-8 unimplemented
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107
@@ -393,7 +393,7 @@ release, and manifest ports. Acceptance: no operational database dependency,
 no migrate grammar, deterministic audit, mechanical seed-kit boundary tests,
 and no target tools executed by audit.
 
-**Implemented and fully validated; review re-acceptance pending:** US-107 adds
+**Implemented, fully validated, and accepted:** US-107 adds
 the separate `harness-core` package and native
 `scripts/bin/harness[.exe]` identity. Forty-six Rust tests, eleven Phase 2
 mechanical proof groups, the evolved nine-group Phase 1 verifier, 72
@@ -404,11 +404,12 @@ payload planning; pinned Unix snapshot and race refusal; schema/CommonMark/
 Unicode/output determinism; the executable canary plus unchanged-tree
 no-spawn boundary; and no-op/refusal for writes that require Phase 3. This is
 not described as universal syscall/event proof. The reserved bridge remains
-absent and the release workflow remains present but unpromoted. Because commit
-`9b84ba8` was review-rejected, Phase 3 stays blocked until the hardened tree is
-amended and re-accepted; atomic writes, backup/journal/recovery, production
-trust/promotion, safe non-Unix handle behavior, portable event evidence, and
-five-platform artifact parity are not Phase 2 acceptance.
+absent and the release workflow remains present but unpromoted. Independent
+security and behavior reviewers accepted exact candidate `1b1add5`, integrated
+as `e77e028` with the identical Git tree. Phase 3 is therefore unblocked but
+not started; atomic writes, backup/journal/recovery, production trust/promotion,
+safe non-Unix handle behavior, portable event evidence, and five-platform
+artifact parity are not Phase 2 acceptance.
 
 ### Phase 3: Install/Update Recovery
 
