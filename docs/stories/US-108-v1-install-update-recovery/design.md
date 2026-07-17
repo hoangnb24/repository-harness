@@ -15,6 +15,7 @@ Each write step owns:
 - expected before digest or an explicit absent expectation;
 - exact after digest and a staged post-image;
 - an exclusive backup path when before bytes exist;
+- a deterministic retained hard-link witness path when `before_sha256=None`;
 - whether the step is the manifest commit; and
 - its journal state (`pending` or `applied`).
 
@@ -29,6 +30,16 @@ of private write path/kind/disposition and before/derived-after digests. Private
 staged, backup, and temporary paths must also match the operation-owned layout.
 Changing journal/staged/manifest bytes and recomputing the unkeyed body digest
 therefore cannot retain the caller-supplied recovery authority.
+
+Operation IDs and journal hashes are locators and commitments, not secrets. An
+arbitrary same-UID malicious process is out of scope because it can already
+delete or overwrite repository targets directly. Within the in-scope
+crash/race/corruption model, a `before_sha256=None` create gains recovery
+authority only from a retained hard link under the deterministic recovery root.
+That link is created from the exact pre-rename temporary inode and pins that
+inode against reuse, so recovery can later prove cause and effect: the live
+target still names the same inode and still hashes to the authenticated
+post-image.
 
 Supported monotonic manifest transitions are:
 
@@ -88,7 +99,10 @@ update retains the existing mode, including
 3. Fsync every file and its containing directory.
 4. Atomically persist the prepared journal, then mark it applying.
 5. For each non-manifest write, recheck its before image and write/fsync an
-   exclusive same-directory temporary. Creation uses atomic `NOREPLACE`.
+   exclusive same-directory temporary. Any `before_sha256=None` step also
+   creates a deterministic retained hard link from that temporary inode into
+   `.harness/recovery/<operation-id>/creates/<step-id>.link`; cross-filesystem
+   link failure therefore fails closed. Creation uses atomic `NOREPLACE`.
    Replacement pins the final inode, atomically exchanges target and
    temporary, verifies the displaced inode/digest, reverses the exchange on a
    race, removes only the proven displaced image, fsyncs both parents, and
@@ -107,16 +121,22 @@ No error path returns exit 0 or 2 unless the manifest commit is coherent.
 
 Resume first reauthenticates the release and requires exact command, operation,
 release, journal-body digest, preview digest, backup, staged-image, and current
-image matches. Applied steps are verified but not replayed. Pending steps run
-once. A manifest already at its recorded after digest means the atomic commit
-occurred; resume verifies all post-images and completes journal bookkeeping.
+image matches. Recovery also reapplies the normal payload monotonicity checks:
+release sequence cannot regress, equal sequence cannot change digest, and the
+authenticated release version must remain inside the authoritative manifest
+compatibility range. Applied steps are verified but not replayed. Pending steps
+run once. A manifest already at its recorded after digest means the atomic
+commit occurred; resume verifies all post-images and completes journal
+bookkeeping.
 
 The journal also binds command scope. Install/update are limited to authenticated
 release destinations. Scaffold binds one authenticated template and exact
 destination; status emits that complete parser-valid recovery command. Recovery
 validates the candidate transition against the backed-up authoritative
 pre-operation manifest, so target-owned and `never-auto-patch` roles cannot be
-reclassified by a recomputed journal.
+reclassified by a recomputed journal. A `before_sha256=None` step is promoted to
+`applied` only when the live target and retained hard link still name the same
+inode and that pinned inode still hashes to the authenticated post-image.
 
 Recovery also compares full-file creates with authenticated asset digests and
 reconstructs a managed-block post-image from authenticated candidate interior
@@ -129,8 +149,10 @@ operation it first removes the new manifest from the authoritative path, then
 restores assets in reverse order, and restores the old manifest last only when
 that manifest step was actually applied. Every rollback boundary is resumable,
 including a crash immediately after new-manifest removal. A created path is
-removed only while it still has the exact journal after digest. Any human edit
-causes exit 4 and leaves all remaining evidence intact.
+removed only while it still has the exact journal after digest and still shares
+its inode with the retained hard-link witness. That same witness rule covers
+release-asset installs, scaffold-created destinations, and a fresh manifest
+create. Any human edit causes exit 4 and leaves all remaining evidence intact.
 
 Rollback continues to require the matching live authenticated release before
 local evidence is trusted. This is deliberate: without a separately
@@ -167,14 +189,17 @@ story adds no schema field. Recovery state is untracked and lives at:
 .harness/recovery/<operation-id>/
   journal.json
   backups/<step-id>.bak
+  creates/<step-id>.link
   staged/<step-id>.after
 ```
 
 Temporary files are placed beside their final destination and use an
-operation/step-derived name. They are not authority: resume trusts only a safe
-path whose exact bytes match a journal digest. The journal is retained after a
-commit or rollback as idempotency/recovery evidence and may be removed only by
-an explicit future policy outside this story.
+operation/step-derived name. They are not authority by themselves. For any
+`before_sha256=None` create, recovery trusts only a live target whose exact
+inode still matches the retained hard-link witness and whose bytes still hash
+to the authenticated post-image. The journal is retained after a commit or
+rollback as idempotency/recovery evidence and may be removed only by an
+explicit future policy outside this story.
 
 Backups never include a target-owned write because target-owned bytes are never
 written. Existing conversion archives are outside the recovery root and are
@@ -201,6 +226,8 @@ output, task record, or telemetry.
 
 The local journal contains operation recovery evidence only. It is not emitted
 as a Harness trace and is not written to `.harness/changesets`.
+Operation IDs and journal hashes remain visible because they are commitments,
+not authentication secrets.
 
 ## Alternatives Considered
 

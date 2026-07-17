@@ -240,6 +240,31 @@ fn tree_snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
     output
 }
 
+fn copy_tree(source: &Path, destination: &Path) {
+    fn visit(source_root: &Path, current: &Path, destination_root: &Path) {
+        let mut entries: Vec<_> = std::fs::read_dir(current)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect();
+        entries.sort();
+        for path in entries {
+            let relative = path.strip_prefix(source_root).unwrap();
+            let target = destination_root.join(relative);
+            if path.is_dir() {
+                std::fs::create_dir_all(&target).unwrap();
+                visit(source_root, &path, destination_root);
+            } else {
+                if let Some(parent) = target.parent() {
+                    std::fs::create_dir_all(parent).unwrap();
+                }
+                std::fs::copy(&path, &target).unwrap();
+            }
+        }
+    }
+
+    visit(source, source, destination);
+}
+
 fn prepare_managed_block_update(root: &Path) -> Vec<u8> {
     let digest = preview(root, Command::Install).0;
     assert!(matches!(
@@ -724,6 +749,93 @@ fn status_and_exact_rerun_report_recovery_without_replay_and_audit_is_read_only(
         .iter()
         .any(|notice| notice.code == "exact-rerun-recovery-required"));
     assert_eq!(tree_snapshot(temporary.path()), before);
+}
+
+#[test]
+fn fabricated_fresh_pending_journal_is_not_reported_or_resumed_against_preexisting_authenticated_bytes(
+) {
+    let source = tempfile::tempdir().unwrap();
+    let (digest, operation, _) = preview(source.path(), Command::Install);
+    let interrupted = execute(source.path(), Command::Install(confirm(digest)), Some(4));
+    assert_eq!(interrupted.mutation, Mutation::RecoveryRequired);
+
+    let target = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(target.path().join("docs/templates")).unwrap();
+    std::fs::write(target.path().join("docs/templates/decision.md"), DECISION).unwrap();
+    copy_tree(
+        &source.path().join(format!(".harness/recovery/{operation}")),
+        &target.path().join(format!(".harness/recovery/{operation}")),
+    );
+    let before = tree_snapshot(target.path());
+
+    let status = execute(target.path(), Command::Status { json: true }, None);
+    assert_eq!(status.exit_code, 0, "{status:?}");
+    assert_eq!(status.mutation, Mutation::None);
+    assert!(
+        status
+            .notices
+            .iter()
+            .all(|notice| notice.code != "recovery-required"),
+        "{status:?}"
+    );
+    assert!(
+        status
+            .notices
+            .iter()
+            .all(|notice| !notice.message.contains(&operation)),
+        "{status:?}"
+    );
+    assert_eq!(tree_snapshot(target.path()), before);
+
+    let refused = execute(
+        target.path(),
+        Command::Install(MutatorOptions {
+            resume: Some(operation),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert_eq!(refused.exit_code, 4, "{refused:?}");
+    assert_eq!(refused.mutation, Mutation::RecoveryRequired);
+    assert_eq!(
+        std::fs::read(target.path().join("docs/templates/decision.md")).unwrap(),
+        DECISION
+    );
+    assert!(!target.path().join(".harness/manifest.json").exists());
+}
+
+#[test]
+fn fabricated_fresh_pending_journal_cannot_rollback_delete_preexisting_authenticated_bytes() {
+    let source = tempfile::tempdir().unwrap();
+    let (digest, operation, _) = preview(source.path(), Command::Install);
+    let interrupted = execute(source.path(), Command::Install(confirm(digest)), Some(4));
+    assert_eq!(interrupted.mutation, Mutation::RecoveryRequired);
+
+    let target = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(target.path().join("docs/templates")).unwrap();
+    std::fs::write(target.path().join("docs/templates/decision.md"), DECISION).unwrap();
+    copy_tree(
+        &source.path().join(format!(".harness/recovery/{operation}")),
+        &target.path().join(format!(".harness/recovery/{operation}")),
+    );
+    let before = tree_snapshot(target.path());
+
+    let refused = execute(
+        target.path(),
+        Command::Install(MutatorOptions {
+            rollback: Some(operation.clone()),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert_eq!(refused.exit_code, 4, "{refused:?}");
+    assert_eq!(refused.mutation, Mutation::RecoveryRequired);
+    assert_eq!(
+        std::fs::read(target.path().join("docs/templates/decision.md")).unwrap(),
+        DECISION
+    );
+    assert!(!target.path().join(".harness/manifest.json").exists());
+    assert_eq!(tree_snapshot(target.path()), before);
 }
 
 #[test]

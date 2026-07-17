@@ -9,6 +9,7 @@ use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{
@@ -35,6 +36,7 @@ pub struct PlannedWrite {
     pub backup_path: Option<String>,
     pub staged_path: String,
     pub temporary_path: String,
+    pub create_witness_path: Option<String>,
     pub manifest_commit: bool,
 }
 
@@ -151,6 +153,7 @@ struct JournalStep {
     backup_path: Option<String>,
     staged_path: String,
     temporary_path: String,
+    create_witness_path: Option<String>,
     manifest_commit: bool,
     state: StepState,
 }
@@ -198,6 +201,7 @@ impl RecoveryJournal {
                     backup_path: write.backup_path.clone(),
                     staged_path: write.staged_path.clone(),
                     temporary_path: write.temporary_path.clone(),
+                    create_witness_path: write.create_witness_path.clone(),
                     manifest_commit: write.manifest_commit,
                     state: StepState::Pending,
                 })
@@ -391,6 +395,9 @@ impl OsMutationPort {
                     .collect(),
             };
             validate_journal_ownership(&journal, &journal.command, &operation_id, &authorization)?;
+            if self.has_untrusted_create_recovery(&journal)? {
+                continue;
+            }
             if matches!(
                 journal.state,
                 JournalState::Prepared | JournalState::Applying
@@ -453,6 +460,12 @@ impl OsMutationPort {
             .and_then(|()| {
                 self.ensure_dir(&format!(
                     "{}/staged",
+                    Self::operation_root(&request.operation_id)
+                ))
+            })
+            .and_then(|()| {
+                self.ensure_dir(&format!(
+                    "{}/creates",
                     Self::operation_root(&request.operation_id)
                 ))
             })
@@ -602,6 +615,7 @@ impl OsMutationPort {
         // rollback. RollingBack is durable authority for the otherwise
         // ambiguous gap after the new manifest is removed.
         self.validate_recovery_manifest_state(journal)?;
+        self.validate_present_create_witnesses(journal)?;
         if journal.state != JournalState::RollingBack {
             journal.state = JournalState::RollingBack;
             self.persist_journal(journal)
@@ -617,6 +631,7 @@ impl OsMutationPort {
             .as_ref()
             .is_some_and(|bytes| hex_sha256(bytes) == journal.steps[manifest_index].after_sha256);
         if manifest_is_after {
+            self.require_create_witness_for_current_target(&journal.steps[manifest_index])?;
             self.remove_exact(
                 &journal.steps[manifest_index].path,
                 &journal.steps[manifest_index].after_sha256,
@@ -643,6 +658,7 @@ impl OsMutationPort {
                 _ => false,
             };
             if is_after {
+                self.require_create_witness_for_current_target(&journal.steps[index])?;
                 self.restore_step(&journal.steps[index])?;
                 journal.steps[index].state = StepState::Pending;
                 self.persist_journal(journal)
@@ -714,7 +730,8 @@ impl OsMutationPort {
                 (Some(expected), Some(bytes)) => hex_sha256(bytes) == *expected,
                 _ => false,
             };
-            if is_after {
+            let expected_state = if is_after {
+                self.require_create_witness_for_current_target(step)?;
                 if let Some(before) = &step.before_sha256 {
                     if let Some(displaced) = self
                         .read_optional(&step.temporary_path)
@@ -743,14 +760,17 @@ impl OsMutationPort {
                         }
                     }
                 }
-                if step.state != StepState::Applied {
-                    step.state = StepState::Applied;
-                    changed = true;
-                }
+                StepState::Applied
             } else if !is_before {
                 return Err(MutationFailure::after_journal(PortError::Conflict(
                     format!("recovery refuses changed image at {}", step.path),
                 )));
+            } else {
+                StepState::Pending
+            };
+            if step.state != expected_state {
+                step.state = expected_state;
+                changed = true;
             }
             self.verify_owned_evidence(step)?;
         }
@@ -759,6 +779,93 @@ impl OsMutationPort {
                 .map_err(MutationFailure::after_journal)?;
         }
         Ok(())
+    }
+
+    #[cfg(unix)]
+    fn has_untrusted_create_recovery(&self, journal: &RecoveryJournal) -> Result<bool, PortError> {
+        for step in &journal.steps {
+            if !step_requires_create_witness(step) {
+                continue;
+            }
+            let Some(current) = self.read_optional(&step.path)? else {
+                continue;
+            };
+            if hex_sha256(&current) != step.after_sha256 {
+                continue;
+            }
+            if self.validate_current_create_witness(step).is_err() {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    #[cfg(unix)]
+    fn validate_present_create_witnesses(
+        &self,
+        journal: &RecoveryJournal,
+    ) -> Result<(), MutationFailure> {
+        for step in &journal.steps {
+            if !step_requires_create_witness(step) {
+                continue;
+            }
+            let current = self
+                .read_optional(&step.path)
+                .map_err(MutationFailure::after_journal)?;
+            if current
+                .as_ref()
+                .is_some_and(|bytes| hex_sha256(bytes) == step.after_sha256)
+            {
+                self.require_create_witness_for_current_target(step)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn persist_create_witness(&self, step: &JournalStep) -> Result<(), PortError> {
+        let Some(path) = &step.create_witness_path else {
+            return Ok(());
+        };
+        self.link_owned_once(&step.temporary_path, path)
+    }
+
+    #[cfg(unix)]
+    fn validate_current_create_witness(&self, step: &JournalStep) -> Result<(), PortError> {
+        let witness_path = step.create_witness_path.as_deref().ok_or_else(|| {
+            invalid(format!(
+                "create provenance witness path is missing for {}",
+                step.path
+            ))
+        })?;
+        let target_stat = self.file_stat(&step.path)?;
+        let witness_stat = self.file_stat(witness_path)?;
+        if target_stat.st_dev != witness_stat.st_dev || target_stat.st_ino != witness_stat.st_ino {
+            return Err(invalid(format!(
+                "create provenance witness inode does not match {}",
+                step.path
+            )));
+        }
+        let witness = self.read_required(witness_path)?;
+        if hex_sha256(&witness) != step.after_sha256 {
+            return Err(invalid(format!(
+                "create provenance witness digest does not match {}",
+                step.path
+            )));
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn require_create_witness_for_current_target(
+        &self,
+        step: &JournalStep,
+    ) -> Result<(), MutationFailure> {
+        if !step_requires_create_witness(step) {
+            return Ok(());
+        }
+        self.validate_current_create_witness(step)
+            .map_err(MutationFailure::after_journal)
     }
 
     #[cfg(unix)]
@@ -1209,6 +1316,10 @@ impl OsMutationPort {
                 )));
             }
         }
+        if let Some(old) = old {
+            validate_payload_transition(old, candidate, &authorization.release_version)
+                .map_err(MutationFailure::after_journal)?;
+        }
         Ok(())
     }
 
@@ -1223,6 +1334,8 @@ impl OsMutationPort {
         self.write_temporary(&step.temporary_path, &bytes)
             .map_err(MutationFailure::after_journal)?;
         self.checkpoint("target temporary fsync")
+            .map_err(MutationFailure::after_journal)?;
+        self.persist_create_witness(step)
             .map_err(MutationFailure::after_journal)?;
         self.expect_current(&step.path, step.before_sha256.as_deref())
             .map_err(MutationFailure::after_journal)?;
@@ -1246,6 +1359,7 @@ impl OsMutationPort {
                 step.path.clone(),
             )));
         }
+        self.require_create_witness_for_current_target(step)?;
         Ok(())
     }
 
@@ -1363,6 +1477,21 @@ impl OsMutationPort {
     fn read_required(&self, path: &str) -> Result<Vec<u8>, PortError> {
         self.read_optional(path)?
             .ok_or_else(|| PortError::Missing(path.into()))
+    }
+
+    #[cfg(unix)]
+    fn file_stat(&self, path: &str) -> Result<rustix::fs::Stat, PortError> {
+        use rustix::fs::{fstat, FileType};
+
+        let descriptor = self.open_file(path)?;
+        let stat = fstat(&descriptor).map_err(|error| map_errno(path, error))?;
+        if !FileType::from_raw_mode(stat.st_mode).is_file() {
+            return Err(PortError::Io {
+                path: path.into(),
+                message: "path is not a regular file".into(),
+            });
+        }
+        Ok(stat)
     }
 
     #[cfg(unix)]
@@ -1524,6 +1653,35 @@ impl OsMutationPort {
             };
         }
         self.write_new(path, bytes, true, 0o600)
+    }
+
+    #[cfg(unix)]
+    fn link_owned_once(&self, source_path: &str, link_path: &str) -> Result<(), PortError> {
+        use rustix::fs::{fstat, fsync, linkat, AtFlags};
+
+        let source = self.open_file(source_path)?;
+        let source_stat = fstat(&source).map_err(|error| map_errno(source_path, error))?;
+        let (source_parent, source_name) = self.open_parent(source_path, false)?;
+        let (link_parent, link_name) = self.open_parent(link_path, true)?;
+        match linkat(
+            &source_parent,
+            source_name.as_str(),
+            &link_parent,
+            link_name.as_str(),
+            AtFlags::empty(),
+        ) {
+            Ok(()) | Err(rustix::io::Errno::EXIST) => {}
+            Err(error) => return Err(map_errno(link_path, error)),
+        }
+        let existing = self.open_file(link_path)?;
+        let existing_stat = fstat(&existing).map_err(|error| map_errno(link_path, error))?;
+        if source_stat.st_dev != existing_stat.st_dev || source_stat.st_ino != existing_stat.st_ino
+        {
+            return Err(PortError::Conflict(format!(
+                "owned create witness differs at {link_path}"
+            )));
+        }
+        fsync(&link_parent).map_err(|error| map_errno(link_path, error))
     }
 
     #[cfg(unix)]
@@ -1802,6 +1960,37 @@ fn validate_role_policy_identity(old: &Role, candidate: &Role) -> Result<(), Por
             "candidate reclassified pre-operation role {}",
             old.path
         )));
+    }
+    Ok(())
+}
+
+fn validate_payload_transition(
+    old: &Manifest,
+    candidate: &Manifest,
+    release_version: &str,
+) -> Result<(), PortError> {
+    if candidate.payload.sequence < old.payload.sequence {
+        return Err(invalid(
+            "candidate payload release sequence regressed during recovery",
+        ));
+    }
+    if candidate.payload.sequence == old.payload.sequence
+        && candidate.payload.index_sha256 != old.payload.index_sha256
+    {
+        return Err(invalid(
+            "candidate payload digest changed at an equal release sequence during recovery",
+        ));
+    }
+    let candidate_release = Version::parse(release_version)
+        .map_err(|_| invalid("candidate release version is not valid semver during recovery"))?;
+    let minimum = Version::parse(&old.compatibility.template_release_min)
+        .map_err(|_| invalid("old manifest template minimum is not valid semver"))?;
+    let maximum = Version::parse(&old.compatibility.template_release_max)
+        .map_err(|_| invalid("old manifest template maximum is not valid semver"))?;
+    if candidate_release < minimum || candidate_release > maximum {
+        return Err(invalid(
+            "candidate release version is outside the authoritative manifest range during recovery",
+        ));
     }
     Ok(())
 }
@@ -2093,6 +2282,9 @@ fn validate_request(request: &MutationRequest) -> Result<(), PortError> {
         if let Some(path) = &write.backup_path {
             validate_relative(path, true)?;
         }
+        if let Some(path) = &write.create_witness_path {
+            validate_relative(path, true)?;
+        }
         if !paths.insert(write.path.clone())
             || !steps.insert(write.step_id.clone())
             || !is_lower_kebab(&write.step_id)
@@ -2111,6 +2303,11 @@ fn validate_request(request: &MutationRequest) -> Result<(), PortError> {
             &write.path,
             write.manifest_commit,
         );
+        let expected_create_witness = expected_create_witness_path(
+            &request.operation_id,
+            &write.step_id,
+            write.before_sha256.as_deref(),
+        );
         if write.manifest_commit != (write.path == MANIFEST_PATH)
             || write
                 .before_sha256
@@ -2119,6 +2316,7 @@ fn validate_request(request: &MutationRequest) -> Result<(), PortError> {
             || write.staged_path != expected_staged
             || write.backup_path != expected_backup
             || write.temporary_path != expected_temporary
+            || write.create_witness_path != expected_create_witness
         {
             return Err(invalid("mutation write identity is invalid"));
         }
@@ -2189,6 +2387,20 @@ fn expected_temporary_path(
         .map_or(name.clone(), |(parent, _)| format!("{parent}/{name}"))
 }
 
+fn expected_create_witness_path(
+    operation_id: &str,
+    step_id: &str,
+    before_sha256: Option<&str>,
+) -> Option<String> {
+    before_sha256
+        .is_none()
+        .then(|| format!(".harness/recovery/{operation_id}/creates/{step_id}.link"))
+}
+
+fn step_requires_create_witness(step: &JournalStep) -> bool {
+    step.before_sha256.is_none()
+}
+
 fn operations_from_writes(operation_id: &str, writes: &[PlannedWrite]) -> Vec<Operation> {
     let operation_root = format!(".harness/recovery/{operation_id}");
     let mut operations = vec![Operation {
@@ -2208,6 +2420,16 @@ fn operations_from_writes(operation_id: &str, writes: &[PlannedWrite]) -> Vec<Op
                 disposition: Disposition::ManagedV1,
                 before_sha256: None,
                 after_sha256: Some(before.clone()),
+            });
+        }
+        if let Some(create_witness_path) = &write.create_witness_path {
+            operations.push(Operation {
+                operation_id: format!("witness-{}", write.step_id),
+                kind: OperationKind::Create,
+                path: create_witness_path.clone(),
+                disposition: Disposition::ManagedV1,
+                before_sha256: None,
+                after_sha256: Some(hex_sha256(&write.after_bytes)),
             });
         }
         operations.push(Operation {
@@ -2271,6 +2493,16 @@ fn operations_from_steps(operation_id: &str, steps: &[JournalStep]) -> Vec<Opera
                 disposition: Disposition::ManagedV1,
                 before_sha256: None,
                 after_sha256: Some(before.clone()),
+            });
+        }
+        if let Some(create_witness_path) = &step.create_witness_path {
+            operations.push(Operation {
+                operation_id: format!("witness-{}", step.step_id),
+                kind: OperationKind::Create,
+                path: create_witness_path.clone(),
+                disposition: Disposition::ManagedV1,
+                before_sha256: None,
+                after_sha256: Some(step.after_sha256.clone()),
             });
         }
         operations.push(Operation {
@@ -2340,6 +2572,9 @@ fn validate_journal_ownership(
         if let Some(path) = &step.backup_path {
             validate_relative(path, true)?;
         }
+        if let Some(path) = &step.create_witness_path {
+            validate_relative(path, true)?;
+        }
         let authorized_target =
             step.path == MANIFEST_PATH || authorization.assets.contains_key(&step.path);
         let expected_staged = format!("{operation_root}/staged/{}.after", step.step_id);
@@ -2347,21 +2582,22 @@ fn validate_journal_ownership(
             .before_sha256
             .as_ref()
             .map(|_| format!("{operation_root}/backups/{}.bak", step.step_id));
-        let parent = step.path.rsplit_once('/').map_or("", |(parent, _)| parent);
-        let expected_temporary = if step.manifest_commit {
-            format!("{operation_root}/staged/{}.commit-tmp", step.step_id)
-        } else if parent.is_empty() {
-            format!(".repository-harness-tmp-{operation_id}-{}", step.step_id)
-        } else {
-            format!(
-                "{parent}/.repository-harness-tmp-{operation_id}-{}",
-                step.step_id
-            )
-        };
+        let expected_temporary = expected_temporary_path(
+            operation_id,
+            &step.step_id,
+            &step.path,
+            step.manifest_commit,
+        );
+        let expected_create_witness = expected_create_witness_path(
+            operation_id,
+            &step.step_id,
+            step.before_sha256.as_deref(),
+        );
         if !authorized_target
             || step.staged_path != expected_staged
             || step.backup_path != expected_backup
             || step.temporary_path != expected_temporary
+            || step.create_witness_path != expected_create_witness
             || !paths.insert(step.path.clone())
         {
             return Err(invalid("journal path is not command/release-owned"));
@@ -2553,6 +2789,37 @@ mod tests {
     use crate::domain::{Disposition, OperationKind};
     use crate::ports::MutationPort;
 
+    fn tree_snapshot(root: &std::path::Path) -> BTreeMap<String, Vec<u8>> {
+        fn visit(
+            root: &std::path::Path,
+            current: &std::path::Path,
+            output: &mut BTreeMap<String, Vec<u8>>,
+        ) {
+            let mut entries: Vec<_> = std::fs::read_dir(current)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .collect();
+            entries.sort();
+            for path in entries {
+                if path.is_dir() {
+                    visit(root, &path, output);
+                } else {
+                    output.insert(
+                        path.strip_prefix(root)
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned(),
+                        std::fs::read(path).unwrap(),
+                    );
+                }
+            }
+        }
+
+        let mut output = BTreeMap::new();
+        visit(root, root, &mut output);
+        output
+    }
+
     fn request() -> MutationRequest {
         let asset = b"managed\n".to_vec();
         let release = PayloadIdentity {
@@ -2627,6 +2894,7 @@ mod tests {
             } else {
                 format!(".repository-harness-tmp-{operation_id}-{step}")
             },
+            create_witness_path: expected_create_witness_path(&operation_id, step, None),
             manifest_commit,
         };
         let writes = vec![
@@ -2682,6 +2950,63 @@ mod tests {
         }
     }
 
+    fn manifest_only_request() -> MutationRequest {
+        let release = PayloadIdentity {
+            trust_domain: "repository-harness-core".into(),
+            role: "core-release".into(),
+            sequence: 42,
+            index_sha256: "a".repeat(64),
+        };
+        let mut manifest = serde_json::to_vec(&serde_json::json!({
+            "schema": "repository-harness-manifest/v1",
+            "repository_mode": "fresh-v1",
+            "compatibility": {
+                "cli_min": "1.0.0",
+                "cli_max": "1.0.0",
+                "template_release_min": "1.0.0",
+                "template_release_max": "1.999.999"
+            },
+            "payload": release,
+            "roles": []
+        }))
+        .unwrap();
+        manifest.push(b'\n');
+        let operation_id = plan_operation_id(
+            "install",
+            &RecoveryScope::ReleaseAssets,
+            &release,
+            &[],
+            &hex_sha256(&manifest),
+        )
+        .unwrap();
+        let writes = vec![PlannedWrite {
+            step_id: "manifest".into(),
+            operation_id: "write-manifest".into(),
+            kind: OperationKind::WriteManifest,
+            disposition: Disposition::ManagedV1,
+            path: MANIFEST_PATH.into(),
+            before_sha256: None,
+            after_bytes: manifest,
+            backup_path: None,
+            staged_path: format!(".harness/recovery/{operation_id}/staged/manifest.after"),
+            temporary_path: expected_temporary_path(&operation_id, "manifest", MANIFEST_PATH, true),
+            create_witness_path: expected_create_witness_path(&operation_id, "manifest", None),
+            manifest_commit: true,
+        }];
+        let operations = operations_from_writes(&operation_id, &writes);
+        let preview_sha256 = digest(&serde_json::to_value(&operations).unwrap()).unwrap();
+        MutationRequest {
+            command: "install".into(),
+            scope: RecoveryScope::ReleaseAssets,
+            operation_id,
+            preview_sha256: preview_sha256.clone(),
+            accepted_preview_sha256: preview_sha256,
+            release,
+            operations,
+            writes,
+        }
+    }
+
     fn replacement_request(old_target: &[u8], old_manifest: &[u8]) -> MutationRequest {
         let mut request = request();
         request.command = "update".into();
@@ -2708,6 +3033,11 @@ mod tests {
                     request.operation_id, write.step_id
                 )
             };
+            write.create_witness_path = expected_create_witness_path(
+                &request.operation_id,
+                &write.step_id,
+                write.before_sha256.as_deref(),
+            );
         }
         request.operations = operations_from_writes(&request.operation_id, &request.writes);
         request.preview_sha256 =
@@ -2738,6 +3068,11 @@ mod tests {
                 &write.path,
                 write.manifest_commit,
             );
+            write.create_witness_path = expected_create_witness_path(
+                &request.operation_id,
+                &write.step_id,
+                write.before_sha256.as_deref(),
+            );
         }
         request.operations = operations_from_writes(&request.operation_id, &request.writes);
         request.preview_sha256 =
@@ -2756,6 +3091,11 @@ mod tests {
         .unwrap();
         port.ensure_dir(&format!(
             "{}/staged",
+            OsMutationPort::operation_root(&request.operation_id)
+        ))
+        .unwrap();
+        port.ensure_dir(&format!(
+            "{}/creates",
             OsMutationPort::operation_root(&request.operation_id)
         ))
         .unwrap();
@@ -2887,6 +3227,170 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn fabricated_applied_create_without_hard_link_witness_is_not_trusted_on_resume() {
+        let temporary = tempfile::tempdir().unwrap();
+        std::fs::write(temporary.path().join("managed.md"), b"managed\n").unwrap();
+        let request = request();
+        let port = OsMutationPort::new(temporary.path()).unwrap();
+        persist_fabricated_journal(&port, &request);
+        let mut journal = port.load_journal(&request.operation_id).unwrap();
+        journal.steps[0].state = StepState::Applied;
+        port.persist_journal(&journal).unwrap();
+
+        let before = tree_snapshot(temporary.path());
+        let result = port.recover(
+            "install",
+            &request.operation_id,
+            RecoveryMode::Resume,
+            &authorization(&request),
+            &mut |_| Ok(()),
+        );
+
+        assert!(matches!(
+            result,
+            Err(MutationFailure {
+                journal_started: true,
+                ..
+            })
+        ));
+        assert_eq!(tree_snapshot(temporary.path()), before);
+        assert!(!temporary
+            .path()
+            .join(format!(
+                ".harness/recovery/{}/creates/target-001-managed.link",
+                request.operation_id
+            ))
+            .exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rollback_refuses_scaffold_target_delete_without_hard_link_witness() {
+        let temporary = tempfile::tempdir().unwrap();
+        std::fs::write(temporary.path().join("managed.md"), b"managed\n").unwrap();
+        let mut request = request();
+        request.command = "scaffold".into();
+        request.scope = RecoveryScope::Scaffold {
+            template: "managed".into(),
+            destination: "managed.md".into(),
+        };
+        rebind_request(&mut request);
+        let port = OsMutationPort::new(temporary.path()).unwrap();
+        persist_fabricated_journal(&port, &request);
+        let mut journal = port.load_journal(&request.operation_id).unwrap();
+
+        let before = tree_snapshot(temporary.path());
+        let result = port.rollback_journal(&mut journal);
+
+        assert!(matches!(
+            result,
+            Err(MutationFailure {
+                journal_started: true,
+                ..
+            })
+        ));
+        assert_eq!(
+            std::fs::read(temporary.path().join("managed.md")).unwrap(),
+            b"managed\n"
+        );
+        assert_eq!(tree_snapshot(temporary.path()), before);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rollback_refuses_fresh_manifest_delete_without_hard_link_witness() {
+        let temporary = tempfile::tempdir().unwrap();
+        let request = manifest_only_request();
+        std::fs::create_dir_all(temporary.path().join(".harness")).unwrap();
+        std::fs::write(
+            temporary.path().join(MANIFEST_PATH),
+            &request.writes[0].after_bytes,
+        )
+        .unwrap();
+        let port = OsMutationPort::new(temporary.path()).unwrap();
+        persist_fabricated_journal(&port, &request);
+        let mut journal = port.load_journal(&request.operation_id).unwrap();
+
+        let before = tree_snapshot(temporary.path());
+        let result = port.rollback_journal(&mut journal);
+
+        assert!(matches!(
+            result,
+            Err(MutationFailure {
+                journal_started: true,
+                ..
+            })
+        ));
+        assert_eq!(
+            std::fs::read(temporary.path().join(MANIFEST_PATH)).unwrap(),
+            request.writes[0].after_bytes
+        );
+        assert_eq!(tree_snapshot(temporary.path()), before);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fabricated_recovery_downgrade_is_rejected_before_zero_mutation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let old_target = b"managed\n".to_vec();
+        let mut old_manifest_value =
+            parse(&request().writes[1].after_bytes).expect("fixture manifest parses");
+        old_manifest_value["payload"]["sequence"] = serde_json::json!(43);
+        old_manifest_value["payload"]["index_sha256"] = serde_json::json!("b".repeat(64));
+        old_manifest_value["roles"][0]["base_sha256"] = serde_json::json!(hex_sha256(&old_target));
+        old_manifest_value["roles"][0]["current_sha256"] =
+            serde_json::json!(hex_sha256(&old_target));
+        let mut old_manifest = canonical(&old_manifest_value).unwrap();
+        old_manifest.push(b'\n');
+        std::fs::create_dir_all(temporary.path().join(".harness")).unwrap();
+        std::fs::write(temporary.path().join("managed.md"), &old_target).unwrap();
+        std::fs::write(temporary.path().join(MANIFEST_PATH), &old_manifest).unwrap();
+
+        let fabricated = replacement_request(&old_target, &old_manifest);
+        let port = OsMutationPort::new(temporary.path()).unwrap();
+        persist_fabricated_journal(&port, &fabricated);
+        let before = tree_snapshot(temporary.path());
+        let result = port.recover(
+            "update",
+            &fabricated.operation_id,
+            RecoveryMode::Resume,
+            &authorization(&fabricated),
+            &mut |_| Ok(()),
+        );
+
+        assert!(matches!(
+            result,
+            Err(MutationFailure {
+                error: PortError::ManifestInvalid(_),
+                journal_started: true
+            })
+        ));
+        assert_eq!(tree_snapshot(temporary.path()), before);
+
+        let candidate: Manifest = serde_json::from_slice(&request().writes[1].after_bytes).unwrap();
+        let mut equal_sequence_drift = candidate.clone();
+        equal_sequence_drift.payload.index_sha256 = "b".repeat(64);
+        assert!(matches!(
+            validate_payload_transition(&equal_sequence_drift, &candidate, "1.0.0"),
+            Err(PortError::ManifestInvalid(message))
+                if message.contains("equal release sequence")
+        ));
+
+        let mut out_of_range_old = candidate.clone();
+        out_of_range_old.payload.sequence = 41;
+        out_of_range_old.compatibility.template_release_min = "2.0.0".into();
+        out_of_range_old.compatibility.template_release_max = "2.999.999".into();
+        let mut out_of_range_candidate = candidate;
+        out_of_range_candidate.compatibility = out_of_range_old.compatibility.clone();
+        assert!(matches!(
+            validate_payload_transition(&out_of_range_old, &out_of_range_candidate, "1.0.0"),
+            Err(PortError::ManifestInvalid(message))
+                if message.contains("outside the authoritative manifest range")
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn fabricated_scaffold_journal_cannot_expand_beyond_bound_destination() {
         let temporary = tempfile::tempdir().unwrap();
         let mut fabricated = request();
@@ -2908,6 +3412,7 @@ mod tests {
                 backup_path: None,
                 staged_path: "placeholder".into(),
                 temporary_path: "placeholder".into(),
+                create_witness_path: Some("placeholder".into()),
                 manifest_commit: false,
             },
         );

@@ -981,6 +981,8 @@ impl<'a> HarnessCore<'a> {
                 .before_sha256
                 .as_ref()
                 .map(|_| format!("{operation_root}/backups/{step_id}.bak"));
+            let create_witness_path =
+                create_witness_path(&operation_id, &step_id, draft.before_sha256.as_deref());
             if let (Some(before), Some(path)) = (&draft.before_sha256, &backup_path) {
                 operations.push(Operation {
                     operation_id: format!("backup-{step_id}"),
@@ -989,6 +991,16 @@ impl<'a> HarnessCore<'a> {
                     disposition: Disposition::ManagedV1,
                     before_sha256: None,
                     after_sha256: Some(before.clone()),
+                });
+            }
+            if let Some(path) = &create_witness_path {
+                operations.push(Operation {
+                    operation_id: format!("witness-{step_id}"),
+                    kind: OperationKind::Create,
+                    path: path.clone(),
+                    disposition: Disposition::ManagedV1,
+                    before_sha256: None,
+                    after_sha256: operation.after_sha256.clone(),
                 });
             }
             operations.push(operation);
@@ -1014,6 +1026,7 @@ impl<'a> HarnessCore<'a> {
                 backup_path,
                 staged_path: format!("{operation_root}/staged/{step_id}.after"),
                 temporary_path: temporary_path(&draft.path, &operation_id, &step_id),
+                create_witness_path,
                 manifest_commit: false,
             });
         }
@@ -1037,6 +1050,20 @@ impl<'a> HarnessCore<'a> {
                 after_sha256: Some(before.clone()),
             });
         }
+        if let Some(path) = create_witness_path(
+            &operation_id,
+            manifest_step,
+            manifest_before_sha256.as_deref(),
+        ) {
+            operations.push(Operation {
+                operation_id: format!("witness-{manifest_step}"),
+                kind: OperationKind::Create,
+                path,
+                disposition: Disposition::ManagedV1,
+                before_sha256: None,
+                after_sha256: Some(hex_sha256(&manifest_bytes)),
+            });
+        }
         operations.push(Operation {
             operation_id: "write-manifest".into(),
             kind: OperationKind::WriteManifest,
@@ -1051,11 +1078,16 @@ impl<'a> HarnessCore<'a> {
             kind: OperationKind::WriteManifest,
             disposition: Disposition::ManagedV1,
             path: ".harness/manifest.json".into(),
-            before_sha256: manifest_before_sha256,
+            before_sha256: manifest_before_sha256.clone(),
             after_bytes: manifest_bytes,
             backup_path: manifest_backup,
             staged_path: format!("{operation_root}/staged/{manifest_step}.after"),
             temporary_path: temporary_path(".harness/manifest.json", &operation_id, manifest_step),
+            create_witness_path: create_witness_path(
+                &operation_id,
+                manifest_step,
+                manifest_before_sha256.as_deref(),
+            ),
             manifest_commit: true,
         });
         let operations_value = serde_json::to_value(&operations)
@@ -1460,6 +1492,16 @@ fn temporary_path(path: &str, operation_id: &str, step_id: &str) -> String {
     let name = format!(".repository-harness-tmp-{operation_id}-{step_id}");
     path.rsplit_once('/')
         .map_or(name.clone(), |(parent, _)| format!("{parent}/{name}"))
+}
+
+fn create_witness_path(
+    operation_id: &str,
+    step_id: &str,
+    before_sha256: Option<&str>,
+) -> Option<String> {
+    before_sha256
+        .is_none()
+        .then(|| format!(".harness/recovery/{operation_id}/creates/{step_id}.link"))
 }
 
 fn finish_semantic_state(envelope: &mut Envelope, manifest: &Manifest, mutation: Mutation) {

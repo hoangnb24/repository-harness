@@ -51,8 +51,12 @@ scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
 ```
 
-US-108 records 33 focused Phase 3 test functions, all 18 install, 15 update, and
-13 committed-update rollback checkpoints, 79 total `harness-core` tests, 171
-workspace Rust tests, and 11 Phase 3 proof groups. Phase 4 bridge and Phase 7
-production/platform rows remain absent and must not be inferred from those
-results.
+US-108 records 39 focused Phase 3 test functions, all 18 install, 15 update,
+and 13 committed-update rollback checkpoints, 85 total `harness-core` tests,
+177 workspace Rust tests, and 11 Phase 3 proof groups. The Phase 3 candidate
+also proves retained hard-link witnesses for every `before_sha256=None` create
+that recovery may later classify or remove, plus monotonic recovery validation
+that refuses payload downgrade or equal-sequence digest drift before mutation.
+Phase 4 bridge and Phase 7 production/platform rows remain absent and must not
+be inferred from those results. Phase 3 acceptance remains pending until fresh
+exact-hash reviewers approve the candidate.
