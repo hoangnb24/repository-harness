@@ -265,6 +265,32 @@ impl SecureRoot {
         unreachable!("non-Unix roots are never constructed")
     }
 
+    #[cfg(unix)]
+    pub fn read_private_regular(&self, relative: &str, expected_len: usize) -> Result<Vec<u8>> {
+        use rustix::fs::{fstat, FileType};
+        let descriptor = self.open_optional_regular(relative)?.ok_or_else(|| {
+            BridgeError::Conflict(format!("private evidence is absent: {relative}"))
+        })?;
+        let stat = fstat(&descriptor).map_err(|error| map_errno(relative, error))?;
+        if !FileType::from_raw_mode(stat.st_mode).is_file()
+            || stat.st_mode as u32 & 0o777 != 0o600
+            || stat.st_uid != self.stat.st_uid
+        {
+            return Err(BridgeError::Conflict(format!(
+                "private evidence has invalid owner, type, or mode: {relative}"
+            )));
+        }
+        let mut file = File::from(descriptor);
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        if bytes.len() != expected_len {
+            return Err(BridgeError::Conflict(format!(
+                "private evidence has invalid length: {relative}"
+            )));
+        }
+        Ok(bytes)
+    }
+
     pub fn exists(&self, relative: &str) -> Result<bool> {
         #[cfg(unix)]
         {
@@ -275,6 +301,7 @@ impl SecureRoot {
     }
 
     pub fn preflight_new_file(&self, relative: &str) -> Result<()> {
+        validate_output_path(relative)?;
         if self.open_optional_regular(relative)?.is_some() {
             return Err(BridgeError::Conflict(format!(
                 "output destination is already occupied: {relative}"
@@ -295,11 +322,14 @@ impl SecureRoot {
                 Mode::from_bits_truncate(0o600),
             )
             .map_err(|error| map_errno(relative, error))?;
+            write_checkpoint("file-open")?;
             fchmod(&descriptor, Mode::from_bits_truncate(0o600))
                 .map_err(|error| map_errno(relative, error))?;
             let mut file = File::from(descriptor);
             file.write_all(bytes)?;
+            write_checkpoint("file-written")?;
             file.sync_all()?;
+            write_checkpoint("file-synced")?;
             fsync(&parent).map_err(|error| map_errno(relative, error))?;
             Ok(())
         }
@@ -337,13 +367,16 @@ impl SecureRoot {
                 Mode::from_bits_truncate(0o600),
             )
             .map_err(|error| map_errno(relative, error))?;
+            write_checkpoint("atomic-temp-open")?;
             fchmod(&descriptor, Mode::from_bits_truncate(0o600))
                 .map_err(|error| map_errno(relative, error))?;
             let mut file = File::from(descriptor);
             file.write_all(bytes)?;
+            write_checkpoint("atomic-temp-written")?;
             file.sync_all()?;
             renameat(&parent, &temporary, &parent, &name)
                 .map_err(|error| map_errno(relative, error))?;
+            write_checkpoint("atomic-renamed")?;
             fsync(&parent).map_err(|error| map_errno(relative, error))?;
             Ok(())
         }
@@ -381,21 +414,100 @@ impl SecureRoot {
     pub fn remove_exact(&self, relative: &str, expected_sha256: &str) -> Result<()> {
         #[cfg(unix)]
         {
-            use rustix::fs::{fsync, unlinkat, AtFlags};
+            use rustix::fs::{
+                fstat, fsync, openat, renameat_with, FileType, Mode, OFlags, RenameFlags,
+            };
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let lock = self.acquire_bridge_lock()?;
+            let (source_parent, source_name) = self.open_parent(relative, false)?;
+            let descriptor = openat(
+                &source_parent,
+                &source_name,
+                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                Mode::empty(),
+            )
+            .map_err(|error| map_errno(relative, error))?;
+            let before = fstat(&descriptor).map_err(|error| map_errno(relative, error))?;
+            if !FileType::from_raw_mode(before.st_mode).is_file() {
+                return Err(BridgeError::Conflict(format!(
+                    "target is not a regular file: {relative}"
+                )));
+            }
             let bytes = self.read(relative)?;
             if hex_sha256(&bytes) != expected_sha256 {
                 return Err(BridgeError::Conflict(format!(
                     "refusing to remove drifted target: {relative}"
                 )));
             }
-            let (parent, name) = self.open_parent(relative, false)?;
-            unlinkat(&parent, &name, AtFlags::empty())
+            let nonce = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|error| BridgeError::Io(std::io::Error::other(error)))?
+                .as_nanos();
+            let quarantine =
+                format!(".harness/recovery/v0-conversion/.rollback-quarantine-{nonce}");
+            let (quarantine_parent, quarantine_name) = self.open_parent(&quarantine, false)?;
+            renameat_with(
+                &source_parent,
+                &source_name,
+                &quarantine_parent,
+                &quarantine_name,
+                RenameFlags::NOREPLACE,
+            )
+            .map_err(|error| map_errno(relative, error))?;
+            let quarantined = openat(
+                &quarantine_parent,
+                &quarantine_name,
+                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                Mode::empty(),
+            )
+            .map_err(|error| map_errno(&quarantine, error))?;
+            let after = fstat(&quarantined).map_err(|error| map_errno(&quarantine, error))?;
+            if !same_identity(&before, &after) {
+                renameat_with(
+                    &quarantine_parent,
+                    &quarantine_name,
+                    &source_parent,
+                    &source_name,
+                    RenameFlags::NOREPLACE,
+                )
                 .map_err(|error| map_errno(relative, error))?;
-            fsync(&parent).map_err(|error| map_errno(relative, error))?;
+                return Err(BridgeError::Conflict(
+                    "target identity changed before conditional quarantine".into(),
+                ));
+            }
+            rustix::fs::unlinkat(
+                &quarantine_parent,
+                &quarantine_name,
+                rustix::fs::AtFlags::empty(),
+            )
+            .map_err(|error| map_errno(&quarantine, error))?;
+            fsync(&source_parent).map_err(|error| map_errno(relative, error))?;
+            fsync(&quarantine_parent).map_err(|error| map_errno(&quarantine, error))?;
+            drop(lock);
             Ok(())
         }
         #[cfg(not(unix))]
         unreachable!("non-Unix roots are never constructed")
+    }
+
+    #[cfg(unix)]
+    fn acquire_bridge_lock(&self) -> Result<File> {
+        use rustix::fs::{fchmod, openat, Mode, OFlags};
+        let (parent, name) =
+            self.open_parent(".harness/recovery/v0-conversion/.bridge.lock", true)?;
+        let descriptor = openat(
+            &parent,
+            &name,
+            OFlags::WRONLY | OFlags::CREATE | OFlags::CLOEXEC | OFlags::NOFOLLOW,
+            Mode::from_bits_truncate(0o600),
+        )
+        .map_err(|error| map_errno(".bridge.lock", error))?;
+        fchmod(&descriptor, Mode::from_bits_truncate(0o600))
+            .map_err(|error| map_errno(".bridge.lock", error))?;
+        let file = File::from(descriptor);
+        fs2::FileExt::try_lock_exclusive(&file)
+            .map_err(|error| BridgeError::Conflict(format!("bridge lock unavailable: {error}")))?;
+        Ok(file)
     }
 
     #[cfg(unix)]
@@ -419,17 +531,102 @@ impl SecureRoot {
         names.sort();
         Ok(names)
     }
+
+    #[cfg(not(unix))]
+    pub fn list_names(
+        &self,
+        _descriptor: &std::os::fd::OwnedFd,
+        _label: &str,
+    ) -> Result<Vec<String>> {
+        Err(BridgeError::Unsupported(
+            "descriptor-relative directory enumeration is unavailable until Phase 7".into(),
+        ))
+    }
+
+    #[cfg(unix)]
+    pub fn authenticated_custody(&self, kind: &str) -> Result<bool> {
+        let base = format!(".harness/{kind}/v0-conversion");
+        let directory = match self.open_dir(&base, false, false) {
+            Ok(directory) => directory,
+            Err(BridgeError::Errno(error)) if error == rustix::io::Errno::NOENT => {
+                return Ok(false)
+            }
+            Err(error) => return Err(error),
+        };
+        for name in self.list_names(&directory, &base)? {
+            if name == "journal-auth.key" || name.ends_with(".archive-staging") {
+                continue;
+            }
+            let journal = format!(".harness/recovery/v0-conversion/{name}/journal.json");
+            if crate::journal::load_pinned(self, &name).is_ok() && self.exists(&journal)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+}
+
+#[cfg(not(unix))]
+impl SecureRoot {
+    pub fn open_dir(
+        &self,
+        _relative: &str,
+        _create: bool,
+        _sensitive: bool,
+    ) -> Result<std::fs::File> {
+        Err(BridgeError::Unsupported(
+            "descriptor-relative directory custody is unavailable until Phase 7".into(),
+        ))
+    }
+
+    pub fn create_dir_exact(&self, _relative: &str) -> Result<std::fs::File> {
+        Err(BridgeError::Unsupported(
+            "descriptor-relative directory custody is unavailable until Phase 7".into(),
+        ))
+    }
+
+    pub fn open_parent(&self, _relative: &str, _create: bool) -> Result<(std::fs::File, String)> {
+        Err(BridgeError::Unsupported(
+            "descriptor-relative path custody is unavailable until Phase 7".into(),
+        ))
+    }
+
+    pub fn open_required_regular(&self, _relative: &str) -> Result<std::fs::File> {
+        Err(BridgeError::Unsupported(
+            "descriptor-relative input capture is unavailable until Phase 7".into(),
+        ))
+    }
+
+    pub fn open_optional_regular(&self, _relative: &str) -> Result<Option<std::fs::File>> {
+        Err(BridgeError::Unsupported(
+            "descriptor-relative input capture is unavailable until Phase 7".into(),
+        ))
+    }
 }
 
 fn validate_relative(value: &str) -> Result<()> {
     let path = Path::new(value);
+    let components = value.split('/').collect::<Vec<_>>();
     if value.is_empty()
         || path.is_absolute()
+        || value.contains('\\')
+        || value.contains(':')
+        || value.bytes().any(|byte| byte.is_ascii_control())
         || path.components().any(|component| {
             matches!(
                 component,
-                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                Component::CurDir
+                    | Component::ParentDir
+                    | Component::RootDir
+                    | Component::Prefix(_)
             )
+        })
+        || components.iter().any(|component| {
+            component.is_empty()
+                || component.ends_with('.')
+                || component.ends_with(' ')
+                || component.eq_ignore_ascii_case(".git")
+                || windows_device_name(component)
         })
     {
         return Err(BridgeError::Usage(
@@ -437,6 +634,40 @@ fn validate_relative(value: &str) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+#[cfg(unix)]
+fn write_checkpoint(name: &str) -> Result<()> {
+    if std::env::var("HARNESS_V0_MIGRATE_TEST_KILL_DURING_WRITE").as_deref() == Ok(name) {
+        return Err(BridgeError::KillPoint(format!("write:{name}")));
+    }
+    Ok(())
+}
+
+fn validate_output_path(value: &str) -> Result<()> {
+    validate_relative(value)?;
+    if value.starts_with(".harness/")
+        || value == ".harness"
+        || value.starts_with(".git/")
+        || value == ".git"
+        || !value.to_ascii_lowercase().ends_with(".json")
+    {
+        return Err(BridgeError::Usage(
+            "bridge output must be a repository-relative JSON export outside custody or .git"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
+fn windows_device_name(component: &str) -> bool {
+    let stem = component.split('.').next().unwrap_or(component);
+    matches!(
+        stem.to_ascii_uppercase().as_str(),
+        "CON" | "PRN" | "AUX" | "NUL"
+    ) || (stem.len() == 4
+        && (stem.starts_with("COM") || stem.starts_with("LPT"))
+        && stem[3..].bytes().all(|byte| byte.is_ascii_digit()))
 }
 
 #[cfg(unix)]

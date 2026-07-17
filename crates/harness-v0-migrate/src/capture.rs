@@ -124,10 +124,9 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
     let mut changeset_names_before = None;
     if let Some(names) = &harness_names_before {
         for name in names {
-            if !recognized_metadata.contains(name.as_str())
-                && name != "legacy"
-                && name != "recovery"
-            {
+            let authenticated_custody =
+                (name == "legacy" || name == "recovery") && root.authenticated_custody(name)?;
+            if !recognized_metadata.contains(name.as_str()) && !authenticated_custody {
                 unknown_metadata.push(format!(".harness/{name}"));
             }
         }
@@ -314,6 +313,14 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
         standalone_backup,
         standalone_backup_sha256,
     })
+}
+
+#[cfg(not(unix))]
+pub(crate) fn capture_pinned(_root: &SecureRoot) -> Result<Capture> {
+    Err(BridgeError::Unsupported(
+        "descriptor-anchored V0 capture is unavailable on this platform; Phase 7 remains closed"
+            .into(),
+    ))
 }
 
 #[cfg(unix)]

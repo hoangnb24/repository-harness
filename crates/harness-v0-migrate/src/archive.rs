@@ -68,7 +68,9 @@ pub(crate) fn prepare_or_verify(
     root.validate_root()?;
     let conversion_id = &journal.conversion_id;
     let final_dir = archive_directory(conversion_id);
-    let staging_dir = staging_directory(conversion_id);
+    let staging_dir = journal.archive_staging_path.clone().ok_or_else(|| {
+        BridgeError::Invalid("journal lacks authenticated archive staging intent".into())
+    })?;
     let final_exists = directory_exists(root, &final_dir)?;
     let staging_exists = directory_exists(root, &staging_dir)?;
     if final_exists && staging_exists {
@@ -127,10 +129,9 @@ pub(crate) fn prepare_or_verify(
     ))
 }
 
-pub(crate) fn publish(root: &SecureRoot, conversion_id: &str) -> Result<()> {
-    let staging = staging_directory(conversion_id);
+pub(crate) fn publish(root: &SecureRoot, conversion_id: &str, staging: &str) -> Result<()> {
     let destination = archive_directory(conversion_id);
-    root.rename_no_replace(&staging, &destination)?;
+    root.rename_no_replace(staging, &destination)?;
     root.validate_root()
 }
 
@@ -173,7 +174,8 @@ fn verify_directory(
         ));
     }
     let manifest_bytes = root.read(&format!("{directory}/archive-manifest.json"))?;
-    let manifest: ArchiveManifest = serde_json::from_slice(&manifest_bytes)?;
+    let manifest: ArchiveManifest = serde_json::from_slice(&manifest_bytes)
+        .map_err(|error| BridgeError::Invalid(format!("archive manifest is malformed: {error}")))?;
     let payload = root.read(&format!("{directory}/{payload_name}"))?;
     let expected_members = archive_members(capture);
     let expected_fingerprints = if options.plaintext {
@@ -314,6 +316,14 @@ fn expected_mode(options: &ArchiveOptions) -> Result<&'static str> {
 }
 
 fn directory_exists(root: &SecureRoot, relative: &str) -> Result<bool> {
+    #[cfg(not(unix))]
+    {
+        let _ = (root, relative);
+        return Err(BridgeError::Unsupported(
+            "descriptor-relative archive custody is unavailable until Phase 7".into(),
+        ));
+    }
+    #[cfg(unix)]
     match root.open_dir(relative, false, true) {
         Ok(_) => Ok(true),
         Err(BridgeError::Errno(error)) if error == rustix::io::Errno::NOENT => Ok(false),
@@ -349,8 +359,17 @@ fn encode_payload(capture: &Capture, export: &[u8]) -> Result<Vec<u8>> {
     Ok(output)
 }
 
-fn staging_directory(conversion_id: &str) -> String {
-    format!(".harness/recovery/v0-conversion/{conversion_id}.archive-staging")
+pub(crate) fn new_staging_path(conversion_id: &str) -> Result<String> {
+    let mut bytes = [0_u8; 12];
+    getrandom::getrandom(&mut bytes).map_err(|error| {
+        BridgeError::Io(std::io::Error::other(format!(
+            "staging nonce failed: {error}"
+        )))
+    })?;
+    Ok(format!(
+        ".harness/recovery/v0-conversion/{conversion_id}.archive-staging-{}",
+        hex_sha256(&bytes)[..16].to_owned()
+    ))
 }
 
 fn archive_directory(conversion_id: &str) -> String {

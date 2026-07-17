@@ -81,7 +81,7 @@ fn apply_until(root: &Path, digest: String, kill_point: &str) -> (String, Bridge
     std::env::set_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER", kill_point);
     let error = Bridge::new(root)
         .execute(&Command::Apply {
-            accepted_preview_sha256: digest,
+            accepted_preview_sha256: digest.clone(),
             archive: plaintext(),
         })
         .unwrap_err();
@@ -172,7 +172,7 @@ fn prepositioned_archive_needs_authenticated_journal_member_and_export_binding()
 
     assert!(matches!(
         Bridge::new(temporary.path()).execute(&Command::Apply {
-            accepted_preview_sha256: digest,
+            accepted_preview_sha256: digest.clone(),
             archive: plaintext(),
         }),
         Err(BridgeError::Conflict(_))
@@ -456,6 +456,110 @@ fn recovery_state_is_not_silently_rewritten_by_a_failed_preflight() {
             .state,
         JournalState::Completed
     );
+}
+
+#[test]
+fn completed_apply_reauthenticates_digest_options_and_archive_before_success() {
+    let _guard = ENVIRONMENT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
+    let temporary = copy_fixture("schema-13");
+    let (conversion_id, digest) = preview(temporary.path());
+    Bridge::new(temporary.path())
+        .execute(&Command::Apply {
+            accepted_preview_sha256: digest.clone(),
+            archive: plaintext(),
+        })
+        .unwrap();
+    let different = "b".repeat(64);
+    assert!(matches!(
+        Bridge::new(temporary.path()).execute(&Command::Apply {
+            accepted_preview_sha256: different,
+            archive: plaintext(),
+        }),
+        Err(BridgeError::Conflict(_))
+    ));
+    assert!(matches!(
+        Bridge::new(temporary.path()).execute(&Command::Apply {
+            accepted_preview_sha256: digest.clone(),
+            archive: ArchiveOptions {
+                age_recipient: Some("age1different".into()),
+                plaintext: false,
+                plaintext_risk_acknowledged: false,
+            },
+        }),
+        Err(BridgeError::Conflict(_))
+    ));
+    std::fs::write(
+        temporary.path().join(format!(
+            ".harness/legacy/v0-conversion/{conversion_id}/conversion.bin"
+        )),
+        b"damaged completed archive",
+    )
+    .unwrap();
+    assert!(matches!(
+        Bridge::new(temporary.path()).execute(&Command::Apply {
+            accepted_preview_sha256: digest,
+            archive: plaintext(),
+        }),
+        Err(BridgeError::Conflict(_))
+    ));
+}
+
+#[test]
+fn preexisting_recovery_key_and_tree_cannot_be_adopted_by_first_journal() {
+    let _guard = ENVIRONMENT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
+    let temporary = copy_fixture("schema-13");
+    let recovery = temporary.path().join(".harness/recovery/v0-conversion");
+    std::fs::create_dir_all(&recovery).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(
+            temporary.path().join(".harness/recovery"),
+            std::fs::Permissions::from_mode(0o700),
+        )
+        .unwrap();
+        std::fs::set_permissions(&recovery, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    std::fs::write(recovery.join("journal-auth.key"), vec![7_u8; 32]).unwrap();
+    let (_, digest) = preview(temporary.path());
+    assert!(Bridge::new(temporary.path())
+        .execute(&Command::Apply {
+            accepted_preview_sha256: digest,
+            archive: plaintext(),
+        })
+        .is_err());
+    assert!(!temporary.path().join(".harness/manifest.json").exists());
+}
+
+#[test]
+fn malformed_conversion_evidence_maps_to_invalid_or_conflict_not_internal_json_exit() {
+    let _guard = ENVIRONMENT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
+    let temporary = copy_fixture("schema-13");
+    let (conversion_id, digest) = preview(temporary.path());
+    let (_, error) = apply_until(temporary.path(), digest, "detection");
+    assert!(matches!(error, BridgeError::KillPoint(_)));
+    std::fs::write(
+        journal::path(temporary.path(), &conversion_id),
+        b"not-json\n",
+    )
+    .unwrap();
+    let error = Bridge::new(temporary.path())
+        .execute(&Command::Resume { conversion_id })
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        BridgeError::Invalid(_) | BridgeError::Conflict(_)
+    ));
+    assert_ne!(error.exit_code(), 70);
 }
 
 #[test]

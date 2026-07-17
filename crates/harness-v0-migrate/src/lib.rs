@@ -166,7 +166,13 @@ impl Bridge {
         let root = SecureRoot::open(&self.root)?;
         let capture = capture::capture_pinned(&root)?;
         let conversion_id = conversion_id(&capture);
-        let preview = preview_digest(&root, &capture)?;
+        let journal_path = journal::relative_path(&conversion_id);
+        let preview = if root.exists(&journal_path)? {
+            let existing = journal::load_pinned(&root, &conversion_id)?;
+            preview_digest_with_manifest(&root, &capture, existing.manifest_before_sha256.clone())?
+        } else {
+            preview_digest(&root, &capture)?
+        };
         let (_, export_bytes, export_sha256) = export::build(&capture)?;
         root.preflight_new_file(output)?;
         let mut journal = Journal::new(
@@ -179,6 +185,7 @@ impl Bridge {
             preview,
         );
         bind_archive_decision(&mut journal, options);
+        journal.archive_staging_path = Some(archive::new_staging_path(&conversion_id)?);
         journal::save_pinned(&root, &journal)?;
         journal.state = JournalState::Inspected;
         journal::save_pinned(&root, &journal)?;
@@ -190,7 +197,13 @@ impl Bridge {
         bind_archive(&mut journal, &evidence);
         journal::save_pinned(&root, &journal)?;
         if !published {
-            archive::publish(&root, &conversion_id)?;
+            archive::publish(
+                &root,
+                &conversion_id,
+                journal.archive_staging_path.as_deref().ok_or_else(|| {
+                    BridgeError::Invalid("journal lacks archive staging intent".into())
+                })?,
+            )?;
         }
         archive::verify_published(&root, &journal, &capture, &export_bytes, options)?;
         journal.state = JournalState::Archived;
@@ -209,16 +222,21 @@ impl Bridge {
         let root = SecureRoot::open(&self.root)?;
         let capture = capture::capture_pinned(&root)?;
         let conversion_id = conversion_id(&capture);
-        if let Some(report) = self.completed_idempotent(&root, &conversion_id, &capture)? {
-            return Ok(report);
-        }
-        let preview = preview_digest(&root, &capture)?;
+        let journal_path = journal::relative_path(&conversion_id);
+        let preview = if root.exists(&journal_path)? {
+            let existing = journal::load_pinned(&root, &conversion_id)?;
+            preview_digest_with_manifest(&root, &capture, existing.manifest_before_sha256.clone())?
+        } else {
+            preview_digest(&root, &capture)?
+        };
         if accepted != preview {
             return Err(BridgeError::Conflict(
                 "accepted preview digest does not match current compatibility/input plan".into(),
             ));
         }
-        let journal_path = journal::relative_path(&conversion_id);
+        if let Some(report) = self.completed_idempotent(&root, &conversion_id, &capture, options)? {
+            return Ok(report);
+        }
         if root.exists(&journal_path)? {
             let existing = journal::load_pinned(&root, &conversion_id)?;
             ensure_archive_decision(&existing, options)?;
@@ -235,6 +253,7 @@ impl Bridge {
             preview,
         );
         bind_archive_decision(&mut journal, options);
+        journal.archive_staging_path = Some(archive::new_staging_path(&journal.conversion_id)?);
         journal::save_pinned(&root, &journal)?;
         kill("detection")?;
         self.advance(&root, journal, capture, options.clone())
@@ -314,7 +333,13 @@ impl Bridge {
             bind_archive(&mut journal, &evidence);
             journal::save_pinned(root, &journal)?;
             if !published {
-                archive::publish(root, &journal.conversion_id)?;
+                archive::publish(
+                    root,
+                    &journal.conversion_id,
+                    journal.archive_staging_path.as_deref().ok_or_else(|| {
+                        BridgeError::Invalid("journal lacks archive staging intent".into())
+                    })?,
+                )?;
             }
             archive::verify_published(root, &journal, &capture, &export_bytes, &options)?;
             journal.state = JournalState::Archived;
@@ -333,7 +358,10 @@ impl Bridge {
         let manifest_bytes = build_manifest(root, &capture, &journal)?;
         let manifest_sha256 = hex_sha256(&manifest_bytes);
         let receipt_bytes = serde_json::to_vec(
-            &serde_json::from_slice::<Manifest>(&manifest_bytes)?
+            &serde_json::from_slice::<Manifest>(&manifest_bytes)
+                .map_err(|error| {
+                    BridgeError::Invalid(format!("conversion receipt is malformed: {error}"))
+                })?
                 .conversion_receipt
                 .expect("candidate has receipt"),
         )?;
@@ -471,6 +499,7 @@ impl Bridge {
         root: &SecureRoot,
         conversion_id: &str,
         capture: &Capture,
+        options: &ArchiveOptions,
     ) -> Result<Option<Report>> {
         let path = journal::relative_path(conversion_id);
         if !root.exists(&path)? {
@@ -479,6 +508,14 @@ impl Bridge {
         let journal = journal::load_pinned(root, conversion_id)?;
         if journal.state == JournalState::Completed {
             preflight_journal_source(root, &journal, capture)?;
+            let (_, export_bytes, export_sha256) = export::build(capture)?;
+            if journal.export_sha256.as_deref() != Some(export_sha256.as_str()) {
+                return Err(BridgeError::Conflict(
+                    "completed journal export witness drifted".into(),
+                ));
+            }
+            ensure_archive_decision(&journal, options)?;
+            archive::verify_published(root, &journal, capture, &export_bytes, options)?;
             validate_live_manifest(root, &journal)?;
             return self.completed_report(&journal, capture, "apply").map(Some);
         }

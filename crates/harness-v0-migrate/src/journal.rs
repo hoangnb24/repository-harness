@@ -42,6 +42,7 @@ pub struct Journal {
     pub standalone_backup_sha256: String,
     pub archive_sha256: Option<String>,
     pub archive_manifest_sha256: Option<String>,
+    pub archive_staging_path: Option<String>,
     pub archive_path: Option<String>,
     pub confidentiality_mode: Option<String>,
     pub recipient_fingerprints: Vec<String>,
@@ -77,6 +78,7 @@ impl Journal {
             standalone_backup_sha256,
             archive_sha256: None,
             archive_manifest_sha256: None,
+            archive_staging_path: None,
             archive_path: None,
             confidentiality_mode: None,
             recipient_fingerprints: Vec::new(),
@@ -110,6 +112,11 @@ impl Journal {
                 .archive_manifest_sha256
                 .as_deref()
                 .is_none_or(is_digest)
+            || self.archive_staging_path.as_deref().is_some_and(|path| {
+                !path.starts_with(".harness/recovery/v0-conversion/")
+                    || path.contains("..")
+                    || path.contains('\\')
+            })
             || !self.manifest_before_sha256.as_deref().is_none_or(is_digest)
             || !self.manifest_after_sha256.as_deref().is_none_or(is_digest)
             || !self.receipt_sha256.as_deref().is_none_or(is_digest)
@@ -179,7 +186,9 @@ pub fn load(root: &Path, conversion_id: &str) -> Result<Journal> {
 pub(crate) fn load_pinned(root: &SecureRoot, conversion_id: &str) -> Result<Journal> {
     root.validate_root()?;
     let bytes = root.read(&relative_path(conversion_id))?;
-    let journal: Journal = serde_json::from_slice(&bytes)?;
+    let journal: Journal = serde_json::from_slice(&bytes).map_err(|error| {
+        BridgeError::Invalid(format!("conversion journal is malformed: {error}"))
+    })?;
     verify(root, &journal)?;
     if journal.conversion_id != conversion_id {
         return Err(BridgeError::Conflict(
@@ -194,6 +203,7 @@ pub fn save(root: &Path, journal: &Journal) -> Result<()> {
     save_pinned(&root, journal)
 }
 
+#[cfg(unix)]
 pub(crate) fn save_pinned(root: &SecureRoot, journal: &Journal) -> Result<()> {
     root.validate_root()?;
     if journal.root != root.identity() {
@@ -203,6 +213,15 @@ pub(crate) fn save_pinned(root: &SecureRoot, journal: &Journal) -> Result<()> {
     }
     journal.validate_shape()?;
     root.open_dir(".harness", true, false)?;
+    let conversion_root_preexisting = root
+        .open_dir(".harness/recovery/v0-conversion", false, true)
+        .is_ok();
+    let journal_relative = relative_path(&journal.conversion_id);
+    if !root.exists(&journal_relative)? && conversion_root_preexisting {
+        return Err(BridgeError::Conflict(
+            "pre-existing recovery custody cannot become bridge-owned authority".into(),
+        ));
+    }
     root.open_dir(".harness/recovery", true, true)?;
     root.open_dir(".harness/recovery/v0-conversion", true, true)?;
     let journal_directory = format!(".harness/recovery/v0-conversion/{}", journal.conversion_id);
@@ -233,6 +252,13 @@ pub(crate) fn save_pinned(root: &SecureRoot, journal: &Journal) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(unix))]
+pub(crate) fn save_pinned(_root: &SecureRoot, _journal: &Journal) -> Result<()> {
+    Err(BridgeError::Unsupported(
+        "descriptor-relative journal custody is unavailable until Phase 7".into(),
+    ))
+}
+
 pub(crate) fn verify(root: &SecureRoot, journal: &Journal) -> Result<()> {
     journal.validate_shape()?;
     if journal.root != root.identity() {
@@ -252,9 +278,9 @@ pub(crate) fn verify(root: &SecureRoot, journal: &Journal) -> Result<()> {
 
 fn load_key(root: &SecureRoot, create: bool) -> Result<Vec<u8>> {
     match root.read_optional(AUTH_KEY_PATH)? {
-        Some(key) if key.len() == 32 => Ok(key),
+        Some(_) if !create => root.read_private_regular(AUTH_KEY_PATH, 32),
         Some(_) => Err(BridgeError::Conflict(
-            "journal authentication key has an invalid shape".into(),
+            "pre-existing journal authentication key cannot be adopted".into(),
         )),
         None if create => {
             let mut key = vec![0_u8; 32];
@@ -264,7 +290,7 @@ fn load_key(root: &SecureRoot, create: bool) -> Result<Vec<u8>> {
                 )))
             })?;
             root.write_new(AUTH_KEY_PATH, &key)?;
-            Ok(key)
+            root.read_private_regular(AUTH_KEY_PATH, 32)
         }
         None => Err(BridgeError::Conflict(
             "journal authentication key is absent; no mutation is authorized".into(),
@@ -304,6 +330,7 @@ fn validate_transition(old: &Journal, new: &Journal) -> Result<()> {
         && option_is_immutable(&old.export_sha256, &new.export_sha256)
         && option_is_immutable(&old.archive_sha256, &new.archive_sha256)
         && option_is_immutable(&old.archive_manifest_sha256, &new.archive_manifest_sha256)
+        && option_is_immutable(&old.archive_staging_path, &new.archive_staging_path)
         && option_is_immutable(&old.archive_path, &new.archive_path)
         && option_is_immutable(&old.confidentiality_mode, &new.confidentiality_mode)
         && option_is_immutable(&old.manifest_before_sha256, &new.manifest_before_sha256)

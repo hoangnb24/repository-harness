@@ -69,6 +69,7 @@ struct CoreConversionJournal {
     standalone_backup_sha256: String,
     archive_sha256: Option<String>,
     archive_manifest_sha256: Option<String>,
+    archive_staging_path: Option<String>,
     archive_path: Option<String>,
     confidentiality_mode: Option<String>,
     recipient_fingerprints: Vec<String>,
@@ -253,6 +254,9 @@ impl OsFileSystem {
             serde_json::from_slice(&journal_bytes).map_err(|_| {
                 PortError::Conflict("conversion journal is outside its closed schema".into())
             })?;
+        if journal.manifest_after_sha256.as_deref() != Some(hex_sha256(&manifest_bytes).as_str()) {
+            return Ok(false);
+        }
         let key = self.read_declared(".harness/recovery/v0-conversion/journal-auth.key")?;
         if key.len() != 32
             || journal.schema != "repository-harness-v0-conversion-journal/v1"
@@ -271,7 +275,9 @@ impl OsFileSystem {
             || journal.recipient_fingerprints != receipt.recipient_fingerprints
             || journal.plaintext_risk_acknowledged != receipt.plaintext_risk_acknowledged
             || journal.archive_manifest_sha256.is_none()
+            || journal.archive_staging_path.is_none()
             || journal.receipt_sha256.is_none()
+            || receipt.bridge_release != "1.0.0"
             || !receipt.archive_path.starts_with(&format!(
                 ".harness/legacy/v0-conversion/{}/",
                 receipt.conversion_id
@@ -288,6 +294,11 @@ impl OsFileSystem {
         mac.update(&body);
         let expected = format!("{:x}", mac.finalize().into_bytes());
         if !constant_time_eq(expected.as_bytes(), journal.authentication.as_bytes()) {
+            return Ok(false);
+        }
+        let receipt_bytes = serde_json::to_vec(&receipt)
+            .map_err(|error| PortError::Conflict(format!("receipt encoding failed: {error}")))?;
+        if journal.receipt_sha256.as_deref() != Some(hex_sha256(&receipt_bytes).as_str()) {
             return Ok(false);
         }
         let payload = self.read_declared(&receipt.archive_path)?;
