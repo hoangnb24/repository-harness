@@ -197,6 +197,24 @@ impl<'a> HarnessCore<'a> {
             }
         };
         let has_receipt = manifest.conversion_receipt.is_some();
+        if compatibility.observed && has_receipt && !compatibility.conversion_evidence_authenticated
+        {
+            envelope.repository_mode = RepositoryMode::MixedInvalid;
+            envelope.outcome = Outcome::Invalid;
+            envelope.exit_code = 3;
+            envelope.details.readiness = Readiness::Invalid;
+            envelope
+                .details
+                .violations
+                .push("conversion-evidence-invalid".into());
+            envelope.notices.push(Notice {
+                code: "conversion-evidence-invalid".into(),
+                path: Some(".harness/manifest.json".into()),
+                message: "The conversion receipt is not authenticated to the exact durable journal, archive payload, export, and standalone snapshot witnesses"
+                    .into(),
+            });
+            return envelope;
+        }
         if compatibility.observed
             && (compatibility.conversion_journal_present && !has_receipt
                 || compatibility.legacy_artifact_present

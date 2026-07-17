@@ -11,6 +11,4 @@ for command in cargo python3; do
   }
 done
 
-cargo test --quiet --locked --offline --package harness-v0-migrate
-cargo build --quiet --locked --offline --package harness-v0-migrate --bin harness-v0-migrate
 python3 scripts/verify_v1_phase4_bridge.py

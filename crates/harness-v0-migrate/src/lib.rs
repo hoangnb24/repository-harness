@@ -9,13 +9,12 @@ pub mod command_spec;
 pub mod export;
 pub mod interface;
 pub mod journal;
+mod secure_fs;
 mod strict_json;
 
-use std::fs::{File, OpenOptions};
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use capture::{hex_sha256, source_digest, Capture};
+use capture::{capture_members_digest, hex_sha256, source_digest, Capture};
 use harness_core::domain::{
     Activation, Compatibility, ConversionReceipt, Manifest, ManifestRepositoryMode, Origin,
     Ownership, PayloadIdentity, Role, UpdatePolicy, MANIFEST_SCHEMA,
@@ -24,6 +23,7 @@ use harness_core::infrastructure::JsonManifestPort;
 use harness_core::ports::ManifestPort;
 use interface::{ArchiveOptions, Command};
 use journal::{Journal, JournalState};
+use secure_fs::SecureRoot;
 use serde::Serialize;
 
 pub type Result<T> = std::result::Result<T, BridgeError>;
@@ -62,9 +62,10 @@ impl BridgeError {
             Self::Unsupported(_) => 5,
             Self::Conflict(_) | Self::KillPoint(_) => 4,
             Self::Invalid(_) | Self::Manifest(_) => 3,
-            Self::Io(_) | Self::Sqlite(_) | Self::Json(_) | Self::Age(_) => 70,
+            Self::Io(_) => 74,
+            Self::Sqlite(_) | Self::Json(_) | Self::Age(_) => 70,
             #[cfg(unix)]
-            Self::Errno(_) => 70,
+            Self::Errno(_) => 74,
         }
     }
 }
@@ -136,7 +137,8 @@ impl Bridge {
     }
 
     fn inspect(&self) -> Result<Report> {
-        let capture = capture::capture(&self.root)?;
+        let root = SecureRoot::open(&self.root)?;
+        let capture = capture::capture_pinned(&root)?;
         let mut report = self.capture_report("inspect", &capture);
         report.notices.push(
             "source opened read-only; DB/WAL/SHM and recognized inputs passed same-handle pre/copy/post checks"
@@ -146,8 +148,9 @@ impl Bridge {
     }
 
     fn preview(&self) -> Result<Report> {
-        let capture = capture::capture(&self.root)?;
-        let preview = preview_digest(&self.root, &capture)?;
+        let root = SecureRoot::open(&self.root)?;
+        let capture = capture::capture_pinned(&root)?;
+        let preview = preview_digest(&root, &capture)?;
         let conversion_id = conversion_id(&capture);
         let mut report = self.capture_report("preview", &capture);
         report.conversion_id = Some(conversion_id);
@@ -160,20 +163,39 @@ impl Bridge {
     }
 
     fn export(&self, output: &str, options: &ArchiveOptions) -> Result<Report> {
-        let capture = capture::capture(&self.root)?;
+        let root = SecureRoot::open(&self.root)?;
+        let capture = capture::capture_pinned(&root)?;
         let conversion_id = conversion_id(&capture);
-        let preview = preview_digest(&self.root, &capture)?;
+        let preview = preview_digest(&root, &capture)?;
         let (_, export_bytes, export_sha256) = export::build(&capture)?;
-        let output_path = capture::safe_output_path(&self.root, output)?;
-        write_new(&output_path, &export_bytes)?;
-        let evidence =
-            archive::create(&self.root, &conversion_id, &capture, &export_bytes, options)?;
-        let mut journal = Journal::new(conversion_id.clone(), source_digest(&capture), preview);
-        journal.state = JournalState::Archived;
+        root.preflight_new_file(output)?;
+        let mut journal = Journal::new(
+            root.identity(),
+            conversion_id.clone(),
+            capture.schema_version,
+            source_digest(&capture),
+            capture_members_digest(&capture),
+            capture.standalone_backup_sha256.clone(),
+            preview,
+        );
+        bind_archive_decision(&mut journal, options);
+        journal::save_pinned(&root, &journal)?;
+        journal.state = JournalState::Inspected;
+        journal::save_pinned(&root, &journal)?;
         journal.export_sha256 = Some(export_sha256.clone());
-        journal.standalone_backup_sha256 = Some(capture.standalone_backup_sha256.clone());
+        journal.state = JournalState::Exported;
+        journal::save_pinned(&root, &journal)?;
+        let (evidence, published) =
+            archive::prepare_or_verify(&root, &journal, &capture, &export_bytes, options)?;
         bind_archive(&mut journal, &evidence);
-        journal::save(&self.root, &journal)?;
+        journal::save_pinned(&root, &journal)?;
+        if !published {
+            archive::publish(&root, &conversion_id)?;
+        }
+        archive::verify_published(&root, &journal, &capture, &export_bytes, options)?;
+        journal.state = JournalState::Archived;
+        journal::save_pinned(&root, &journal)?;
+        root.write_new(output, &export_bytes)?;
         let mut report = self.capture_report("export", &capture);
         report.mutation = "new-export-and-archive-only".into();
         report.conversion_id = Some(conversion_id);
@@ -184,57 +206,84 @@ impl Bridge {
     }
 
     fn apply(&self, accepted: &str, options: &ArchiveOptions) -> Result<Report> {
-        let capture = capture::capture(&self.root)?;
+        let root = SecureRoot::open(&self.root)?;
+        let capture = capture::capture_pinned(&root)?;
         let conversion_id = conversion_id(&capture);
-        if let Some(report) = self.completed_idempotent(&conversion_id, &capture)? {
+        if let Some(report) = self.completed_idempotent(&root, &conversion_id, &capture)? {
             return Ok(report);
         }
-        let preview = preview_digest(&self.root, &capture)?;
+        let preview = preview_digest(&root, &capture)?;
         if accepted != preview {
             return Err(BridgeError::Conflict(
                 "accepted preview digest does not match current compatibility/input plan".into(),
             ));
         }
-        let journal_path = journal::path(&self.root, &conversion_id);
-        if journal_path.exists() {
-            let existing = journal::load(&self.root, &conversion_id)?;
+        let journal_path = journal::relative_path(&conversion_id);
+        if root.exists(&journal_path)? {
+            let existing = journal::load_pinned(&root, &conversion_id)?;
             ensure_archive_decision(&existing, options)?;
-            return self.advance(existing, capture, options.clone());
+            return self.advance(&root, existing, capture, options.clone());
         }
-        reject_preexisting_manifest(&self.root)?;
-        let mut journal = Journal::new(conversion_id, source_digest(&capture), preview);
+        reject_preexisting_manifest(&root)?;
+        let mut journal = Journal::new(
+            root.identity(),
+            conversion_id,
+            capture.schema_version,
+            source_digest(&capture),
+            capture_members_digest(&capture),
+            capture.standalone_backup_sha256.clone(),
+            preview,
+        );
         bind_archive_decision(&mut journal, options);
-        journal::save(&self.root, &journal)?;
+        journal::save_pinned(&root, &journal)?;
         kill("detection")?;
-        self.advance(journal, capture, options.clone())
+        self.advance(&root, journal, capture, options.clone())
     }
 
     fn resume(&self, requested_conversion_id: &str) -> Result<Report> {
-        let journal = journal::load(&self.root, requested_conversion_id)?;
+        let root = SecureRoot::open(&self.root)?;
+        let journal = journal::load_pinned(&root, requested_conversion_id)?;
         if journal.rolled_back {
             return Err(BridgeError::Conflict(
                 "journal was rolled back; a new explicit apply is required".into(),
             ));
         }
-        let capture = capture::capture(&self.root)?;
+        let capture = capture::capture_pinned(&root)?;
         if source_digest(&capture) != journal.source_sha256
+            || capture_members_digest(&capture) != journal.capture_members_sha256
+            || capture.standalone_backup_sha256 != journal.standalone_backup_sha256
             || conversion_id(&capture) != journal.conversion_id
+            || preview_digest_with_manifest(
+                &root,
+                &capture,
+                journal.manifest_before_sha256.clone(),
+            )? != journal.preview_sha256
         {
             return Err(BridgeError::Conflict(
                 "resume source identity differs from journal-bound input".into(),
             ));
         }
         let options = archive_options_from_journal(&journal)?;
-        self.advance(journal, capture, options)
+        self.advance(&root, journal, capture, options)
     }
 
     fn advance(
         &self,
+        root: &SecureRoot,
         mut journal: Journal,
         capture: Capture,
         options: ArchiveOptions,
     ) -> Result<Report> {
         if journal.state == JournalState::Completed {
+            preflight_journal_source(root, &journal, &capture)?;
+            let (_, export_bytes, export_sha256) = export::build(&capture)?;
+            if journal.export_sha256.as_deref() != Some(export_sha256.as_str()) {
+                return Err(BridgeError::Conflict(
+                    "completed journal export witness drifted".into(),
+                ));
+            }
+            archive::verify_published(root, &journal, &capture, &export_bytes, &options)?;
+            validate_live_manifest(root, &journal)?;
             return self.completed_report(&journal, &capture, "resume");
         }
         if journal.state == JournalState::RecoveryRequired {
@@ -244,7 +293,7 @@ impl Bridge {
         }
         if journal.state < JournalState::Inspected {
             journal.state = JournalState::Inspected;
-            journal::save(&self.root, &journal)?;
+            journal::save_pinned(root, &journal)?;
         }
         let (_, export_bytes, export_sha256) = export::build(&capture)?;
         if let Some(expected) = &journal.export_sha256 {
@@ -255,31 +304,25 @@ impl Bridge {
             }
         } else {
             journal.export_sha256 = Some(export_sha256.clone());
-            journal.standalone_backup_sha256 = Some(capture.standalone_backup_sha256.clone());
             journal.state = JournalState::Exported;
-            journal::save(&self.root, &journal)?;
+            journal::save_pinned(root, &journal)?;
             kill("export")?;
         }
         if journal.state < JournalState::Archived {
-            let evidence = archive::create(
-                &self.root,
-                &journal.conversion_id,
-                &capture,
-                &export_bytes,
-                &options,
-            )?;
+            let (evidence, published) =
+                archive::prepare_or_verify(root, &journal, &capture, &export_bytes, &options)?;
             bind_archive(&mut journal, &evidence);
+            journal::save_pinned(root, &journal)?;
+            if !published {
+                archive::publish(root, &journal.conversion_id)?;
+            }
+            archive::verify_published(root, &journal, &capture, &export_bytes, &options)?;
             journal.state = JournalState::Archived;
-            journal::save(&self.root, &journal)?;
+            journal::save_pinned(root, &journal)?;
             kill("archive")?;
         } else {
-            let evidence = archive::create(
-                &self.root,
-                &journal.conversion_id,
-                &capture,
-                &export_bytes,
-                &options,
-            )?;
+            let evidence =
+                archive::verify_published(root, &journal, &capture, &export_bytes, &options)?;
             if journal.archive_sha256.as_deref() != Some(&evidence.archive_sha256) {
                 return Err(BridgeError::Conflict(
                     "archive digest differs from journal".into(),
@@ -287,94 +330,133 @@ impl Bridge {
             }
         }
 
-        let manifest_bytes = build_manifest(&self.root, &capture, &journal)?;
+        let manifest_bytes = build_manifest(root, &capture, &journal)?;
         let manifest_sha256 = hex_sha256(&manifest_bytes);
+        let receipt_bytes = serde_json::to_vec(
+            &serde_json::from_slice::<Manifest>(&manifest_bytes)?
+                .conversion_receipt
+                .expect("candidate has receipt"),
+        )?;
+        let receipt_sha256 = hex_sha256(&receipt_bytes);
         if let Some(expected) = &journal.manifest_after_sha256 {
-            if expected != &manifest_sha256 {
+            if expected != &manifest_sha256
+                || journal.receipt_sha256.as_deref() != Some(receipt_sha256.as_str())
+            {
                 return Err(BridgeError::Conflict(
-                    "candidate manifest digest changed".into(),
+                    "candidate manifest or receipt digest changed".into(),
                 ));
             }
         } else {
-            journal.manifest_before_sha256 = manifest_digest(&self.root)?;
+            journal.manifest_before_sha256 = manifest_digest(root)?;
             if journal.manifest_before_sha256.is_some() {
                 return Err(BridgeError::Invalid(
                     "V0 plus a V1 manifest without this completed receipt is mixed-invalid".into(),
                 ));
             }
             journal.manifest_after_sha256 = Some(manifest_sha256.clone());
+            journal.receipt_sha256 = Some(receipt_sha256);
             journal.state = JournalState::Prepared;
-            journal::save(&self.root, &journal)?;
+            journal::save_pinned(root, &journal)?;
         }
-        validate_candidate(&self.root, &manifest_bytes)?;
-        let recovery = journal::path(&self.root, &journal.conversion_id)
-            .parent()
-            .expect("journal parent")
-            .to_path_buf();
-        let receipt_bytes = serde_json::to_vec(
-            &serde_json::from_slice::<Manifest>(&manifest_bytes)?
-                .conversion_receipt
-                .expect("candidate has receipt"),
-        )?;
-        write_exact_or_new(&recovery.join("receipt.staged.json"), &receipt_bytes)?;
+        validate_candidate(root, &manifest_bytes)?;
+        let recovery = format!(".harness/recovery/v0-conversion/{}", journal.conversion_id);
+        root.write_exact_or_new(&format!("{recovery}/receipt.staged.json"), &receipt_bytes)?;
         kill("temporary-receipt")?;
-        let temporary_manifest = recovery.join("manifest.staged.json");
-        write_exact_or_new(&temporary_manifest, &manifest_bytes)?;
+        let temporary_manifest = format!("{recovery}/manifest.staged.json");
+        root.write_exact_or_new(&temporary_manifest, &manifest_bytes)?;
         kill("temporary-manifest")?;
 
         journal.state = JournalState::Applying;
-        journal::save(&self.root, &journal)?;
-        let manifest_path = self.root.join(".harness/manifest.json");
-        if manifest_path.exists() {
-            let live = std::fs::read(&manifest_path)?;
+        journal::save_pinned(root, &journal)?;
+        if let Some(live) = root.read_optional(".harness/manifest.json")? {
             if hex_sha256(&live) != manifest_sha256 {
-                journal.state = JournalState::RecoveryRequired;
-                journal::save(&self.root, &journal)?;
                 return Err(BridgeError::Conflict(
                     "target manifest is not the journal-owned post-image".into(),
                 ));
             }
         } else {
-            rename_no_replace(&temporary_manifest, &manifest_path)?;
-            File::open(self.root.join(".harness"))?.sync_all()?;
+            root.rename_no_replace(&temporary_manifest, ".harness/manifest.json")?;
         }
         kill("operation-1")?;
         kill("atomic-commit")?;
         journal.state = JournalState::Committed;
-        journal::save(&self.root, &journal)?;
-        validate_live_manifest(&self.root, &journal)?;
+        journal::save_pinned(root, &journal)?;
+        validate_live_manifest(root, &journal)?;
         journal.state = JournalState::Completed;
-        journal::save(&self.root, &journal)?;
+        journal::save_pinned(root, &journal)?;
         self.completed_report(&journal, &capture, "apply")
     }
 
     fn rollback(&self, conversion_id: &str) -> Result<Report> {
-        let mut journal = journal::load(&self.root, conversion_id)?;
+        let root = SecureRoot::open(&self.root)?;
+        let mut journal = journal::load_pinned(&root, conversion_id)?;
         if journal.state == JournalState::RecoveryRequired {
             return Err(BridgeError::Conflict(
                 "journal is already recovery-required; human selection is required".into(),
             ));
         }
-        let manifest_path = self.root.join(".harness/manifest.json");
-        if let Some(expected) = &journal.manifest_after_sha256 {
-            if manifest_path.exists() {
-                let actual = hex_sha256(&std::fs::read(&manifest_path)?);
-                if &actual != expected {
-                    journal.state = JournalState::RecoveryRequired;
-                    journal::save(&self.root, &journal)?;
-                    return Err(BridgeError::Conflict(
-                        "target edit refusal: live manifest differs from journal-owned post-image"
-                            .into(),
-                    ));
-                }
-                std::fs::remove_file(&manifest_path)?;
-                File::open(self.root.join(".harness"))?.sync_all()?;
-            }
+        if journal.state == JournalState::RolledBack {
+            return Err(BridgeError::Conflict(
+                "conversion is already rolled back".into(),
+            ));
         }
-        journal.state = JournalState::Prepared;
+        let capture = capture::capture_pinned(&root)?;
+        preflight_journal_source(&root, &journal, &capture)?;
+        let options = archive_options_from_journal(&journal)?;
+        let (_, export_bytes, export_sha256) = export::build(&capture)?;
+        if journal.export_sha256.as_deref() != Some(export_sha256.as_str()) {
+            return Err(BridgeError::Conflict(
+                "rollback export witness differs before mutation".into(),
+            ));
+        }
+        archive::verify_published(&root, &journal, &capture, &export_bytes, &options)?;
+        let manifest_bytes = build_manifest(&root, &capture, &journal)?;
+        let expected_manifest = journal.manifest_after_sha256.as_deref().ok_or_else(|| {
+            BridgeError::Conflict("rollback journal lacks a target witness".into())
+        })?;
+        if hex_sha256(&manifest_bytes) != expected_manifest {
+            return Err(BridgeError::Conflict(
+                "rollback target plan differs before mutation".into(),
+            ));
+        }
+        validate_candidate(&root, &manifest_bytes)?;
+        let recovery = format!(".harness/recovery/v0-conversion/{conversion_id}");
+        let staged_receipt = root.read(&format!("{recovery}/receipt.staged.json"))?;
+        if journal.receipt_sha256.as_deref() != Some(hex_sha256(&staged_receipt).as_str()) {
+            return Err(BridgeError::Conflict(
+                "rollback staged receipt evidence drifted".into(),
+            ));
+        }
+        let live = root.read_optional(".harness/manifest.json")?;
+        if journal.state != JournalState::RollingBack
+            && live.as_deref().map(hex_sha256).as_deref() != Some(expected_manifest)
+        {
+            journal.state = JournalState::RecoveryRequired;
+            journal::save_pinned(&root, &journal)?;
+            return Err(BridgeError::Conflict(
+                "rollback target precondition drifted before mutation".into(),
+            ));
+        }
+        if journal.state == JournalState::RollingBack
+            && live
+                .as_deref()
+                .is_some_and(|bytes| hex_sha256(bytes) != expected_manifest)
+        {
+            return Err(BridgeError::Conflict(
+                "rollback crash recovery found an unowned target".into(),
+            ));
+        }
+        root.validate_root()?;
+        if journal.state != JournalState::RollingBack {
+            journal.state = JournalState::RollingBack;
+            journal::save_pinned(&root, &journal)?;
+        }
+        if live.is_some() {
+            root.remove_exact(".harness/manifest.json", expected_manifest)?;
+        }
+        journal.state = JournalState::RolledBack;
         journal.rolled_back = true;
-        journal::save(&self.root, &journal)?;
-        let capture = capture::capture(&self.root)?;
+        journal::save_pinned(&root, &journal)?;
         let mut report = self.capture_report("rollback", &capture);
         report.outcome = "rolled-back".into();
         report.mutation = "matching-journal-owned-post-images".into();
@@ -386,16 +468,18 @@ impl Bridge {
 
     fn completed_idempotent(
         &self,
+        root: &SecureRoot,
         conversion_id: &str,
         capture: &Capture,
     ) -> Result<Option<Report>> {
-        let path = journal::path(&self.root, conversion_id);
-        if !path.exists() {
+        let path = journal::relative_path(conversion_id);
+        if !root.exists(&path)? {
             return Ok(None);
         }
-        let journal = journal::load(&self.root, conversion_id)?;
+        let journal = journal::load_pinned(root, conversion_id)?;
         if journal.state == JournalState::Completed {
-            validate_live_manifest(&self.root, &journal)?;
+            preflight_journal_source(root, &journal, capture)?;
+            validate_live_manifest(root, &journal)?;
             return self.completed_report(&journal, capture, "apply").map(Some);
         }
         Ok(None)
@@ -451,15 +535,35 @@ fn conversion_id(capture: &Capture) -> String {
     format!("v0-{}", &source_digest(capture)[..24])
 }
 
-fn preview_digest(root: &Path, capture: &Capture) -> Result<String> {
+fn preview_digest(root: &SecureRoot, capture: &Capture) -> Result<String> {
+    preview_digest_with_manifest(root, capture, manifest_digest(root)?)
+}
+
+fn preview_digest_with_manifest(
+    root: &SecureRoot,
+    capture: &Capture,
+    manifest_before_sha256: Option<String>,
+) -> Result<String> {
     #[derive(Serialize)]
     struct Preview<'a> {
         schema: &'static str,
+        repository_root: secure_fs::RootIdentity,
         source_schema: u32,
         source_sha256: String,
+        capture_members_sha256: String,
+        capture_members: Vec<PreviewMember<'a>>,
         standalone_backup_sha256: &'a str,
         manifest_before_sha256: Option<String>,
+        adopted_targets: Vec<AdoptedTargetWitness>,
+        confidentiality_choices: [&'static str; 2],
         operations: [PreviewOperation; 1],
+    }
+    #[derive(Serialize)]
+    struct PreviewMember<'a> {
+        path: &'a str,
+        category: &'a str,
+        sha256: &'a str,
+        bytes: u64,
     }
     #[derive(Serialize)]
     struct PreviewOperation {
@@ -467,24 +571,76 @@ fn preview_digest(root: &Path, capture: &Capture) -> Result<String> {
         kind: &'static str,
         path: &'static str,
         disposition: &'static str,
+        before_sha256: Option<String>,
+        after_witness: &'static str,
     }
+    let adopted_targets = adopted_target_witnesses(root)?;
     let value = Preview {
         schema: "repository-harness-v0-conversion-preview/v1",
+        repository_root: root.identity(),
         source_schema: capture.schema_version,
         source_sha256: source_digest(capture),
+        capture_members_sha256: capture_members_digest(capture),
+        capture_members: capture
+            .members
+            .iter()
+            .map(|member| PreviewMember {
+                path: &member.path,
+                category: &member.category,
+                sha256: &member.sha256,
+                bytes: member.bytes,
+            })
+            .collect(),
         standalone_backup_sha256: &capture.standalone_backup_sha256,
-        manifest_before_sha256: manifest_digest(root)?,
+        manifest_before_sha256: manifest_before_sha256.clone(),
+        adopted_targets,
+        confidentiality_choices: [
+            "encrypted-age-x25519-with-exact-recipient-bound-at-apply",
+            "plaintext-explicit-override-with-risk-acknowledgement",
+        ],
         operations: [PreviewOperation {
             operation_id: "commit-manifest-receipt-last",
             kind: "create",
             path: ".harness/manifest.json",
             disposition: "managed-v1",
+            before_sha256: manifest_before_sha256,
+            after_witness: "exact-digest-bound-in-authenticated-journal-before-first-target-write",
         }],
     };
     Ok(hex_sha256(&serde_json::to_vec(&value)?))
 }
 
-fn build_manifest(root: &Path, _capture: &Capture, journal: &Journal) -> Result<Vec<u8>> {
+fn adopted_target_witnesses(root: &SecureRoot) -> Result<Vec<AdoptedTargetWitness>> {
+    let candidates = [
+        ("AGENTS.md", "agent_map", true),
+        ("README.md", "repository_readme", false),
+        ("docs/ARCHITECTURE.md", "architecture", false),
+    ];
+    candidates
+        .into_iter()
+        .map(|(path, role, required)| {
+            let digest = root.read_optional(path)?.map(|bytes| hex_sha256(&bytes));
+            Ok(AdoptedTargetWitness {
+                path,
+                role,
+                required,
+                before_sha256: digest.clone(),
+                after_sha256: digest,
+            })
+        })
+        .collect()
+}
+
+#[derive(Serialize)]
+struct AdoptedTargetWitness {
+    path: &'static str,
+    role: &'static str,
+    required: bool,
+    before_sha256: Option<String>,
+    after_sha256: Option<String>,
+}
+
+fn build_manifest(root: &SecureRoot, _capture: &Capture, journal: &Journal) -> Result<Vec<u8>> {
     let candidates = [
         ("agent_map", "agent-map", "AGENTS.md"),
         ("repository_readme", "repository-readme", "README.md"),
@@ -492,9 +648,8 @@ fn build_manifest(root: &Path, _capture: &Capture, journal: &Journal) -> Result<
     ];
     let mut roles = Vec::new();
     for (role_id, asset, path) in candidates {
-        let full = root.join(path);
-        if full.is_file() {
-            let digest = hex_sha256(&std::fs::read(full)?);
+        if let Some(bytes) = root.read_optional(path)? {
+            let digest = hex_sha256(&bytes);
             roles.push(Role {
                 role: role_id.into(),
                 asset: asset.into(),
@@ -529,9 +684,7 @@ fn build_manifest(root: &Path, _capture: &Capture, journal: &Journal) -> Result<
             export_sha256: journal.export_sha256.clone().ok_or_else(|| {
                 BridgeError::Invalid("export digest is absent from journal".into())
             })?,
-            standalone_backup_sha256: journal.standalone_backup_sha256.clone().ok_or_else(
-                || BridgeError::Invalid("snapshot digest is absent from journal".into()),
-            )?,
+            standalone_backup_sha256: journal.standalone_backup_sha256.clone(),
             archive_sha256: journal.archive_sha256.clone().ok_or_else(|| {
                 BridgeError::Invalid("archive digest is absent from journal".into())
             })?,
@@ -559,7 +712,7 @@ fn build_manifest(root: &Path, _capture: &Capture, journal: &Journal) -> Result<
     Ok(bytes)
 }
 
-fn validate_candidate(root: &Path, bytes: &[u8]) -> Result<()> {
+fn validate_candidate(root: &SecureRoot, bytes: &[u8]) -> Result<()> {
     let port = JsonManifestPort;
     let manifest = port
         .parse_bytes(bytes)
@@ -572,8 +725,8 @@ fn validate_candidate(root: &Path, bytes: &[u8]) -> Result<()> {
         ));
     }
     for role in manifest.roles {
-        let path = root.join(&role.path);
-        if !path.is_file() || hex_sha256(&std::fs::read(path)?) != role.current_sha256 {
+        let actual = root.read_optional(&role.path)?;
+        if actual.as_deref().map(hex_sha256).as_deref() != Some(role.current_sha256.as_str()) {
             return Err(BridgeError::Conflict(format!(
                 "V1 structural audit found target drift at {}",
                 role.path
@@ -590,8 +743,8 @@ fn validate_candidate(root: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn validate_live_manifest(root: &Path, journal: &Journal) -> Result<()> {
-    let bytes = std::fs::read(root.join(".harness/manifest.json"))?;
+fn validate_live_manifest(root: &SecureRoot, journal: &Journal) -> Result<()> {
+    let bytes = root.read(".harness/manifest.json")?;
     if journal.manifest_after_sha256.as_deref() != Some(&hex_sha256(&bytes)) {
         return Err(BridgeError::Conflict(
             "committed manifest differs from journal-owned post-image".into(),
@@ -600,8 +753,8 @@ fn validate_live_manifest(root: &Path, journal: &Journal) -> Result<()> {
     validate_candidate(root, &bytes)
 }
 
-fn reject_preexisting_manifest(root: &Path) -> Result<()> {
-    if root.join(".harness/manifest.json").exists() {
+fn reject_preexisting_manifest(root: &SecureRoot) -> Result<()> {
+    if root.exists(".harness/manifest.json")? {
         return Err(BridgeError::Invalid(
             "V0 artifacts plus a V1 manifest without a completed matching receipt are mixed-invalid"
                 .into(),
@@ -610,17 +763,15 @@ fn reject_preexisting_manifest(root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn manifest_digest(root: &Path) -> Result<Option<String>> {
-    let path = root.join(".harness/manifest.json");
-    if path.exists() {
-        Ok(Some(hex_sha256(&std::fs::read(path)?)))
-    } else {
-        Ok(None)
-    }
+fn manifest_digest(root: &SecureRoot) -> Result<Option<String>> {
+    Ok(root
+        .read_optional(".harness/manifest.json")?
+        .map(|bytes| hex_sha256(&bytes)))
 }
 
 fn bind_archive(journal: &mut Journal, evidence: &archive::ArchiveEvidence) {
     journal.archive_sha256 = Some(evidence.archive_sha256.clone());
+    journal.archive_manifest_sha256 = Some(evidence.manifest_sha256.clone());
     journal.archive_path = Some(evidence.path.clone());
     journal.confidentiality_mode = Some(evidence.confidentiality_mode.clone());
     journal.recipient_fingerprints = evidence.recipient_fingerprints.clone();
@@ -682,45 +833,22 @@ fn archive_options_from_journal(journal: &Journal) -> Result<ArchiveOptions> {
     }
 }
 
-fn write_new(path: &Path, bytes: &[u8]) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent)?;
-        }
+fn preflight_journal_source(root: &SecureRoot, journal: &Journal, capture: &Capture) -> Result<()> {
+    root.validate_root()?;
+    if journal.root != root.identity()
+        || journal.conversion_id != conversion_id(capture)
+        || journal.source_schema != capture.schema_version
+        || journal.source_sha256 != source_digest(capture)
+        || journal.capture_members_sha256 != capture_members_digest(capture)
+        || journal.standalone_backup_sha256 != capture.standalone_backup_sha256
+        || preview_digest_with_manifest(root, capture, journal.manifest_before_sha256.clone())?
+            != journal.preview_sha256
+    {
+        return Err(BridgeError::Conflict(
+            "journal source, root, snapshot, member set, or complete plan witness drifted".into(),
+        ));
     }
-    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
-    file.write_all(bytes)?;
-    file.sync_all()?;
     Ok(())
-}
-
-fn write_exact_or_new(path: &Path, bytes: &[u8]) -> Result<()> {
-    if path.exists() {
-        if std::fs::read(path)? == bytes {
-            return Ok(());
-        }
-        return Err(BridgeError::Conflict(format!(
-            "staged evidence differs at {}",
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("unknown")
-        )));
-    }
-    write_new(path, bytes)
-}
-
-#[cfg(unix)]
-fn rename_no_replace(source: &Path, destination: &Path) -> Result<()> {
-    use rustix::fs::{renameat_with, RenameFlags, CWD};
-    renameat_with(CWD, source, CWD, destination, RenameFlags::NOREPLACE)?;
-    Ok(())
-}
-
-#[cfg(not(unix))]
-fn rename_no_replace(_source: &Path, _destination: &Path) -> Result<()> {
-    Err(BridgeError::Unsupported(
-        "atomic no-replace manifest commit is unavailable until Phase 7".into(),
-    ))
 }
 
 fn kill(name: &str) -> Result<()> {
@@ -740,6 +868,35 @@ fn state_name(state: JournalState) -> &'static str {
         JournalState::Applying => "applying",
         JournalState::Committed => "committed",
         JournalState::Completed => "completed",
+        JournalState::RollingBack => "rolling-back",
+        JournalState::RolledBack => "rolled-back",
         JournalState::RecoveryRequired => "recovery-required",
+    }
+}
+
+#[cfg(test)]
+mod exit_tests {
+    use super::*;
+
+    #[test]
+    fn frozen_error_classes_have_exhaustive_exit_mappings() {
+        assert_eq!(BridgeError::Usage("fixture".into()).exit_code(), 64);
+        assert_eq!(BridgeError::Unsupported("fixture".into()).exit_code(), 5);
+        assert_eq!(BridgeError::Conflict("fixture".into()).exit_code(), 4);
+        assert_eq!(BridgeError::KillPoint("fixture".into()).exit_code(), 4);
+        assert_eq!(BridgeError::Invalid("fixture".into()).exit_code(), 3);
+        assert_eq!(BridgeError::Manifest("fixture".into()).exit_code(), 3);
+        assert_eq!(
+            BridgeError::Io(std::io::Error::other("fixture")).exit_code(),
+            74
+        );
+        assert_eq!(
+            BridgeError::Sqlite(rusqlite::Error::InvalidQuery).exit_code(),
+            70
+        );
+        let json = serde_json::from_slice::<serde_json::Value>(b"{").unwrap_err();
+        assert_eq!(BridgeError::Json(json).exit_code(), 70);
+        #[cfg(unix)]
+        assert_eq!(BridgeError::Errno(rustix::io::Errno::IO).exit_code(), 74);
     }
 }

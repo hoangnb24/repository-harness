@@ -27,6 +27,86 @@ pub struct OsFileSystem {
     root_stat: rustix::fs::Stat,
 }
 
+#[cfg(unix)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct CoreRootIdentity {
+    device: String,
+    inode: String,
+}
+
+#[cfg(unix)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+enum CoreConversionState {
+    Discovered,
+    Inspected,
+    Exported,
+    Archived,
+    Prepared,
+    Applying,
+    Committed,
+    Completed,
+    RollingBack,
+    RolledBack,
+    RecoveryRequired,
+}
+
+#[cfg(unix)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct CoreConversionJournal {
+    schema: String,
+    authentication: String,
+    root: CoreRootIdentity,
+    conversion_id: String,
+    operation_id: String,
+    state: CoreConversionState,
+    source_schema: u32,
+    source_sha256: String,
+    capture_members_sha256: String,
+    export_sha256: Option<String>,
+    standalone_backup_sha256: String,
+    archive_sha256: Option<String>,
+    archive_manifest_sha256: Option<String>,
+    archive_path: Option<String>,
+    confidentiality_mode: Option<String>,
+    recipient_fingerprints: Vec<String>,
+    plaintext_risk_acknowledged: Option<bool>,
+    preview_sha256: String,
+    manifest_before_sha256: Option<String>,
+    manifest_after_sha256: Option<String>,
+    receipt_sha256: Option<String>,
+    rolled_back: bool,
+}
+
+#[cfg(unix)]
+#[allow(dead_code)]
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CoreArchiveMember {
+    path: String,
+    sha256: String,
+    bytes: u64,
+    capture: String,
+}
+
+#[cfg(unix)]
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CoreArchiveManifest {
+    schema: String,
+    conversion_id: String,
+    source_schema: u32,
+    confidentiality_mode: String,
+    recipient_fingerprints: Vec<String>,
+    plaintext_risk_acknowledged: Option<bool>,
+    members: Vec<CoreArchiveMember>,
+    standalone_backup_sha256: String,
+    archive_sha256: String,
+    custody: String,
+}
+
 impl OsFileSystem {
     pub fn new(root: impl Into<PathBuf>) -> Result<Self, PortError> {
         let root_path = root.into();
@@ -128,16 +208,123 @@ impl FileSystemPort for OsFileSystem {
     }
 
     fn observe_compatibility(&self) -> Result<CompatibilityObservation, PortError> {
+        let legacy_artifact_present = self.exists_declared("harness.db")?;
+        let conversion_journal_present = self.exists_declared(".harness/recovery/v0-conversion")?;
+        let conversion_archive_present = self.exists_declared(".harness/legacy/v0-conversion")?;
+        #[cfg(unix)]
+        let conversion_evidence_authenticated = self.authenticate_conversion_evidence();
+        #[cfg(not(unix))]
+        let conversion_evidence_authenticated = false;
         Ok(CompatibilityObservation {
             observed: true,
-            legacy_artifact_present: self.exists_declared("harness.db")?,
-            conversion_journal_present: self.exists_declared(".harness/recovery/v0-conversion")?,
-            conversion_archive_present: self.exists_declared(".harness/legacy/v0-conversion")?,
+            legacy_artifact_present,
+            conversion_journal_present,
+            conversion_archive_present,
+            conversion_evidence_authenticated,
         })
     }
 }
 
 impl OsFileSystem {
+    #[cfg(unix)]
+    fn authenticate_conversion_evidence(&self) -> bool {
+        self.authenticate_conversion_evidence_result()
+            .unwrap_or(false)
+    }
+
+    #[cfg(unix)]
+    fn authenticate_conversion_evidence_result(&self) -> Result<bool, PortError> {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+
+        let manifest_bytes = self.read_declared(".harness/manifest.json")?;
+        let manifest: Manifest = serde_json::from_slice(&manifest_bytes).map_err(|error| {
+            PortError::ManifestInvalid(format!("conversion manifest is invalid: {error}"))
+        })?;
+        let Some(receipt) = manifest.conversion_receipt else {
+            return Ok(false);
+        };
+        let journal_path = format!(
+            ".harness/recovery/v0-conversion/{}/journal.json",
+            receipt.conversion_id
+        );
+        let journal_bytes = self.read_declared(&journal_path)?;
+        let journal: CoreConversionJournal =
+            serde_json::from_slice(&journal_bytes).map_err(|_| {
+                PortError::Conflict("conversion journal is outside its closed schema".into())
+            })?;
+        let key = self.read_declared(".harness/recovery/v0-conversion/journal-auth.key")?;
+        if key.len() != 32
+            || journal.schema != "repository-harness-v0-conversion-journal/v1"
+            || journal.root.device != self.root_stat.st_dev.to_string()
+            || journal.root.inode != self.root_stat.st_ino.to_string()
+            || journal.conversion_id != receipt.conversion_id
+            || journal.operation_id != format!("v0-conversion:{}", receipt.conversion_id)
+            || journal.state != CoreConversionState::Completed
+            || journal.rolled_back
+            || journal.export_sha256.as_deref() != Some(receipt.export_sha256.as_str())
+            || journal.standalone_backup_sha256 != receipt.standalone_backup_sha256
+            || journal.archive_sha256.as_deref() != Some(receipt.archive_sha256.as_str())
+            || journal.archive_path.as_deref() != Some(receipt.archive_path.as_str())
+            || journal.confidentiality_mode.as_deref()
+                != Some(receipt.confidentiality_mode.as_str())
+            || journal.recipient_fingerprints != receipt.recipient_fingerprints
+            || journal.plaintext_risk_acknowledged != receipt.plaintext_risk_acknowledged
+            || journal.archive_manifest_sha256.is_none()
+            || journal.receipt_sha256.is_none()
+            || !receipt.archive_path.starts_with(&format!(
+                ".harness/legacy/v0-conversion/{}/",
+                receipt.conversion_id
+            ))
+        {
+            return Ok(false);
+        }
+        let mut body = journal.clone();
+        body.authentication.clear();
+        let body = serde_json::to_vec(&body)
+            .map_err(|error| PortError::Conflict(format!("journal encoding failed: {error}")))?;
+        let mut mac = Hmac::<Sha256>::new_from_slice(&key)
+            .map_err(|_| PortError::Conflict("journal key is invalid".into()))?;
+        mac.update(&body);
+        let expected = format!("{:x}", mac.finalize().into_bytes());
+        if !constant_time_eq(expected.as_bytes(), journal.authentication.as_bytes()) {
+            return Ok(false);
+        }
+        let payload = self.read_declared(&receipt.archive_path)?;
+        if hex_sha256(&payload) != receipt.archive_sha256 {
+            return Ok(false);
+        }
+        let archive_manifest_path = format!(
+            ".harness/legacy/v0-conversion/{}/archive-manifest.json",
+            receipt.conversion_id
+        );
+        let archive_manifest = self.read_declared(&archive_manifest_path)?;
+        if journal.archive_manifest_sha256.as_deref()
+            != Some(hex_sha256(&archive_manifest).as_str())
+        {
+            return Ok(false);
+        }
+        let archive: CoreArchiveManifest = serde_json::from_slice(&archive_manifest)
+            .map_err(|_| PortError::Conflict("archive manifest is invalid".into()))?;
+        Ok(
+            archive.schema == "repository-harness-v0-archive-manifest/v1"
+                && archive.conversion_id == receipt.conversion_id
+                && (1..=13).contains(&archive.source_schema)
+                && archive.standalone_backup_sha256 == receipt.standalone_backup_sha256
+                && archive.archive_sha256 == receipt.archive_sha256
+                && archive.confidentiality_mode == receipt.confidentiality_mode
+                && archive.recipient_fingerprints == receipt.recipient_fingerprints
+                && archive.plaintext_risk_acknowledged == receipt.plaintext_risk_acknowledged
+                && archive.custody == "repository-owner-indefinite-write-once"
+                && !archive.members.is_empty()
+                && archive.members.iter().all(|member| {
+                    member.path.starts_with("raw/")
+                        && member.sha256.len() == 64
+                        && member.capture == "pre-copy-post-equal"
+                }),
+        )
+    }
+
     #[cfg(unix)]
     fn read_declared_unix(&self, path: &str) -> Result<Vec<u8>, PortError> {
         self.read_declared_unix_with_hook(path, |_| {})
@@ -249,6 +436,19 @@ fn same_stat(left: &rustix::fs::Stat, right: &rustix::fs::Stat) -> bool {
         && left.st_mtime_nsec == right.st_mtime_nsec
         && left.st_ctime == right.st_ctime
         && left.st_ctime_nsec == right.st_ctime_nsec
+}
+
+#[cfg(unix)]
+fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    left.iter()
+        .zip(right)
+        .fold(0_u8, |difference, (left, right)| {
+            difference | (left ^ right)
+        })
+        == 0
 }
 
 #[cfg(unix)]

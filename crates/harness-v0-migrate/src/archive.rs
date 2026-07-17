@@ -1,5 +1,3 @@
-use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -7,13 +5,16 @@ use std::str::FromStr;
 use age::x25519;
 use serde::{Deserialize, Serialize};
 
-use crate::capture::{hex_sha256, Capture};
+use crate::capture::{capture_members_digest, hex_sha256, Capture};
 use crate::interface::ArchiveOptions;
+use crate::journal::Journal;
+use crate::secure_fs::SecureRoot;
 use crate::{BridgeError, Result};
 
 pub const ARCHIVE_SCHEMA: &str = "repository-harness-v0-archive-manifest/v1";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ArchiveManifest {
     pub schema: String,
     pub conversion_id: String,
@@ -29,6 +30,7 @@ pub struct ArchiveManifest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ArchiveMember {
     pub path: String,
     pub sha256: String,
@@ -40,156 +42,283 @@ pub struct ArchiveMember {
 pub struct ArchiveEvidence {
     pub path: String,
     pub archive_sha256: String,
+    pub manifest_sha256: String,
+    pub capture_members_sha256: String,
+    pub export_sha256: String,
     pub confidentiality_mode: String,
     pub recipient_fingerprints: Vec<String>,
     pub plaintext_risk_acknowledged: Option<bool>,
 }
 
-pub fn create(
-    root: &Path,
-    conversion_id: &str,
+struct ConfidentialPayload {
+    name: &'static str,
+    bytes: Vec<u8>,
+    mode: String,
+    fingerprints: Vec<String>,
+    acknowledged: Option<bool>,
+}
+
+pub(crate) fn prepare_or_verify(
+    root: &SecureRoot,
+    journal: &Journal,
+    capture: &Capture,
+    export_bytes: &[u8],
+    options: &ArchiveOptions,
+) -> Result<(ArchiveEvidence, bool)> {
+    root.validate_root()?;
+    let conversion_id = &journal.conversion_id;
+    let final_dir = archive_directory(conversion_id);
+    let staging_dir = staging_directory(conversion_id);
+    let final_exists = directory_exists(root, &final_dir)?;
+    let staging_exists = directory_exists(root, &staging_dir)?;
+    if final_exists && staging_exists {
+        return Err(BridgeError::Conflict(
+            "both final and staged conversion archives exist".into(),
+        ));
+    }
+    if final_exists {
+        let evidence = verify_directory(root, &final_dir, journal, capture, export_bytes, options)?;
+        return Ok((evidence, true));
+    }
+    if staging_exists {
+        let evidence =
+            verify_directory(root, &staging_dir, journal, capture, export_bytes, options)?;
+        return Ok((evidence, false));
+    }
+
+    root.open_dir(".harness", true, false)?;
+    root.open_dir(".harness/legacy", true, true)?;
+    root.open_dir(".harness/legacy/v0-conversion", true, true)?;
+    root.open_dir(".harness/recovery", true, true)?;
+    root.open_dir(".harness/recovery/v0-conversion", true, true)?;
+    root.create_dir_exact(&staging_dir)?;
+
+    let payload = encode_payload(capture, export_bytes)?;
+    let payload = confidentiality_payload(payload, options)?;
+    let archive_sha256 = hex_sha256(&payload.bytes);
+    root.write_new(&format!("{staging_dir}/{}", payload.name), &payload.bytes)?;
+    let manifest = expected_manifest(
+        conversion_id,
+        capture,
+        &payload.mode,
+        payload.fingerprints.clone(),
+        payload.acknowledged,
+        archive_sha256.clone(),
+    );
+    let mut manifest_bytes = serde_json::to_vec(&manifest)?;
+    manifest_bytes.push(b'\n');
+    root.write_new(
+        &format!("{staging_dir}/archive-manifest.json"),
+        &manifest_bytes,
+    )?;
+    root.validate_root()?;
+    Ok((
+        ArchiveEvidence {
+            path: format!("{final_dir}/{}", payload.name),
+            archive_sha256,
+            manifest_sha256: hex_sha256(&manifest_bytes),
+            capture_members_sha256: capture_members_digest(capture),
+            export_sha256: hex_sha256(export_bytes),
+            confidentiality_mode: payload.mode,
+            recipient_fingerprints: payload.fingerprints,
+            plaintext_risk_acknowledged: payload.acknowledged,
+        },
+        false,
+    ))
+}
+
+pub(crate) fn publish(root: &SecureRoot, conversion_id: &str) -> Result<()> {
+    let staging = staging_directory(conversion_id);
+    let destination = archive_directory(conversion_id);
+    root.rename_no_replace(&staging, &destination)?;
+    root.validate_root()
+}
+
+pub(crate) fn verify_published(
+    root: &SecureRoot,
+    journal: &Journal,
     capture: &Capture,
     export_bytes: &[u8],
     options: &ArchiveOptions,
 ) -> Result<ArchiveEvidence> {
-    let archive_root = root
-        .join(".harness/legacy/v0-conversion")
-        .join(conversion_id);
-    if archive_root.exists() {
-        return verify_existing(&archive_root, conversion_id, capture, options);
-    }
-    ensure_safe_directory(root, ".harness")?;
-    ensure_safe_directory(root, ".harness/legacy")?;
-    ensure_safe_directory(root, ".harness/legacy/v0-conversion")?;
-
-    let staging_parent = root.join(".harness/recovery/v0-conversion");
-    ensure_safe_directory(root, ".harness/recovery")?;
-    ensure_safe_directory(root, ".harness/recovery/v0-conversion")?;
-    let staging = staging_parent.join(format!("{conversion_id}.archive-staging"));
-    if staging.exists() {
-        return Err(BridgeError::Conflict(
-            "archive staging already exists; resume with the matching journal".into(),
-        ));
-    }
-    std::fs::create_dir(&staging)?;
-
-    let payload = encode_payload(capture, export_bytes)?;
-    let (payload_name, payload_bytes, mode, fingerprints, acknowledged) = if options.plaintext {
-        (
-            "conversion.bin",
-            payload,
-            "plaintext-explicit-override".to_owned(),
-            Vec::new(),
-            Some(true),
-        )
-    } else {
-        let recipient_text = options.age_recipient.as_ref().ok_or_else(|| {
-            BridgeError::Usage("encrypted archive requires an age recipient".into())
-        })?;
-        let recipient = x25519::Recipient::from_str(recipient_text).map_err(|error| {
-            BridgeError::Usage(format!("invalid age/X25519 recipient: {error}"))
-        })?;
-        let encryptor = age::Encryptor::with_recipients(iter::once(&recipient as _))?;
-        let mut ciphertext = Vec::new();
-        let mut writer = encryptor.wrap_output(&mut ciphertext)?;
-        writer.write_all(&payload)?;
-        writer.finish()?;
-        (
-            "conversion.age",
-            ciphertext,
-            "encrypted-age-x25519".to_owned(),
-            vec![recipient_text.clone()],
-            None,
-        )
-    };
-    let archive_sha256 = hex_sha256(&payload_bytes);
-    write_new_synced(&staging.join(payload_name), &payload_bytes)?;
-    let manifest = ArchiveManifest {
-        schema: ARCHIVE_SCHEMA.into(),
-        conversion_id: conversion_id.into(),
-        source_schema: capture.schema_version,
-        confidentiality_mode: mode.clone(),
-        recipient_fingerprints: fingerprints.clone(),
-        plaintext_risk_acknowledged: acknowledged,
-        members: capture
-            .members
-            .iter()
-            .map(|member| ArchiveMember {
-                path: format!("raw/{}", member.path),
-                sha256: member.sha256.clone(),
-                bytes: member.bytes,
-                capture: "pre-copy-post-equal".into(),
-            })
-            .collect(),
-        standalone_backup_sha256: capture.standalone_backup_sha256.clone(),
-        archive_sha256: archive_sha256.clone(),
-        custody: "repository-owner-indefinite-write-once".into(),
-    };
-    let mut manifest_bytes = serde_json::to_vec(&manifest)?;
-    manifest_bytes.push(b'\n');
-    write_new_synced(&staging.join("archive-manifest.json"), &manifest_bytes)?;
-    sync_directory(&staging)?;
-    std::fs::rename(&staging, &archive_root)?;
-    sync_directory(archive_root.parent().expect("archive has parent"))?;
-    Ok(ArchiveEvidence {
-        path: format!(".harness/legacy/v0-conversion/{conversion_id}/{payload_name}"),
-        archive_sha256,
-        confidentiality_mode: mode,
-        recipient_fingerprints: fingerprints,
-        plaintext_risk_acknowledged: acknowledged,
-    })
+    verify_directory(
+        root,
+        &archive_directory(&journal.conversion_id),
+        journal,
+        capture,
+        export_bytes,
+        options,
+    )
 }
 
-fn verify_existing(
-    path: &Path,
-    conversion_id: &str,
+fn verify_directory(
+    root: &SecureRoot,
+    directory: &str,
+    journal: &Journal,
     capture: &Capture,
+    export_bytes: &[u8],
     options: &ArchiveOptions,
 ) -> Result<ArchiveEvidence> {
-    let manifest: ArchiveManifest =
-        serde_json::from_slice(&std::fs::read(path.join("archive-manifest.json"))?)?;
-    if manifest.schema != ARCHIVE_SCHEMA
-        || manifest.conversion_id != conversion_id
-        || manifest.source_schema != capture.schema_version
-        || manifest.standalone_backup_sha256 != capture.standalone_backup_sha256
-        || manifest.custody != "repository-owner-indefinite-write-once"
-    {
-        return Err(BridgeError::Conflict(
-            "existing conversion archive does not match current evidence".into(),
-        ));
-    }
-    let expected_mode = if options.plaintext {
-        "plaintext-explicit-override"
-    } else {
-        "encrypted-age-x25519"
-    };
-    if manifest.confidentiality_mode != expected_mode
-        || (!options.plaintext
-            && manifest.recipient_fingerprints
-                != vec![options.age_recipient.clone().unwrap_or_default()])
-    {
-        return Err(BridgeError::Conflict(
-            "existing archive confidentiality decision differs".into(),
-        ));
-    }
-    let name = if options.plaintext {
+    let handle = root.open_dir(directory, false, true)?;
+    let expected_mode = expected_mode(options)?;
+    let payload_name = if options.plaintext {
         "conversion.bin"
     } else {
         "conversion.age"
     };
-    let bytes = std::fs::read(path.join(name))?;
-    if hex_sha256(&bytes) != manifest.archive_sha256 {
+    let expected_names = vec!["archive-manifest.json".to_owned(), payload_name.to_owned()];
+    if root.list_names(&handle, directory)? != expected_names {
         return Err(BridgeError::Conflict(
-            "existing write-once archive payload was tampered".into(),
+            "archive member name set is incomplete or contains foreign entries".into(),
+        ));
+    }
+    let manifest_bytes = root.read(&format!("{directory}/archive-manifest.json"))?;
+    let manifest: ArchiveManifest = serde_json::from_slice(&manifest_bytes)?;
+    let payload = root.read(&format!("{directory}/{payload_name}"))?;
+    let expected_members = archive_members(capture);
+    let expected_fingerprints = if options.plaintext {
+        Vec::new()
+    } else {
+        vec![options.age_recipient.clone().unwrap_or_default()]
+    };
+    let expected_ack = options.plaintext.then_some(true);
+    let archive_sha256 = hex_sha256(&payload);
+    let manifest_sha256 = hex_sha256(&manifest_bytes);
+    let archive_path = format!(
+        "{}/{payload_name}",
+        archive_directory(&journal.conversion_id)
+    );
+    if manifest.schema != ARCHIVE_SCHEMA
+        || manifest.conversion_id != journal.conversion_id
+        || manifest.source_schema != capture.schema_version
+        || manifest.confidentiality_mode != expected_mode
+        || manifest.recipient_fingerprints != expected_fingerprints
+        || manifest.plaintext_risk_acknowledged != expected_ack
+        || manifest.members != expected_members
+        || manifest.standalone_backup_sha256 != capture.standalone_backup_sha256
+        || manifest.archive_sha256 != archive_sha256
+        || manifest.custody != "repository-owner-indefinite-write-once"
+        || journal.archive_sha256.as_deref() != Some(archive_sha256.as_str())
+        || journal.archive_manifest_sha256.as_deref() != Some(manifest_sha256.as_str())
+        || journal.archive_path.as_deref() != Some(archive_path.as_str())
+        || journal.capture_members_sha256 != capture_members_digest(capture)
+        || journal.export_sha256.as_deref() != Some(hex_sha256(export_bytes).as_str())
+    {
+        return Err(BridgeError::Conflict(
+            "existing archive is not authorized by the matching authenticated journal and exact evidence set"
+                .into(),
         ));
     }
     Ok(ArchiveEvidence {
-        path: format!(".harness/legacy/v0-conversion/{conversion_id}/{name}"),
-        archive_sha256: manifest.archive_sha256,
+        path: archive_path,
+        archive_sha256,
+        manifest_sha256,
+        capture_members_sha256: capture_members_digest(capture),
+        export_sha256: hex_sha256(export_bytes),
         confidentiality_mode: manifest.confidentiality_mode,
         recipient_fingerprints: manifest.recipient_fingerprints,
         plaintext_risk_acknowledged: manifest.plaintext_risk_acknowledged,
     })
+}
+
+fn expected_manifest(
+    conversion_id: &str,
+    capture: &Capture,
+    mode: &str,
+    recipient_fingerprints: Vec<String>,
+    plaintext_risk_acknowledged: Option<bool>,
+    archive_sha256: String,
+) -> ArchiveManifest {
+    ArchiveManifest {
+        schema: ARCHIVE_SCHEMA.into(),
+        conversion_id: conversion_id.into(),
+        source_schema: capture.schema_version,
+        confidentiality_mode: mode.into(),
+        recipient_fingerprints,
+        plaintext_risk_acknowledged,
+        members: archive_members(capture),
+        standalone_backup_sha256: capture.standalone_backup_sha256.clone(),
+        archive_sha256,
+        custody: "repository-owner-indefinite-write-once".into(),
+    }
+}
+
+fn archive_members(capture: &Capture) -> Vec<ArchiveMember> {
+    let mut members = capture
+        .members
+        .iter()
+        .map(|member| ArchiveMember {
+            path: format!("raw/{}", member.path),
+            sha256: member.sha256.clone(),
+            bytes: member.bytes,
+            capture: "pre-copy-post-equal".into(),
+        })
+        .collect::<Vec<_>>();
+    members.sort_by(|left, right| left.path.cmp(&right.path));
+    members
+}
+
+fn confidentiality_payload(
+    payload: Vec<u8>,
+    options: &ArchiveOptions,
+) -> Result<ConfidentialPayload> {
+    if options.plaintext {
+        if !options.plaintext_risk_acknowledged {
+            return Err(BridgeError::Usage(
+                "plaintext archive requires the separate risk acknowledgement".into(),
+            ));
+        }
+        return Ok(ConfidentialPayload {
+            name: "conversion.bin",
+            bytes: payload,
+            mode: "plaintext-explicit-override".into(),
+            fingerprints: Vec::new(),
+            acknowledged: Some(true),
+        });
+    }
+    let recipient_text = options
+        .age_recipient
+        .as_ref()
+        .ok_or_else(|| BridgeError::Usage("encrypted archive requires an age recipient".into()))?;
+    let recipient = x25519::Recipient::from_str(recipient_text)
+        .map_err(|error| BridgeError::Usage(format!("invalid age/X25519 recipient: {error}")))?;
+    let encryptor = age::Encryptor::with_recipients(iter::once(&recipient as _))?;
+    let mut ciphertext = Vec::new();
+    let mut writer = encryptor.wrap_output(&mut ciphertext)?;
+    std::io::Write::write_all(&mut writer, &payload)?;
+    writer.finish()?;
+    Ok(ConfidentialPayload {
+        name: "conversion.age",
+        bytes: ciphertext,
+        mode: "encrypted-age-x25519".into(),
+        fingerprints: vec![recipient_text.clone()],
+        acknowledged: None,
+    })
+}
+
+fn expected_mode(options: &ArchiveOptions) -> Result<&'static str> {
+    if options.plaintext {
+        if !options.plaintext_risk_acknowledged {
+            return Err(BridgeError::Usage(
+                "plaintext archive requires the separate risk acknowledgement".into(),
+            ));
+        }
+        Ok("plaintext-explicit-override")
+    } else if options.age_recipient.is_some() {
+        Ok("encrypted-age-x25519")
+    } else {
+        Err(BridgeError::Usage(
+            "encrypted archive requires an age recipient".into(),
+        ))
+    }
+}
+
+fn directory_exists(root: &SecureRoot, relative: &str) -> Result<bool> {
+    match root.open_dir(relative, false, true) {
+        Ok(_) => Ok(true),
+        Err(BridgeError::Errno(error)) if error == rustix::io::Errno::NOENT => Ok(false),
+        Err(error) => Err(error),
+    }
 }
 
 fn encode_payload(capture: &Capture, export: &[u8]) -> Result<Vec<u8>> {
@@ -220,35 +349,15 @@ fn encode_payload(capture: &Capture, export: &[u8]) -> Result<Vec<u8>> {
     Ok(output)
 }
 
-fn ensure_safe_directory(root: &Path, relative: &str) -> Result<()> {
-    let path = root.join(relative);
-    if path.exists() {
-        let metadata = std::fs::symlink_metadata(&path)?;
-        if !metadata.is_dir() || metadata.file_type().is_symlink() {
-            return Err(BridgeError::Conflict(format!(
-                "conversion path is not a no-follow directory: {relative}"
-            )));
-        }
-    } else {
-        std::fs::create_dir(&path)?;
-    }
-    Ok(())
+fn staging_directory(conversion_id: &str) -> String {
+    format!(".harness/recovery/v0-conversion/{conversion_id}.archive-staging")
 }
 
-fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<()> {
-    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
-    file.write_all(bytes)?;
-    file.sync_all()?;
-    Ok(())
-}
-
-fn sync_directory(path: &Path) -> Result<()> {
-    File::open(path)?.sync_all()?;
-    Ok(())
+fn archive_directory(conversion_id: &str) -> String {
+    format!(".harness/legacy/v0-conversion/{conversion_id}")
 }
 
 pub fn archive_manifest_path(root: &Path, conversion_id: &str) -> PathBuf {
-    root.join(".harness/legacy/v0-conversion")
-        .join(conversion_id)
+    root.join(archive_directory(conversion_id))
         .join("archive-manifest.json")
 }

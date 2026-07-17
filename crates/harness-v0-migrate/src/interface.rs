@@ -52,7 +52,6 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
         .collect::<Result<Vec<_>, _>>()?;
     match arguments.as_slice() {
         [value] if value == "--help" => return Ok(Command::Help),
-        [value] if value == "--version" => return Ok(Command::Version { json: false }),
         [] => {
             return Err(UsageError(
                 "one of seven top-level commands is required".into(),
@@ -243,10 +242,43 @@ mod tests {
 
     #[test]
     fn parser_accepts_only_the_closed_bridge_grammar() {
-        assert!(parse(arguments(&["inspect"])).is_ok());
-        assert!(parse(arguments(&["preview", "--json"])).is_ok());
-        assert!(parse(arguments(&["version"])).is_ok());
-        assert!(parse(arguments(&["resume", "--conversion-id", "v0-abc"])).is_ok());
+        for accepted in [
+            vec!["--help"],
+            vec!["inspect"],
+            vec!["inspect", "--json"],
+            vec!["preview"],
+            vec!["preview", "--json"],
+            vec!["version"],
+            vec!["version", "--json"],
+            vec!["resume", "--conversion-id", "v0-abc"],
+            vec!["rollback", "--conversion-id", "v0-abc"],
+            vec![
+                "export",
+                "--output",
+                "export.json",
+                "--age-recipient",
+                "age1fixture",
+            ],
+            vec![
+                "apply",
+                "--non-interactive",
+                "--accept-preview-sha256",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "--age-recipient",
+                "age1fixture",
+            ],
+            vec![
+                "apply",
+                "--non-interactive",
+                "--accept-preview-sha256",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "--archive-plaintext",
+                "--acknowledge-plaintext-recovery-risk",
+            ],
+        ] {
+            assert!(parse(arguments(&accepted)).is_ok(), "rejected {accepted:?}");
+        }
+        assert!(parse(arguments(&["--version"])).is_err());
         for forbidden in [
             "install", "update", "audit", "scaffold", "status", "migrate", "init", "query",
         ] {

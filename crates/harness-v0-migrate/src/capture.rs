@@ -1,13 +1,14 @@
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use rusqlite::{backup::Backup, Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::secure_fs::SecureRoot;
 use crate::{BridgeError, Result};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -36,6 +37,21 @@ struct Identity {
     size: u64,
 }
 
+#[derive(Deserialize)]
+struct ChangesetMatrix {
+    operations: Vec<MatrixOperation>,
+}
+
+#[derive(Deserialize)]
+struct MatrixOperation {
+    op: String,
+    versions: Vec<u64>,
+    #[serde(default)]
+    v2_requires: Vec<String>,
+    #[serde(default)]
+    v2_validates: Vec<String>,
+}
+
 pub fn capture(root: &Path) -> Result<Capture> {
     #[cfg(not(unix))]
     {
@@ -46,29 +62,19 @@ pub fn capture(root: &Path) -> Result<Capture> {
         ));
     }
     #[cfg(unix)]
-    capture_unix(root)
+    {
+        let root = SecureRoot::open(root)?;
+        capture_pinned(&root)
+    }
 }
 
 #[cfg(unix)]
-fn capture_unix(root: &Path) -> Result<Capture> {
-    use rustix::fs::{fcntl_lock, open, openat, FlockOperation, Mode, OFlags};
+pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
+    use rustix::fs::{fcntl_lock, fstat, FlockOperation};
 
-    let root_handle = open(
-        root,
-        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-        Mode::empty(),
-    )?;
-    let root_identity = directory_identity(&root_handle)?;
-    let db = openat(
-        &root_handle,
-        "harness.db",
-        OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-        Mode::empty(),
-    )
-    .map_err(|_| {
-        BridgeError::Unsupported("recognized repository-root harness.db is absent".into())
-    })?;
-    let db = File::from(db);
+    root.validate_root()?;
+    let root_names_before = root.list_names(root.root_descriptor(), ".")?;
+    let db = File::from(root.open_required_regular("harness.db")?);
     let mut sources = vec![(
         "harness.db".to_owned(),
         "filesystem.harness.db".to_owned(),
@@ -79,12 +85,7 @@ fn capture_unix(root: &Path) -> Result<Capture> {
         ("harness.db-wal", "filesystem.harness.db-wal"),
         ("harness.db-shm", "filesystem.harness.db-shm-forensic-only"),
     ] {
-        if let Ok(handle) = openat(
-            &root_handle,
-            name,
-            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-            Mode::empty(),
-        ) {
+        if let Some(handle) = root.open_optional_regular(name)? {
             sources.push((name.into(), category.into(), File::from(handle)));
         }
     }
@@ -104,61 +105,54 @@ fn capture_unix(root: &Path) -> Result<Capture> {
     recognized_metadata.insert("changesets".to_owned());
     recognized_metadata.insert("manifest.json".to_owned());
     recognized_metadata.insert("v0-provenance.json".to_owned());
-    let harness_dir_path = root.join(".harness");
     let mut unknown_metadata = Vec::new();
-    let harness_handle = openat(
-        &root_handle,
-        ".harness",
-        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-        Mode::empty(),
-    )
-    .ok();
+    let harness_handle = match root.open_dir(".harness", false, false) {
+        Ok(handle) => Some(handle),
+        Err(BridgeError::Errno(error)) if error == rustix::io::Errno::NOENT => None,
+        Err(error) => return Err(error),
+    };
     let harness_identity = harness_handle
         .as_ref()
         .map(directory_identity)
         .transpose()?;
+    let harness_names_before = harness_handle
+        .as_ref()
+        .map(|handle| root.list_names(handle, ".harness"))
+        .transpose()?;
     let mut changeset_handle = None;
     let mut changeset_identity = None;
-    if harness_dir_path.is_dir() {
-        for entry in std::fs::read_dir(&harness_dir_path)? {
-            let entry = entry?;
-            let name = entry.file_name().into_string().map_err(|_| {
-                BridgeError::Unsupported("non-UTF-8 .harness metadata is unowned".into())
-            })?;
-            if !recognized_metadata.contains(&name) && name != "legacy" && name != "recovery" {
+    let mut changeset_names_before = None;
+    if let Some(names) = &harness_names_before {
+        for name in names {
+            if !recognized_metadata.contains(name.as_str())
+                && name != "legacy"
+                && name != "recovery"
+            {
                 unknown_metadata.push(format!(".harness/{name}"));
             }
         }
     }
     unknown_metadata.sort();
 
-    if let Some(harness_handle) = &harness_handle {
-        if let Ok(provenance) = openat(
-            harness_handle,
-            "v0-provenance.json",
-            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-            Mode::empty(),
-        ) {
+    if harness_handle.is_some() {
+        if let Some(provenance) = root.open_optional_regular(".harness/v0-provenance.json")? {
             sources.push((
                 ".harness/v0-provenance.json".into(),
                 "filesystem.recognized-installer-provenance".into(),
                 File::from(provenance),
             ));
         }
-        if let Ok(opened_changeset_dir) = openat(
-            harness_handle,
-            "changesets",
-            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-            Mode::empty(),
-        ) {
+        let opened_changeset_dir = match root.open_dir(".harness/changesets", false, false) {
+            Ok(handle) => Some(handle),
+            Err(BridgeError::Errno(error)) if error == rustix::io::Errno::NOENT => None,
+            Err(error) => return Err(error),
+        };
+        if let Some(opened_changeset_dir) = opened_changeset_dir {
             changeset_identity = Some(directory_identity(&opened_changeset_dir)?);
-            let changeset_path = harness_dir_path.join("changesets");
+            let complete_names = root.list_names(&opened_changeset_dir, ".harness/changesets")?;
+            changeset_names_before = Some(complete_names.clone());
             let mut names = Vec::new();
-            for entry in std::fs::read_dir(&changeset_path)? {
-                let entry = entry?;
-                let name = entry.file_name().into_string().map_err(|_| {
-                    BridgeError::Unsupported("non-UTF-8 changeset name is unsupported".into())
-                })?;
+            for name in complete_names {
                 if name.ends_with(".changeset.jsonl") {
                     names.push(name);
                 } else {
@@ -167,14 +161,10 @@ fn capture_unix(root: &Path) -> Result<Capture> {
             }
             names.sort();
             for name in names {
-                let handle = openat(
-                    &opened_changeset_dir,
-                    name.as_str(),
-                    OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-                    Mode::empty(),
-                )?;
+                let relative = format!(".harness/changesets/{name}");
+                let handle = root.open_required_regular(&relative)?;
                 sources.push((
-                    format!(".harness/changesets/{name}"),
+                    relative,
                     "filesystem.recognized-changeset-jsonl".into(),
                     File::from(handle),
                 ));
@@ -226,23 +216,9 @@ fn capture_unix(root: &Path) -> Result<Capture> {
         });
         retained_handles.push((path, before_identity, handle));
     }
-    let reopened_root = open(
-        root,
-        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-        Mode::empty(),
-    )?;
-    if directory_identity(&reopened_root)? != root_identity {
-        return Err(BridgeError::Conflict(
-            "repository-root pathname changed during capture".into(),
-        ));
-    }
+    root.validate_root()?;
     if let (Some(expected), Some(original)) = (harness_identity, harness_handle.as_ref()) {
-        let reopened = openat(
-            &root_handle,
-            ".harness",
-            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-            Mode::empty(),
-        )?;
+        let reopened = root.open_dir(".harness", false, false)?;
         if directory_identity(&reopened)? != expected || directory_identity(original)? != expected {
             return Err(BridgeError::Conflict(
                 ".harness ancestor changed during capture".into(),
@@ -254,12 +230,8 @@ fn capture_unix(root: &Path) -> Result<Capture> {
         changeset_handle.as_ref(),
         harness_handle.as_ref(),
     ) {
-        let reopened = openat(
-            parent,
-            "changesets",
-            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-            Mode::empty(),
-        )?;
+        let _ = parent;
+        let reopened = root.open_dir(".harness/changesets", false, false)?;
         if directory_identity(&reopened)? != expected || directory_identity(original)? != expected {
             return Err(BridgeError::Conflict(
                 "changeset ancestor changed during capture".into(),
@@ -267,32 +239,7 @@ fn capture_unix(root: &Path) -> Result<Capture> {
         }
     }
     for (path, expected, retained) in &retained_handles {
-        let reopened = if let Some(name) = path.strip_prefix(".harness/changesets/") {
-            openat(
-                changeset_handle.as_ref().ok_or_else(|| {
-                    BridgeError::Conflict("changeset parent handle is absent".into())
-                })?,
-                name,
-                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-                Mode::empty(),
-            )?
-        } else if path == ".harness/v0-provenance.json" {
-            openat(
-                harness_handle.as_ref().ok_or_else(|| {
-                    BridgeError::Conflict(".harness parent handle is absent".into())
-                })?,
-                "v0-provenance.json",
-                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-                Mode::empty(),
-            )?
-        } else {
-            openat(
-                &root_handle,
-                path.as_str(),
-                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-                Mode::empty(),
-            )?
-        };
+        let reopened = root.open_required_regular(path)?;
         let reopened = File::from(reopened);
         if identity(&reopened)? != *expected || identity(retained)? != *expected {
             return Err(BridgeError::Conflict(format!(
@@ -301,18 +248,34 @@ fn capture_unix(root: &Path) -> Result<Capture> {
         }
     }
     for name in ["harness.db", "harness.db-wal", "harness.db-shm"] {
-        let present = openat(
-            &root_handle,
-            name,
-            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-            Mode::empty(),
-        )
-        .is_ok();
+        let present = root.open_optional_regular(name)?.is_some();
         if present != captured_sqlite_names.contains(name) {
             return Err(BridgeError::Conflict(format!(
                 "SQLite source set changed during capture: {name}"
             )));
         }
+    }
+    if root.list_names(root.root_descriptor(), ".")? != root_names_before {
+        return Err(BridgeError::Conflict(
+            "repository-root name set changed during capture".into(),
+        ));
+    }
+    if let (Some(handle), Some(expected)) = (&harness_handle, &harness_names_before) {
+        if root.list_names(handle, ".harness")? != *expected {
+            return Err(BridgeError::Conflict(
+                ".harness name set changed during capture".into(),
+            ));
+        }
+    }
+    if let (Some(handle), Some(expected)) = (&changeset_handle, &changeset_names_before) {
+        if root.list_names(handle, ".harness/changesets")? != *expected {
+            return Err(BridgeError::Conflict(
+                "changeset name set changed during capture".into(),
+            ));
+        }
+    }
+    for (_, _, handle) in &retained_handles {
+        let _ = fstat(handle).map_err(BridgeError::from)?;
     }
     members.sort_by(|left, right| left.path.cmp(&right.path));
 
@@ -402,50 +365,62 @@ fn validate_schema(connection: &Connection) -> Result<u32> {
             "V0 schema_version must be a gap-free sequence within 1..=13".into(),
         ));
     }
-    let expected = expected_tables(maximum);
-    let mut statement = connection.prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-    )?;
-    let actual = statement
-        .query_map([], |row| row.get::<_, String>(0))?
-        .collect::<std::result::Result<BTreeSet<_>, _>>()?;
+    let expected = expected_schema_objects(maximum)?;
+    let actual = schema_objects(connection)?;
     if actual != expected {
         return Err(BridgeError::Unsupported(format!(
-            "V0 schema {maximum} has unknown, missing, or foreign tables"
+            "V0 schema {maximum} has unknown, missing, or altered tables, columns, indexes, views, or triggers"
         )));
     }
     Ok(maximum)
 }
 
-fn expected_tables(version: u32) -> BTreeSet<String> {
-    let mut names = [
-        "backlog",
-        "decision",
-        "intake",
-        "schema_version",
-        "story",
-        "trace",
-    ]
-    .into_iter()
-    .map(str::to_owned)
-    .collect::<BTreeSet<_>>();
-    for (minimum, table) in [
-        (3, "tool"),
-        (4, "intervention"),
-        (6, "changeset_applied"),
-        (7, "story_dependency"),
-        (8, "story_hierarchy"),
-        (9, "proposal_evidence_link"),
-        (9, "audit_evidence_episode"),
-        (9, "backlog_outcome_observation"),
-        (10, "story_backlog_link"),
-        (11, "legacy_evidence_snapshot"),
-    ] {
-        if version >= minimum {
-            names.insert(table.to_owned());
-        }
+fn schema_objects(connection: &Connection) -> Result<BTreeSet<(String, String, String, String)>> {
+    let mut statement = connection.prepare(
+        "SELECT type, name, tbl_name, COALESCE(sql, '')
+         FROM sqlite_master
+         WHERE name NOT LIKE 'sqlite_%'
+           AND type IN ('table','index','view','trigger')
+         ORDER BY type, name",
+    )?;
+    let objects = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                normalize_schema_sql(&row.get::<_, String>(3)?),
+            ))
+        })?
+        .collect::<std::result::Result<BTreeSet<_>, _>>()?;
+    Ok(objects)
+}
+
+fn normalize_schema_sql(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn expected_schema_objects(version: u32) -> Result<BTreeSet<(String, String, String, String)>> {
+    const MIGRATIONS: [&str; 13] = [
+        include_str!("../../../scripts/schema/001-init.sql"),
+        include_str!("../../../scripts/schema/002-story-verify.sql"),
+        include_str!("../../../scripts/schema/003-tool-registry.sql"),
+        include_str!("../../../scripts/schema/004-intervention.sql"),
+        include_str!("../../../scripts/schema/005-tool-extensions.sql"),
+        include_str!("../../../scripts/schema/006-changeset-applied.sql"),
+        include_str!("../../../scripts/schema/007-story-dependencies.sql"),
+        include_str!("../../../scripts/schema/008-story-hierarchy.sql"),
+        include_str!("../../../scripts/schema/009-improvement-identity.sql"),
+        include_str!("../../../scripts/schema/010-story-backlog-links.sql"),
+        include_str!("../../../scripts/schema/011-legacy-evidence-snapshots.sql"),
+        include_str!("../../../scripts/schema/012-review-finding-closure.sql"),
+        include_str!("../../../scripts/schema/013-changeset-content-sha.sql"),
+    ];
+    let expected = Connection::open_in_memory()?;
+    for migration in MIGRATIONS.iter().take(version as usize) {
+        expected.execute_batch(migration)?;
     }
-    names
+    schema_objects(&expected)
 }
 
 fn validate_changeset(bytes: &[u8]) -> Result<()> {
@@ -480,35 +455,15 @@ fn validate_changeset(bytes: &[u8]) -> Result<()> {
             "changeset header is outside the frozen grammar".into(),
         ));
     }
-    let operations = [
-        "audit.evidence.clear",
-        "audit.evidence.open",
-        "backlog.add",
-        "backlog.close",
-        "backlog.complete",
-        "backlog.legacy.reconcile",
-        "backlog.outcome.observe",
-        "backlog.proposal.decision",
-        "decision.add",
-        "decision.verify",
-        "intake.add",
-        "intervention.add",
-        "legacy.evidence.capture",
-        "story.add",
-        "story.backlog.link",
-        "story.backlog.unlink",
-        "story.complete",
-        "story.dependency.add",
-        "story.dependency.remove",
-        "story.hierarchy.add",
-        "story.hierarchy.remove",
-        "story.update",
-        "story.verify",
-        "tool.check",
-        "tool.register",
-        "tool.remove",
-        "trace.add",
-    ];
+    let header_keys = header.keys().map(String::as_str).collect::<BTreeSet<_>>();
+    if header_keys != BTreeSet::from(["base_schema_version", "op", "run_id", "version"]) {
+        return Err(BridgeError::Unsupported(
+            "changeset header has unknown or missing members".into(),
+        ));
+    }
+    let matrix: ChangesetMatrix = serde_json::from_str(include_str!(
+        "../../../release/contracts/v1/v0-changeset-operation-matrix.json"
+    ))?;
     for value in values.iter().skip(1) {
         let object = value.as_object().ok_or_else(|| {
             BridgeError::Unsupported("changeset operation must be an object".into())
@@ -521,11 +476,127 @@ fn validate_changeset(bytes: &[u8]) -> Result<()> {
             .get("version")
             .map(|value| value.as_u64())
             .unwrap_or(Some(1));
-        if !operations.contains(&operation) || !matches!(version, Some(1 | 2)) {
+        let Some(rule) = matrix.operations.iter().find(|rule| rule.op == operation) else {
+            return Err(BridgeError::Unsupported(format!(
+                "unknown changeset operation/version: {operation}"
+            )));
+        };
+        let Some(version) = version else {
+            return Err(BridgeError::Unsupported(format!(
+                "unknown changeset operation/version: {operation}"
+            )));
+        };
+        if !rule.versions.contains(&version) {
             return Err(BridgeError::Unsupported(format!(
                 "unknown changeset operation/version: {operation}"
             )));
         }
+        if version == 2 {
+            validate_v2_rule(object, rule)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_v2_rule(
+    operation: &serde_json::Map<String, serde_json::Value>,
+    rule: &MatrixOperation,
+) -> Result<()> {
+    let payload = operation
+        .get("payload")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| BridgeError::Unsupported("version 2 operation payload is absent".into()))?;
+    for requirement in &rule.v2_requires {
+        match requirement.as_str() {
+            "payload.completed_at" => require_timestamp(payload, "completed_at")?,
+            "payload.linked_at" => require_timestamp(payload, "linked_at")?,
+            "payload.verified_at" => require_timestamp(payload, "verified_at")?,
+            "payload.evidence[].observed_at when evidence exists" => {
+                if let Some(evidence) = payload.get("evidence") {
+                    let evidence = evidence.as_array().ok_or_else(|| {
+                        BridgeError::Unsupported("payload.evidence must be an array".into())
+                    })?;
+                    for item in evidence {
+                        let item = item.as_object().ok_or_else(|| {
+                            BridgeError::Unsupported(
+                                "payload.evidence item must be an object".into(),
+                            )
+                        })?;
+                        require_timestamp(item, "observed_at")?;
+                    }
+                }
+            }
+            unknown => {
+                return Err(BridgeError::Unsupported(format!(
+                    "unimplemented frozen v2 requirement: {unknown}"
+                )))
+            }
+        }
+    }
+    for validation in &rule.v2_validates {
+        match validation.as_str() {
+            "payload.accepted_at" => optional_timestamp(payload, "accepted_at")?,
+            "payload.closed_at" => optional_timestamp(payload, "closed_at")?,
+            "payload.evidence[].observed_at" => {
+                if let Some(evidence) = payload.get("evidence") {
+                    let evidence = evidence.as_array().ok_or_else(|| {
+                        BridgeError::Unsupported("payload.evidence must be an array".into())
+                    })?;
+                    for item in evidence {
+                        let item = item.as_object().ok_or_else(|| {
+                            BridgeError::Unsupported(
+                                "payload.evidence item must be an object".into(),
+                            )
+                        })?;
+                        require_timestamp(item, "observed_at")?;
+                    }
+                }
+            }
+            unknown => {
+                return Err(BridgeError::Unsupported(format!(
+                    "unimplemented frozen v2 validation: {unknown}"
+                )))
+            }
+        }
+    }
+    Ok(())
+}
+
+fn require_timestamp(
+    object: &serde_json::Map<String, serde_json::Value>,
+    field: &str,
+) -> Result<()> {
+    let value = object
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| BridgeError::Unsupported(format!("version 2 requires {field}")))?;
+    validate_timestamp(value, field)
+}
+
+fn optional_timestamp(
+    object: &serde_json::Map<String, serde_json::Value>,
+    field: &str,
+) -> Result<()> {
+    if let Some(value) = object.get(field) {
+        let value = value.as_str().ok_or_else(|| {
+            BridgeError::Unsupported(format!("version 2 {field} must be a timestamp string"))
+        })?;
+        validate_timestamp(value, field)?;
+    }
+    Ok(())
+}
+
+fn validate_timestamp(value: &str, field: &str) -> Result<()> {
+    use chrono::NaiveDateTime;
+    let parsed = NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S").map_err(|_| {
+        BridgeError::Unsupported(format!(
+            "version 2 {field} must use canonical YYYY-MM-DD HH:MM:SS"
+        ))
+    })?;
+    if parsed.format("%Y-%m-%d %H:%M:%S").to_string() != value {
+        return Err(BridgeError::Unsupported(format!(
+            "version 2 {field} must use canonical YYYY-MM-DD HH:MM:SS"
+        )));
     }
     Ok(())
 }
@@ -548,22 +619,15 @@ pub fn source_digest(capture: &Capture) -> String {
     format!("{:x}", digest.finalize())
 }
 
-pub fn safe_output_path(root: &Path, value: &str) -> Result<PathBuf> {
-    let path = Path::new(value);
-    if path.is_absolute()
-        || value.is_empty()
-        || path.components().any(|component| {
-            matches!(
-                component,
-                std::path::Component::ParentDir
-                    | std::path::Component::RootDir
-                    | std::path::Component::Prefix(_)
-            )
-        })
-    {
-        return Err(BridgeError::Usage(
-            "output path must be safe and repository-relative".into(),
-        ));
+pub fn capture_members_digest(capture: &Capture) -> String {
+    let mut digest = Sha256::new();
+    for member in &capture.members {
+        digest.update(member.path.as_bytes());
+        digest.update([0]);
+        digest.update(member.category.as_bytes());
+        digest.update([0]);
+        digest.update(member.sha256.as_bytes());
+        digest.update(member.bytes.to_be_bytes());
     }
-    Ok(root.join(path))
+    format!("{:x}", digest.finalize())
 }

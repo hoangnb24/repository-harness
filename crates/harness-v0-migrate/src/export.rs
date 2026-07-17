@@ -49,6 +49,7 @@ pub enum NeutralValue {
     Integer(i64),
     RealBits(String),
     Text(String),
+    TextBytesHex(String),
     BlobHex(String),
 }
 
@@ -116,9 +117,10 @@ fn export_tables(connection: &Connection) -> Result<Vec<ExportTable>> {
                     ValueRef::Real(value) => {
                         NeutralValue::RealBits(format!("{:016x}", value.to_bits()))
                     }
-                    ValueRef::Text(value) => {
-                        NeutralValue::Text(String::from_utf8_lossy(value).into_owned())
-                    }
+                    ValueRef::Text(value) => match std::str::from_utf8(value) {
+                        Ok(value) => NeutralValue::Text(value.to_owned()),
+                        Err(_) => NeutralValue::TextBytesHex(hex_bytes(value)),
+                    },
                     ValueRef::Blob(value) => NeutralValue::BlobHex(hex_bytes(value)),
                 };
                 values.insert(column.clone(), value);
@@ -160,4 +162,77 @@ fn hex_bytes(value: &[u8]) -> String {
 #[allow(dead_code)]
 pub fn load(path: &Path) -> Result<NeutralExport> {
     Ok(serde_json::from_slice(&std::fs::read(path)?)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn neutral_values_preserve_text_bytes_nul_extremes_real_bits_and_blobs() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE exact_values(value);\n\
+                 INSERT INTO exact_values VALUES(NULL);\n\
+                 INSERT INTO exact_values VALUES(-9223372036854775808);\n\
+                 INSERT INTO exact_values VALUES(9223372036854775807);\n\
+                 INSERT INTO exact_values VALUES(CAST(X'80ff' AS TEXT));\n\
+                 INSERT INTO exact_values VALUES(CAST(X'610062' AS TEXT));\n\
+                 INSERT INTO exact_values VALUES(CAST(X'7ff8000000000001' AS BLOB));\n\
+                 INSERT INTO exact_values VALUES(X'00ff10');",
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO exact_values VALUES(?1)",
+                [f64::from_bits(0x8000_0000_0000_0000)],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO exact_values VALUES(?1)",
+                [f64::from_bits(0x3ff1_9999_9999_999a)],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO exact_values VALUES(?1)",
+                [f64::from_bits(0x7ff0_0000_0000_0000)],
+            )
+            .unwrap();
+        let tables = export_tables(&connection).unwrap();
+        let rows = &tables[0].rows;
+        assert!(rows.iter().any(|row| row["value"] == NeutralValue::Null));
+        assert!(rows
+            .iter()
+            .any(|row| row["value"] == NeutralValue::Integer(i64::MIN)));
+        assert!(rows
+            .iter()
+            .any(|row| row["value"] == NeutralValue::Integer(i64::MAX)));
+        assert!(rows.iter().any(|row| matches!(
+            &row["value"],
+            NeutralValue::Text(value) if value.as_bytes() == b"a\0b"
+        )));
+        assert!(rows.iter().any(|row| matches!(
+            &row["value"],
+            NeutralValue::RealBits(value) if value == "8000000000000000"
+        )));
+        assert!(rows.iter().any(|row| matches!(
+            &row["value"],
+            NeutralValue::RealBits(value) if value == "3ff199999999999a"
+        )));
+        assert!(rows.iter().any(|row| matches!(
+            &row["value"],
+            NeutralValue::RealBits(value) if value == "7ff0000000000000"
+        )));
+        assert!(rows.iter().any(|row| matches!(
+            &row["value"],
+            NeutralValue::BlobHex(value) if value == "00ff10"
+        )));
+        assert!(rows.iter().any(|row| matches!(
+            &row["value"],
+            NeutralValue::TextBytesHex(value) if value == "80ff"
+        )));
+    }
 }

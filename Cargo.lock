@@ -818,6 +818,7 @@ version = "1.0.0"
 dependencies = [
  "curve25519-dalek",
  "ed25519-dalek",
+ "hmac",
  "pulldown-cmark",
  "rustix",
  "semver",
@@ -834,8 +835,11 @@ name = "harness-v0-migrate"
 version = "1.0.0"
 dependencies = [
  "age",
+ "chrono",
  "fs2",
+ "getrandom 0.2.17",
  "harness-core",
+ "hmac",
  "rusqlite",
  "rustix",
  "serde",

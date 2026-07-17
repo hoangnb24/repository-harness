@@ -95,13 +95,14 @@ fn source_snapshot(root: &Path) -> BTreeMap<String, String> {
 #[test]
 fn immutable_reader_accepts_every_frozen_schema_and_preserves_unknown_metadata() {
     for version in 1..=13 {
-        let fixture = fixtures().join(format!("schema-{version:02}"));
-        let before = source_snapshot(&fixture);
-        let captured = capture(&fixture).unwrap();
+        let fixture = copy_fixture(&format!("schema-{version:02}"));
+        let before = source_snapshot(fixture.path());
+        let captured = capture(fixture.path()).unwrap();
         assert_eq!(captured.schema_version, version);
-        assert_eq!(source_snapshot(&fixture), before);
+        assert_eq!(source_snapshot(fixture.path()), before);
     }
-    let captured = capture(&fixtures().join("schema-13")).unwrap();
+    let fixture = copy_fixture("schema-13");
+    let captured = capture(fixture.path()).unwrap();
     assert!(captured
         .unknown_metadata
         .contains(&".harness/foreign-tool.bin".to_owned()));
@@ -113,9 +114,9 @@ fn immutable_reader_accepts_every_frozen_schema_and_preserves_unknown_metadata()
 
 #[test]
 fn wal_only_commit_is_present_in_standalone_backup_and_shm_is_forensic_only() {
-    let fixture = fixtures().join("wal-only-schema-13");
-    let before = source_snapshot(&fixture);
-    let captured = capture(&fixture).unwrap();
+    let fixture = copy_fixture("wal-only-schema-13");
+    let before = source_snapshot(fixture.path());
+    let captured = capture(fixture.path()).unwrap();
     assert!(captured
         .members
         .iter()
@@ -133,7 +134,7 @@ fn wal_only_commit_is_present_in_standalone_backup_and_shm_is_forensic_only() {
         })
         .unwrap();
     assert_eq!(title, "wal-only-committed-row");
-    assert_eq!(source_snapshot(&fixture), before);
+    assert_eq!(source_snapshot(fixture.path()), before);
 }
 
 #[test]

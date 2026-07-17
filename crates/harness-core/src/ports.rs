@@ -51,6 +51,7 @@ pub struct CompatibilityObservation {
     pub legacy_artifact_present: bool,
     pub conversion_journal_present: bool,
     pub conversion_archive_present: bool,
+    pub conversion_evidence_authenticated: bool,
 }
 
 pub trait ManifestPort {
