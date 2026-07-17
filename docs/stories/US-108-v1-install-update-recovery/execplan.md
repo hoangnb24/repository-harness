@@ -1,6 +1,6 @@
 # US-108 V1 Install, Update, And Recovery Exec Plan
 
-Status: **Implemented and locally validated; orchestrator acceptance pending**
+Status: **Implemented, fully validated, and accepted**
 
 ## Goal
 
@@ -74,10 +74,10 @@ Hard gates:
    `git diff --check`, and full premerge.
 8. Update status and exact evidence counts only from the final passing tree.
 
-All implementation steps are complete in the unstaged review worktree. Phase 4
-and Phase 7 remain unopened: the live binary still uses unavailable production
-release/trust ports, and platforms without the proven atomic exchange boundary
-fail closed.
+All implementation steps are complete and the exact reviewed candidate is
+accepted. Phase 4 is unblocked but not started. Phase 7 remains unopened: the
+live binary still uses unavailable production release/trust ports, and
+platforms without the proven atomic exchange boundary fail closed.
 
 ## Stop Conditions
 

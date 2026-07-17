@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-2 accepted / Phase 3 implemented and locally validated, acceptance pending**
+Status: **Implementation in progress / Phases 1-3 accepted / Phases 4-8 not started**
 
 ## Goal
 
@@ -11,10 +11,9 @@ before its approved obligations end.
 
 Decision 0012 supplies the exact compatibility-window, retention, support, and
 retirement policy. Gate G0 is approved/open. Decision 0013 and US-106 implement
-and prove Phase 1; US-107 implements and proves Phase 2; US-108 implements and
-locally validates Phase 3. Phase 3 acceptance is pending. Phases 4-8 remain not
-started and depend on accepted evidence from their
-predecessors.
+and prove Phase 1; US-107 implements and proves Phase 2; US-108 implements,
+proves, and independently accepts Phase 3. Phase 4 is unblocked but not started.
+Phases 4-8 remain dependent on accepted evidence from their predecessors.
 
 ## Scope
 
@@ -71,9 +70,8 @@ Risk flags:
   Unicode/spaces, and atomic filesystem behavior.
 - **Existing behavior:** V0 is implemented and distributed today.
 - **Weak proof:** Phase 1 contract fixtures and acceptance evidence now exist;
-  Phase 2 core runtime evidence exists; atomic mutation/recovery, promoted
-  release artifacts, pilots, and Phase 4-8 evidence do not; US-108 contains
-  the Phase 3 candidate evidence.
+  Phase 2 core runtime and Phase 3 mutation/recovery evidence exist; promoted
+  release artifacts, pilots, and Phase 4-8 evidence do not.
 - **Multi-domain:** CLI, filesystem, installers, release integrity, migration,
   recovery, docs/templates, evaluation, and retirement.
 
@@ -103,7 +101,7 @@ The dependency chain is intentionally linear:
 G0 approved/open by Decision 0012
   -> Phase 1 accepted by Decision 0013 and US-106
   -> Phase 2 accepted by US-107 at exact candidate 1b1add5
-  -> Phase 3 implemented and locally validated by US-108, acceptance pending
+  -> Phase 3 accepted by US-108 at exact candidate 1f957ce
   -> Phase 4
   -> Phase 5
   -> Phase 6
@@ -116,12 +114,12 @@ No phase may borrow acceptance from a later phase. For example, a successful
 pilot cannot excuse an unauthenticated payload, and a passing platform build
 cannot excuse a bridge rollback that overwrites a target edit.
 
-Current phase state: Phases 1 and 2 are implemented and accepted. Independent
+Current phase state: Phases 1-3 are implemented and accepted. Independent
 security and behavior review accepted exact Phase 2 candidate `1b1add5`, which
-was integrated as `e77e028` with the identical Git tree. Phase 3 is implemented
-and locally validated by US-108, with acceptance pending. Phases 4-8 remain not
-started and dependent on the preceding
-phase's accepted evidence plus their own gates.
+was integrated as `e77e028` with the identical Git tree. Independent security
+and behavior review accepted exact Phase 3 candidate `1f957ce`, integrated as
+`8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 is unblocked but not
+started; Phases 4-8 still require their own evidence and gates.
 
 Anticipated paths below identify review surfaces, not permission to modify
 them in this planning change. New filenames remain subject to the Phase 1
@@ -205,8 +203,7 @@ bridge reader, pilot evidence, and release promotion stay out.
 
 **Dependency:** Phase 2 core command and mutation boundaries pass.
 
-**Status:** implemented and locally validated by US-108; orchestrator
-acceptance pending.
+**Status:** implemented, fully validated, and accepted by US-108.
 
 **Implementation:**
 
@@ -240,7 +237,8 @@ committed-update rollback checkpoints, 89 total `harness-core` tests, 181
 workspace Rust tests, and 11/11 Phase 3 mechanical proof groups. Phase 1/2 gates
 remain unchanged. The evidence covers exact emitted-preview binding, root-bound
 recovery ownership, and read-only refusal of damaged staged/backup probe
-evidence. Phase 4 and Phase 7 remain closed pending acceptance.
+evidence. Phase 4 is unblocked but not started; Phase 7 remains closed pending
+its production and platform evidence.
 
 ### Phase 4: Isolated V0 Bridge
 

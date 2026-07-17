@@ -1,6 +1,6 @@
 # US-108 V1 Install, Update, And Recovery Validation
 
-Status: **Implemented and locally validated; orchestrator acceptance pending**
+Status: **Implemented, fully validated, and accepted**
 
 ## Proof Strategy
 
@@ -122,8 +122,11 @@ The focused evidence explicitly includes:
 On 2026-07-17, the same worktree passed locked offline fmt/check/test/clippy,
 the unchanged Phase 1 verifier (9/9 groups), the unchanged Phase 2 verifier
 (11/11 groups), the Phase 3 verifier (11/11 groups), `git diff --check`, and
-full `scripts/validate-premerge.sh`. No commit, production promotion, or Phase
-4/7 opening is claimed; orchestrator acceptance remains the outstanding gate.
+full `scripts/validate-premerge.sh`. Independent security (`gpt-5.4`, high
+reasoning) and behavior (`gpt-5.6-sol`, medium reasoning) reviewers accepted
+exact candidate `1f957ce`; it was integrated as `8e67593` with identical Git
+tree `9cd22cdb24d2`. Phase 4 is unblocked but not started. No production
+promotion or Phase 7 opening is claimed.
 
 Rollback deliberately reloads the authenticated release before trusting local
 journal and backup evidence. If that live authority is unavailable or has a

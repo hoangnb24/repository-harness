@@ -43,7 +43,7 @@ here before importing their existing state.
 ## V1 Phase Gates
 
 The separate V1 core does not use the legacy SQLite matrix above. Its accepted
-Phase 1/2 gates and the locally validated Phase 3 candidate are mechanical:
+Phase 1-3 gates are mechanical:
 
 ```bash
 scripts/verify-v1-phase1-contracts.sh
@@ -53,15 +53,17 @@ scripts/verify-v1-phase3-recovery.sh
 
 US-108 records 43 focused Phase 3 test functions, all 18 install, 15 update,
 and 13 committed-update rollback checkpoints, 89 total `harness-core` tests,
-181 workspace Rust tests, and 11 Phase 3 proof groups. The Phase 3 candidate
-also proves retained hard-link witnesses for every `before_sha256=None` create
-that recovery may later classify or remove, pinned repository-root
-`st_dev`/`st_ino` journal binding that rejects copied cross-root recovery
+181 workspace Rust tests, and 11 Phase 3 proof groups. The accepted Phase 3
+evidence also proves retained hard-link witnesses for every
+`before_sha256=None` create that recovery may later classify or remove, pinned
+repository-root `st_dev`/`st_ino` journal binding that rejects copied cross-root recovery
 evidence, canonical preview digests that match the emitted
 `details.operations` array, read-only probe validation of staged/backup
 evidence before `prepared` or `applying` recovery is surfaced, and monotonic
 recovery validation that refuses payload downgrade or equal-sequence digest
 drift before mutation. `rolling-back` remains explicit-only and is not a probe
-status. Phase 4 bridge and Phase 7 production/platform rows remain absent and
-must not be inferred from those results. Phase 3 acceptance remains pending
-until fresh exact-hash reviewers approve the candidate.
+status. Independent security (`gpt-5.4`, high reasoning) and behavior
+(`gpt-5.6-sol`, medium reasoning) reviewers accepted exact candidate `1f957ce`,
+integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 bridge
+and Phase 7 production/platform rows remain absent and must not be inferred
+from those results.

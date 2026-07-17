@@ -2,10 +2,10 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-2 accepted; Phase 3 implemented and locally validated, acceptance pending; Phases 4-8 not started
+Status: Direction and Phases 1-3 accepted; Phase 4 ready but not started; Phases 4-8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
-Phase 2 implementation: US-107; Phase 3 implementation candidate: US-108
+Phase 2 implementation: US-107; Phase 3 implementation: US-108
 
 ## Executive Outcome
 
@@ -420,7 +420,7 @@ Acceptance: target-owned files are never automatically patched; failed work
 leaves no claimed success; recovery operates through install/update under their
 documented contracts.
 
-**Implemented and locally validated; orchestrator acceptance pending:** US-108
+**Implemented, fully validated, and accepted:** US-108
 adds exact preview/private-write binding; authenticated install/update/scaffold
 planning; managed-file and managed-block mutation; target-owned preservation;
 backups, staged images, full-plan recovery commitments, atomic no-replace/
@@ -451,8 +451,11 @@ target directly; the retained hard-link witness plus pinned-root journal
 identity closes only the in-scope crash/race/corruption boundary. The live
 binary still uses unavailable production release/trust adapters. macOS/Linux
 are the proven mutation boundary; other platforms fail closed and remain Phase
-7 work. Phase 4 remains closed until this candidate receives fresh exact-hash
-acceptance.
+7 work. Independent security (`gpt-5.4`, high reasoning) and behavior
+(`gpt-5.6-sol`, medium reasoning) reviewers accepted exact candidate `1f957ce`,
+integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 is
+therefore unblocked but has not started; production promotion and Phase 7
+platform claims remain closed.
 
 ### Phase 4: Isolated V0 Bridge
 
@@ -590,9 +593,9 @@ descriptor-anchored pre/copy/post capture, exact bootstrap/command/release
 arrays, and complete-set calendar-month availability receipts. US-107 supplies
 accepted Phase 2 evidence for the live six-command core, authenticated payload
 boundary, deterministic structural audit, no-target-execution canary, and safe
-mutation refusal. US-108 supplies the locally validated Phase 3 candidate and
-exact evidence counts above; acceptance is pending. Phases 4-8 remain not
-started and depend on preceding accepted evidence. No bridge conversion write,
+mutation refusal. US-108 supplies accepted Phase 3 mutation/recovery evidence
+and the exact evidence counts above. Phases 4-8 remain not started and depend
+on preceding accepted evidence. No bridge conversion write,
 production key, promoted release, pilot, tag, publish action, or V0 removal is
 created or authorized by Phase 3. Phase 8
 additionally requires Decision 0012's separate removal authorization and
