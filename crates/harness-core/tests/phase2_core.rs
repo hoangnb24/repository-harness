@@ -158,7 +158,7 @@ fn core_trust() -> ReleaseTrustInput {
     ReleaseTrustInput {
         trusted_root: fixture_root("core"),
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "b79b21419115860f4d481c500074235619ae8dde8996df7b887cd9059b6535cf"
+        path_ledger_sha256: "c8c5b7f4ec8a1e71fac3c2a7d8e3c36cbd39768eeb54603e17d95687bc68a625"
             .into(),
         freshness: ReleaseFreshness::Existing {
             sequence: 42,
@@ -305,7 +305,7 @@ fn strict_release_verifier_rejects_bridge_domain_and_rollback() {
     let bridge_trust = ReleaseTrustInput {
         trusted_root: fixture_root("bridge"),
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "b79b21419115860f4d481c500074235619ae8dde8996df7b887cd9059b6535cf"
+        path_ledger_sha256: "c8c5b7f4ec8a1e71fac3c2a7d8e3c36cbd39768eeb54603e17d95687bc68a625"
             .into(),
         freshness: ReleaseFreshness::FirstInstallMinimumSequence(7),
     };
@@ -685,9 +685,7 @@ fn status_classifies_structural_v0_and_mixed_state_without_a_sqlite_or_bridge_de
     let legacy = MemoryFileSystem::default().with_compatibility(CompatibilityObservation {
         observed: true,
         legacy_artifact_present: true,
-        conversion_journal_present: false,
-        conversion_archive_present: false,
-        conversion_evidence_authenticated: false,
+        archive_custody_present: false,
     });
     let result = HarnessCore::new(&legacy, &JsonManifestPort, &release, &release)
         .execute(&Command::Status { json: true });
@@ -704,44 +702,30 @@ fn status_classifies_structural_v0_and_mixed_state_without_a_sqlite_or_bridge_de
         .with_compatibility(CompatibilityObservation {
             observed: true,
             legacy_artifact_present: true,
-            conversion_journal_present: false,
-            conversion_archive_present: false,
-            conversion_evidence_authenticated: false,
+            archive_custody_present: false,
         });
     let result = HarnessCore::new(&mixed, &JsonManifestPort, &release, &release)
         .execute(&Command::Status { json: true });
     assert_eq!(result.exit_code, 3);
     assert_eq!(result.repository_mode, RepositoryMode::MixedInvalid);
-
-    let interrupted = MemoryFileSystem::default().with_compatibility(CompatibilityObservation {
-        observed: true,
-        legacy_artifact_present: true,
-        conversion_journal_present: true,
-        conversion_archive_present: true,
-        conversion_evidence_authenticated: false,
-    });
-    let result = HarnessCore::new(&interrupted, &JsonManifestPort, &release, &release)
-        .execute(&Command::Status { json: true });
-    assert_eq!(result.exit_code, 0);
-    assert_eq!(result.repository_mode, RepositoryMode::ConversionInProgress);
 }
 
 #[test]
-fn converted_receipt_without_authenticated_archive_export_and_snapshot_is_mixed_invalid() {
+fn archive_receipt_without_its_exact_manifest_and_payload_is_invalid() {
     let bytes = b"# Managed\n";
     let mut converted: serde_json::Value =
         serde_json::from_slice(&manifest("managed.md", bytes, "active", &[])).unwrap();
-    converted["repository_mode"] = serde_json::json!("converted-v1-with-archive");
-    converted["conversion_receipt"] = serde_json::json!({
-        "schema": "repository-harness-conversion-receipt/v1",
-        "conversion_id": "v0-authentication-test",
+    converted["v0_archive_receipt"] = serde_json::json!({
+        "schema": "repository-harness-v0-archive-receipt/v1",
+        "archive_id": "v0-authentication-test",
         "bridge_release": "1.0.0",
-        "archive_path": ".harness/legacy/v0-conversion/v0-authentication-test/conversion.age",
+        "archive_manifest_path": ".harness-v0-archive/v0-authentication-test/archive-manifest.json",
+        "archive_manifest_sha256": "d".repeat(64),
         "export_sha256": "a".repeat(64),
         "standalone_backup_sha256": "b".repeat(64),
-        "archive_sha256": "c".repeat(64),
-        "confidentiality_mode": "encrypted-age-x25519",
-        "recipient_fingerprints": ["age1fixture"]
+        "payload_sha256": "c".repeat(64),
+        "source_sha256": "e".repeat(64),
+        "confidentiality_mode": "encrypted-age-x25519"
     });
     let filesystem = MemoryFileSystem::default()
         .with("managed.md", bytes)
@@ -752,19 +736,16 @@ fn converted_receipt_without_authenticated_archive_export_and_snapshot_is_mixed_
         .with_compatibility(CompatibilityObservation {
             observed: true,
             legacy_artifact_present: false,
-            conversion_journal_present: true,
-            conversion_archive_present: false,
-            conversion_evidence_authenticated: false,
+            archive_custody_present: true,
         });
     let release = MemoryRelease::core();
     let result = HarnessCore::new(&filesystem, &JsonManifestPort, &release, &release)
         .execute(&Command::Status { json: true });
     assert_eq!(result.exit_code, 3);
-    assert_eq!(result.repository_mode, RepositoryMode::MixedInvalid);
     assert!(result
         .details
         .violations
-        .contains(&"conversion-evidence-invalid".to_owned()));
+        .contains(&"v0-archive-receipt-invalid".to_owned()));
 }
 
 #[test]
@@ -936,69 +917,66 @@ fn runtime_manifest_validation_matches_closed_schema_constraints() {
         cases.push(null_optional);
     }
     let mut null_receipt = base.clone();
-    null_receipt["conversion_receipt"] = serde_json::Value::Null;
+    null_receipt["v0_archive_receipt"] = serde_json::Value::Null;
     cases.push(null_receipt);
-    let mut converted_base = base.clone();
-    converted_base["repository_mode"] = serde_json::json!("converted-v1-with-archive");
-    converted_base["conversion_receipt"] = serde_json::json!({
-        "schema": "repository-harness-conversion-receipt/v1",
-        "conversion_id": "conversion-1",
+    let mut archive_base = base.clone();
+    archive_base["v0_archive_receipt"] = serde_json::json!({
+        "schema": "repository-harness-v0-archive-receipt/v1",
+        "archive_id": "archive-1",
         "bridge_release": "1.0.0",
-        "archive_path": ".harness/legacy/v0-conversion/conversion-1/archive.age",
+        "archive_manifest_path": ".harness-v0-archive/archive-1/archive-manifest.json",
+        "archive_manifest_sha256": "3".repeat(64),
         "export_sha256": "0".repeat(64),
         "standalone_backup_sha256": "1".repeat(64),
-        "archive_sha256": "2".repeat(64),
-        "confidentiality_mode": "encrypted-age-x25519",
-        "recipient_fingerprints": ["owner"]
+        "payload_sha256": "2".repeat(64),
+        "source_sha256": "4".repeat(64),
+        "confidentiality_mode": "encrypted-age-x25519"
     });
     for (pointer, invalid_value) in [
         (
-            "/conversion_receipt/schema",
-            serde_json::json!("repository-harness-conversion-receipt/v2"),
+            "/v0_archive_receipt/schema",
+            serde_json::json!("repository-harness-v0-archive-receipt/v2"),
         ),
         (
-            "/conversion_receipt/conversion_id",
+            "/v0_archive_receipt/archive_id",
             serde_json::json!("Bad_ID"),
         ),
         (
-            "/conversion_receipt/export_sha256",
+            "/v0_archive_receipt/archive_manifest_path",
+            serde_json::json!(".harness/legacy/archive-manifest.json"),
+        ),
+        (
+            "/v0_archive_receipt/archive_manifest_sha256",
             serde_json::json!("z".repeat(64)),
         ),
         (
-            "/conversion_receipt/standalone_backup_sha256",
+            "/v0_archive_receipt/export_sha256",
+            serde_json::json!("z".repeat(64)),
+        ),
+        (
+            "/v0_archive_receipt/standalone_backup_sha256",
             serde_json::json!("1".repeat(63)),
         ),
         (
-            "/conversion_receipt/archive_sha256",
+            "/v0_archive_receipt/payload_sha256",
             serde_json::json!("A".repeat(64)),
         ),
         (
-            "/conversion_receipt/confidentiality_mode",
+            "/v0_archive_receipt/source_sha256",
+            serde_json::json!("A".repeat(64)),
+        ),
+        (
+            "/v0_archive_receipt/confidentiality_mode",
             serde_json::json!("unknown"),
         ),
     ] {
-        let mut converted = converted_base.clone();
-        *converted.pointer_mut(pointer).unwrap() = invalid_value;
-        cases.push(converted);
+        let mut archived = archive_base.clone();
+        *archived.pointer_mut(pointer).unwrap() = invalid_value;
+        cases.push(archived);
     }
-    let mut unknown_receipt = converted_base;
-    unknown_receipt["conversion_receipt"]["unexpected"] = serde_json::json!(true);
+    let mut unknown_receipt = archive_base;
+    unknown_receipt["v0_archive_receipt"]["unexpected"] = serde_json::json!(true);
     cases.push(unknown_receipt);
-    let mut null_acknowledgement = base.clone();
-    null_acknowledgement["repository_mode"] = serde_json::json!("converted-v1-with-archive");
-    null_acknowledgement["conversion_receipt"] = serde_json::json!({
-        "schema": "repository-harness-conversion-receipt/v1",
-        "conversion_id": "conversion-1",
-        "bridge_release": "1.0.0",
-        "archive_path": ".harness/legacy/v0-conversion/conversion-1/archive.age",
-        "export_sha256": "0".repeat(64),
-        "standalone_backup_sha256": "1".repeat(64),
-        "archive_sha256": "2".repeat(64),
-        "confidentiality_mode": "plaintext-explicit-override",
-        "recipient_fingerprints": [],
-        "plaintext_risk_acknowledged": null
-    });
-    cases.push(null_acknowledgement);
 
     for value in cases {
         let filesystem = MemoryFileSystem::default().with(

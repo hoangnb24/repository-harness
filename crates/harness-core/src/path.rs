@@ -12,7 +12,10 @@ const WINDOWS_DEVICES: [&str; 22] = [
     "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
 ];
 
-pub fn validate_relative(value: &str, allow_harness: bool) -> Result<String, PortError> {
+/// Frozen cross-platform repository-relative path validation shared by the
+/// permanent core and isolated tools. Product-specific custody allowlists are
+/// layered on top by the caller.
+pub fn validate_repository_relative(value: &str) -> Result<String, PortError> {
     if value.is_empty()
         || !is_nfc(value)
         || value.starts_with('/')
@@ -55,16 +58,22 @@ pub fn validate_relative(value: &str, allow_harness: bool) -> Result<String, Por
     {
         return Err(PortError::UnsafePath(value.into()));
     }
-    if components[0].eq_ignore_ascii_case(".harness") {
-        let declared = value == ".harness/manifest.json"
-            || value.starts_with(".harness/recovery/")
-            || value == ".harness/legacy/v0-conversion"
-            || value.starts_with(".harness/legacy/v0-conversion/");
+    Ok(collision_key(value))
+}
+
+pub fn validate_relative(value: &str, allow_harness: bool) -> Result<String, PortError> {
+    let collision = validate_repository_relative(value)?;
+    if value
+        .split('/')
+        .next()
+        .is_some_and(|component| component.eq_ignore_ascii_case(".harness"))
+    {
+        let declared = value == ".harness/manifest.json" || value.starts_with(".harness/recovery/");
         if !allow_harness || !declared {
             return Err(PortError::UnsafePath(value.into()));
         }
     }
-    Ok(collision_key(value))
+    Ok(collision)
 }
 
 pub fn validate_exact_destination(value: &str) -> Result<String, PortError> {
@@ -95,6 +104,7 @@ mod tests {
             "docs/trailing. ",
             ".git/config",
             ".harness/changesets/x.jsonl",
+            ".harness/legacy/v0-conversion/archive.bin",
         ] {
             assert!(validate_relative(path, true).is_err(), "accepted {path}");
         }
@@ -109,5 +119,12 @@ mod tests {
         assert_eq!(collision_key("Straße.md"), collision_key("STRASSE.md"));
         assert_eq!(collision_key("docs/ſ.md"), collision_key("docs/s.md"));
         assert_eq!(collision_key("docs/ﬀ.md"), collision_key("docs/ff.md"));
+    }
+
+    #[test]
+    fn shared_validator_allows_safe_bridge_inputs_without_expanding_core_custody() {
+        assert!(validate_repository_relative(".harness/changesets/001.changeset.jsonl").is_ok());
+        assert!(validate_relative(".harness/changesets/001.changeset.jsonl", true).is_err());
+        assert!(validate_repository_relative(".harness-v0-archive/v0-a/manifest.json").is_ok());
     }
 }

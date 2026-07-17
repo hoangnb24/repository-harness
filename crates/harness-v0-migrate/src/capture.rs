@@ -73,7 +73,7 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
     use rustix::fs::{fcntl_lock, fstat, FlockOperation};
 
     root.validate_root()?;
-    let root_names_before = root.list_names(root.root_descriptor(), ".")?;
+    let root_names_before = root.list_names_fd(root.root_descriptor(), ".")?;
     let db = File::from(root.open_required_regular("harness.db")?);
     let mut sources = vec![(
         "harness.db".to_owned(),
@@ -103,10 +103,9 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
 
     let mut recognized_metadata = BTreeSet::new();
     recognized_metadata.insert("changesets".to_owned());
-    recognized_metadata.insert("manifest.json".to_owned());
     recognized_metadata.insert("v0-provenance.json".to_owned());
     let mut unknown_metadata = Vec::new();
-    let harness_handle = match root.open_dir(".harness", false, false) {
+    let harness_handle = match root.open_dir_fd(".harness", false, false) {
         Ok(handle) => Some(handle),
         Err(BridgeError::Errno(error)) if error == rustix::io::Errno::NOENT => None,
         Err(error) => return Err(error),
@@ -117,16 +116,14 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
         .transpose()?;
     let harness_names_before = harness_handle
         .as_ref()
-        .map(|handle| root.list_names(handle, ".harness"))
+        .map(|handle| root.list_names_fd(handle, ".harness"))
         .transpose()?;
     let mut changeset_handle = None;
     let mut changeset_identity = None;
     let mut changeset_names_before = None;
     if let Some(names) = &harness_names_before {
         for name in names {
-            let authenticated_custody =
-                (name == "legacy" || name == "recovery") && root.authenticated_custody(name)?;
-            if !recognized_metadata.contains(name.as_str()) && !authenticated_custody {
+            if !recognized_metadata.contains(name.as_str()) {
                 unknown_metadata.push(format!(".harness/{name}"));
             }
         }
@@ -141,14 +138,15 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
                 File::from(provenance),
             ));
         }
-        let opened_changeset_dir = match root.open_dir(".harness/changesets", false, false) {
+        let opened_changeset_dir = match root.open_dir_fd(".harness/changesets", false, false) {
             Ok(handle) => Some(handle),
             Err(BridgeError::Errno(error)) if error == rustix::io::Errno::NOENT => None,
             Err(error) => return Err(error),
         };
         if let Some(opened_changeset_dir) = opened_changeset_dir {
             changeset_identity = Some(directory_identity(&opened_changeset_dir)?);
-            let complete_names = root.list_names(&opened_changeset_dir, ".harness/changesets")?;
+            let complete_names =
+                root.list_names_fd(&opened_changeset_dir, ".harness/changesets")?;
             changeset_names_before = Some(complete_names.clone());
             let mut names = Vec::new();
             for name in complete_names {
@@ -217,7 +215,7 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
     }
     root.validate_root()?;
     if let (Some(expected), Some(original)) = (harness_identity, harness_handle.as_ref()) {
-        let reopened = root.open_dir(".harness", false, false)?;
+        let reopened = root.open_dir_fd(".harness", false, false)?;
         if directory_identity(&reopened)? != expected || directory_identity(original)? != expected {
             return Err(BridgeError::Conflict(
                 ".harness ancestor changed during capture".into(),
@@ -230,7 +228,7 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
         harness_handle.as_ref(),
     ) {
         let _ = parent;
-        let reopened = root.open_dir(".harness/changesets", false, false)?;
+        let reopened = root.open_dir_fd(".harness/changesets", false, false)?;
         if directory_identity(&reopened)? != expected || directory_identity(original)? != expected {
             return Err(BridgeError::Conflict(
                 "changeset ancestor changed during capture".into(),
@@ -254,20 +252,20 @@ pub(crate) fn capture_pinned(root: &SecureRoot) -> Result<Capture> {
             )));
         }
     }
-    if root.list_names(root.root_descriptor(), ".")? != root_names_before {
+    if root.list_names_fd(root.root_descriptor(), ".")? != root_names_before {
         return Err(BridgeError::Conflict(
             "repository-root name set changed during capture".into(),
         ));
     }
     if let (Some(handle), Some(expected)) = (&harness_handle, &harness_names_before) {
-        if root.list_names(handle, ".harness")? != *expected {
+        if root.list_names_fd(handle, ".harness")? != *expected {
             return Err(BridgeError::Conflict(
                 ".harness name set changed during capture".into(),
             ));
         }
     }
     if let (Some(handle), Some(expected)) = (&changeset_handle, &changeset_names_before) {
-        if root.list_names(handle, ".harness/changesets")? != *expected {
+        if root.list_names_fd(handle, ".harness/changesets")? != *expected {
             return Err(BridgeError::Conflict(
                 "changeset name set changed during capture".into(),
             ));

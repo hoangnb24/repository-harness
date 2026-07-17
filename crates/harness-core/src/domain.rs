@@ -47,6 +47,7 @@ pub struct MutatorOptions {
     pub accept_preview_sha256: Option<String>,
     pub resume: Option<String>,
     pub rollback: Option<String>,
+    pub v0_archive_manifest: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -65,7 +66,7 @@ pub struct Manifest {
     pub payload: PayloadIdentity,
     pub roles: Vec<Role>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub conversion_receipt: Option<ConversionReceipt>,
+    pub v0_archive_receipt: Option<V0ArchiveReceipt>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -73,7 +74,6 @@ pub struct Manifest {
 pub enum ManifestRepositoryMode {
     FreshV1,
     BrownfieldV1,
-    ConvertedV1WithArchive,
 }
 
 impl ManifestRepositoryMode {
@@ -81,7 +81,6 @@ impl ManifestRepositoryMode {
         match self {
             Self::FreshV1 => "fresh-v1",
             Self::BrownfieldV1 => "brownfield-v1",
-            Self::ConvertedV1WithArchive => "converted-v1-with-archive",
         }
     }
 }
@@ -172,18 +171,17 @@ pub enum UpdatePolicy {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct ConversionReceipt {
+pub struct V0ArchiveReceipt {
     pub schema: String,
-    pub conversion_id: String,
+    pub archive_id: String,
     pub bridge_release: String,
-    pub archive_path: String,
+    pub archive_manifest_path: String,
+    pub archive_manifest_sha256: String,
     pub export_sha256: String,
     pub standalone_backup_sha256: String,
-    pub archive_sha256: String,
+    pub payload_sha256: String,
+    pub source_sha256: String,
     pub confidentiality_mode: String,
-    pub recipient_fingerprints: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub plaintext_risk_acknowledged: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -315,8 +313,6 @@ pub enum RepositoryMode {
     FreshV1,
     BrownfieldV1,
     V0Legacy,
-    ConversionInProgress,
-    ConvertedV1WithArchive,
     MixedInvalid,
 }
 
@@ -327,8 +323,6 @@ impl RepositoryMode {
             Self::FreshV1 => "fresh-v1",
             Self::BrownfieldV1 => "brownfield-v1",
             Self::V0Legacy => "v0-legacy",
-            Self::ConversionInProgress => "conversion-in-progress",
-            Self::ConvertedV1WithArchive => "converted-v1-with-archive",
             Self::MixedInvalid => "mixed-invalid",
         }
     }

@@ -113,7 +113,7 @@ fn signed_release_trust() -> ReleaseTrustInput {
             revoked_key_ids: Vec::new(),
         },
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "b79b21419115860f4d481c500074235619ae8dde8996df7b887cd9059b6535cf"
+        path_ledger_sha256: "c8c5b7f4ec8a1e71fac3c2a7d8e3c36cbd39768eeb54603e17d95687bc68a625"
             .into(),
         freshness: ReleaseFreshness::Existing {
             sequence: 42,
@@ -221,6 +221,38 @@ fn has_actionable_recovery_notice(envelope: &Envelope) -> bool {
 
 fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
+}
+
+fn write_archive_fixture(root: &Path) -> String {
+    let directory = root.join(".harness-v0-archive/archive-test");
+    std::fs::create_dir_all(&directory).unwrap();
+    let payload = b"opaque encrypted archive fixture";
+    std::fs::write(directory.join("archive.age"), payload).unwrap();
+    let manifest = serde_json::json!({
+        "schema": "repository-harness-v0-archive-manifest/v1",
+        "archive_id": "archive-test",
+        "bridge_release": "1.0.0",
+        "source_schema": 13,
+        "source_sha256": sha256(b"source"),
+        "capture_members_sha256": sha256(b"capture members"),
+        "export_sha256": sha256(b"neutral export"),
+        "standalone_backup_sha256": sha256(b"standalone"),
+        "confidentiality_mode": "encrypted-age-x25519",
+        "recipient_fingerprints": ["age1fixture"],
+        "payload_path": "archive.age",
+        "payload_sha256": sha256(payload),
+        "payload_bytes": payload.len(),
+        "members": [
+            {"path":"raw/harness.db","sha256":sha256(b"db"),"bytes":2,"capture":"pre-copy-post-equal"},
+            {"path":"standalone/standalone.db","sha256":sha256(b"standalone"),"bytes":10,"capture":"private-staged-wal-recovery-online-backup"},
+            {"path":"export/export.json","sha256":sha256(b"neutral export"),"bytes":14,"capture":"neutral-read-only-export"}
+        ],
+        "custody": "repository-owner-indefinite-write-once"
+    });
+    let mut bytes = serde_json::to_vec(&manifest).unwrap();
+    bytes.push(b'\n');
+    std::fs::write(directory.join("archive-manifest.json"), bytes).unwrap();
+    ".harness-v0-archive/archive-test/archive-manifest.json".into()
 }
 
 fn canonical_json_digest(value: &serde_json::Value) -> String {
@@ -437,6 +469,75 @@ fn signed_install_requires_exact_confirmation_commits_manifest_last_and_is_idemp
     assert!(matches!(rerun.exit_code, 0 | 2), "{rerun:?}");
     assert_eq!(rerun.mutation, Mutation::None);
     assert_eq!(notice(&rerun.notices, "idempotent-noop").path, None);
+}
+
+#[test]
+fn fresh_install_recovery_commits_exact_v0_archive_receipt_without_reading_sqlite() {
+    let temporary = tempfile::tempdir().unwrap();
+    std::fs::write(temporary.path().join("harness.db"), b"opaque V0 bytes").unwrap();
+    let archive_manifest = write_archive_fixture(temporary.path());
+    let previewed = execute(
+        temporary.path(),
+        Command::Install(MutatorOptions {
+            preview: true,
+            v0_archive_manifest: Some(archive_manifest.clone()),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert!(matches!(previewed.exit_code, 0 | 2), "{previewed:?}");
+    let digest = notice(&previewed.notices, "preview-sha256").message.clone();
+    let operation = notice(&previewed.notices, "operation-id").message.clone();
+    let interrupted = execute(
+        temporary.path(),
+        Command::Install(MutatorOptions {
+            non_interactive: true,
+            accept_preview_sha256: Some(digest),
+            v0_archive_manifest: Some(archive_manifest.clone()),
+            ..MutatorOptions::default()
+        }),
+        Some(14),
+    );
+    assert!(matches!(interrupted.exit_code, 4 | 74), "{interrupted:?}");
+    assert!(!temporary.path().join(".harness/manifest.json").exists());
+
+    let resumed = execute(
+        temporary.path(),
+        Command::Install(MutatorOptions {
+            resume: Some(operation),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert!(matches!(resumed.exit_code, 0 | 2), "{resumed:?}");
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(temporary.path().join(".harness/manifest.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(manifest["repository_mode"], "fresh-v1");
+    assert_eq!(
+        manifest["v0_archive_receipt"]["archive_manifest_path"],
+        archive_manifest
+    );
+    assert_eq!(
+        manifest["v0_archive_receipt"]["export_sha256"],
+        sha256(b"neutral export")
+    );
+    assert!(!temporary.path().join("harness-v1.db").exists());
+
+    std::fs::write(
+        temporary
+            .path()
+            .join(".harness-v0-archive/archive-test/archive.age"),
+        b"tampered",
+    )
+    .unwrap();
+    let invalid = execute(temporary.path(), Command::Status { json: true }, None);
+    assert_eq!(invalid.exit_code, 3);
+    assert!(invalid
+        .details
+        .violations
+        .contains(&"v0-archive-receipt-invalid".into()));
 }
 
 #[test]
@@ -727,54 +828,6 @@ fn identical_preexisting_asset_commits_brownfield_mode_and_target_ownership() {
     assert_eq!(role["origin"], "brownfield-mapped");
     assert_eq!(role["ownership"], "target-owned");
     assert_eq!(role["update_policy"], "never-auto-patch");
-}
-
-#[test]
-fn converted_mode_and_receipt_survive_mapping_a_new_identical_authenticated_asset() {
-    let temporary = tempfile::tempdir().unwrap();
-    let digest = preview(temporary.path(), Command::Install).0;
-    assert!(matches!(
-        execute(temporary.path(), Command::Install(confirm(digest)), None).exit_code,
-        0 | 2
-    ));
-    let manifest_path = temporary.path().join(".harness/manifest.json");
-    let mut manifest: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
-    manifest["roles"]
-        .as_array_mut()
-        .unwrap()
-        .retain(|role| role["path"] != "docs/templates/story.md");
-    manifest["repository_mode"] = serde_json::json!("converted-v1-with-archive");
-    let receipt = serde_json::json!({
-        "schema": "repository-harness-conversion-receipt/v1",
-        "conversion_id": "retained-conversion",
-        "bridge_release": "1.0.0-test.1",
-        "archive_path": ".harness/legacy/v0-conversion/retained-conversion/conversion.age",
-        "export_sha256": "a".repeat(64),
-        "standalone_backup_sha256": "b".repeat(64),
-        "archive_sha256": "c".repeat(64),
-        "confidentiality_mode": "encrypted-age-x25519",
-        "recipient_fingerprints": ["age1retainedowner"]
-    });
-    manifest["conversion_receipt"] = receipt.clone();
-    std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
-
-    let digest = preview(temporary.path(), Command::Update).0;
-    let updated = execute(temporary.path(), Command::Update(confirm(digest)), None);
-    assert!(matches!(updated.exit_code, 0 | 2), "{updated:?}");
-    let committed: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
-    assert_eq!(committed["repository_mode"], "converted-v1-with-archive");
-    assert_eq!(committed["conversion_receipt"], receipt);
-    let story = committed["roles"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|role| role["path"] == "docs/templates/story.md")
-        .unwrap();
-    assert_eq!(story["origin"], "brownfield-mapped");
-    assert_eq!(story["ownership"], "target-owned");
-    assert_eq!(story["update_policy"], "never-auto-patch");
 }
 
 #[test]

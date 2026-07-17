@@ -1192,16 +1192,15 @@ impl OsMutationPort {
             Some(old) => {
                 if candidate.repository_mode != old.repository_mode
                     || candidate.compatibility != old.compatibility
-                    || candidate.conversion_receipt != old.conversion_receipt
+                    || candidate.v0_archive_receipt != old.v0_archive_receipt
                 {
                     return Err(MutationFailure::after_journal(invalid(
-                        "candidate changes pre-operation repository mode, compatibility, or conversion custody",
+                        "candidate changes pre-operation repository mode, compatibility, or V0 archive custody",
                     )));
                 }
             }
             None => {
                 if journal.command == "update"
-                    || candidate.conversion_receipt.is_some()
                     || candidate.compatibility.cli_min != CORE_VERSION
                     || candidate.compatibility.cli_max != CORE_VERSION
                     || candidate.compatibility.template_release_min != authorization.release_version

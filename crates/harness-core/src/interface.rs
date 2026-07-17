@@ -43,8 +43,12 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Parsed, Us
     }
     let options = &arguments[1..];
     match command.as_str() {
-        "install" => Ok(Parsed::Command(Command::Install(parse_mutator(options)?))),
-        "update" => Ok(Parsed::Command(Command::Update(parse_mutator(options)?))),
+        "install" => Ok(Parsed::Command(Command::Install(parse_mutator(
+            options, true,
+        )?))),
+        "update" => Ok(Parsed::Command(Command::Update(parse_mutator(
+            options, false,
+        )?))),
         "audit" => Ok(Parsed::Command(Command::Audit {
             json: parse_json_only(options)?,
         })),
@@ -93,7 +97,7 @@ fn parse_scaffold(options: &[String]) -> Result<ScaffoldOptions, UsageError> {
                 remaining.push(options[index].clone());
                 if matches!(
                     options[index].as_str(),
-                    "--accept-preview-sha256" | "--resume" | "--rollback"
+                    "--accept-preview-sha256" | "--resume" | "--rollback" | "--v0-archive-manifest"
                 ) {
                     let value = options.get(index + 1).ok_or_else(|| {
                         UsageError(format!("{} requires a value", options[index]))
@@ -111,11 +115,11 @@ fn parse_scaffold(options: &[String]) -> Result<ScaffoldOptions, UsageError> {
             "scaffold requires --template <id> and --destination <path>".into(),
         ));
     }
-    scaffold.mutation = parse_mutator(&remaining)?;
+    scaffold.mutation = parse_mutator(&remaining, false)?;
     Ok(scaffold)
 }
 
-fn parse_mutator(options: &[String]) -> Result<MutatorOptions, UsageError> {
+fn parse_mutator(options: &[String], allow_archive: bool) -> Result<MutatorOptions, UsageError> {
     let mut parsed = MutatorOptions::default();
     let mut seen = std::collections::BTreeSet::new();
     let mut index = 0;
@@ -133,7 +137,7 @@ fn parse_mutator(options: &[String]) -> Result<MutatorOptions, UsageError> {
                 parsed.non_interactive = true;
                 index += 1;
             }
-            "--accept-preview-sha256" | "--resume" | "--rollback" => {
+            "--accept-preview-sha256" | "--resume" | "--rollback" | "--v0-archive-manifest" => {
                 let value = options
                     .get(index + 1)
                     .ok_or_else(|| UsageError(format!("{option} requires a value")))?
@@ -153,6 +157,23 @@ fn parse_mutator(options: &[String]) -> Result<MutatorOptions, UsageError> {
                     }
                     "--resume" => parsed.resume = Some(value),
                     "--rollback" => parsed.rollback = Some(value),
+                    "--v0-archive-manifest" if allow_archive => {
+                        if !value.starts_with(".harness-v0-archive/")
+                            || !value.ends_with("/archive-manifest.json")
+                            || crate::path::validate_repository_relative(&value).is_err()
+                        {
+                            return Err(UsageError(
+                                "--v0-archive-manifest requires a safe reserved-custody manifest path"
+                                    .into(),
+                            ));
+                        }
+                        parsed.v0_archive_manifest = Some(value);
+                    }
+                    "--v0-archive-manifest" => {
+                        return Err(UsageError(
+                            "--v0-archive-manifest is accepted only by install".into(),
+                        ));
+                    }
                     _ => unreachable!(),
                 }
                 index += 2;
@@ -171,7 +192,7 @@ fn parse_mutator(options: &[String]) -> Result<MutatorOptions, UsageError> {
         ));
     }
     if (parsed.resume.is_some() || parsed.rollback.is_some())
-        && (parsed.preview || parsed.non_interactive)
+        && (parsed.preview || parsed.non_interactive || parsed.v0_archive_manifest.is_some())
     {
         return Err(UsageError(
             "recovery options cannot be combined with preview/confirmation options".into(),
@@ -285,8 +306,8 @@ mod tests {
     #[test]
     fn rejects_v0_bridge_and_extra_commands() {
         for command in [
-            "migrate", "init", "intake", "story", "query", "db", "inspect", "export", "preview",
-            "apply", "resume", "rollback", "help",
+            "migrate", "init", "intake", "story", "query", "db", "inspect", "export", "archive",
+            "preview", "apply", "resume", "rollback", "help",
         ] {
             assert!(parse(strings(&[command])).is_err(), "accepted {command}");
         }

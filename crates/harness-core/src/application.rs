@@ -8,7 +8,7 @@ use crate::domain::{
     public_operation_digest, Activation, Command, Compatibility, Disposition, Envelope, Manifest,
     ManifestRepositoryMode, Mutation, Notice, Operation, OperationKind, Origin, Outcome, Ownership,
     PayloadIdentity, Readiness, ReleaseOutput, RepositoryMode, Role, ScaffoldOptions, UpdatePolicy,
-    CORE_VERSION,
+    V0ArchiveReceipt, CORE_VERSION,
 };
 use crate::markdown::parse_commonmark;
 use crate::path::{validate_exact_destination, validate_relative};
@@ -19,6 +19,37 @@ use crate::recovery::{
 };
 use crate::strict_json::{digest, hex_sha256};
 use crate::trust::{verify_release, VerifiedAsset, VerifiedRelease};
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct V0ArchiveManifestInput {
+    schema: String,
+    archive_id: String,
+    bridge_release: String,
+    source_schema: u32,
+    source_sha256: String,
+    capture_members_sha256: String,
+    export_sha256: String,
+    standalone_backup_sha256: String,
+    confidentiality_mode: String,
+    recipient_fingerprints: Vec<String>,
+    plaintext_risk_acknowledged: Option<bool>,
+    payload_path: String,
+    payload_sha256: String,
+    payload_bytes: u64,
+    members: Vec<V0ArchiveMemberInput>,
+    custody: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct V0ArchiveMemberInput {
+    path: String,
+    sha256: String,
+    #[serde(rename = "bytes")]
+    _bytes: u64,
+    capture: String,
+}
 
 pub fn version_envelope() -> Envelope {
     let mut envelope = Envelope::new("version");
@@ -127,31 +158,12 @@ impl<'a> HarnessCore<'a> {
         let manifest = match self.manifests.load(self.filesystem) {
             Ok(Some(manifest)) => manifest,
             Ok(None) => {
-                if compatibility.observed && compatibility.conversion_journal_present {
-                    envelope.repository_mode = RepositoryMode::ConversionInProgress;
-                    envelope.notices.push(Notice {
-                        code: "conversion-in-progress".into(),
-                        path: Some(".harness/recovery/v0-conversion".into()),
-                        message: "A structural conversion journal boundary is present; use the isolated bridge resume or rollback command"
-                            .into(),
-                    });
-                    if audit {
-                        envelope.outcome = Outcome::Invalid;
-                        envelope.exit_code = 3;
-                        envelope.details.readiness = Readiness::Invalid;
-                        envelope
-                            .details
-                            .violations
-                            .push("conversion-in-progress".into());
-                    }
-                    return envelope;
-                }
                 if compatibility.observed && compatibility.legacy_artifact_present {
                     envelope.repository_mode = RepositoryMode::V0Legacy;
                     envelope.notices.push(Notice {
                         code: "v0-legacy-structural-boundary".into(),
                         path: Some("harness.db".into()),
-                        message: "A repository-root legacy artifact is present; the core did not read SQLite or changesets and mutation requires the isolated bridge"
+                        message: "A repository-root legacy artifact is present; the core did not read SQLite or changesets. Freeze and archive it, then run install with --v0-archive-manifest"
                             .into(),
                     });
                     if audit {
@@ -196,30 +208,8 @@ impl<'a> HarnessCore<'a> {
                 return envelope;
             }
         };
-        let has_receipt = manifest.conversion_receipt.is_some();
-        if compatibility.observed && has_receipt && !compatibility.conversion_evidence_authenticated
-        {
-            envelope.repository_mode = RepositoryMode::MixedInvalid;
-            envelope.outcome = Outcome::Invalid;
-            envelope.exit_code = 3;
-            envelope.details.readiness = Readiness::Invalid;
-            envelope
-                .details
-                .violations
-                .push("conversion-evidence-invalid".into());
-            envelope.notices.push(Notice {
-                code: "conversion-evidence-invalid".into(),
-                path: Some(".harness/manifest.json".into()),
-                message: "The conversion receipt is not authenticated to the exact durable journal, archive payload, export, and standalone snapshot witnesses"
-                    .into(),
-            });
-            return envelope;
-        }
-        if compatibility.observed
-            && (compatibility.conversion_journal_present && !has_receipt
-                || compatibility.legacy_artifact_present
-                    && (!has_receipt || !compatibility.conversion_archive_present))
-        {
+        let has_receipt = manifest.v0_archive_receipt.is_some();
+        if compatibility.observed && compatibility.legacy_artifact_present && !has_receipt {
             envelope.repository_mode = RepositoryMode::MixedInvalid;
             envelope.outcome = Outcome::Invalid;
             envelope.exit_code = 3;
@@ -228,7 +218,7 @@ impl<'a> HarnessCore<'a> {
             envelope.notices.push(Notice {
                 code: "mixed-invalid".into(),
                 path: Some(".harness/manifest.json".into()),
-                message: "Legacy artifacts, conversion evidence, and the completed manifest receipt are structurally inconsistent"
+                message: "Live V0 artifacts coexist with V1 state but no authenticated archive receipt is bound"
                     .into(),
             });
             return envelope;
@@ -288,6 +278,25 @@ impl<'a> HarnessCore<'a> {
     fn audit_manifest(&self, manifest: &Manifest) -> Result<AuditResult, PortError> {
         let mut result = AuditResult::default();
         validate_manifest_header(manifest, &mut result.violations);
+        if let Some(receipt) = &manifest.v0_archive_receipt {
+            match self.load_v0_archive_receipt(&receipt.archive_manifest_path) {
+                Ok(current) if &current == receipt => result.notices.push(Notice {
+                    code: "v0-archive-linked".into(),
+                    path: Some(receipt.archive_manifest_path.clone()),
+                    message: format!(
+                        "Fresh V1 state is bound to archive manifest {} and neutral export {}",
+                        receipt.archive_manifest_sha256, receipt.export_sha256
+                    ),
+                }),
+                Ok(_) => result.violations.push("v0-archive-receipt-drift".into()),
+                Err(PortError::Io { .. }) | Err(PortError::Changed(_)) => {
+                    return Err(PortError::Conflict(
+                        "V0 archive changed while its receipt was authenticated".into(),
+                    ));
+                }
+                Err(_) => result.violations.push("v0-archive-receipt-invalid".into()),
+            }
+        }
         let mut role_ids = BTreeSet::new();
         let mut marker_ids = BTreeSet::new();
         let mut paths = BTreeSet::new();
@@ -355,6 +364,96 @@ impl<'a> HarnessCore<'a> {
         Ok(result)
     }
 
+    fn load_v0_archive_receipt(&self, manifest_path: &str) -> Result<V0ArchiveReceipt, PortError> {
+        crate::path::validate_repository_relative(manifest_path)?;
+        let parts = manifest_path.split('/').collect::<Vec<_>>();
+        if parts.len() != 3
+            || parts[0] != ".harness-v0-archive"
+            || parts[1].starts_with('.')
+            || parts[2] != "archive-manifest.json"
+        {
+            return Err(PortError::ManifestInvalid(
+                "V0 archive manifest is outside reserved custody".into(),
+            ));
+        }
+        let manifest_bytes = self.filesystem.read_declared(manifest_path)?;
+        let value = crate::strict_json::parse(&manifest_bytes)
+            .map_err(|error| PortError::ManifestInvalid(format!("V0 archive JSON: {error}")))?;
+        let archive: V0ArchiveManifestInput = serde_json::from_value(value)
+            .map_err(|error| PortError::ManifestInvalid(format!("V0 archive schema: {error}")))?;
+        let directory = manifest_path
+            .strip_suffix("/archive-manifest.json")
+            .expect("exact path suffix was checked");
+        if archive.schema != "repository-harness-v0-archive-manifest/v1"
+            || archive.archive_id != parts[1]
+            || archive.bridge_release != "1.0.0"
+            || !(1..=13).contains(&archive.source_schema)
+            || archive.custody != "repository-owner-indefinite-write-once"
+            || !is_sha256(&archive.source_sha256)
+            || !is_sha256(&archive.capture_members_sha256)
+            || !is_sha256(&archive.export_sha256)
+            || !is_sha256(&archive.standalone_backup_sha256)
+            || !is_sha256(&archive.payload_sha256)
+            || archive.members.is_empty()
+            || archive.members.iter().any(|member| {
+                crate::path::validate_repository_relative(&member.path).is_err()
+                    || !is_sha256(&member.sha256)
+                    || member.capture.is_empty()
+            })
+            || !archive
+                .members
+                .iter()
+                .any(|member| member.path == "raw/harness.db")
+            || !archive.members.iter().any(|member| {
+                member.path == "standalone/standalone.db"
+                    && member.sha256 == archive.standalone_backup_sha256
+            })
+            || !archive.members.iter().any(|member| {
+                member.path == "export/export.json" && member.sha256 == archive.export_sha256
+            })
+        {
+            return Err(PortError::ManifestInvalid(
+                "V0 archive manifest does not satisfy the closed archive contract".into(),
+            ));
+        }
+        match archive.confidentiality_mode.as_str() {
+            "encrypted-age-x25519"
+                if archive.recipient_fingerprints.len() == 1
+                    && archive.plaintext_risk_acknowledged.is_none()
+                    && archive.payload_path == "archive.age" => {}
+            "plaintext-explicit-override"
+                if archive.recipient_fingerprints.is_empty()
+                    && archive.plaintext_risk_acknowledged == Some(true)
+                    && archive.payload_path == "archive.bin" => {}
+            _ => {
+                return Err(PortError::ManifestInvalid(
+                    "V0 archive confidentiality record is invalid".into(),
+                ))
+            }
+        }
+        let payload_path = format!("{directory}/{}", archive.payload_path);
+        let payload = self.filesystem.read_declared(&payload_path)?;
+        if payload.len() as u64 != archive.payload_bytes
+            || hex_sha256(&payload) != archive.payload_sha256
+        {
+            return Err(PortError::ManifestInvalid(
+                "V0 archive payload differs from its manifest".into(),
+            ));
+        }
+        Ok(V0ArchiveReceipt {
+            schema: "repository-harness-v0-archive-receipt/v1".into(),
+            archive_id: archive.archive_id,
+            bridge_release: archive.bridge_release,
+            archive_manifest_path: manifest_path.into(),
+            archive_manifest_sha256: hex_sha256(&manifest_bytes),
+            export_sha256: archive.export_sha256,
+            standalone_backup_sha256: archive.standalone_backup_sha256,
+            payload_sha256: archive.payload_sha256,
+            source_sha256: archive.source_sha256,
+            confidentiality_mode: archive.confidentiality_mode,
+        })
+    }
+
     fn plan_mutation(
         &self,
         command: &str,
@@ -369,15 +468,6 @@ impl<'a> HarnessCore<'a> {
                 return envelope;
             }
         };
-        if compatibility.observed && compatibility.conversion_journal_present {
-            envelope.repository_mode = RepositoryMode::ConversionInProgress;
-            conflict(
-                &mut envelope,
-                "conversion-in-progress",
-                "V1 mutation is blocked until the isolated bridge resumes or rolls back",
-            );
-            return envelope;
-        }
         if options.resume.is_some() || options.rollback.is_some() {
             if self.mutations.is_some() {
                 return self.recover_mutation(command, options, scaffold);
@@ -411,13 +501,24 @@ impl<'a> HarnessCore<'a> {
         };
         let has_receipt = existing
             .as_ref()
-            .is_some_and(|manifest| manifest.conversion_receipt.is_some());
+            .is_some_and(|manifest| manifest.v0_archive_receipt.is_some());
         if compatibility.observed
             && compatibility.legacy_artifact_present
-            && (!has_receipt || !compatibility.conversion_archive_present)
+            && !has_receipt
+            && !(command == "install"
+                && existing.is_none()
+                && options.v0_archive_manifest.is_some())
         {
             envelope.repository_mode = RepositoryMode::MixedInvalid;
             invalidate(&mut envelope, "mixed-v0-v1-state".into());
+            return envelope;
+        }
+        if existing.is_some() && options.v0_archive_manifest.is_some() {
+            conflict(
+                &mut envelope,
+                "archive-receipt-already-decided",
+                "The V0 archive receipt is a write-once first-install input",
+            );
             return envelope;
         }
         if command == "update" && existing.is_none() {
@@ -624,15 +725,21 @@ impl<'a> HarnessCore<'a> {
         release: &VerifiedRelease,
         mut envelope: Envelope,
     ) -> Envelope {
-        let candidate =
-            match self.build_candidate(command, scaffold, existing, release, &mut envelope) {
-                Ok(Some(candidate)) => candidate,
-                Ok(None) => return envelope,
-                Err(error) => {
-                    apply_port_error(&mut envelope, error);
-                    return envelope;
-                }
-            };
+        let candidate = match self.build_candidate(
+            command,
+            options,
+            scaffold,
+            existing,
+            release,
+            &mut envelope,
+        ) {
+            Ok(Some(candidate)) => candidate,
+            Ok(None) => return envelope,
+            Err(error) => {
+                apply_port_error(&mut envelope, error);
+                return envelope;
+            }
+        };
         if candidate.writes.is_empty() && existing == Some(&candidate.manifest) {
             envelope.notices.push(Notice {
                 code: "idempotent-noop".into(),
@@ -747,6 +854,7 @@ impl<'a> HarnessCore<'a> {
     fn build_candidate(
         &self,
         command: &str,
+        options: &crate::domain::MutatorOptions,
         scaffold: Option<&ScaffoldOptions>,
         existing: Option<&Manifest>,
         release: &VerifiedRelease,
@@ -761,6 +869,15 @@ impl<'a> HarnessCore<'a> {
             );
         }
         let no_prior_manifest = existing.is_none();
+        let archive_receipt = if no_prior_manifest {
+            options
+                .v0_archive_manifest
+                .as_deref()
+                .map(|path| self.load_v0_archive_receipt(path))
+                .transpose()?
+        } else {
+            None
+        };
         let mut manifest = existing.cloned().unwrap_or_else(|| Manifest {
             schema: crate::domain::MANIFEST_SCHEMA.into(),
             repository_mode: ManifestRepositoryMode::FreshV1,
@@ -772,7 +889,7 @@ impl<'a> HarnessCore<'a> {
             },
             payload: release.identity().clone(),
             roles: Vec::new(),
-            conversion_receipt: None,
+            v0_archive_receipt: archive_receipt,
         });
         manifest.payload = release.identity().clone();
         let mut writes = Vec::new();
@@ -1002,7 +1119,7 @@ impl<'a> HarnessCore<'a> {
             },
             payload: release.identity().clone(),
             roles: Vec::new(),
-            conversion_receipt: None,
+            v0_archive_receipt: None,
         });
         manifest.payload = release.identity().clone();
         let mut role = role_from_asset(asset, release.release(), Origin::Created);
@@ -1780,43 +1897,26 @@ fn validate_manifest_header(manifest: &Manifest, violations: &mut Vec<String>) {
     if manifest.roles.is_empty() {
         violations.push("manifest-has-no-roles".into());
     }
-    match manifest.repository_mode {
-        ManifestRepositoryMode::ConvertedV1WithArchive if manifest.conversion_receipt.is_none() => {
-            violations.push("converted-mode-missing-receipt".into());
-        }
-        ManifestRepositoryMode::FreshV1 | ManifestRepositoryMode::BrownfieldV1
-            if manifest.conversion_receipt.is_some() =>
-        {
-            violations.push("nonconverted-mode-has-receipt".into());
-        }
-        _ => {}
-    }
-    if let Some(receipt) = &manifest.conversion_receipt {
-        let expected = format!(".harness/legacy/v0-conversion/{}/", receipt.conversion_id);
-        if receipt.schema != "repository-harness-conversion-receipt/v1"
-            || !receipt.archive_path.starts_with(&expected)
-            || validate_relative(&receipt.archive_path, true).is_err()
+    if let Some(receipt) = &manifest.v0_archive_receipt {
+        if receipt.schema != "repository-harness-v0-archive-receipt/v1"
+            || !receipt
+                .archive_manifest_path
+                .starts_with(".harness-v0-archive/")
+            || !receipt
+                .archive_manifest_path
+                .ends_with("/archive-manifest.json")
+            || crate::path::validate_repository_relative(&receipt.archive_manifest_path).is_err()
+            || !is_sha256(&receipt.archive_manifest_sha256)
             || !is_sha256(&receipt.export_sha256)
             || !is_sha256(&receipt.standalone_backup_sha256)
-            || !is_sha256(&receipt.archive_sha256)
+            || !is_sha256(&receipt.payload_sha256)
+            || !is_sha256(&receipt.source_sha256)
+            || !matches!(
+                receipt.confidentiality_mode.as_str(),
+                "encrypted-age-x25519" | "plaintext-explicit-override"
+            )
         {
-            violations.push("invalid-conversion-receipt".into());
-        }
-        match receipt.confidentiality_mode.as_str() {
-            "encrypted-age-x25519"
-                if receipt.recipient_fingerprints.is_empty()
-                    || receipt.plaintext_risk_acknowledged.is_some() =>
-            {
-                violations.push("invalid-encrypted-receipt".into());
-            }
-            "plaintext-explicit-override"
-                if !receipt.recipient_fingerprints.is_empty()
-                    || receipt.plaintext_risk_acknowledged != Some(true) =>
-            {
-                violations.push("invalid-plaintext-receipt".into());
-            }
-            "encrypted-age-x25519" | "plaintext-explicit-override" => {}
-            _ => violations.push("invalid-confidentiality-mode".into()),
+            violations.push("invalid-v0-archive-receipt".into());
         }
     }
 }
@@ -2085,7 +2185,6 @@ fn output_mode(mode: ManifestRepositoryMode) -> RepositoryMode {
     match mode {
         ManifestRepositoryMode::FreshV1 => RepositoryMode::FreshV1,
         ManifestRepositoryMode::BrownfieldV1 => RepositoryMode::BrownfieldV1,
-        ManifestRepositoryMode::ConvertedV1WithArchive => RepositoryMode::ConvertedV1WithArchive,
     }
 }
 

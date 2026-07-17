@@ -14,9 +14,7 @@ fn main() -> ExitCode {
     }
     let json = matches!(
         command,
-        Command::Inspect { json: true }
-            | Command::Preview { json: true }
-            | Command::Version { json: true }
+        Command::Inspect { json: true, .. } | Command::Version { json: true }
     );
     let root = match std::env::current_dir() {
         Ok(root) => root,

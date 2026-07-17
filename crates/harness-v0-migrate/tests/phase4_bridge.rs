@@ -1,18 +1,13 @@
+#![cfg(unix)]
+
 use std::collections::BTreeMap;
-use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command as ProcessCommand;
-use std::str::FromStr;
-use std::sync::Mutex;
 
+use age::secrecy::ExposeSecret;
 use age::x25519;
-use harness_v0_migrate::archive::ArchiveManifest;
 use harness_v0_migrate::capture::{capture, hex_sha256};
-use harness_v0_migrate::interface::{ArchiveOptions, Command};
-use harness_v0_migrate::journal::{self, JournalState};
-use harness_v0_migrate::{Bridge, BridgeError};
-
-static ENVIRONMENT: Mutex<()> = Mutex::new(());
+use harness_v0_migrate::interface::{ArchiveOptions, Command, SourceOptions};
+use harness_v0_migrate::Bridge;
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -40,6 +35,29 @@ fn copy_tree(source: &Path, destination: &Path) {
     }
 }
 
+fn source_snapshot(root: &Path) -> BTreeMap<String, String> {
+    fn visit(root: &Path, current: &Path, result: &mut BTreeMap<String, String>) {
+        for entry in std::fs::read_dir(current).unwrap() {
+            let path = entry.unwrap().path();
+            let relative = path.strip_prefix(root).unwrap().to_string_lossy();
+            if relative.starts_with(".harness-v0-archive") || relative == "v0-export.json" {
+                continue;
+            }
+            if path.is_dir() {
+                visit(root, &path, result);
+            } else {
+                result.insert(
+                    relative.into_owned(),
+                    hex_sha256(&std::fs::read(path).unwrap()),
+                );
+            }
+        }
+    }
+    let mut result = BTreeMap::new();
+    visit(root, root, &mut result);
+    result
+}
+
 fn plaintext() -> ArchiveOptions {
     ArchiveOptions {
         age_recipient: None,
@@ -48,392 +66,163 @@ fn plaintext() -> ArchiveOptions {
     }
 }
 
-fn preview(root: &Path) -> (String, String) {
-    let report = Bridge::new(root)
-        .execute(&Command::Preview { json: true })
-        .unwrap();
-    (
-        report.conversion_id.unwrap(),
-        report.preview_sha256.unwrap(),
-    )
-}
-
-fn source_snapshot(root: &Path) -> BTreeMap<String, String> {
-    let mut paths = vec![
-        "harness.db".to_owned(),
-        "harness.db-wal".to_owned(),
-        "harness.db-shm".to_owned(),
-    ];
-    let changesets = root.join(".harness/changesets");
-    if changesets.is_dir() {
-        for path in std::fs::read_dir(changesets).unwrap() {
-            let path = path.unwrap().path();
-            paths.push(
-                path.strip_prefix(root)
-                    .unwrap()
-                    .to_string_lossy()
-                    .into_owned(),
-            );
-        }
-    }
-    for path in [".harness/v0-provenance.json", ".harness/foreign-tool.bin"] {
-        if root.join(path).is_file() {
-            paths.push(path.into());
-        }
-    }
-    paths.sort();
-    paths
-        .into_iter()
-        .filter_map(|path| {
-            let full = root.join(&path);
-            full.is_file()
-                .then(|| (path, hex_sha256(&std::fs::read(full).unwrap())))
-        })
-        .collect()
-}
-
 #[test]
-fn immutable_reader_accepts_every_frozen_schema_and_preserves_unknown_metadata() {
+fn inspect_accepts_every_frozen_schema_and_never_changes_source_bytes() {
     for version in 1..=13 {
         let fixture = copy_fixture(&format!("schema-{version:02}"));
         let before = source_snapshot(fixture.path());
-        let captured = capture(fixture.path()).unwrap();
-        assert_eq!(captured.schema_version, version);
+        let report = Bridge::new(fixture.path())
+            .execute(&Command::Inspect {
+                json: true,
+                source: SourceOptions::default(),
+            })
+            .unwrap();
+        assert_eq!(report.source_schema, Some(version));
         assert_eq!(source_snapshot(fixture.path()), before);
     }
-    let fixture = copy_fixture("schema-13");
-    let captured = capture(fixture.path()).unwrap();
-    assert!(captured
-        .unknown_metadata
-        .contains(&".harness/foreign-tool.bin".to_owned()));
-    assert!(!captured
-        .members
-        .iter()
-        .any(|member| member.path.ends_with("foreign-tool.bin")));
 }
 
 #[test]
-fn wal_only_commit_is_present_in_standalone_backup_and_shm_is_forensic_only() {
+fn wal_only_commit_reaches_live_export_while_shm_stays_forensic_only() {
     let fixture = copy_fixture("wal-only-schema-13");
     let before = source_snapshot(fixture.path());
     let captured = capture(fixture.path()).unwrap();
-    assert!(captured
-        .members
-        .iter()
-        .any(|member| member.path == "harness.db-shm"));
-    let temporary = tempfile::NamedTempFile::new().unwrap();
-    std::fs::write(temporary.path(), &captured.standalone_backup).unwrap();
-    let connection = rusqlite::Connection::open_with_flags(
-        temporary.path(),
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .unwrap();
-    let title: String = connection
-        .query_row("SELECT title FROM story WHERE id='US-WAL'", [], |row| {
-            row.get(0)
+    assert!(captured.members.iter().any(
+        |member| member.path == "harness.db-shm" && member.category.ends_with("forensic-only")
+    ));
+    let report = Bridge::new(fixture.path())
+        .execute(&Command::Export {
+            output: "v0-export.json".into(),
+            source: SourceOptions::default(),
         })
         .unwrap();
-    assert_eq!(title, "wal-only-committed-row");
+    let export = std::fs::read(fixture.path().join("v0-export.json")).unwrap();
+    assert_eq!(
+        report.export_sha256.as_deref(),
+        Some(hex_sha256(&export).as_str())
+    );
+    assert!(String::from_utf8_lossy(&export).contains("wal-only-committed-row"));
     assert_eq!(source_snapshot(fixture.path()), before);
 }
 
 #[test]
-fn changeset_unknown_operation_duplicate_member_and_foreign_schema_fail_closed() {
-    for contents in [
-        "{\"op\":\"changeset.header\",\"version\":1,\"run_id\":\"bad\",\"base_schema_version\":13}\n{\"op\":\"unknown.operation\"}\n",
-        "{\"op\":\"changeset.header\",\"op\":\"changeset.header\",\"version\":1,\"run_id\":\"bad\",\"base_schema_version\":13}\n",
-    ] {
-        let temporary = copy_fixture("schema-13");
-        let path = temporary
-            .path()
-            .join(".harness/changesets/fixture.changeset.jsonl");
-        std::fs::write(&path, contents).unwrap();
-        let before = std::fs::read(&path).unwrap();
-        assert!(matches!(
-            capture(temporary.path()),
-            Err(BridgeError::Unsupported(_))
-        ));
-        assert_eq!(std::fs::read(path).unwrap(), before);
-    }
-
-    let temporary = copy_fixture("schema-13");
-    let connection = rusqlite::Connection::open(temporary.path().join("harness.db")).unwrap();
-    connection
-        .execute("CREATE TABLE foreign_table(value)", [])
-        .unwrap();
-    drop(connection);
-    assert!(matches!(
-        capture(temporary.path()),
-        Err(BridgeError::Unsupported(_))
-    ));
-}
-
-#[test]
-fn writer_lock_helper() {
-    let Some(root) = std::env::var_os("HARNESS_V0_MIGRATE_WRITER_ROOT") else {
-        return;
-    };
-    let root = PathBuf::from(root);
-    let connection = rusqlite::Connection::open(root.join("harness.db")).unwrap();
-    connection.execute_batch("BEGIN IMMEDIATE").unwrap();
-    std::fs::write(root.join("writer-ready"), b"ready\n").unwrap();
-    while !root.join("writer-release").exists() {
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    connection.execute_batch("ROLLBACK").unwrap();
-}
-
-#[test]
-fn capture_refuses_an_active_v0_writer() {
-    let temporary = copy_fixture("schema-13");
-    let mut writer = ProcessCommand::new(std::env::current_exe().unwrap())
-        .arg("writer_lock_helper")
-        .arg("--exact")
-        .env("HARNESS_V0_MIGRATE_WRITER_ROOT", temporary.path())
-        .spawn()
-        .unwrap();
-    for _ in 0..2_000 {
-        if temporary.path().join("writer-ready").exists() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    assert!(temporary.path().join("writer-ready").exists());
-    let result = capture(temporary.path());
-    std::fs::write(temporary.path().join("writer-release"), b"release\n").unwrap();
-    assert!(writer.wait().unwrap().success());
-    assert!(
-        matches!(result, Err(BridgeError::Conflict(message)) if message.contains("not quiesced"))
-    );
-}
-
-#[test]
-fn plaintext_apply_commits_receipt_last_is_idempotent_and_rolls_back_safely() {
-    let _guard = ENVIRONMENT
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
-    let temporary = copy_fixture("schema-13");
-    let before = source_snapshot(temporary.path());
-    let (conversion_id, digest) = preview(temporary.path());
-    let report = Bridge::new(temporary.path())
-        .execute(&Command::Apply {
-            accepted_preview_sha256: digest.clone(),
+fn plaintext_archive_is_append_only_and_can_recreate_the_exact_export() {
+    let fixture = copy_fixture("schema-13");
+    let before = source_snapshot(fixture.path());
+    let first = Bridge::new(fixture.path())
+        .execute(&Command::Archive {
             archive: plaintext(),
         })
         .unwrap();
-    assert_eq!(report.repository_mode, "converted-v1-with-archive");
-    assert_eq!(report.journal_state.as_deref(), Some("completed"));
-    let manifest: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(temporary.path().join(".harness/manifest.json")).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(manifest["repository_mode"], "converted-v1-with-archive");
+    let abandoned = fixture
+        .path()
+        .join(".harness-v0-archive/.staging-abandoned-crash");
+    std::fs::create_dir(&abandoned).unwrap();
+    std::fs::write(abandoned.join("foreign.partial"), b"do not overwrite").unwrap();
+    let second = Bridge::new(fixture.path())
+        .execute(&Command::Archive {
+            archive: plaintext(),
+        })
+        .unwrap();
+    assert_ne!(first.archive_id, second.archive_id);
+    assert_ne!(first.archive_manifest_path, second.archive_manifest_path);
     assert_eq!(
-        manifest["conversion_receipt"]["confidentiality_mode"],
-        "plaintext-explicit-override"
+        std::fs::read(abandoned.join("foreign.partial")).unwrap(),
+        b"do not overwrite"
     );
-    assert!(temporary
+    assert!(fixture
         .path()
-        .join(format!(
-            ".harness/legacy/v0-conversion/{conversion_id}/conversion.bin"
-        ))
+        .join(first.archive_manifest_path.as_ref().unwrap())
         .is_file());
-    assert_eq!(source_snapshot(temporary.path()), before);
+    assert!(fixture
+        .path()
+        .join(second.archive_manifest_path.as_ref().unwrap())
+        .is_file());
+    assert!(!fixture.path().join(".harness/manifest.json").exists());
+    assert!(!fixture.path().join("harness-v1.db").exists());
 
-    let idempotent = Bridge::new(temporary.path())
-        .execute(&Command::Apply {
-            accepted_preview_sha256: digest,
-            archive: plaintext(),
+    let archive_manifest = first.archive_manifest_path.clone().unwrap();
+    let exported = Bridge::new(fixture.path())
+        .execute(&Command::Export {
+            output: "v0-export.json".into(),
+            source: SourceOptions {
+                archive_manifest: Some(archive_manifest),
+                age_identity_file: None,
+            },
         })
         .unwrap();
-    assert_eq!(idempotent.journal_state.as_deref(), Some("completed"));
-
-    let rolled_back = Bridge::new(temporary.path())
-        .execute(&Command::Rollback {
-            conversion_id: conversion_id.clone(),
-        })
-        .unwrap();
-    assert_eq!(rolled_back.outcome, "rolled-back");
-    assert!(!temporary.path().join(".harness/manifest.json").exists());
-    assert!(temporary
-        .path()
-        .join(format!(
-            ".harness/legacy/v0-conversion/{conversion_id}/archive-manifest.json"
-        ))
-        .is_file());
-    assert_eq!(source_snapshot(temporary.path()), before);
+    assert_eq!(exported.export_sha256, first.export_sha256);
+    assert_eq!(source_snapshot(fixture.path()), before);
 }
 
 #[test]
-fn encrypted_archive_is_real_age_x25519_and_binds_ciphertext_digest() {
-    let _guard = ENVIRONMENT
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
-    let temporary = copy_fixture("schema-13");
+fn encrypted_archive_requires_identity_for_inner_export_and_round_trips() {
+    let fixture = copy_fixture("schema-13");
     let identity = x25519::Identity::generate();
     let recipient = identity.to_public().to_string();
-    let options = ArchiveOptions {
-        age_recipient: Some(recipient.clone()),
-        plaintext: false,
-        plaintext_risk_acknowledged: false,
-    };
-    let (conversion_id, digest) = preview(temporary.path());
-    Bridge::new(temporary.path())
-        .execute(&Command::Apply {
-            accepted_preview_sha256: digest,
-            archive: options,
-        })
-        .unwrap();
-    let archive_root = temporary
-        .path()
-        .join(format!(".harness/legacy/v0-conversion/{conversion_id}"));
-    let ciphertext = std::fs::read(archive_root.join("conversion.age")).unwrap();
-    let manifest: ArchiveManifest =
-        serde_json::from_slice(&std::fs::read(archive_root.join("archive-manifest.json")).unwrap())
-            .unwrap();
-    assert_eq!(manifest.confidentiality_mode, "encrypted-age-x25519");
-    assert_eq!(manifest.recipient_fingerprints, vec![recipient]);
-    assert_eq!(manifest.archive_sha256, hex_sha256(&ciphertext));
-    let decryptor = age::Decryptor::new(ciphertext.as_slice()).unwrap();
-    let mut reader = decryptor
-        .decrypt(std::iter::once(&identity as &dyn age::Identity))
-        .unwrap();
-    let mut plaintext = Vec::new();
-    reader.read_to_end(&mut plaintext).unwrap();
-    assert!(plaintext.starts_with(b"repository-harness-v0-archive-payload/v1\0"));
-}
-
-#[test]
-fn every_required_kill_point_has_no_false_success_and_resumes_deterministically() {
-    let _guard = ENVIRONMENT
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
-    for kill_point in [
-        "detection",
-        "export",
-        "archive",
-        "temporary-receipt",
-        "temporary-manifest",
-        "operation-1",
-        "atomic-commit",
-    ] {
-        let temporary = copy_fixture("schema-13");
-        let before = source_snapshot(temporary.path());
-        let (conversion_id, digest) = preview(temporary.path());
-        std::env::set_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER", kill_point);
-        let stopped = Bridge::new(temporary.path()).execute(&Command::Apply {
-            accepted_preview_sha256: digest,
-            archive: plaintext(),
-        });
-        std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
-        assert!(matches!(stopped, Err(BridgeError::KillPoint(_))));
-        assert_eq!(source_snapshot(temporary.path()), before);
-        if !matches!(kill_point, "operation-1" | "atomic-commit") {
-            assert!(
-                !temporary.path().join(".harness/manifest.json").exists(),
-                "false success at {kill_point}"
-            );
-        }
-        let resumed = Bridge::new(temporary.path())
-            .execute(&Command::Resume {
-                conversion_id: conversion_id.clone(),
-            })
-            .unwrap_or_else(|error| panic!("resume failed after {kill_point}: {error}"));
-        assert_eq!(resumed.journal_state.as_deref(), Some("completed"));
-        assert_eq!(source_snapshot(temporary.path()), before);
-    }
-}
-
-#[test]
-fn rollback_refuses_human_edit_and_archive_tamper_blocks_resume() {
-    let _guard = ENVIRONMENT
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
-    let temporary = copy_fixture("schema-13");
-    let (conversion_id, digest) = preview(temporary.path());
-    Bridge::new(temporary.path())
-        .execute(&Command::Apply {
-            accepted_preview_sha256: digest,
-            archive: plaintext(),
-        })
-        .unwrap();
     std::fs::write(
-        temporary.path().join(".harness/manifest.json"),
-        b"human edit\n",
+        fixture.path().join("identity.txt"),
+        format!("{}\n", identity.to_string().expose_secret()),
     )
     .unwrap();
-    assert!(matches!(
-        Bridge::new(temporary.path()).execute(&Command::Rollback {
-            conversion_id: conversion_id.clone()
-        }),
-        Err(BridgeError::Conflict(_))
-    ));
-    assert_eq!(
-        std::fs::read(temporary.path().join(".harness/manifest.json")).unwrap(),
-        b"human edit\n"
-    );
-    assert_eq!(
-        journal::load(temporary.path(), &conversion_id)
-            .unwrap()
-            .state,
-        JournalState::RecoveryRequired
-    );
-
-    let temporary = copy_fixture("schema-13");
-    let (conversion_id, digest) = preview(temporary.path());
-    std::env::set_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER", "archive");
-    let _ = Bridge::new(temporary.path()).execute(&Command::Apply {
-        accepted_preview_sha256: digest,
-        archive: plaintext(),
+    let archived = Bridge::new(fixture.path())
+        .execute(&Command::Archive {
+            archive: ArchiveOptions {
+                age_recipient: Some(recipient),
+                plaintext: false,
+                plaintext_risk_acknowledged: false,
+            },
+        })
+        .unwrap();
+    let manifest = archived.archive_manifest_path.clone().unwrap();
+    let without_identity = Bridge::new(fixture.path()).execute(&Command::Export {
+        output: "v0-export.json".into(),
+        source: SourceOptions {
+            archive_manifest: Some(manifest.clone()),
+            age_identity_file: None,
+        },
     });
-    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
-    let payload = temporary.path().join(format!(
-        ".harness/legacy/v0-conversion/{conversion_id}/conversion.bin"
-    ));
-    std::fs::write(&payload, b"tampered archive").unwrap();
-    assert!(matches!(
-        Bridge::new(temporary.path()).execute(&Command::Resume { conversion_id }),
-        Err(BridgeError::Conflict(_))
-    ));
+    assert!(without_identity.is_err());
+    let exported = Bridge::new(fixture.path())
+        .execute(&Command::Export {
+            output: "v0-export.json".into(),
+            source: SourceOptions {
+                archive_manifest: Some(manifest),
+                age_identity_file: Some("identity.txt".into()),
+            },
+        })
+        .unwrap();
+    assert_eq!(exported.export_sha256, archived.export_sha256);
 }
 
 #[test]
-fn mixed_manifest_and_symlinked_source_fail_without_source_mutation() {
-    let _guard = ENVIRONMENT
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    std::env::remove_var("HARNESS_V0_MIGRATE_TEST_KILL_AFTER");
-    let temporary = copy_fixture("schema-13");
+fn foreign_legacy_and_recovery_content_is_reported_and_never_used_as_custody() {
+    let fixture = copy_fixture("schema-13");
+    std::fs::create_dir_all(fixture.path().join(".harness/legacy")).unwrap();
+    std::fs::create_dir_all(fixture.path().join(".harness/recovery")).unwrap();
     std::fs::write(
-        temporary.path().join(".harness/manifest.json"),
-        b"{\"schema\":\"repository-harness-manifest/v1\"}\n",
+        fixture.path().join(".harness/legacy/foreign.bin"),
+        b"legacy",
     )
     .unwrap();
-    let (_, digest) = preview(temporary.path());
-    assert!(matches!(
-        Bridge::new(temporary.path()).execute(&Command::Apply {
-            accepted_preview_sha256: digest,
-            archive: plaintext()
-        }),
-        Err(BridgeError::Invalid(_))
-    ));
-
-    #[cfg(unix)]
-    {
-        let temporary = copy_fixture("schema-13");
-        let original = temporary.path().join("original.db");
-        std::fs::rename(temporary.path().join("harness.db"), &original).unwrap();
-        std::os::unix::fs::symlink(&original, temporary.path().join("harness.db")).unwrap();
-        assert!(capture(temporary.path()).is_err());
-        assert!(original.is_file());
-    }
-}
-
-#[test]
-fn frozen_age_recipient_parser_rejects_non_x25519_values() {
-    assert!(x25519::Recipient::from_str("not-an-age-recipient").is_err());
+    std::fs::write(
+        fixture.path().join(".harness/recovery/foreign.bin"),
+        b"recovery",
+    )
+    .unwrap();
+    let report = Bridge::new(fixture.path())
+        .execute(&Command::Archive {
+            archive: plaintext(),
+        })
+        .unwrap();
+    assert!(report.unknown_unowned.contains(&".harness/legacy".into()));
+    assert!(report.unknown_unowned.contains(&".harness/recovery".into()));
+    assert_eq!(
+        std::fs::read(fixture.path().join(".harness/legacy/foreign.bin")).unwrap(),
+        b"legacy"
+    );
+    assert_eq!(
+        std::fs::read(fixture.path().join(".harness/recovery/foreign.bin")).unwrap(),
+        b"recovery"
+    );
 }

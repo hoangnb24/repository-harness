@@ -49,9 +49,7 @@ pub trait FileSystemPort {
 pub struct CompatibilityObservation {
     pub observed: bool,
     pub legacy_artifact_present: bool,
-    pub conversion_journal_present: bool,
-    pub conversion_archive_present: bool,
-    pub conversion_evidence_authenticated: bool,
+    pub archive_custody_present: bool,
 }
 
 pub trait ManifestPort {

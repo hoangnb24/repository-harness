@@ -16,7 +16,6 @@ path = "src/main.rs"
 [dependencies]
 age = "0.12.1"
 chrono = "0.4.45"
-fs2 = "0.4.3"
 getrandom = "0.2.17"
 harness-core = { path = "../harness-core" }
 hmac = "0.12.1"
@@ -29,6 +28,3 @@ thiserror = "2.0.18"
 
 [target.'cfg(unix)'.dependencies]
 rustix = { version = "1.1.4", features = ["fs", "process"] }
-
-[dev-dependencies]
-tempfile = "3.27.0"

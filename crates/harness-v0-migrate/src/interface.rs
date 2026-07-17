@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 
 use crate::command_spec::help;
@@ -9,28 +10,25 @@ pub struct ArchiveOptions {
     pub plaintext_risk_acknowledged: bool,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SourceOptions {
+    pub archive_manifest: Option<String>,
+    pub age_identity_file: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
     Help,
     Inspect {
         json: bool,
+        source: SourceOptions,
     },
     Export {
         output: String,
+        source: SourceOptions,
+    },
+    Archive {
         archive: ArchiveOptions,
-    },
-    Preview {
-        json: bool,
-    },
-    Apply {
-        accepted_preview_sha256: String,
-        archive: ArchiveOptions,
-    },
-    Resume {
-        conversion_id: String,
-    },
-    Rollback {
-        conversion_id: String,
     },
     Version {
         json: bool,
@@ -54,105 +52,112 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
         [value] if value == "--help" => return Ok(Command::Help),
         [] => {
             return Err(UsageError(
-                "one of seven top-level commands is required".into(),
+                "one of four top-level commands is required".into(),
             ))
         }
         _ => {}
     }
-    let name = &arguments[0];
     let options = &arguments[1..];
-    match name.as_str() {
-        "inspect" => Ok(Command::Inspect {
-            json: parse_json_only(options)?,
-        }),
+    match arguments[0].as_str() {
+        "inspect" => parse_inspect(options),
         "export" => parse_export(options),
-        "preview" => Ok(Command::Preview {
-            json: parse_json_only(options)?,
-        }),
-        "apply" => parse_apply(options),
-        "resume" => Ok(Command::Resume {
-            conversion_id: parse_conversion_id(options)?,
-        }),
-        "rollback" => Ok(Command::Rollback {
-            conversion_id: parse_conversion_id(options)?,
-        }),
+        "archive" => parse_archive(options),
         "version" => Ok(Command::Version {
             json: parse_json_only(options)?,
         }),
-        _ => Err(UsageError(format!(
-            "unknown top-level command {name:?}; expected inspect, export, preview, apply, resume, rollback, or version"
+        name => Err(UsageError(format!(
+            "unknown top-level command {name:?}; expected inspect, export, archive, or version"
         ))),
     }
 }
 
-fn parse_json_only(options: &[String]) -> Result<bool, UsageError> {
-    match options {
-        [] => Ok(false),
-        [option] if option == "--json" => Ok(true),
-        _ => Err(UsageError("the only command option is --json".into())),
+fn parse_inspect(options: &[String]) -> Result<Command, UsageError> {
+    let mut json = false;
+    let mut filtered = Vec::new();
+    for option in options {
+        if option == "--json" {
+            if json {
+                return Err(UsageError("duplicate option --json".into()));
+            }
+            json = true;
+        } else {
+            filtered.push(option.clone());
+        }
     }
+    Ok(Command::Inspect {
+        json,
+        source: parse_source(&filtered)?,
+    })
 }
 
 fn parse_export(options: &[String]) -> Result<Command, UsageError> {
-    let (output, accepted, archive) = parse_mutating_options(options, true)?;
-    if accepted.is_some() {
-        return Err(UsageError("export does not accept a preview digest".into()));
+    let mut output = None;
+    let mut source_options = Vec::new();
+    let mut index = 0;
+    while index < options.len() {
+        if options[index] == "--output" {
+            if output.is_some() {
+                return Err(UsageError("duplicate option --output".into()));
+            }
+            output = Some(option_value(options, &mut index, "--output")?);
+        } else {
+            source_options.push(options[index].clone());
+            if matches!(
+                options[index].as_str(),
+                "--archive-manifest" | "--age-identity-file"
+            ) {
+                let value = options
+                    .get(index + 1)
+                    .ok_or_else(|| UsageError(format!("{} requires a value", options[index])))?;
+                source_options.push(value.clone());
+                index += 2;
+            } else {
+                index += 1;
+            }
+        }
     }
     Ok(Command::Export {
         output: output.ok_or_else(|| UsageError("export requires --output <path>".into()))?,
-        archive,
+        source: parse_source(&source_options)?,
     })
 }
 
-fn parse_apply(options: &[String]) -> Result<Command, UsageError> {
-    let (output, accepted, archive) = parse_mutating_options(options, false)?;
-    if output.is_some() {
-        return Err(UsageError("apply does not accept --output".into()));
-    }
-    Ok(Command::Apply {
-        accepted_preview_sha256: accepted.ok_or_else(|| {
-            UsageError(
-                "apply requires --non-interactive and --accept-preview-sha256 <digest>".into(),
-            )
-        })?,
-        archive,
-    })
-}
-
-fn parse_mutating_options(
-    options: &[String],
-    allow_output: bool,
-) -> Result<(Option<String>, Option<String>, ArchiveOptions), UsageError> {
-    let mut output = None;
-    let mut accepted = None;
-    let mut non_interactive = false;
-    let mut archive = ArchiveOptions::default();
-    let mut seen = std::collections::BTreeSet::new();
+fn parse_source(options: &[String]) -> Result<SourceOptions, UsageError> {
+    let mut parsed = SourceOptions::default();
+    let mut seen = BTreeSet::new();
     let mut index = 0;
     while index < options.len() {
-        let option = &options[index];
-        if !seen.insert(option.clone()) {
+        let option = options[index].as_str();
+        if !seen.insert(option.to_owned()) {
             return Err(UsageError(format!("duplicate option {option}")));
         }
-        match option.as_str() {
-            "--output" if allow_output => {
-                output = Some(option_value(options, &mut index, option)?);
-            }
+        let value = option_value(options, &mut index, option)?;
+        match option {
+            "--archive-manifest" => parsed.archive_manifest = Some(value),
+            "--age-identity-file" => parsed.age_identity_file = Some(value),
+            _ => return Err(UsageError(format!("unknown option {option}"))),
+        }
+    }
+    if parsed.age_identity_file.is_some() && parsed.archive_manifest.is_none() {
+        return Err(UsageError(
+            "--age-identity-file requires --archive-manifest".into(),
+        ));
+    }
+    Ok(parsed)
+}
+
+fn parse_archive(options: &[String]) -> Result<Command, UsageError> {
+    let mut archive = ArchiveOptions::default();
+    let mut seen = BTreeSet::new();
+    let mut index = 0;
+    while index < options.len() {
+        let option = options[index].as_str();
+        if !seen.insert(option.to_owned()) {
+            return Err(UsageError(format!("duplicate option {option}")));
+        }
+        match option {
             "--age-recipient" => {
                 archive.age_recipient = Some(option_value(options, &mut index, option)?);
-            }
-            "--accept-preview-sha256" => {
-                let digest = option_value(options, &mut index, option)?;
-                if !is_sha256(&digest) {
-                    return Err(UsageError(
-                        "--accept-preview-sha256 requires 64 lowercase hex characters".into(),
-                    ));
-                }
-                accepted = Some(digest);
-            }
-            "--non-interactive" => {
-                non_interactive = true;
-                index += 1;
             }
             "--archive-plaintext" => {
                 archive.plaintext = true;
@@ -165,13 +170,8 @@ fn parse_mutating_options(
             _ => return Err(UsageError(format!("unknown option {option}"))),
         }
     }
-    if accepted.is_some() != non_interactive {
-        return Err(UsageError(
-            "--non-interactive and --accept-preview-sha256 must be supplied together".into(),
-        ));
-    }
     validate_archive_options(&archive)?;
-    Ok((output, accepted, archive))
+    Ok(Command::Archive { archive })
 }
 
 fn option_value(options: &[String], index: &mut usize, option: &str) -> Result<String, UsageError> {
@@ -204,28 +204,12 @@ fn validate_archive_options(options: &ArchiveOptions) -> Result<(), UsageError> 
     Ok(())
 }
 
-fn parse_conversion_id(options: &[String]) -> Result<String, UsageError> {
+fn parse_json_only(options: &[String]) -> Result<bool, UsageError> {
     match options {
-        [option, value]
-            if option == "--conversion-id"
-                && !value.is_empty()
-                && value.bytes().all(|byte| {
-                    byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
-                }) =>
-        {
-            Ok(value.clone())
-        }
-        _ => Err(UsageError(
-            "recovery requires --conversion-id <lowercase-id>".into(),
-        )),
+        [] => Ok(false),
+        [option] if option == "--json" => Ok(true),
+        _ => Err(UsageError("the only command option is --json".into())),
     }
-}
-
-fn is_sha256(value: &str) -> bool {
-    value.len() == 64
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 pub fn machine_help() -> String {
@@ -241,71 +225,47 @@ mod tests {
     }
 
     #[test]
-    fn parser_accepts_only_the_closed_bridge_grammar() {
+    fn parser_accepts_exactly_the_archive_only_grammar() {
         for accepted in [
             vec!["--help"],
             vec!["inspect"],
             vec!["inspect", "--json"],
-            vec!["preview"],
-            vec!["preview", "--json"],
-            vec!["version"],
-            vec!["version", "--json"],
-            vec!["resume", "--conversion-id", "v0-abc"],
-            vec!["rollback", "--conversion-id", "v0-abc"],
             vec![
-                "export",
-                "--output",
-                "export.json",
-                "--age-recipient",
-                "age1fixture",
+                "inspect",
+                "--archive-manifest",
+                ".harness-v0-archive/a/archive-manifest.json",
             ],
+            vec!["export", "--output", "v0-export.json"],
+            vec!["archive", "--age-recipient", "age1fixture"],
             vec![
-                "apply",
-                "--non-interactive",
-                "--accept-preview-sha256",
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "--age-recipient",
-                "age1fixture",
-            ],
-            vec![
-                "apply",
-                "--non-interactive",
-                "--accept-preview-sha256",
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "archive",
                 "--archive-plaintext",
                 "--acknowledge-plaintext-recovery-risk",
             ],
+            vec!["version", "--json"],
         ] {
             assert!(parse(arguments(&accepted)).is_ok(), "rejected {accepted:?}");
         }
-        assert!(parse(arguments(&["--version"])).is_err());
         for forbidden in [
-            "install", "update", "audit", "scaffold", "status", "migrate", "init", "query",
+            "preview", "apply", "resume", "rollback", "migrate", "install",
         ] {
             assert!(
                 parse(arguments(&[forbidden])).is_err(),
                 "accepted {forbidden}"
             );
         }
+        assert!(parse(arguments(&["--version"])).is_err());
     }
 
     #[test]
-    fn plaintext_needs_both_explicit_flags_and_encryption_needs_a_recipient() {
+    fn archive_confidentiality_and_archive_source_options_are_closed() {
+        assert!(parse(arguments(&["archive"])).is_err());
+        assert!(parse(arguments(&["archive", "--archive-plaintext"])).is_err());
         assert!(parse(arguments(&[
-            "export",
-            "--output",
-            "export.json",
-            "--archive-plaintext"
+            "inspect",
+            "--age-identity-file",
+            "identity.txt"
         ]))
         .is_err());
-        assert!(parse(arguments(&[
-            "export",
-            "--output",
-            "export.json",
-            "--archive-plaintext",
-            "--acknowledge-plaintext-recovery-risk"
-        ]))
-        .is_ok());
-        assert!(parse(arguments(&["export", "--output", "export.json"])).is_err());
     }
 }
