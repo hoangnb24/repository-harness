@@ -13,8 +13,9 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{
-    Disposition, Manifest, ManifestRepositoryMode, Operation, OperationKind, Origin, Ownership,
-    PayloadIdentity, Role, UpdatePolicy, CORE_VERSION, MANIFEST_SCHEMA,
+    public_operation_digest, Disposition, Manifest, ManifestRepositoryMode, Operation,
+    OperationKind, Origin, Ownership, PayloadIdentity, Role, UpdatePolicy, CORE_VERSION,
+    MANIFEST_SCHEMA,
 };
 use crate::path::{validate_exact_destination, validate_relative};
 use crate::ports::{MutationPort, PortError};
@@ -160,9 +161,27 @@ struct JournalStep {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+struct RootIdentity {
+    device: String,
+    inode: String,
+}
+
+impl RootIdentity {
+    #[cfg(unix)]
+    fn from_stat(stat: &rustix::fs::Stat) -> Self {
+        Self {
+            device: stat.st_dev.to_string(),
+            inode: stat.st_ino.to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 struct RecoveryJournal {
     schema: String,
     body_sha256: String,
+    root: RootIdentity,
     operation_id: String,
     command: String,
     scope: RecoveryScope,
@@ -175,10 +194,11 @@ struct RecoveryJournal {
 }
 
 impl RecoveryJournal {
-    fn from_request(request: &MutationRequest) -> Self {
+    fn from_request(request: &MutationRequest, root: RootIdentity) -> Self {
         Self {
             schema: JOURNAL_SCHEMA.into(),
             body_sha256: String::new(),
+            root,
             operation_id: request.operation_id.clone(),
             command: request.command.clone(),
             scope: request.scope.clone(),
@@ -332,6 +352,37 @@ impl OsMutationPort {
     }
 
     #[cfg(unix)]
+    fn root_identity(&self) -> RootIdentity {
+        RootIdentity::from_stat(&self.root_stat)
+    }
+
+    #[cfg(unix)]
+    fn journal_matches_current_root(&self, journal: &RecoveryJournal) -> bool {
+        journal.root == self.root_identity()
+    }
+
+    #[cfg(unix)]
+    fn require_journal_root(&self, journal: &RecoveryJournal) -> Result<(), PortError> {
+        if self.journal_matches_current_root(journal) {
+            Ok(())
+        } else {
+            Err(PortError::Conflict(
+                "recovery journal belongs to a different repository root".into(),
+            ))
+        }
+    }
+
+    #[cfg(unix)]
+    fn load_probe_journal(&self, operation_id: &str) -> Result<Option<RecoveryJournal>, PortError> {
+        let journal = self.parse_journal(operation_id)?;
+        if self.journal_matches_current_root(&journal) {
+            Ok(Some(journal))
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[cfg(unix)]
     fn probe_recovery_unix(&self) -> Result<Vec<RecoveryProbe>, PortError> {
         use rustix::fs::Dir;
 
@@ -361,8 +412,9 @@ impl OsMutationPort {
         operation_ids.sort();
         let mut probes = Vec::new();
         for operation_id in operation_ids {
-            let journal = match self.load_journal(&operation_id) {
-                Ok(journal) => journal,
+            let journal = match self.load_probe_journal(&operation_id) {
+                Ok(Some(journal)) => journal,
+                Ok(None) => continue,
                 // Preparation can be interrupted before the journal's first
                 // atomic rename. Exact staged/backup evidence is safely
                 // reusable by the deterministic confirmed rerun; it is not an
@@ -487,7 +539,7 @@ impl OsMutationPort {
                 .map_err(MutationFailure::before_journal)?;
         }
 
-        let mut journal = RecoveryJournal::from_request(request);
+        let mut journal = RecoveryJournal::from_request(request, self.root_identity());
         self.persist_journal(&journal)
             .map_err(MutationFailure::before_journal)?;
         self.checkpoint("prepared journal fsync")
@@ -1458,12 +1510,19 @@ impl OsMutationPort {
     }
 
     #[cfg(unix)]
-    fn load_journal(&self, operation_id: &str) -> Result<RecoveryJournal, PortError> {
+    fn parse_journal(&self, operation_id: &str) -> Result<RecoveryJournal, PortError> {
         let path = Self::journal_path(operation_id);
         let bytes = self.read_required(&path)?;
         let value = parse(&bytes).map_err(invalid)?;
         let journal: RecoveryJournal = serde_json::from_value(value).map_err(invariant)?;
         journal.verify()?;
+        Ok(journal)
+    }
+
+    #[cfg(unix)]
+    fn load_journal(&self, operation_id: &str) -> Result<RecoveryJournal, PortError> {
+        let journal = self.parse_journal(operation_id)?;
+        self.require_journal_root(&journal)?;
         Ok(journal)
     }
 
@@ -2268,8 +2327,7 @@ fn validate_request(request: &MutationRequest) -> Result<(), PortError> {
             "operation identifier does not commit the exact mutation plan",
         ));
     }
-    let operations = serde_json::to_value(&request.operations).map_err(invariant)?;
-    if digest(&operations).map_err(invariant)? != request.preview_sha256 {
+    if public_operation_digest(&request.operations).map_err(invariant)? != request.preview_sha256 {
         return Err(invalid("mutation request preview digest mismatch"));
     }
     let mut paths = BTreeSet::new();
@@ -2678,8 +2736,7 @@ fn validate_journal_ownership(
 }
 
 fn verify_preview(journal: &RecoveryJournal) -> Result<(), PortError> {
-    let operations = serde_json::to_value(&journal.operations).map_err(invariant)?;
-    let actual = digest(&operations).map_err(invariant)?;
+    let actual = public_operation_digest(&journal.operations).map_err(invariant)?;
     if actual != journal.preview_sha256 || journal.accepted_preview_sha256 != journal.preview_sha256
     {
         return Err(PortError::Conflict(
@@ -2916,7 +2973,7 @@ mod tests {
             ),
         ];
         let operations = operations_from_writes(&operation_id, &writes);
-        let preview_sha256 = digest(&serde_json::to_value(&operations).unwrap()).unwrap();
+        let preview_sha256 = public_operation_digest(&operations).unwrap();
         MutationRequest {
             command: "install".into(),
             scope: RecoveryScope::ReleaseAssets,
@@ -2994,7 +3051,7 @@ mod tests {
             manifest_commit: true,
         }];
         let operations = operations_from_writes(&operation_id, &writes);
-        let preview_sha256 = digest(&serde_json::to_value(&operations).unwrap()).unwrap();
+        let preview_sha256 = public_operation_digest(&operations).unwrap();
         MutationRequest {
             command: "install".into(),
             scope: RecoveryScope::ReleaseAssets,
@@ -3040,8 +3097,7 @@ mod tests {
             );
         }
         request.operations = operations_from_writes(&request.operation_id, &request.writes);
-        request.preview_sha256 =
-            digest(&serde_json::to_value(&request.operations).unwrap()).unwrap();
+        request.preview_sha256 = public_operation_digest(&request.operations).unwrap();
         request.accepted_preview_sha256 = request.preview_sha256.clone();
         request
     }
@@ -3075,8 +3131,7 @@ mod tests {
             );
         }
         request.operations = operations_from_writes(&request.operation_id, &request.writes);
-        request.preview_sha256 =
-            digest(&serde_json::to_value(&request.operations).unwrap()).unwrap();
+        request.preview_sha256 = public_operation_digest(&request.operations).unwrap();
         request.accepted_preview_sha256 = request.preview_sha256.clone();
     }
 
@@ -3107,7 +3162,7 @@ mod tests {
             port.write_owned_once(&write.staged_path, &write.after_bytes)
                 .unwrap();
         }
-        let mut journal = RecoveryJournal::from_request(request);
+        let mut journal = RecoveryJournal::from_request(request, port.root_identity());
         journal.state = JournalState::Applying;
         port.persist_journal(&journal).unwrap();
     }
@@ -3622,8 +3677,7 @@ mod tests {
             .find(|operation| operation.kind == OperationKind::WriteManifest)
             .unwrap()
             .after_sha256 = Some(manifest.after_sha256.clone());
-        journal.preview_sha256 =
-            digest(&serde_json::to_value(&journal.operations).unwrap()).unwrap();
+        journal.preview_sha256 = public_operation_digest(&journal.operations).unwrap();
         journal.accepted_preview_sha256 = journal.preview_sha256.clone();
         port.persist_journal(&journal).unwrap();
         assert!(port.load_journal(&request.operation_id).is_ok());

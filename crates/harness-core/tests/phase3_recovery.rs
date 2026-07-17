@@ -214,6 +214,48 @@ fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
+fn canonical_json_digest(value: &serde_json::Value) -> String {
+    fn render(value: &serde_json::Value, output: &mut String) {
+        match value {
+            serde_json::Value::Null => output.push_str("null"),
+            serde_json::Value::Bool(true) => output.push_str("true"),
+            serde_json::Value::Bool(false) => output.push_str("false"),
+            serde_json::Value::Number(number) => output.push_str(&number.to_string()),
+            serde_json::Value::String(string) => {
+                output.push_str(&serde_json::to_string(string).unwrap());
+            }
+            serde_json::Value::Array(values) => {
+                output.push('[');
+                for (index, child) in values.iter().enumerate() {
+                    if index > 0 {
+                        output.push(',');
+                    }
+                    render(child, output);
+                }
+                output.push(']');
+            }
+            serde_json::Value::Object(values) => {
+                output.push('{');
+                let mut ordered: Vec<_> = values.iter().collect();
+                ordered.sort_by_key(|(key, _)| key.encode_utf16().collect::<Vec<_>>());
+                for (index, (key, child)) in ordered.into_iter().enumerate() {
+                    if index > 0 {
+                        output.push(',');
+                    }
+                    output.push_str(&serde_json::to_string(key).unwrap());
+                    output.push(':');
+                    render(child, output);
+                }
+                output.push('}');
+            }
+        }
+    }
+
+    let mut canonical = String::new();
+    render(value, &mut canonical);
+    sha256(canonical.as_bytes())
+}
+
 fn tree_snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
     fn visit(root: &Path, current: &Path, output: &mut BTreeMap<String, Vec<u8>>) {
         let mut entries: Vec<_> = std::fs::read_dir(current)
@@ -386,6 +428,22 @@ fn signed_install_requires_exact_confirmation_commits_manifest_last_and_is_idemp
     assert!(matches!(rerun.exit_code, 0 | 2), "{rerun:?}");
     assert_eq!(rerun.mutation, Mutation::None);
     assert_eq!(notice(&rerun.notices, "idempotent-noop").path, None);
+}
+
+#[test]
+fn preview_sha256_matches_the_exact_emitted_operations_array() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (_, _, preview) = preview(temporary.path(), Command::Install);
+    let operations = preview
+        .details
+        .operations
+        .clone()
+        .expect("preview exposes public operations");
+    let recomputed = canonical_json_digest(&serde_json::to_value(&operations).unwrap());
+    assert_eq!(
+        recomputed,
+        notice(&preview.notices, "preview-sha256").message
+    );
 }
 
 #[test]
@@ -796,7 +854,7 @@ fn fabricated_fresh_pending_journal_is_not_reported_or_resumed_against_preexisti
         None,
     );
     assert_eq!(refused.exit_code, 4, "{refused:?}");
-    assert_eq!(refused.mutation, Mutation::RecoveryRequired);
+    assert_eq!(refused.mutation, Mutation::None);
     assert_eq!(
         std::fs::read(target.path().join("docs/templates/decision.md")).unwrap(),
         DECISION
@@ -829,12 +887,100 @@ fn fabricated_fresh_pending_journal_cannot_rollback_delete_preexisting_authentic
         None,
     );
     assert_eq!(refused.exit_code, 4, "{refused:?}");
-    assert_eq!(refused.mutation, Mutation::RecoveryRequired);
+    assert_eq!(refused.mutation, Mutation::None);
     assert_eq!(
         std::fs::read(target.path().join("docs/templates/decision.md")).unwrap(),
         DECISION
     );
     assert!(!target.path().join(".harness/manifest.json").exists());
+    assert_eq!(tree_snapshot(target.path()), before);
+}
+
+#[test]
+fn copied_interrupted_update_journal_is_not_actionable_in_another_repository_root() {
+    let source = tempfile::tempdir().unwrap();
+    let (_, _, _, digest, operation) = prepare_two_managed_file_update(source.path());
+    let interrupted = execute(source.path(), Command::Update(confirm(digest)), Some(7));
+    assert_eq!(interrupted.exit_code, 4, "{interrupted:?}");
+    assert_eq!(interrupted.mutation, Mutation::RecoveryRequired);
+    assert!(source
+        .path()
+        .join(format!(".harness/recovery/{operation}/journal.json"))
+        .is_file());
+
+    let target = tempfile::tempdir().unwrap();
+    prepare_two_managed_file_update(target.path());
+    copy_tree(
+        &source.path().join(format!(".harness/recovery/{operation}")),
+        &target.path().join(format!(".harness/recovery/{operation}")),
+    );
+    let before = tree_snapshot(target.path());
+
+    let status = execute(target.path(), Command::Status { json: true }, None);
+    assert_eq!(status.exit_code, 0, "{status:?}");
+    assert_eq!(status.mutation, Mutation::None);
+    assert!(
+        status
+            .notices
+            .iter()
+            .all(|notice| notice.code != "recovery-required"),
+        "{status:?}"
+    );
+    assert!(
+        status
+            .notices
+            .iter()
+            .all(|notice| !notice.message.contains(&operation)),
+        "{status:?}"
+    );
+    assert_eq!(tree_snapshot(target.path()), before);
+
+    let refused = execute(
+        target.path(),
+        Command::Update(MutatorOptions {
+            resume: Some(operation),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert_eq!(refused.exit_code, 4, "{refused:?}");
+    assert_eq!(refused.mutation, Mutation::None);
+    assert_eq!(tree_snapshot(target.path()), before);
+}
+
+#[test]
+fn copied_committed_update_journal_cannot_drive_rollback_in_another_repository_root() {
+    let source = tempfile::tempdir().unwrap();
+    let (_, _, _, digest, operation) = prepare_two_managed_file_update(source.path());
+    let committed = execute(source.path(), Command::Update(confirm(digest)), None);
+    assert!(matches!(committed.exit_code, 0 | 2), "{committed:?}");
+
+    let target = tempfile::tempdir().unwrap();
+    prepare_two_managed_file_update(target.path());
+    std::fs::write(target.path().join("docs/templates/decision.md"), DECISION).unwrap();
+    std::fs::write(target.path().join("docs/templates/story.md"), STORY).unwrap();
+    std::fs::create_dir_all(target.path().join(".harness")).unwrap();
+    std::fs::copy(
+        source.path().join(".harness/manifest.json"),
+        target.path().join(".harness/manifest.json"),
+    )
+    .unwrap();
+    copy_tree(
+        &source.path().join(format!(".harness/recovery/{operation}")),
+        &target.path().join(format!(".harness/recovery/{operation}")),
+    );
+    let before = tree_snapshot(target.path());
+
+    let refused = execute(
+        target.path(),
+        Command::Update(MutatorOptions {
+            rollback: Some(operation),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert_eq!(refused.exit_code, 4, "{refused:?}");
+    assert_eq!(refused.mutation, Mutation::None);
     assert_eq!(tree_snapshot(target.path()), before);
 }
 

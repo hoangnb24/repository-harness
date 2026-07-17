@@ -426,24 +426,29 @@ planning; managed-file and managed-block mutation; target-owned preservation;
 backups, staged images, full-plan recovery commitments, atomic no-replace/
 exchange, fsync, and manifest-last commit; read-only recovery status; retained
 hard-link witnesses for every `before_sha256=None` create that recovery may
-later classify or remove; and deterministic rerun/resume/rollback. Recovery now
+later classify or remove; root-bound journals that commit the pinned repository
+`st_dev`/`st_ino` before any copied recovery evidence is trusted; a canonical
+public-operation digest that callers can recompute from emitted
+`details.operations`; and deterministic rerun/resume/rollback. Recovery now
 reapplies the normal monotonic payload rules before commit: release sequence
 cannot regress, equal sequence cannot change digest, and the authenticated
 release version must remain inside the authoritative compatibility range.
-Thirty-nine focused Phase 3 tests cover all 18 install, 15 update, and 13
+Forty-two focused Phase 3 tests cover all 18 install, 15 update, and 13
 committed-update rollback checkpoints, including the gap immediately after
-new-manifest removal, plus ownership/race/tamper, hard-link-witness, fresh
-manifest/scaffold delete, and commit/resume payload-identity and downgrade
-attacks. `harness-core` passes 85 tests, the workspace passes 177 tests, and
-the Phase 3 mechanical verifier passes 11/11 groups. Rollback remains
-deliberately dependent on matching live authenticated release authority so
-forged local evidence cannot broaden ownership. Arbitrary same-UID malicious
+new-manifest removal, plus ownership/race/tamper, hard-link-witness, copied
+cross-root replacement journals, fresh manifest/scaffold delete, preview-digest
+recomputation from emitted operations, and commit/resume payload-identity and
+downgrade attacks. `harness-core` passes 88 tests, the workspace passes 180
+tests, and the Phase 3 mechanical verifier passes 11/11 groups. Rollback
+remains deliberately dependent on matching live authenticated release authority
+so forged local evidence cannot broaden ownership. Arbitrary same-UID malicious
 processes remain out of scope because they can already delete or overwrite the
-target directly; the retained hard-link witness closes only the in-scope
-crash/race/corruption boundary. The live binary still uses unavailable
-production release/trust adapters. macOS/Linux are the proven mutation
-boundary; other platforms fail closed and remain Phase 7 work. Phase 4 remains
-closed until this candidate receives fresh exact-hash acceptance.
+target directly; the retained hard-link witness plus pinned-root journal
+identity closes only the in-scope crash/race/corruption boundary. The live
+binary still uses unavailable production release/trust adapters. macOS/Linux
+are the proven mutation boundary; other platforms fail closed and remain Phase
+7 work. Phase 4 remains closed until this candidate receives fresh exact-hash
+acceptance.
 
 ### Phase 4: Isolated V0 Bridge
 

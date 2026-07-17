@@ -5,9 +5,10 @@ use std::collections::BTreeSet;
 use semver::Version;
 
 use crate::domain::{
-    Activation, Command, Compatibility, Disposition, Envelope, Manifest, ManifestRepositoryMode,
-    Mutation, Notice, Operation, OperationKind, Origin, Outcome, Ownership, PayloadIdentity,
-    Readiness, ReleaseOutput, RepositoryMode, Role, ScaffoldOptions, UpdatePolicy, CORE_VERSION,
+    public_operation_digest, Activation, Command, Compatibility, Disposition, Envelope, Manifest,
+    ManifestRepositoryMode, Mutation, Notice, Operation, OperationKind, Origin, Outcome, Ownership,
+    PayloadIdentity, Readiness, ReleaseOutput, RepositoryMode, Role, ScaffoldOptions, UpdatePolicy,
+    CORE_VERSION,
 };
 use crate::markdown::parse_commonmark;
 use crate::path::{validate_exact_destination, validate_relative};
@@ -389,9 +390,8 @@ impl<'a> HarnessCore<'a> {
         let Some(operations) = operations else {
             return envelope;
         };
-        let operations_value = serde_json::to_value(&operations).expect("operations serialize");
         let preview_sha256 =
-            digest(&operations_value).expect("operations are canonical JSON values");
+            public_operation_digest(&operations).expect("operations are canonical JSON values");
         envelope.details.operations = Some(operations);
         envelope.notices.push(Notice {
             code: "preview-sha256".into(),
@@ -1090,9 +1090,8 @@ impl<'a> HarnessCore<'a> {
             ),
             manifest_commit: true,
         });
-        let operations_value = serde_json::to_value(&operations)
-            .map_err(|error| PortError::ManifestInvalid(error.to_string()))?;
-        let preview_sha256 = digest(&operations_value).map_err(PortError::ManifestInvalid)?;
+        let preview_sha256 =
+            public_operation_digest(&operations).map_err(PortError::ManifestInvalid)?;
         Ok(MutationRequest {
             command: command.into(),
             scope,

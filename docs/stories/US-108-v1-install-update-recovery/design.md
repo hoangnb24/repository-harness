@@ -23,6 +23,11 @@ The tool-local journal is ignored by Git and contains only filesystem recovery
 data. It is not a task lifecycle record. Its closed state is one of
 `prepared`, `applying`, `committed`, or `rolled-back`. A digest over the
 canonical journal body detects corruption but grants no recovery authority.
+That canonical body also commits the pinned repository root identity
+(`st_dev` plus `st_ino`) from the descriptor-anchored root handle, so a
+byte-copied journal from repository A no longer authorizes recovery in
+repository B even when both trees currently contain identical before or after
+bytes.
 The full operation ID is independently recomputed as a SHA-256 commitment to
 the owner command, authenticated release identity, exact target operation rows,
 and candidate-manifest digest. Public operations must be the exact projection
@@ -71,6 +76,8 @@ update retains the existing mode, including
 7. Add public operations for staged journal ownership, each required backup,
    each managed target write, and the manifest-last write.
 8. Hash the canonical closed operation array and return it from `--preview`.
+   The same canonical public-operation digest is the one a caller can
+   recompute from the emitted `details.operations` array.
 9. A non-preview command without the paired deterministic confirmation refuses
    with exit 4. A digest mismatch also refuses with zero mutation.
 
@@ -121,7 +128,10 @@ No error path returns exit 0 or 2 unless the manifest commit is coherent.
 
 Resume first reauthenticates the release and requires exact command, operation,
 release, journal-body digest, preview digest, backup, staged-image, and current
-image matches. Recovery also reapplies the normal payload monotonicity checks:
+image matches. Recovery also requires the journal's committed root identity to
+match the currently opened repository root before probe, status, resume,
+rollback, or reconciliation trusts it at all. Recovery then reapplies the
+normal payload monotonicity checks:
 release sequence cannot regress, equal sequence cannot change digest, and the
 authenticated release version must remain inside the authoritative manifest
 compatibility range. Applied steps are verified but not replayed. Pending steps
@@ -227,7 +237,8 @@ output, task record, or telemetry.
 The local journal contains operation recovery evidence only. It is not emitted
 as a Harness trace and is not written to `.harness/changesets`.
 Operation IDs and journal hashes remain visible because they are commitments,
-not authentication secrets.
+not authentication secrets; repository-root identity and retained hard links
+provide the structural authority boundary inside the in-scope model.
 
 ## Alternatives Considered
 

@@ -44,6 +44,7 @@ def proof_exact_plan_binding() -> None:
     source = text(RECOVERY)
     for fragment in [
         "operations_from_writes",
+        "public_operation_digest",
         "request.operations != expected_operations",
         "public operations are not the exact projection of planned writes",
         "plan_operation_id",
@@ -70,6 +71,9 @@ def proof_authenticated_recovery_binding() -> None:
         "verify_authenticated_post_images",
         "validate_candidate_transition",
         "validate_payload_transition",
+        "RootIdentity",
+        "journal_matches_current_root",
+        "recovery journal belongs to a different repository root",
         "link_owned_once",
         "step_requires_create_witness",
         "deterministic authenticated managed-block post-image",
@@ -82,6 +86,8 @@ def proof_authenticated_recovery_binding() -> None:
         "rollback_refuses_scaffold_target_delete_without_hard_link_witness",
         "rollback_refuses_fresh_manifest_delete_without_hard_link_witness",
         "fabricated_recovery_downgrade_is_rejected_before_zero_mutation",
+        "copied_interrupted_update_journal_is_not_actionable_in_another_repository_root",
+        "copied_committed_update_journal_cannot_drive_rollback_in_another_repository_root",
     ]:
         check(
             fragment in source or fragment in integration,
@@ -152,6 +158,7 @@ def proof_signed_mutation_behaviors() -> None:
     source = text(INTEGRATION)
     expected = [
         "signed_install_requires_exact_confirmation_commits_manifest_last_and_is_idempotent",
+        "preview_sha256_matches_the_exact_emitted_operations_array",
         "scaffold_is_exact_and_update_preserves_target_owned_bytes",
         "identical_preexisting_asset_commits_brownfield_mode_and_target_ownership",
         "converted_mode_and_receipt_survive_mapping_a_new_identical_authenticated_asset",
@@ -232,6 +239,8 @@ def proof_story_packet() -> None:
     for phrase in [
         "manifest-last",
         "hard link",
+        "st_dev",
+        "st_ino",
         "same-UID malicious process",
         "three-way",
         "never-auto-patch",

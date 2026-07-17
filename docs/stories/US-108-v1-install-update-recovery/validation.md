@@ -8,12 +8,17 @@ Acceptance requires cause-and-effect proof at four boundaries:
 
 1. Invalid or unavailable authentication never constructs a mutation request.
 2. A canonical preview digest names every target write, backup, journal, and
-   manifest result; a different digest produces zero mutation.
+   manifest result; the caller can recompute that same digest from the emitted
+   `details.operations` array, and a different digest produces zero mutation.
 3. Every crash before the last manifest rename leaves no new success manifest
    and can resume or roll back only matching journal-owned images plus any
    retained hard-link witness required to prove a `before_sha256=None` create.
 4. Every conflict or host failure exits nonzero, preserves target edits, and
    leaves enough deterministic evidence for the next allowed action.
+5. Recovery evidence is bound to the exact repository root instance by the
+   pinned root `st_dev`/`st_ino` committed inside the journal body; copying a
+   journal into another repository root yields no actionable status and no
+   recovery authority.
 
 The Phase 1 and Phase 2 verifiers must pass unchanged. Phase 3 proof does not
 claim production promotion, bridge behavior, non-Unix safe handles, or
@@ -23,11 +28,11 @@ five-platform parity.
 
 | Layer | Cases |
 | --- | --- |
-| Unit | Deterministic operation IDs and preview digests; manifest construction; unresolved markers; monotonic transitions; replace-if-base; managed-block interior replacement; three-way-review tuple; never-auto-patch; journal canonical digest and path ownership; hard-link witness authority for resume and rollback. |
+| Unit | Deterministic operation IDs and preview digests; manifest construction; unresolved markers; monotonic transitions; replace-if-base; managed-block interior replacement; three-way-review tuple; never-auto-patch; journal canonical digest, root identity binding, and path ownership; hard-link witness authority for resume and rollback. |
 | Integration | Threshold-signed fixture install/update/scaffold through the real Unix adapter; exact confirmation; backups; manifest-last commit; read-only audit of result; no promoted live adapter. |
 | Recovery | Failure after journal prepare, each backup/staged image, each target rename, candidate validation, manifest temporary, manifest rename, journal commit, and all 13 committed-update rollback checkpoints; safe resume/rollback, hard-link witness gating, target-edit conflicts, and zero-mutation downgrade rejection. |
 | Idempotency | Repeated preview is byte-identical; repeated confirmed install/update does no duplicate target write; repeated resume/rollback is harmless and deterministic. |
-| Negative | Wrong preview digest; absent update manifest; unsupported downgrade/equal-different release; unsafe/link path; target-owned candidate; managed-file base drift; managed-block edit; journal/staged/backup tamper; missing or mismatched hard-link witness; injected I/O failure; no false exit 0/2. |
+| Negative | Wrong preview digest; absent update manifest; unsupported downgrade/equal-different release; unsafe/link path; target-owned candidate; managed-file base drift; managed-block edit; copied cross-root journal; journal/staged/backup tamper; missing or mismatched hard-link witness; injected I/O failure; no false exit 0/2. |
 | Boundary | Exact six commands; no V0/SQLite/process dependency; bridge entrypoints/workflow absent; production workflow still unpromoted; non-Unix mutation fails closed. |
 
 ## Fixtures
@@ -40,9 +45,9 @@ five-platform parity.
 - Managed-block files with stable prefix/suffix, one marker pair, unchanged
   base, and human-edited interior.
 - Journals interrupted at every durable boundary plus copies with changed
-  operation ID, command, release identity, body digest, path, backup, staged
-  image, current post-image, missing hard-link witness, forged applied-state
-  create, and fabricated downgrade state.
+  operation ID, command, release identity, body digest, repository-root
+  identity, path, backup, staged image, current post-image, missing hard-link
+  witness, forged applied-state create, and fabricated downgrade state.
 
 Fixture keys remain test-only and never enter the live production adapter.
 
@@ -66,19 +71,21 @@ git status --short -- .harness repomix-output.xml crates/harness-cli \
 
 ## Acceptance Evidence
 
-The candidate contains 39 focused Phase 3 Rust test functions: eighteen
-recovery unit adversaries and twenty-one signed-release integration tests. The
+The candidate contains 42 focused Phase 3 Rust test functions: eighteen
+recovery unit adversaries and twenty-four signed-release integration tests. The
 integration kill matrices interrupt all 18 install, 15 update, and 13
 committed-update rollback checkpoints and prove deterministic pre-journal
 rerun, journal-owned resume, reverse-order crash-resumable rollback, and
-repeated recovery. `harness-core` has 85 passing tests total (41 library unit,
-one binary unit, 22 Phase 2 integration, twenty-one Phase 3 integration); the
-workspace has 177 passing Rust tests. The Phase 3 mechanical verifier passes
+repeated recovery. `harness-core` has 88 passing tests total (41 library unit,
+one binary unit, 22 Phase 2 integration, twenty-four Phase 3 integration); the
+workspace has 180 passing Rust tests. The Phase 3 mechanical verifier passes
 11/11 proof groups.
 
 The focused evidence explicitly includes:
 
 - changed private write bytes under an unchanged accepted preview;
+- preview digest recomputed independently from the exact emitted
+  `details.operations` array;
 - unowned staged paths, missing backups, unsupported kinds, and an incorrect
   manifest kind/disposition rejected before zero filesystem mutation;
 - altered journal/staged/manifest bytes with a recomputed unkeyed body hash and
@@ -89,6 +96,9 @@ The focused evidence explicitly includes:
 - a human edit during interrupted rollback preserved before any later restore;
 - fabricated update/fresh/scaffold journals rejected when they broaden
   ownership, before-images, or the one-destination command scope;
+- copied interrupted and committed replacement journals from another repository
+  root rejected before status can emit an actionable recovery ID or recovery
+  can mutate any byte in the receiving tree;
 - fabricated applied-state resumes and scaffold/fresh-manifest rollbacks
   refused without the retained hard-link witness that pins the create inode;
 - fabricated recovery downgrade rejected before any target or manifest mutation;

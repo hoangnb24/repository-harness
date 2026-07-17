@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::strict_json::digest;
+
 pub const OUTPUT_SCHEMA: &str = "repository-harness-output/v1";
 pub const MANIFEST_SCHEMA: &str = "repository-harness-manifest/v1";
 pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -227,23 +229,37 @@ impl Envelope {
         for violation in &mut self.details.violations {
             *violation = sanitize_human_text(violation);
         }
-        if let Some(operations) = &mut self.details.operations {
-            for operation in operations.iter_mut() {
-                operation.operation_id = sanitize_human_text(&operation.operation_id);
-                operation.path = sanitize_human_text(&operation.path);
-            }
-        }
         self.notices.sort_by(|left, right| {
             (&left.code, &left.path, &left.message).cmp(&(&right.code, &right.path, &right.message))
         });
         self.details.violations.sort();
         self.details.violations.dedup();
         if let Some(operations) = &mut self.details.operations {
-            operations.sort_by(|left, right| {
-                (&left.path, &left.operation_id).cmp(&(&right.path, &right.operation_id))
-            });
+            normalize_public_operations(operations);
         }
     }
+}
+
+pub(crate) fn normalize_public_operations(operations: &mut [Operation]) {
+    for operation in operations.iter_mut() {
+        operation.operation_id = sanitize_human_text(&operation.operation_id);
+        operation.path = sanitize_human_text(&operation.path);
+    }
+    operations.sort_by(|left, right| {
+        (&left.path, &left.operation_id).cmp(&(&right.path, &right.operation_id))
+    });
+}
+
+pub(crate) fn normalized_public_operations(operations: &[Operation]) -> Vec<Operation> {
+    let mut operations = operations.to_vec();
+    normalize_public_operations(&mut operations);
+    operations
+}
+
+pub(crate) fn public_operation_digest(operations: &[Operation]) -> Result<String, String> {
+    let operations = serde_json::to_value(normalized_public_operations(operations))
+        .map_err(|e| e.to_string())?;
+    digest(&operations)
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
