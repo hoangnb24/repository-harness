@@ -102,6 +102,19 @@ impl SecureRoot {
         use rustix::fs::{fchmod, fstat, fsync, mkdirat, openat, FileType, Mode, OFlags};
 
         validate_relative(relative)?;
+        if create && relative.starts_with(".harness/recovery") {
+            let kind = "recovery";
+            let parent_path = format!(".harness/{kind}");
+            if let Ok(parent_fd) = self.open_dir(&parent_path, false, false) {
+                if !self.authenticated_custody(kind)?
+                    && !self.list_names(&parent_fd, &parent_path)?.is_empty()
+                {
+                    return Err(BridgeError::Conflict(format!(
+                        "foreign .harness/{kind} custody cannot receive bridge children"
+                    )));
+                }
+            }
+        }
         let mut parent: Option<std::os::fd::OwnedFd> = None;
         let components = relative.split('/').collect::<Vec<_>>();
         for (index, component) in components.iter().enumerate() {
@@ -650,11 +663,9 @@ fn validate_output_path(value: &str) -> Result<()> {
         || value == ".harness"
         || value.starts_with(".git/")
         || value == ".git"
-        || !value.to_ascii_lowercase().ends_with(".json")
     {
         return Err(BridgeError::Usage(
-            "bridge output must be a repository-relative JSON export outside custody or .git"
-                .into(),
+            "bridge output must be a repository-relative export outside custody or .git".into(),
         ));
     }
     Ok(())
