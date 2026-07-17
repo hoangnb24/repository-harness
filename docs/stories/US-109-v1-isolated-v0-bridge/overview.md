@@ -105,4 +105,3 @@ post-images whose digests still match; a human edit causes
   into the V1 manifest.
 - No target tool execution, automatic V1-to-V0 downgrade, archive cleanup, PR,
   publish, deployment, production key, or Phase 7 platform promotion.
-

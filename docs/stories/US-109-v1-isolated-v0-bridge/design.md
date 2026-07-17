@@ -155,4 +155,3 @@ the operation and compare them after every failure, resume, and rollback.
    write-once and retained indefinitely.
 5. Best-effort rollback over target edits. Rejected because it would destroy
    human post-conversion work.
-

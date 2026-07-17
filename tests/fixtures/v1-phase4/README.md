@@ -11,4 +11,3 @@ copied main database. `harness.db-shm` is retained for forensic proof only.
 The schema-13 fixture also includes a valid frozen-grammar changeset, recognized
 provenance, and unknown `.harness/foreign-tool.bin` bytes. The bridge must
 capture the recognized inputs and preserve, but not claim, the foreign bytes.
-

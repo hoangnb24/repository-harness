@@ -116,4 +116,3 @@ Pause for human confirmation if:
 Ordinary implementation defects, missing tests, or unavailable Phase 7
 platform runners are not policy decisions. They are fixed locally or reported
 as exact deferred boundaries.
-
