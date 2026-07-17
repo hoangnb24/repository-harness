@@ -454,6 +454,7 @@ impl OsMutationPort {
                 journal.state,
                 JournalState::Prepared | JournalState::Applying
             ) {
+                self.verify_probe_owned_evidence(&journal)?;
                 probes.push(RecoveryProbe {
                     command: journal.command,
                     scope: journal.scope,
@@ -921,28 +922,38 @@ impl OsMutationPort {
     }
 
     #[cfg(unix)]
-    fn verify_owned_evidence(&self, step: &JournalStep) -> Result<(), MutationFailure> {
-        let staged = self
-            .read_required(&step.staged_path)
-            .map_err(MutationFailure::after_journal)?;
+    fn verify_probe_owned_evidence(&self, journal: &RecoveryJournal) -> Result<(), PortError> {
+        for step in &journal.steps {
+            self.verify_owned_evidence_read_only(step)?;
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn verify_owned_evidence_read_only(&self, step: &JournalStep) -> Result<(), PortError> {
+        let staged = self.read_required(&step.staged_path)?;
         if hex_sha256(&staged) != step.after_sha256 {
-            return Err(MutationFailure::after_journal(invalid(format!(
+            return Err(invalid(format!(
                 "staged post-image digest mismatch for {}",
                 step.step_id
-            ))));
+            )));
         }
         if let (Some(before), Some(backup_path)) = (&step.before_sha256, &step.backup_path) {
-            let backup = self
-                .read_required(backup_path)
-                .map_err(MutationFailure::after_journal)?;
+            let backup = self.read_required(backup_path)?;
             if hex_sha256(&backup) != *before {
-                return Err(MutationFailure::after_journal(invalid(format!(
+                return Err(invalid(format!(
                     "backup digest mismatch for {}",
                     step.step_id
-                ))));
+                )));
             }
         }
         Ok(())
+    }
+
+    #[cfg(unix)]
+    fn verify_owned_evidence(&self, step: &JournalStep) -> Result<(), MutationFailure> {
+        self.verify_owned_evidence_read_only(step)
+            .map_err(MutationFailure::after_journal)
     }
 
     #[cfg(unix)]

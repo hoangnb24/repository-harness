@@ -141,11 +141,14 @@ bookkeeping.
 
 The journal also binds command scope. Install/update are limited to authenticated
 release destinations. Scaffold binds one authenticated template and exact
-destination; status emits that complete parser-valid recovery command. Recovery
-validates the candidate transition against the backed-up authoritative
-pre-operation manifest, so target-owned and `never-auto-patch` roles cannot be
-reclassified by a recomputed journal. A `before_sha256=None` step is promoted to
-`applied` only when the live target and retained hard link still name the same
+destination; status emits that complete parser-valid recovery command only for
+`prepared` and `applying` journals whose owned staged and backup evidence still
+matches the journal digests. `rolling-back` remains explicit-only and is not a
+status probe state. Recovery validates the candidate transition against the
+backed-up authoritative pre-operation manifest, so target-owned and
+`never-auto-patch` roles cannot be reclassified by a recomputed journal. A
+`before_sha256=None` step is promoted to `applied` only when the live target and
+retained hard link still name the same
 inode and that pinned inode still hashes to the authenticated post-image.
 
 Recovery also compares full-file creates with authenticated asset digests and

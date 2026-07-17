@@ -71,14 +71,14 @@ git status --short -- .harness repomix-output.xml crates/harness-cli \
 
 ## Acceptance Evidence
 
-The candidate contains 42 focused Phase 3 Rust test functions: eighteen
-recovery unit adversaries and twenty-four signed-release integration tests. The
+The candidate contains 43 focused Phase 3 Rust test functions: eighteen
+recovery unit adversaries and twenty-five signed-release integration tests. The
 integration kill matrices interrupt all 18 install, 15 update, and 13
 committed-update rollback checkpoints and prove deterministic pre-journal
 rerun, journal-owned resume, reverse-order crash-resumable rollback, and
-repeated recovery. `harness-core` has 88 passing tests total (41 library unit,
-one binary unit, 22 Phase 2 integration, twenty-four Phase 3 integration); the
-workspace has 180 passing Rust tests. The Phase 3 mechanical verifier passes
+repeated recovery. `harness-core` has 89 passing tests total (41 library unit,
+one binary unit, 22 Phase 2 integration, twenty-five Phase 3 integration); the
+workspace has 181 passing Rust tests. The Phase 3 mechanical verifier passes
 11/11 proof groups.
 
 The focused evidence explicitly includes:
@@ -99,6 +99,9 @@ The focused evidence explicitly includes:
 - copied interrupted and committed replacement journals from another repository
   root rejected before status can emit an actionable recovery ID or recovery
   can mutate any byte in the receiving tree;
+- corrupted staged evidence or a missing required backup in an `applying`
+  update journal rejected read-only by probe, so status and ordinary mutators
+  return invalid/non-actionable envelopes with no recovery-required action;
 - fabricated applied-state resumes and scaffold/fresh-manifest rollbacks
   refused without the retained hard-link witness that pins the create inode;
 - fabricated recovery downgrade rejected before any target or manifest mutation;

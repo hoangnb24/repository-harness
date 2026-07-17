@@ -210,6 +210,15 @@ fn notice<'a>(notices: &'a [Notice], code: &str) -> &'a Notice {
         .unwrap_or_else(|| panic!("missing notice {code}: {notices:?}"))
 }
 
+fn has_actionable_recovery_notice(envelope: &Envelope) -> bool {
+    envelope.notices.iter().any(|notice| {
+        matches!(
+            notice.code.as_str(),
+            "recovery-required" | "exact-rerun-recovery-required"
+        )
+    })
+}
+
 fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -807,6 +816,78 @@ fn status_and_exact_rerun_report_recovery_without_replay_and_audit_is_read_only(
         .iter()
         .any(|notice| notice.code == "exact-rerun-recovery-required"));
     assert_eq!(tree_snapshot(temporary.path()), before);
+}
+
+#[test]
+fn damaged_applying_update_evidence_is_non_actionable_and_preserves_the_tree() {
+    for (label, damage_backup) in [
+        ("corrupted-staged-target", false),
+        ("missing-required-backup", true),
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let (_, _, _, digest, operation) = prepare_two_managed_file_update(temporary.path());
+        let interrupted = execute(temporary.path(), Command::Update(confirm(digest)), Some(8));
+        assert_eq!(interrupted.exit_code, 4, "{label}: {interrupted:?}");
+        assert_eq!(interrupted.mutation, Mutation::RecoveryRequired, "{label}");
+
+        let journal_path = temporary
+            .path()
+            .join(format!(".harness/recovery/{operation}/journal.json"));
+        let journal: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&journal_path).unwrap()).unwrap();
+        assert_eq!(journal["state"], "applying", "{label}");
+        let decision_step = journal["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|step| step["path"] == "docs/templates/decision.md")
+            .unwrap();
+        if damage_backup {
+            let backup_path = decision_step["backup_path"].as_str().unwrap();
+            std::fs::remove_file(temporary.path().join(backup_path)).unwrap();
+        } else {
+            let staged_path = decision_step["staged_path"].as_str().unwrap();
+            std::fs::write(
+                temporary.path().join(staged_path),
+                b"corrupted staged evidence\n",
+            )
+            .unwrap();
+        }
+        let before = tree_snapshot(temporary.path());
+
+        let status = execute(temporary.path(), Command::Status { json: true }, None);
+        assert_eq!(status.exit_code, 3, "{label}: {status:?}");
+        assert_eq!(status.mutation, Mutation::None, "{label}");
+        assert!(
+            !has_actionable_recovery_notice(&status),
+            "{label}: {status:?}"
+        );
+        assert_eq!(tree_snapshot(temporary.path()), before, "{label}");
+
+        let ordinary = execute(
+            temporary.path(),
+            Command::Update(MutatorOptions::default()),
+            None,
+        );
+        assert_eq!(ordinary.exit_code, 3, "{label}: {ordinary:?}");
+        assert_eq!(ordinary.mutation, Mutation::None, "{label}");
+        assert!(
+            !has_actionable_recovery_notice(&ordinary),
+            "{label}: {ordinary:?}"
+        );
+        assert_eq!(tree_snapshot(temporary.path()), before, "{label}");
+
+        let explicit = execute(
+            temporary.path(),
+            Command::Update(MutatorOptions {
+                resume: Some(operation.clone()),
+                ..MutatorOptions::default()
+            }),
+            None,
+        );
+        assert_eq!(explicit.exit_code, 4, "{label}: {explicit:?}");
+        assert_eq!(tree_snapshot(temporary.path()), before, "{label}");
+    }
 }
 
 #[test]

@@ -433,13 +433,17 @@ public-operation digest that callers can recompute from emitted
 reapplies the normal monotonic payload rules before commit: release sequence
 cannot regress, equal sequence cannot change digest, and the authenticated
 release version must remain inside the authoritative compatibility range.
-Forty-two focused Phase 3 tests cover all 18 install, 15 update, and 13
+Probe now read-only validates required staged post-images and backups before it
+advertises `prepared` or `applying` recovery actions; `rolling-back` remains an
+explicit-only state and is intentionally excluded from status probes.
+Forty-three focused Phase 3 tests cover all 18 install, 15 update, and 13
 committed-update rollback checkpoints, including the gap immediately after
 new-manifest removal, plus ownership/race/tamper, hard-link-witness, copied
 cross-root replacement journals, fresh manifest/scaffold delete, preview-digest
-recomputation from emitted operations, and commit/resume payload-identity and
-downgrade attacks. `harness-core` passes 88 tests, the workspace passes 180
-tests, and the Phase 3 mechanical verifier passes 11/11 groups. Rollback
+recomputation from emitted operations, damaged staged/backup probe evidence,
+and commit/resume payload-identity and downgrade attacks. `harness-core`
+passes 89 tests, the workspace passes 181 tests, and the Phase 3 mechanical
+verifier passes 11/11 groups. Rollback
 remains deliberately dependent on matching live authenticated release authority
 so forged local evidence cannot broaden ownership. Arbitrary same-UID malicious
 processes remain out of scope because they can already delete or overwrite the

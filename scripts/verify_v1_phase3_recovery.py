@@ -69,6 +69,8 @@ def proof_authenticated_recovery_binding() -> None:
         "asset.sha256",
         "asset.bytes",
         "verify_authenticated_post_images",
+        "verify_probe_owned_evidence",
+        "verify_owned_evidence_read_only",
         "validate_candidate_transition",
         "validate_payload_transition",
         "RootIdentity",
@@ -146,10 +148,15 @@ def proof_status_probe_and_exact_rerun() -> None:
     status = next(command for command in grammar["core"]["commands"] if command["name"] == "status")
     check(status["exits"] == [0, 3, 64, 70, 74], "frozen status exits changed")
     check("fn probe_recovery(&self)" in recovery, "read-only mutation-boundary probe missing")
+    check(
+        "JournalState::Prepared | JournalState::Applying" in recovery,
+        "probe broadened beyond actionable nonterminal states",
+    )
     check("if status { 3 } else { 4 }" in application, "status/mutator recovery exits are conflated")
     for test in [
         "status_and_exact_rerun_report_recovery_without_replay_and_audit_is_read_only",
         "recovery_status_preserves_authoritative_manifest_mode_and_declared_readiness",
+        "damaged_applying_update_evidence_is_non_actionable_and_preserves_the_tree",
     ]:
         check(test in integration, f"read-only recovery oracle missing: {test}")
 
