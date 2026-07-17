@@ -1,0 +1,4 @@
+{"base_schema_version":13,"op":"changeset.header","run_id":"harness_v1_phase2_authorization","version":1}
+{"id":"US-107","op":"story.add","payload":{"contract_doc":"docs/stories/US-107-v1-pure-core/overview.md","notes":"Phase 2 child of US-105: implement only V1 install/update/audit/scaffold/status/version over filesystem, release, and manifest ports; no operational database, no migrate grammar, no target-tool execution.","risk_lane":"high_risk","title":"Pure V1 core","verify_command":"scripts/verify-v1-phase2-core.sh"},"version":1}
+{"id":"US-105","op":"story.hierarchy.add","payload":{"child":"US-107"},"version":1}
+{"id":"US-107","op":"story.update","payload":{"contract_doc":null,"e2e_proof":null,"evidence":null,"integration_proof":null,"platform_proof":null,"status":"in_progress","unit_proof":null,"verify_command":null},"version":1}
