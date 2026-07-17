@@ -1,0 +1,20 @@
+{
+  "schema": "repository-harness-v0-schema-inventory/v1",
+  "supported_minimum": 1,
+  "supported_maximum": 13,
+  "migrations": [
+    {"version": 1, "name": "001-init.sql", "sha256": "c7d3f13ae6849aacdcee7538b5f6a159f237ff5676d0df261855a874dabb96b3"},
+    {"version": 2, "name": "002-story-verify.sql", "sha256": "6e788f0a712e1280b196843b7e4e49a71f649e0c989913dc1b9d28e098df54de"},
+    {"version": 3, "name": "003-tool-registry.sql", "sha256": "acf9fa39f056e9f41a9499e84139b4d44dbb921ea228c08a2eeaff66267e4caa"},
+    {"version": 4, "name": "004-intervention.sql", "sha256": "e5b8c6879976c87e4663eb4b5849d29b5c4caa8a1fe54b1f122b11e429090197"},
+    {"version": 5, "name": "005-tool-extensions.sql", "sha256": "43394d8a3669a818b0fbbacc71650b4f37f4c2992ed8de0f9fb9b87e06d7982c"},
+    {"version": 6, "name": "006-changeset-applied.sql", "sha256": "848e75302f44ad432b16a67587200f1a63e96781f4536d0c27ec3942a871f0f2"},
+    {"version": 7, "name": "007-story-dependencies.sql", "sha256": "50f5c4b5d37086a2c0438586b5676ae6009a9b281f9d36ceca48caa56a3313f9"},
+    {"version": 8, "name": "008-story-hierarchy.sql", "sha256": "e0fdc87ab02f96e1eacb8da1f701d126afc30fcc7fa9c3ff043fed6e818d55cc"},
+    {"version": 9, "name": "009-improvement-identity.sql", "sha256": "436e049e36e62dc5daadaca2c6d994834a230ed441c21d7da432dc117e55504d"},
+    {"version": 10, "name": "010-story-backlog-links.sql", "sha256": "d24e192f9999e30952cc7a7db02ffcb541fd349e7eb4585be306290753f0d2f7"},
+    {"version": 11, "name": "011-legacy-evidence-snapshots.sql", "sha256": "02b5df902f709f7ab1c645055d1faad997177b5cafc34c84f0c2aa315bb8007c"},
+    {"version": 12, "name": "012-review-finding-closure.sql", "sha256": "73a0506837553cecb4c6931b6d0fde39e4dadd29c47da506f432821b1907d6ea"},
+    {"version": 13, "name": "013-changeset-content-sha.sql", "sha256": "11be4d35ba079c8199d067246423b8fddd7bea6573688179618da483239d09d1"}
+  ]
+}

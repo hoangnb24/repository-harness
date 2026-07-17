@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/manifest-v1.schema.json",
+  "title": "Repository Harness V1 manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "repository_mode", "compatibility", "payload", "roles"],
+  "properties": {
+    "schema": {"const": "repository-harness-manifest/v1"},
+    "repository_mode": {"enum": ["fresh-v1", "brownfield-v1", "converted-v1-with-archive"]},
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cli_min", "cli_max", "template_release_min", "template_release_max"],
+      "properties": {
+        "cli_min": {"type": "string"},
+        "cli_max": {"type": "string"},
+        "template_release_min": {"type": "string"},
+        "template_release_max": {"type": "string"}
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trust_domain", "role", "sequence", "index_sha256"],
+      "properties": {
+        "trust_domain": {"const": "repository-harness-core"},
+        "role": {"const": "core-release"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "index_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "asset", "activation", "ownership", "origin", "required", "path", "update_policy", "current_sha256", "unresolved_markers"],
+        "properties": {
+          "role": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "asset": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "activation": {"enum": ["active", "unresolved", "disabled"]},
+          "ownership": {"enum": ["managed-file", "managed-block", "target-owned"]},
+          "origin": {"enum": ["created", "v0-adopted", "brownfield-mapped"]},
+          "required": {"type": "boolean"},
+          "path": {"type": "string"},
+          "template": {"type": "string"},
+          "template_release": {"type": "string"},
+          "base_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "current_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "marker": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "update_policy": {"enum": ["replace-if-base", "three-way-review", "never-auto-patch"]},
+          "unresolved_markers": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "conversion_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "conversion_id", "bridge_release", "archive_path", "export_sha256", "standalone_backup_sha256", "archive_sha256", "confidentiality_mode", "recipient_fingerprints"],
+      "properties": {
+        "schema": {"const": "repository-harness-conversion-receipt/v1"},
+        "conversion_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "bridge_release": {"type": "string"},
+        "archive_path": {"type": "string"},
+        "export_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "standalone_backup_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "archive_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "confidentiality_mode": {"enum": ["encrypted-age-x25519", "plaintext-explicit-override"]},
+        "recipient_fingerprints": {"type": "array", "items": {"type": "string"}},
+        "plaintext_risk_acknowledged": {"type": "boolean"}
+      }
+    }
+  }
+}

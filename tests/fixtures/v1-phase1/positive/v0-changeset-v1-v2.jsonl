@@ -1,0 +1,3 @@
+{"op":"changeset.header","version":1,"run_id":"phase1-valid-fixture","base_schema_version":13}
+{"op":"story.add","version":1,"id":"US-FIXTURE","payload":{"title":"Fixture","risk_lane":"normal"}}
+{"op":"story.update","version":2,"id":"US-FIXTURE","payload":{"status":"in_progress"}}

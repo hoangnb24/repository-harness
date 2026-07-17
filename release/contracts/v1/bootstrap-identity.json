@@ -1,0 +1,79 @@
+{
+  "schema": "repository-harness-bootstrap-identity/v1",
+  "repository": "hoangnb24/repository-harness",
+  "production_v1_pipe_to_shell": "prohibited",
+  "verification_order": [
+    "download-immutable-bootstrap",
+    "verify-pinned-github-artifact-attestation",
+    "verify-exact-repository-workflow-artifact-and-digest",
+    "execute-verified-file",
+    "verify-ed25519-threshold-payload-index"
+  ],
+  "core": {
+    "tag_namespace": "harness-v1-core-v*",
+    "protected_workflow": ".github/workflows/harness-v1-release.yml@refs/heads/main",
+    "workflow_lifecycle": {
+      "phase1_state": "reserved-absent",
+      "reserved_for_phase": 2,
+      "production_bootstrap_acceptance": "blocked-until-promotion-gate",
+      "promotion_gate": {
+        "mode": "all-required",
+        "requirements": [
+          "reserved-workflow-file-present",
+          "repository-protection-evidence-binds-protected-workflow",
+          "pinned-github-artifact-attestation-binds-exact-repository-workflow-artifact-and-digest",
+          "phase-live-workflow-identity-validation-passes"
+        ]
+      }
+    },
+    "roles": {
+      "root": "core-root",
+      "root_rotation": "core-root-rotation",
+      "release": "core-release"
+    },
+    "sequence_namespaces": {
+      "root": "core-root",
+      "release": "core-release"
+    },
+    "signature_domains": {
+      "trust_bundle": "repository-harness-core-trust-bundle-v1",
+      "payload_index": "repository-harness-payload-index-v1",
+      "rollback_authorization": "repository-harness-core-rollback-authorization-v1"
+    }
+  },
+  "bridge": {
+    "tag_namespace": "harness-v0-bridge-v*",
+    "protected_workflow": ".github/workflows/harness-v0-bridge-release.yml@refs/heads/main",
+    "workflow_lifecycle": {
+      "phase1_state": "reserved-absent",
+      "reserved_for_phase": 4,
+      "production_bootstrap_acceptance": "blocked-until-promotion-gate",
+      "promotion_gate": {
+        "mode": "all-required",
+        "requirements": [
+          "reserved-workflow-file-present",
+          "repository-protection-evidence-binds-protected-workflow",
+          "pinned-github-artifact-attestation-binds-exact-repository-workflow-artifact-and-digest",
+          "phase-live-workflow-identity-validation-passes"
+        ]
+      }
+    },
+    "roles": {
+      "root": "bridge-root",
+      "root_rotation": "bridge-root-rotation",
+      "release": "bridge-release"
+    },
+    "sequence_namespaces": {
+      "root": "bridge-root",
+      "release": "bridge-release"
+    },
+    "signature_domains": {
+      "trust_bundle": "repository-harness-bridge-trust-bundle-v1",
+      "payload_index": "repository-harness-bridge-payload-index-v1",
+      "rollback_authorization": "repository-harness-bridge-rollback-authorization-v1",
+      "availability_receipt": "repository-harness-bridge-availability-receipt-v1"
+    }
+  },
+  "github_sigstore_role": "bootstrap-and-supplemental-not-payload-trust-root",
+  "adjacent_downloaded_key_is_trust_anchor": false
+}

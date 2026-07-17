@@ -1,0 +1,59 @@
+{
+  "previous_bundle_sha256": "b1889382a9cf435c011254c7922b25318298ce22e7c659f458773a31da16d6d9",
+  "revoked_key_ids": [
+    "ed25519-sha256:feecf73dfe80f7c662b79bbfa20b22c27933682fa20ce8e3e5fd71575b472da3"
+  ],
+  "roles": [
+    {
+      "keys": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "ed25519-sha256:feecf73dfe80f7c662b79bbfa20b22c27933682fa20ce8e3e5fd71575b472da3",
+          "public_key_base64": "XwzfwZZ75tZY2Y4CSFEnvN29MYldxzE5jTrXHM2eDPk=",
+          "test_fixture": true
+        },
+        {
+          "algorithm": "ed25519",
+          "key_id": "ed25519-sha256:b6783de9e9b0066da06619f47027c984b1ac710963c719cc5ec518edefe09ea9",
+          "public_key_base64": "JjnB8gXyB08tpeaBvgjak/K/5CxBFr7Qw4vWXpJ7oy8=",
+          "test_fixture": true
+        },
+        {
+          "algorithm": "ed25519",
+          "key_id": "ed25519-sha256:a82211116fe8a94f72d2e81aefdbe636c99529b466ec0b4ea55c915d682a9990",
+          "public_key_base64": "zgjK+L7vDp4Qtcsz52FMg3qp2wpIwT1XbeGowNzq5R4=",
+          "test_fixture": true
+        }
+      ],
+      "name": "core-release",
+      "threshold": 2
+    }
+  ],
+  "roots": {
+    "keys": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:3f65151be3f0ac5685f3ddde86e2409579c93446ce4b4621b0922cb9ce84769f",
+        "public_key_base64": "8mtVfUIgpAnW0hkiV7cWoeQzO3BoVVl0zrNupMIX020=",
+        "test_fixture": true
+      },
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:597d7916a5b7ad469cd3688f5501a5d4414b82297fb13661e3d4ceaa86046440",
+        "public_key_base64": "7VdXcrtb0YHgnWl+X+fEyVP8WAvjDTks0v/6wlKV/qQ=",
+        "test_fixture": true
+      },
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:3795898e2b27ee7e55dc371ddd8c418c33d584890b1f87e12958b88f04ca1277",
+        "public_key_base64": "tIJe7RNAnSmjpMbME7g+cK4ELa7QqH+rp4Ryj4TlQxg=",
+        "test_fixture": true
+      }
+    ],
+    "threshold": 2
+  },
+  "schema": "repository-harness-trust-bundle/v1",
+  "sequence": 2,
+  "test_fixture_notice": "UNSAFE-TEST-ONLY-NOT-FOR-RELEASE",
+  "trust_domain": "repository-harness-core"
+}

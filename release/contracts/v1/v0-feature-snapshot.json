@@ -1,0 +1,14 @@
+{
+  "schema": "repository-harness-v0-feature-snapshot/v1",
+  "binary": "harness-cli",
+  "crate_version": "0.1.17",
+  "protocol_version": 1,
+  "schema_minimum": 1,
+  "schema_maximum": 13,
+  "required_environment_variables": ["HARNESS_DB_PATH"],
+  "public_command_path_count": 50,
+  "capabilities": ["changesets.apply.v1", "changesets.status-sha.v1", "isolated-db-snapshot.v1", "isolated-db.v1", "semantic-operation-log.v1", "stories.read.v1", "stories.write.v1", "story-dependencies.read-write.v1", "story-hierarchy.read-write.v1", "work-graph.read.v1"],
+  "changeset_header_versions": [1],
+  "changeset_operation_versions": [1, 2],
+  "feature_development": "frozen-no-expansion"
+}

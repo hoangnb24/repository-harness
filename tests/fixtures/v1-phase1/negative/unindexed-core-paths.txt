@@ -1,0 +1,3 @@
+docs/templates/decision.md
+docs/templates/story.md
+docs/templates/rogue-unindexed.md

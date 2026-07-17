@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-v0-archive-manifest/v1",
+  "conversion_id": "fixture-unsafe-plaintext",
+  "source_schema": 13,
+  "confidentiality_mode": "plaintext-explicit-override",
+  "recipient_fingerprints": [],
+  "members": [{"path": "raw/harness.db", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bytes": 8192, "capture": "pre-copy-post-equal"}],
+  "standalone_backup_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "archive_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "custody": "repository-owner-indefinite-write-once"
+}

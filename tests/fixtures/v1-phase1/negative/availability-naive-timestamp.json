@@ -1,0 +1,109 @@
+{
+  "assets": [
+    {
+      "category": "binary-per-supported-platform",
+      "path": "artifacts/harness-v0-migrate-macos-arm64",
+      "platform": "macos-arm64",
+      "sha256": "f1818ca7332eb382532ce89349f0564e938a7c63bb7eb28be02cb138e17d6b02"
+    },
+    {
+      "category": "binary-per-supported-platform",
+      "path": "artifacts/harness-v0-migrate-macos-x64",
+      "platform": "macos-x64",
+      "sha256": "7add7b82c383830c639c7b3a7b79b28979a7149f2e56bfbc1cf45fffe1f6739a"
+    },
+    {
+      "category": "binary-per-supported-platform",
+      "path": "artifacts/harness-v0-migrate-linux-x64",
+      "platform": "linux-x64",
+      "sha256": "478f3957262d8467013d96e7eefd1eaf83309257f97f866d397166c34c0c733d"
+    },
+    {
+      "category": "binary-per-supported-platform",
+      "path": "artifacts/harness-v0-migrate-linux-arm64",
+      "platform": "linux-arm64",
+      "sha256": "e8ca6de4df7342c0a12b813fcb055c65985f5b26ef35aaff6a88142eae1f86e0"
+    },
+    {
+      "category": "binary-per-supported-platform",
+      "path": "artifacts/harness-v0-migrate-windows-x64.exe",
+      "platform": "windows-x64",
+      "sha256": "fcc9cafdb405d2e4bc7fad02fa90a26d97494575c595ed1deb5883dc06a846de"
+    },
+    {
+      "category": "checksum-per-binary",
+      "path": "artifacts/harness-v0-migrate-macos-arm64.sha256",
+      "platform": "macos-arm64",
+      "sha256": "e34b9ce6dbe12bba883f5350b9df9bdf210fe002ef876ff51a51eb90141e305e"
+    },
+    {
+      "category": "checksum-per-binary",
+      "path": "artifacts/harness-v0-migrate-macos-x64.sha256",
+      "platform": "macos-x64",
+      "sha256": "9baef168355d7ddbc404b694c523870fa963bc92374f373962728880279341f3"
+    },
+    {
+      "category": "checksum-per-binary",
+      "path": "artifacts/harness-v0-migrate-linux-x64.sha256",
+      "platform": "linux-x64",
+      "sha256": "9929a066788e3b363ac04e921aadb646fd785a5286582ee6f72aeb93ae5650c9"
+    },
+    {
+      "category": "checksum-per-binary",
+      "path": "artifacts/harness-v0-migrate-linux-arm64.sha256",
+      "platform": "linux-arm64",
+      "sha256": "deaf3c63db52a3a4dd37168006c1146d187d26888829396b1af3f6217269c82f"
+    },
+    {
+      "category": "checksum-per-binary",
+      "path": "artifacts/harness-v0-migrate-windows-x64.exe.sha256",
+      "platform": "windows-x64",
+      "sha256": "09fa88413f64991d1ba8ba797456d2b1ee7c91af6fc0888bcad9cb2a2a0db8cf"
+    },
+    {
+      "category": "authenticated-index-or-attestation",
+      "path": "metadata/payload-index.json",
+      "platform": "all",
+      "sha256": "b1db282e75d065e2f9c16f66c74ca518a89184425ab6b91d73ac36c8762c0b8c"
+    },
+    {
+      "category": "supported-input-matrix",
+      "path": "metadata/supported-input-matrix.json",
+      "platform": "all",
+      "sha256": "a97d6a7e81eda062d7f659bf3733a15d650f7399402549cb1411a4c68e34faa9"
+    },
+    {
+      "category": "release-notes",
+      "path": "metadata/release-notes.md",
+      "platform": "all",
+      "sha256": "375fd19acf3aed800c9bf9dc3c0aca5201a125908e906f48c7618861198d7c0e"
+    },
+    {
+      "category": "source-tag",
+      "path": "metadata/source-tag.txt",
+      "platform": "all",
+      "sha256": "780adc8fc7e6cb5577909edb7f2ae06216bd13a3ee5b1036d476f358b5d49b2d"
+    },
+    {
+      "category": "reproducible-build-instructions",
+      "path": "metadata/reproducible-build.md",
+      "platform": "all",
+      "sha256": "aa32477852a79c50c7011bdcca2596fff1ed30729b1cf345a0d3a2a8f52b1b92"
+    }
+  ],
+  "month": "2027-03",
+  "owner": "release-maintainers",
+  "result": "available-and-integrity-verified",
+  "retention_through": "2028-06-30T23:59:59Z",
+  "role": "bridge-release",
+  "schema": "repository-harness-bridge-availability-receipt/v1",
+  "sequence": 8,
+  "trust_domain": "repository-harness-bridge",
+  "weekly_checks": [
+    "2027-03-01T00:00:00",
+    "2027-03-08T00:00:00Z",
+    "2027-03-15T00:00:00Z",
+    "2027-03-22T00:00:00Z",
+    "2027-03-29T00:00:00Z"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "first_install": {
+    "bridge_minimum_sequence": 7,
+    "core_exact_digest": "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7"
+  },
+  "marks": [
+    {
+      "digest": "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7",
+      "role": "core-release",
+      "sequence": 42,
+      "trust_domain": "repository-harness-core"
+    },
+    {
+      "digest": "e9d9a603a14add5f2adedb6ec86f33f96a8b18182df5077e05b292cf2cb4f98c",
+      "role": "bridge-release",
+      "sequence": 7,
+      "trust_domain": "repository-harness-bridge"
+    }
+  ],
+  "schema": "repository-harness-high-water-marks/v1"
+}

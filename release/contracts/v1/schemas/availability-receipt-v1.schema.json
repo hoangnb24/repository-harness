@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/availability-receipt-v1.schema.json",
+  "title": "Repository Harness bridge asset availability receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "trust_domain", "role", "sequence", "owner", "month", "retention_through", "weekly_checks", "assets", "result"],
+  "properties": {
+    "schema": {"const": "repository-harness-bridge-availability-receipt/v1"},
+    "trust_domain": {"const": "repository-harness-bridge"},
+    "role": {"const": "bridge-release"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "owner": {"const": "release-maintainers"},
+    "month": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$"},
+    "retention_through": {"const": "2028-06-30T23:59:59Z"},
+    "weekly_checks": {"type": "array", "minItems": 4, "maxItems": 6, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}},
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "platform", "path", "sha256"],
+        "properties": {
+          "category": {"enum": ["binary-per-supported-platform", "checksum-per-binary", "authenticated-index-or-attestation", "supported-input-matrix", "release-notes", "source-tag", "reproducible-build-instructions"]},
+          "platform": {"enum": ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64", "all"]},
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "result": {"const": "available-and-integrity-verified"}
+  }
+}

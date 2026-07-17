@@ -1,0 +1,27 @@
+{
+  "assets": [
+    {
+      "bytes": 331,
+      "destination": "docs/témplates/decision.md",
+      "disposition": "managed-v1",
+      "id": "decision-template",
+      "sha256": "e92ba7a5b7bc10ce6c213af75a191619fc305c3945cdd55d4dc6bac72dcd42c1",
+      "source": "docs/templates/decision.md"
+    },
+    {
+      "bytes": 807,
+      "destination": "docs/templates/story.md",
+      "disposition": "optional-v1",
+      "id": "story-template",
+      "sha256": "8a5a7796582d251375a027e019c02e6eb2855b9f19769309374111a525e10b30",
+      "source": "docs/templates/story.md"
+    }
+  ],
+  "release": "1.0.0-test.1",
+  "role": "core-release",
+  "schema": "repository-harness-payload-index/v1",
+  "sequence": 42,
+  "source_commit": "1111111111111111111111111111111111111111",
+  "tag": "harness-v1-core-v1.0.0-test.1",
+  "trust_domain": "repository-harness-core"
+}

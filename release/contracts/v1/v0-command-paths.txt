@@ -1,0 +1,51 @@
+# Frozen public Harness V0 command paths. Do not expand in Phase 1.
+init
+migrate
+import brownfield
+intake
+story add
+story update
+story dependency add
+story dependency remove
+story hierarchy add
+story hierarchy remove
+story backlog link
+story backlog unlink
+story verify
+story complete
+story verify-all
+decision add
+decision verify
+backlog add
+backlog close
+backlog outcome record
+backlog reconcile
+tool register
+tool check
+tool remove
+intervention add
+trace
+score-trace
+score-context
+audit
+propose
+query contract
+query stories
+query work-graph
+query matrix
+query dependencies
+query hierarchy
+query backlog
+query decisions
+query intakes
+query traces
+query friction
+query tools
+query interventions
+query stats
+query improvement-health
+query sql
+db snapshot
+db changeset apply
+db changeset status
+db rebuild

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/trust-bundle-v1.schema.json",
+  "title": "Repository Harness threshold trust bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "trust_domain", "sequence", "roots", "roles", "revoked_key_ids"],
+  "properties": {
+    "schema": {"const": "repository-harness-trust-bundle/v1"},
+    "trust_domain": {"enum": ["repository-harness-core", "repository-harness-bridge"]},
+    "sequence": {"type": "integer", "minimum": 1},
+    "previous_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "test_fixture_notice": {"const": "UNSAFE-TEST-ONLY-NOT-FOR-RELEASE"},
+    "roots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["threshold", "keys"],
+      "properties": {
+        "threshold": {"const": 2},
+        "keys": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key_id", "algorithm", "public_key_base64"],
+            "properties": {
+              "key_id": {"type": "string", "pattern": "^ed25519-sha256:[0-9a-f]{64}$"},
+              "algorithm": {"const": "ed25519"},
+              "public_key_base64": {"type": "string"},
+              "test_fixture": {"const": true}
+            }
+          }
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "threshold", "keys"],
+        "properties": {
+          "name": {"enum": ["core-release", "bridge-release"]},
+          "threshold": {"const": 2},
+          "keys": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["key_id", "algorithm", "public_key_base64"],
+              "properties": {
+                "key_id": {"type": "string", "pattern": "^ed25519-sha256:[0-9a-f]{64}$"},
+                "algorithm": {"const": "ed25519"},
+                "public_key_base64": {"type": "string"},
+                "test_fixture": {"const": true}
+              }
+            }
+          }
+        }
+      }
+    },
+    "revoked_key_ids": {"type": "array", "items": {"type": "string", "pattern": "^ed25519-sha256:[0-9a-f]{64}$"}}
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema": "repository-harness-scaffold-audit/v1",
+  "safe_path_rules": ["repository-relative", "utf8", "unicode-nfc", "slash-separated", "no-empty-dot-dotdot-components", "no-absolute-unc-or-drive-prefix", "no-backslash-colon-nul-control-or-trailing-dot-space", "no-windows-device-component", "no-git-internal", "declared-harness-paths-only", "pinned-root-fd-component-relative-no-follow", "pre-copy-post-identity-size-hash-equal", "identity-stable-preview-to-commit", "casefold-collision-free", "unicode-normalization-collision-free"],
+  "managed_marker_rules": ["one-matching-open-close-pair", "ordered", "not-nested", "ascii-lower-kebab-id", "unique-id", "manifest-path-match", "mutate-interior-only"],
+  "link_rules": ["managed-surfaces-only", "percent-decode-once", "relative-resolution-stays-in-repository", "no-follow-resolution", "required-target-exists", "nfc-github-style-anchor", "deterministic-duplicate-anchor-suffix", "external-url-not-fetched"],
+  "digest": "sha256-exact-bytes-no-reencoding-or-line-ending-normalization",
+  "report_order": ["normalized-collision-key", "exact-utf8-path-bytes", "rule-id", "asset-id"],
+  "process_execution_count": 0,
+  "forbidden_process_classes": ["shell", "git", "compiler", "test", "linter", "ci-client", "link-checker", "deployment", "package-manager", "hook", "daemon", "target-executable"]
+}

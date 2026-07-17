@@ -1,11 +1,13 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation authorized / Phase 1 ready**
+Status: **Implementation in progress / Phase 1 accepted / Phase 2 ready**
 
 This is the durable implementation initiative packet for the eight phases in
-`docs/REFACTOR_PLAN.md`. It records intended work and required proof. It does
-not claim that V1 code, tests, releases, pilots, or phase acceptance exists.
-Decision 0012 supplies authorization policy, not implementation evidence.
+`docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement
+proof is implemented and accepted by US-106. No V1 runtime binary, installer
+mutation, bridge conversion write, production release, pilot, or Phase 2-8
+acceptance exists. Decision 0012 supplies authorization policy; Decisions 0013
+and US-106 supply the accepted Phase 1 implementation boundary.
 
 ## Current Behavior
 
@@ -20,12 +22,18 @@ The repository currently implements Harness V0:
 - V0 ordinary work uses a local SQLite database and may emit semantic
   changesets.
 
-The accepted V1 direction exists only in planning artifacts:
+The accepted V1 direction now has a Phase 1 contract layer but no runtime:
 
 - `docs/REFACTOR_PLAN.md` defines the eight implementation phases.
 - Decision 0011 accepts a separate, time-bounded `harness-v0-migrate` bridge.
 - Decision 0012 accepts the exact compatibility, retention, support, and
   retirement policy and opens Gate G0.
+- Decision 0013 accepts the threshold trust, bootstrap, archive
+  confidentiality, exact V0 capture, and availability contract.
+- `docs/contracts/v1/`, `release/contracts/v1/`, and deterministic fixtures
+  freeze the schemas, grammars, ledgers, V0 inputs, and negative boundaries.
+- `scripts/verify-v1-phase1-contracts.sh` mechanically enforces Phase 1 and is
+  part of premerge.
 - US-104 reconciles the execution contracts but explicitly implements no V1
   product behavior.
 
@@ -34,9 +42,9 @@ The approved compatibility window is `2027-01-01T00:00:00Z` through
 indefinitely, bridge release assets are retained through
 `2028-06-30T23:59:59Z`, inclusive, and Phase 8 is eligible no earlier than
 `2028-01-01T00:00:00Z` after every closure condition passes. Cause and effect:
-those values resolve Gate G0, so Phase 1 is ready to begin; no implementation
-has begun, and Phases 2-8 remain unstarted and dependent on preceding phase
-acceptance.
+those values resolve Gate G0. Phase 1 then froze and proved the contract
+boundary, so Phase 2 is ready. Phases 2-8 remain unimplemented and dependent on
+preceding phase acceptance.
 
 For example, the presence of `.harness/` cannot currently authorize a V1
 conversion. It may contain V0 changesets, another tool's metadata, or unrelated
@@ -105,20 +113,24 @@ The accepted behavior is defined by:
 - `docs/REFACTOR_PLAN.md`
 - `docs/decisions/0011-time-bounded-v0-conversion.md`
 - `docs/decisions/0012-v0-compatibility-window-and-retention.md`
+- `docs/decisions/0013-v1-security-and-v0-capture-contract.md`
+- `docs/contracts/v1/**`
+- `release/contracts/v1/**`
 - `docs/stories/US-104-refactor-plan-execution-contracts/**`
 - `docs/stories/US-105-harness-v1-implementation/**`
+- `docs/stories/US-106-v1-phase1-contracts-and-release-inventory/**`
 
 This packet maps those contracts into implementation and proof. Decision 0012
-and the synchronized refactor plan authorize only the Phase 1 starting state;
-they do not supply product or phase-acceptance evidence.
+authorizes the schedule/retention boundary; Decision 0013 plus US-106 provide
+Phase 1 acceptance. They do not provide Phase 2 runtime or later phase proof.
 
 ## Non-Goals
 
 - Changing Decision 0012's dates, retention, support, or retirement policy
   without a new explicit human decision.
-- Claiming Phase 1 has begun or passed merely because Gate G0 is approved.
-- Implementing or changing source, tests, installers, scripts, workflows,
-  Cargo metadata, lockfiles, schemas, manifests, payloads, or release assets.
+- Claiming a later phase has begun or passed from Phase 1 contract proof.
+- Implementing V1 runtime/installer behavior, bridge conversion writes,
+  production signing/publishing, pilots, or Phase 2-8 behavior in Phase 1.
 - Running Harness bootstrap, CLI, database, migration, or changeset commands in
   this worktree.
 - Modifying `.harness`, unrelated stories or decisions, or

@@ -1,0 +1,8 @@
+{
+  "authorized_digest": "c3927844cc84adad4a0fae9ea268562e1c6c71179c7817271a3a21f8f7939b91",
+  "authorized_sequence": 41,
+  "role": "core-release",
+  "root_bundle_sequence": 1,
+  "schema": "repository-harness-rollback-authorization/v1",
+  "trust_domain": "repository-harness-core"
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/command-implementation-binding-v1.schema.json",
+  "title": "Repository Harness command implementation binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "phase1_binding_state", "grammar_contract", "grammar_contract_sha256", "grammar_schema", "grammar_schema_sha256", "phase1_guard", "surfaces"],
+  "properties": {
+    "schema": {"const": "repository-harness-command-implementation-binding/v1"},
+    "phase1_binding_state": {"const": "contract-only-entrypoints-absent"},
+    "grammar_contract": {"const": "release/contracts/v1/command-grammars.json"},
+    "grammar_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "grammar_schema": {"const": "release/contracts/v1/schemas/command-grammar-v1.schema.json"},
+    "grammar_schema_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "phase1_guard": {"const": "fail-if-any-future-entrypoint-exists-before-live-binding-gate"},
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["core", "bridge"],
+      "properties": {
+        "core": {"$ref": "#/$defs/surface"},
+        "bridge": {"$ref": "#/$defs/surface"}
+      }
+    }
+  },
+  "$defs": {
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["future_phase", "future_entrypoints", "phase1_entrypoint_state", "live_binding_gate"],
+      "properties": {
+        "future_phase": {"enum": [2, 4]},
+        "future_entrypoints": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"type": "string"}},
+        "phase1_entrypoint_state": {"const": "absent"},
+        "live_binding_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["phase_acceptance", "replacement_state", "requirements"],
+          "properties": {
+            "phase_acceptance": {"enum": ["required-before-phase-2-acceptance", "required-before-phase-4-acceptance"]},
+            "replacement_state": {"const": "live-cli-and-source-extraction-parity"},
+            "requirements": {
+              "const": ["future-entrypoint-files-present", "live-cli-help-extraction-equals-command-grammars", "live-source-command-extraction-equals-command-grammars", "options-exits-and-mutation-boundaries-equal-command-grammars"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

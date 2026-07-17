@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/harness-cli"]
+members = ["crates/harness-cli", "crates/v1-contract-crypto"]
 
 [workspace.package]
 edition = "2021"

@@ -1,0 +1,5 @@
+docs/templates/decision.md
+scripts/schema/013-changeset-content-sha.sql
+harness.db
+.harness/changesets/rogue.jsonl
+scripts/bin/harness-cli

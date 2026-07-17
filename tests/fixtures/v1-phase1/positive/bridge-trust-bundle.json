@@ -1,0 +1,56 @@
+{
+  "revoked_key_ids": [],
+  "roles": [
+    {
+      "keys": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "ed25519-sha256:682158d37d985dc3abb2f3964b988ca827bcca69a7d3a812b1821fe6309b95b9",
+          "public_key_base64": "lyV5MIr8eAs9DOcKmGjlWzSDYrvhSvIt53vlnU2krqk=",
+          "test_fixture": true
+        },
+        {
+          "algorithm": "ed25519",
+          "key_id": "ed25519-sha256:d5c34b3aab6d1c09dd926597bb928a1509ef47eae22d8fe22d058720cf3dd4de",
+          "public_key_base64": "LT7XobYkj2LYdot/qsE8FCumzVTWVpO+tgXQIOx/0VY=",
+          "test_fixture": true
+        },
+        {
+          "algorithm": "ed25519",
+          "key_id": "ed25519-sha256:09d56f9602bdcbd78f452bcd5321b3671c6122d8d933cc4aa5901764af6b673b",
+          "public_key_base64": "EcmKitZqak1Kl3xCc60DuKKNgsQxSjJmaDqh3OAQdHM=",
+          "test_fixture": true
+        }
+      ],
+      "name": "bridge-release",
+      "threshold": 2
+    }
+  ],
+  "roots": {
+    "keys": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:2989b6c60c55faae775bfe8b2c961a341f59a5d651e5cd3a697cd0c4ca07b04a",
+        "public_key_base64": "mR490F/p4lhx+q2pdv2GwmfyimerxOdhyfb6Ge/C5xg=",
+        "test_fixture": true
+      },
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:722e94d784c5c3277f2fa46c11f58f9a5f9309f6911600cd5292d2ab5fc8f94b",
+        "public_key_base64": "VNeGB6/4s70ezTr4sODYnGg0Wv25jFOOylQrnZDgrfg=",
+        "test_fixture": true
+      },
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:4e59af0935c02cdc9e12b87d7e442a38dbc6840fb825505f5f00e9b41e70bf74",
+        "public_key_base64": "vtTkKd6BgCiy9vBvLej72qMSQjqACR0mQzVTXRWEQNQ=",
+        "test_fixture": true
+      }
+    ],
+    "threshold": 2
+  },
+  "schema": "repository-harness-trust-bundle/v1",
+  "sequence": 1,
+  "test_fixture_notice": "UNSAFE-TEST-ONLY-NOT-FOR-RELEASE",
+  "trust_domain": "repository-harness-bridge"
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/command-grammar-v1.schema.json",
+  "title": "Repository Harness V1 and bridge command grammars",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "core", "bridge", "deterministic_non_interactive"],
+  "properties": {
+    "schema": {"const": "repository-harness-command-grammar/v1"},
+    "core": {"$ref": "#/$defs/surface"},
+    "bridge": {"$ref": "#/$defs/surface"},
+    "deterministic_non_interactive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confirmation_requires", "preview_digest_algorithm", "input_drift_exit"],
+      "properties": {
+        "confirmation_requires": {"const": ["--non-interactive", "--accept-preview-sha256"]},
+        "preview_digest_algorithm": {"const": "sha256-rfc8785"},
+        "input_drift_exit": {"const": 4}
+      }
+    }
+  },
+  "$defs": {
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binary", "top_level", "commands", "forbidden_top_level"],
+      "properties": {
+        "binary": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string"}, "uniqueItems": true},
+        "top_level": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "version_alias": {"const": "--version"},
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "mutation", "options", "exits"],
+            "properties": {
+              "name": {"type": "string"},
+              "mutation": {"type": "string"},
+              "options": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+              "exits": {"type": "array", "items": {"type": "integer"}, "uniqueItems": true}
+            }
+          }
+        },
+        "forbidden_top_level": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  }
+}

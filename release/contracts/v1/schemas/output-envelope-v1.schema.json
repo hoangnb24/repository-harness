@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/output-envelope-v1.schema.json",
+  "title": "Repository Harness deterministic output envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "command", "outcome", "exit_code", "mutation", "repository_mode", "release", "notices", "details"],
+  "properties": {
+    "schema": {"const": "repository-harness-output/v1"},
+    "command": {"type": "string"},
+    "outcome": {"enum": ["ready", "unresolved", "invalid", "conflict", "unsupported", "success"]},
+    "exit_code": {"enum": [0, 2, 3, 4, 5, 64, 70, 74]},
+    "mutation": {"enum": ["none", "preview", "committed", "recovery-required", "rolled-back"]},
+    "repository_mode": {"enum": ["absent", "fresh-v1", "brownfield-v1", "v0-legacy", "conversion-in-progress", "converted-v1-with-archive", "mixed-invalid"]},
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "sequence", "index_sha256"],
+      "properties": {
+        "role": {"type": "string"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "index_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "notices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "path": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      }
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readiness", "violations"],
+      "properties": {
+        "readiness": {"enum": ["ready", "unresolved", "invalid", "not-applicable"]},
+        "violations": {"type": "array", "items": {"type": "string"}},
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operation_id", "kind", "path", "disposition", "before_sha256", "after_sha256"],
+            "properties": {
+              "operation_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+              "kind": {"enum": ["create", "replace-managed-block", "remove-managed-file", "write-manifest", "write-recovery-journal", "restore-journal-post-image"]},
+              "path": {"type": "string"},
+              "disposition": {"enum": ["managed-v1", "optional-v1", "target-owned-destination"]},
+              "before_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+              "after_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

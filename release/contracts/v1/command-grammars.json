@@ -1,0 +1,36 @@
+{
+  "schema": "repository-harness-command-grammar/v1",
+  "core": {
+    "binary": ["scripts/bin/harness", "scripts/bin/harness.exe"],
+    "top_level": ["install", "update", "audit", "scaffold", "status", "version"],
+    "version_alias": "--version",
+    "commands": [
+      {"name": "install", "mutation": "managed-files-and-manifest", "options": ["--preview", "--non-interactive", "--accept-preview-sha256", "--resume", "--rollback"], "exits": [0, 2, 3, 4, 64, 70, 74]},
+      {"name": "update", "mutation": "managed-files-and-manifest", "options": ["--preview", "--non-interactive", "--accept-preview-sha256", "--resume", "--rollback"], "exits": [0, 2, 3, 4, 64, 70, 74]},
+      {"name": "audit", "mutation": "none", "options": ["--json"], "exits": [0, 2, 3, 64, 70, 74]},
+      {"name": "scaffold", "mutation": "one-explicit-neutral-artifact", "options": ["--template", "--destination", "--preview", "--non-interactive", "--accept-preview-sha256", "--resume", "--rollback"], "exits": [0, 3, 4, 64, 70, 74]},
+      {"name": "status", "mutation": "none", "options": ["--json"], "exits": [0, 3, 64, 70, 74]},
+      {"name": "version", "mutation": "none", "options": ["--json"], "exits": [0, 64, 70]}
+    ],
+    "forbidden_top_level": ["migrate", "inspect", "export", "preview", "apply", "resume", "rollback", "init", "intake", "story", "query", "db"]
+  },
+  "bridge": {
+    "binary": ["scripts/bin/harness-v0-migrate", "scripts/bin/harness-v0-migrate.exe"],
+    "top_level": ["inspect", "export", "preview", "apply", "resume", "rollback", "version"],
+    "commands": [
+      {"name": "inspect", "mutation": "none", "options": ["--json"], "exits": [0, 3, 5, 64, 70, 74]},
+      {"name": "export", "mutation": "new-export-and-archive-only", "options": ["--output", "--age-recipient", "--archive-plaintext", "--acknowledge-plaintext-recovery-risk"], "exits": [0, 3, 5, 64, 70, 74]},
+      {"name": "preview", "mutation": "none", "options": ["--json"], "exits": [0, 2, 3, 4, 5, 64, 70, 74]},
+      {"name": "apply", "mutation": "journal-owned-conversion", "options": ["--non-interactive", "--accept-preview-sha256", "--age-recipient", "--archive-plaintext", "--acknowledge-plaintext-recovery-risk"], "exits": [0, 2, 3, 4, 5, 64, 70, 74]},
+      {"name": "resume", "mutation": "remaining-journal-operations", "options": ["--conversion-id"], "exits": [0, 2, 3, 4, 5, 64, 70, 74]},
+      {"name": "rollback", "mutation": "matching-journal-owned-post-images", "options": ["--conversion-id"], "exits": [0, 3, 4, 5, 64, 70, 74]},
+      {"name": "version", "mutation": "none", "options": ["--json"], "exits": [0, 64, 70]}
+    ],
+    "forbidden_top_level": ["install", "update", "audit", "scaffold", "status", "migrate", "init", "query"]
+  },
+  "deterministic_non_interactive": {
+    "confirmation_requires": ["--non-interactive", "--accept-preview-sha256"],
+    "preview_digest_algorithm": "sha256-rfc8785",
+    "input_drift_exit": 4
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "schema": "repository-harness-grammar-cases/v1",
+  "core_valid": ["install", "update", "audit", "scaffold", "status", "version", "--version"],
+  "core_invalid": ["migrate", "resume", "rollback", "inspect", "query", "db"],
+  "bridge_valid": ["inspect", "export", "preview", "apply", "resume", "rollback", "version"],
+  "bridge_invalid": ["install", "update", "audit", "scaffold", "status", "migrate"],
+  "non_interactive_invalid": ["install --non-interactive", "update --accept-preview-sha256 aaaa", "apply --non-interactive"],
+  "recovery_is_not_new_core_top_level": ["install --resume op-fixture", "update --rollback op-fixture", "scaffold --resume op-fixture"]
+}

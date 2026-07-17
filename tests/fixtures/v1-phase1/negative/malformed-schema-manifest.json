@@ -1,0 +1,33 @@
+{
+  "compatibility": {
+    "cli_max": "1.0.0",
+    "cli_min": "1.0.0",
+    "template_release_max": "1.0.0",
+    "template_release_min": "1.0.0"
+  },
+  "payload": {
+    "index_sha256": "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7",
+    "role": "core-release",
+    "sequence": 42,
+    "trust_domain": "repository-harness-core"
+  },
+  "repository_mode": "fresh-v1",
+  "roles": [
+    {
+      "activation": "active",
+      "asset": "decision-template",
+      "base_sha256": "e92ba7a5b7bc10ce6c213af75a191619fc305c3945cdd55d4dc6bac72dcd42c1",
+      "current_sha256": "e92ba7a5b7bc10ce6c213af75a191619fc305c3945cdd55d4dc6bac72dcd42c1",
+      "origin": "created",
+      "ownership": "managed-file",
+      "path": "docs/templates/decision.md",
+      "required": true,
+      "role": "decisions",
+      "template": "decision-template",
+      "template_release": "1.0.0",
+      "unresolved_markers": [],
+      "update_policy": "replace-if-base"
+    }
+  ],
+  "schema": "repository-harness-manifest/v2"
+}

@@ -1,14 +1,15 @@
 # US-105 Repository Harness V1 Implementation Design
 
-Status: **Implementation authorized / Phase 1 ready**
+Status: **Implementation in progress / Phase 1 accepted / Phase 2 ready**
 
 ## Domain Model
 
 ### Compatibility authorization
 
 Decision 0012 supplies the compatibility values that were a predecessor to
-product implementation. Gate G0 is approved/open, Phase 1 is ready but not
-started, and Phases 2-8 remain unstarted dependencies.
+product implementation. Gate G0 is approved/open. Decision 0013 and US-106
+freeze and prove Phase 1, so Phase 2 is ready. Phases 2-8 remain unimplemented
+dependencies.
 
 | Approved value | Current policy | Cause and effect |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Implementation authorized / Phase 1 ready**
+Status: **Implementation in progress / Phase 1 accepted / Phase 2 ready**
 
 ## Proof Strategy
 
@@ -29,14 +29,16 @@ atomic commit, conversion safety has failed. A later successful `resume`, pilot
 run, or Windows artifact cannot repair that proof; Phase 4 returns to work and
 all dependent evidence is rerun for the corrected candidate.
 
-All product proof in this document is prospective. No V1 implementation, test,
-release, platform artifact, pilot result, or phase acceptance exists. Decision
-0012 is current authorization evidence: Gate G0 is approved/open, the window is
+All Phase 2-8 product proof in this document is prospective. Phase 1 contract,
+inventory, fixture, and enforcement proof is accepted; no V1 runtime, release,
+platform artifact, pilot result, or later phase acceptance exists. Decision
+0012 is authorization evidence: Gate G0 is approved/open, the window is
 `2027-01-01T00:00:00Z` through `2027-12-31T23:59:59Z`, inclusive, local
 archives are retained indefinitely, bridge release assets are retained through
 `2028-06-30T23:59:59Z`, inclusive, and Phase 8 is eligible no earlier than
-`2028-01-01T00:00:00Z` after all closure conditions pass. Phase 1 is ready but
-not started; Phases 2-8 are unstarted dependencies. No matrix row is passed.
+`2028-01-01T00:00:00Z` after all closure conditions pass. Decision 0013 and
+US-106 implement and prove Phase 1. Phase 2 is ready; Phases 2-8 remain
+unimplemented dependencies. Only the Phase 1 matrix row is passed.
 
 ## Test Plan
 
@@ -203,7 +205,7 @@ story=docs/stories/US-105-harness-v1-implementation
 for file in overview.md design.md execplan.md validation.md
 do
   test -s "$story/$file"
-  rg -q '^Status: \*\*Implementation authorized / Phase 1 ready\*\*$' "$story/$file"
+  rg -q '^Status: \*\*Implementation in progress / Phase 1 accepted / Phase 2 ready\*\*$' "$story/$file"
 done
 
 for heading in \
@@ -245,22 +247,30 @@ done
 
 rg -q 'Gate G0 is approved/open' "$story/design.md"
 rg -q 'Current state: approved/open by Decision 0012' "$story/execplan.md"
-rg -q 'Phase 1 is ready but' "$story/validation.md"
-rg -q 'Phases 2-8 are unstarted dependencies' "$story/validation.md"
+rg -q 'Phase 1 contract' "$story/validation.md"
+rg -q 'Phases 2-8 remain' "$story/validation.md"
 
+scripts/verify-v1-phase1-contracts.sh
 git diff --check
 git status --short
 ```
 
 ## Acceptance Evidence
 
-Current product acceptance evidence: **none**. Decision 0012 is the current
-authorization evidence: G0 is approved/open and Phase 1 is ready but not
-started. It is not V1 product or phase-acceptance evidence.
+Current product acceptance evidence: **Phase 1 accepted**. Decision 0012 is G0
+authorization evidence; Decision 0013 is the accepted security/data-integrity
+decision; US-106 supplies versioned contracts, frozen V0 inputs, complete
+dispositions, deterministic fixtures, and mechanical enforcement. This is not
+Phase 2 runtime or later phase evidence.
+
+The accepted Phase 1 evidence specifically rejects small-order/zero-scalar
+Ed25519 forgeries, Windows ADS paths, ancestor/final capture swaps, DB/WAL
+mutation or replacement, bootstrap/command/release drift, incomplete monthly
+asset sets, and non-reproducible generated fixtures.
 
 | Phase | Required evidence location/record | Current result |
 | --- | --- | --- |
-| 1 | Contracts, schemas, disposition ledger, fixtures, G0 reference, CI negatives. | Ready; not started. G0 evidence: Decision 0012. |
+| 1 | Contracts, schemas, disposition ledger, fixtures, G0 reference, CI negatives. | **Passed.** Nine focused proof groups and full premerge passed; Decision 0013 and US-106 are durable evidence. |
 | 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | Not started; depends on Phase 1 acceptance. |
 | 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | Not started; depends on Phase 2 acceptance. |
 | 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | Not started; depends on Phase 3 acceptance. |

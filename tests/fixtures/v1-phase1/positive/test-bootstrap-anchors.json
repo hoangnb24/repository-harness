@@ -1,0 +1,54 @@
+{
+  "bridge": {
+    "exact_bundle_digest": "e07d5777f0f3403fdfc5688588df0a6af37e14aeb66217e15ea2f639a83fac0f",
+    "root_keys": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:2989b6c60c55faae775bfe8b2c961a341f59a5d651e5cd3a697cd0c4ca07b04a",
+        "public_key_base64": "mR490F/p4lhx+q2pdv2GwmfyimerxOdhyfb6Ge/C5xg=",
+        "test_fixture": true
+      },
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:722e94d784c5c3277f2fa46c11f58f9a5f9309f6911600cd5292d2ab5fc8f94b",
+        "public_key_base64": "VNeGB6/4s70ezTr4sODYnGg0Wv25jFOOylQrnZDgrfg=",
+        "test_fixture": true
+      },
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:4e59af0935c02cdc9e12b87d7e442a38dbc6840fb825505f5f00e9b41e70bf74",
+        "public_key_base64": "vtTkKd6BgCiy9vBvLej72qMSQjqACR0mQzVTXRWEQNQ=",
+        "test_fixture": true
+      }
+    ],
+    "root_threshold": 2,
+    "trust_domain": "repository-harness-bridge"
+  },
+  "core": {
+    "exact_bundle_digest": "b1889382a9cf435c011254c7922b25318298ce22e7c659f458773a31da16d6d9",
+    "root_keys": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:3f65151be3f0ac5685f3ddde86e2409579c93446ce4b4621b0922cb9ce84769f",
+        "public_key_base64": "8mtVfUIgpAnW0hkiV7cWoeQzO3BoVVl0zrNupMIX020=",
+        "test_fixture": true
+      },
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:597d7916a5b7ad469cd3688f5501a5d4414b82297fb13661e3d4ceaa86046440",
+        "public_key_base64": "7VdXcrtb0YHgnWl+X+fEyVP8WAvjDTks0v/6wlKV/qQ=",
+        "test_fixture": true
+      },
+      {
+        "algorithm": "ed25519",
+        "key_id": "ed25519-sha256:3795898e2b27ee7e55dc371ddd8c418c33d584890b1f87e12958b88f04ca1277",
+        "public_key_base64": "tIJe7RNAnSmjpMbME7g+cK4ELa7QqH+rp4Ryj4TlQxg=",
+        "test_fixture": true
+      }
+    ],
+    "root_threshold": 2,
+    "trust_domain": "repository-harness-core"
+  },
+  "schema": "repository-harness-test-bootstrap-anchors/v1",
+  "test_fixture_notice": "UNSAFE-TEST-ONLY-NOT-A-RELEASE-TRUST-BUNDLE"
+}

@@ -15,6 +15,8 @@ while IFS= read -r script; do
   bash -n "$script"
 done < <(find scripts tests -type f -name '*.sh' -print | LC_ALL=C sort)
 
+scripts/verify-v1-phase1-contracts.sh
+
 cargo fmt --all -- --check
 cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings

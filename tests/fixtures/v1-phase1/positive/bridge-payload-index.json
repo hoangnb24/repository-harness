@@ -1,0 +1,19 @@
+{
+  "assets": [
+    {
+      "bytes": 5651,
+      "destination": "share/repository-harness-v0/schemas/001-init.sql",
+      "disposition": "bridge-only-legacy",
+      "id": "v0-schema-001",
+      "sha256": "c7d3f13ae6849aacdcee7538b5f6a159f237ff5676d0df261855a874dabb96b3",
+      "source": "release/contracts/v1/v0/schemas/001-init.sql"
+    }
+  ],
+  "release": "1.0.0-test.1",
+  "role": "bridge-release",
+  "schema": "repository-harness-bridge-payload-index/v1",
+  "sequence": 7,
+  "source_commit": "2222222222222222222222222222222222222222",
+  "tag": "harness-v0-bridge-v1.0.0-test.1",
+  "trust_domain": "repository-harness-bridge"
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "repository-harness-path-cases/v1",
+  "positive": ["AGENTS.md", "docs/README.md", "docs/space name.md", "docs/café.md", ".harness/manifest.json"],
+  "negative": [
+    {"path": "/etc/passwd", "rule": "absolute"},
+    {"path": "../outside", "rule": "parent"},
+    {"path": "docs/./README.md", "rule": "dot-component"},
+    {"path": "docs\\README.md", "rule": "backslash"},
+    {"path": "C:/repo/file", "rule": "drive-prefix"},
+    {"path": "docs/README.md:evil", "rule": "windows-ads-final-component"},
+    {"path": "docs:evil/README.md", "rule": "windows-ads-ancestor-component"},
+    {"path": "//server/share/file", "rule": "unc"},
+    {"path": "docs/CON", "rule": "windows-device"},
+    {"path": "docs/trailing. ", "rule": "trailing-dot-space"},
+    {"path": ".git/config", "rule": "git-internal"},
+    {"path": ".harness/changesets/rogue.jsonl", "rule": "undeclared-harness"},
+    {"path": "docs/café.md", "rule": "not-nfc"}
+  ],
+  "collision_sets": [
+    {"paths": ["docs/README.md", "docs/readme.md"], "rule": "case-collision"},
+    {"paths": ["docs/café.md", "docs/café.md"], "rule": "unicode-normalization-collision"}
+  ],
+  "materialized": ["symlink-final-component", "symlink-ancestor", "ancestor-component-swap", "final-component-swap", "source-content-mutation", "database-content-mutation", "wal-content-mutation", "wal-identity-replacement"]
+}

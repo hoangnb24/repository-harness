@@ -1,0 +1,24 @@
+{
+  "keys": [
+    {
+      "algorithm": "ed25519",
+      "key_id": "ed25519-sha256:01d0fabd251fcbbe2b93b4b927b26ad2a1a99077152e45ded1e678afa45dbec5",
+      "public_key_base64": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "test_fixture": true
+    },
+    {
+      "algorithm": "ed25519",
+      "key_id": "ed25519-sha256:ffe1ea08f3af443b5a2d6497c9b7c5a74a25a2b60ac58b44a22b7b1dd2218bfc",
+      "public_key_base64": "7P///////////////////////////////////////38=",
+      "test_fixture": true
+    },
+    {
+      "algorithm": "ed25519",
+      "key_id": "ed25519-sha256:a82211116fe8a94f72d2e81aefdbe636c99529b466ec0b4ea55c915d682a9990",
+      "public_key_base64": "zgjK+L7vDp4Qtcsz52FMg3qp2wpIwT1XbeGowNzq5R4=",
+      "test_fixture": true
+    }
+  ],
+  "schema": "repository-harness-forged-test-keys/v1",
+  "test_fixture_notice": "UNSAFE-TEST-ONLY-SMALL-ORDER-KEYS"
+}

@@ -1,0 +1,47 @@
+{
+  "grammar_contract": "release/contracts/v1/command-grammars.json",
+  "grammar_contract_sha256": "1afaf1eec75d10e7d474d5817144e1f3dc8add8b3ee9cdbb3f7610708cac6ef9",
+  "grammar_schema": "release/contracts/v1/schemas/command-grammar-v1.schema.json",
+  "grammar_schema_sha256": "99ef2353ec1dfd884f2583be91175a35577109808af804d47350e159198c42ee",
+  "phase1_binding_state": "contract-only-entrypoints-absent",
+  "phase1_guard": "fail-if-any-future-entrypoint-exists-before-live-binding-gate",
+  "schema": "repository-harness-command-implementation-binding/v1",
+  "surfaces": {
+    "bridge": {
+      "future_entrypoints": [
+        "scripts/bin/harness-v0-convert",
+        "scripts/bin/harness-v0-migrate.exe"
+      ],
+      "future_phase": 4,
+      "live_binding_gate": {
+        "phase_acceptance": "required-before-phase-4-acceptance",
+        "replacement_state": "live-cli-and-source-extraction-parity",
+        "requirements": [
+          "future-entrypoint-files-present",
+          "live-cli-help-extraction-equals-command-grammars",
+          "live-source-command-extraction-equals-command-grammars",
+          "options-exits-and-mutation-boundaries-equal-command-grammars"
+        ]
+      },
+      "phase1_entrypoint_state": "absent"
+    },
+    "core": {
+      "future_entrypoints": [
+        "scripts/bin/harness",
+        "scripts/bin/harness.exe"
+      ],
+      "future_phase": 2,
+      "live_binding_gate": {
+        "phase_acceptance": "required-before-phase-2-acceptance",
+        "replacement_state": "live-cli-and-source-extraction-parity",
+        "requirements": [
+          "future-entrypoint-files-present",
+          "live-cli-help-extraction-equals-command-grammars",
+          "live-source-command-extraction-equals-command-grammars",
+          "options-exits-and-mutation-boundaries-equal-command-grammars"
+        ]
+      },
+      "phase1_entrypoint_state": "absent"
+    }
+  }
+}

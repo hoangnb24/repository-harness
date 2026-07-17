@@ -1,0 +1,7 @@
+{
+  "schema": "repository-harness-manifest/v1",
+  "repository_mode": "fresh-v1",
+  "compatibility": {"cli_min": "1.0.0", "cli_max": "1.0.0", "template_release_min": "1.0.0", "template_release_max": "1.0.0"},
+  "payload": {"trust_domain": "repository-harness-core", "role": "core-release", "sequence": 42, "index_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "roles": [{"role": "decisions", "asset": "decision-template", "activation": "disabled", "ownership": "managed-file", "origin": "created", "required": true, "path": "docs/templates/decision.md", "current_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "update_policy": "replace-if-base", "unresolved_markers": []}]
+}

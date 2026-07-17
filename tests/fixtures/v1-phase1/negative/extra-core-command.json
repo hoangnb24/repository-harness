@@ -1,0 +1,296 @@
+{
+  "bridge": {
+    "binary": [
+      "scripts/bin/harness-v0-migrate",
+      "scripts/bin/harness-v0-migrate.exe"
+    ],
+    "commands": [
+      {
+        "exits": [
+          0,
+          3,
+          5,
+          64,
+          70,
+          74
+        ],
+        "mutation": "none",
+        "name": "inspect",
+        "options": [
+          "--json"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          3,
+          5,
+          64,
+          70,
+          74
+        ],
+        "mutation": "new-export-and-archive-only",
+        "name": "export",
+        "options": [
+          "--output",
+          "--age-recipient",
+          "--archive-plaintext",
+          "--acknowledge-plaintext-recovery-risk"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          2,
+          3,
+          4,
+          5,
+          64,
+          70,
+          74
+        ],
+        "mutation": "none",
+        "name": "preview",
+        "options": [
+          "--json"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          2,
+          3,
+          4,
+          5,
+          64,
+          70,
+          74
+        ],
+        "mutation": "journal-owned-conversion",
+        "name": "apply",
+        "options": [
+          "--non-interactive",
+          "--accept-preview-sha256",
+          "--age-recipient",
+          "--archive-plaintext",
+          "--acknowledge-plaintext-recovery-risk"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          2,
+          3,
+          4,
+          5,
+          64,
+          70,
+          74
+        ],
+        "mutation": "remaining-journal-operations",
+        "name": "resume",
+        "options": [
+          "--conversion-id"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          3,
+          4,
+          5,
+          64,
+          70,
+          74
+        ],
+        "mutation": "matching-journal-owned-post-images",
+        "name": "rollback",
+        "options": [
+          "--conversion-id"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          64,
+          70
+        ],
+        "mutation": "none",
+        "name": "version",
+        "options": [
+          "--json"
+        ]
+      }
+    ],
+    "forbidden_top_level": [
+      "install",
+      "update",
+      "audit",
+      "scaffold",
+      "status",
+      "migrate",
+      "init",
+      "query"
+    ],
+    "top_level": [
+      "inspect",
+      "export",
+      "preview",
+      "apply",
+      "resume",
+      "rollback",
+      "version"
+    ]
+  },
+  "core": {
+    "binary": [
+      "scripts/bin/harness",
+      "scripts/bin/harness.exe"
+    ],
+    "commands": [
+      {
+        "exits": [
+          0,
+          2,
+          3,
+          4,
+          64,
+          70,
+          74
+        ],
+        "mutation": "managed-files-and-manifest",
+        "name": "install",
+        "options": [
+          "--preview",
+          "--non-interactive",
+          "--accept-preview-sha256",
+          "--resume",
+          "--rollback"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          2,
+          3,
+          4,
+          64,
+          70,
+          74
+        ],
+        "mutation": "managed-files-and-manifest",
+        "name": "update",
+        "options": [
+          "--preview",
+          "--non-interactive",
+          "--accept-preview-sha256",
+          "--resume",
+          "--rollback"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          2,
+          3,
+          64,
+          70,
+          74
+        ],
+        "mutation": "none",
+        "name": "audit",
+        "options": [
+          "--json"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          3,
+          4,
+          64,
+          70,
+          74
+        ],
+        "mutation": "one-explicit-neutral-artifact",
+        "name": "scaffold",
+        "options": [
+          "--template",
+          "--destination",
+          "--preview",
+          "--non-interactive",
+          "--accept-preview-sha256",
+          "--resume",
+          "--rollback"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          3,
+          64,
+          70,
+          74
+        ],
+        "mutation": "none",
+        "name": "status",
+        "options": [
+          "--json"
+        ]
+      },
+      {
+        "exits": [
+          0,
+          64,
+          70
+        ],
+        "mutation": "none",
+        "name": "version",
+        "options": [
+          "--json"
+        ]
+      },
+      {
+        "exits": [
+          0
+        ],
+        "mutation": "legacy",
+        "name": "migrate",
+        "options": []
+      }
+    ],
+    "forbidden_top_level": [
+      "migrate",
+      "inspect",
+      "export",
+      "preview",
+      "apply",
+      "resume",
+      "rollback",
+      "init",
+      "intake",
+      "story",
+      "query",
+      "db"
+    ],
+    "top_level": [
+      "install",
+      "update",
+      "audit",
+      "scaffold",
+      "status",
+      "version",
+      "migrate"
+    ],
+    "version_alias": "--version"
+  },
+  "deterministic_non_interactive": {
+    "confirmation_requires": [
+      "--non-interactive",
+      "--accept-preview-sha256"
+    ],
+    "input_drift_exit": 4,
+    "preview_digest_algorithm": "sha256-rfc8785"
+  },
+  "schema": "repository-harness-command-grammar/v1"
+}

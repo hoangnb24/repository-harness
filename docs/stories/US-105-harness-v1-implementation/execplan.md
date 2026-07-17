@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation authorized / Phase 1 ready**
+Status: **Implementation in progress / Phase 1 accepted / Phase 2 ready**
 
 ## Goal
 
@@ -10,9 +10,9 @@ behavior, losing target/V0 state, weakening release proof, or removing V0
 before its approved obligations end.
 
 Decision 0012 supplies the exact compatibility-window, retention, support, and
-retirement policy. Gate G0 is approved/open, so Phase 1 is ready to begin in a
-separate implementation change. No phase has started or passed: Phases 2-8
-remain unstarted and depend on accepted evidence from their predecessors.
+retirement policy. Gate G0 is approved/open. Decision 0013 and US-106 implement
+and prove Phase 1, so Phase 2 is ready. Phases 2-8 remain unimplemented and
+depend on accepted evidence from their predecessors.
 
 ## Scope
 
@@ -68,8 +68,8 @@ Risk flags:
 - **Cross-platform:** Bash, PowerShell, five binary labels, line endings,
   Unicode/spaces, and atomic filesystem behavior.
 - **Existing behavior:** V0 is implemented and distributed today.
-- **Weak proof:** V1 code, fixtures, releases, pilots, and acceptance evidence do
-  not yet exist.
+- **Weak proof:** Phase 1 contract fixtures and acceptance evidence now exist;
+  V1 runtime, release artifacts, pilots, and Phase 2-8 evidence do not.
 - **Multi-domain:** CLI, filesystem, installers, release integrity, migration,
   recovery, docs/templates, evaluation, and retirement.
 
@@ -97,8 +97,8 @@ The dependency chain is intentionally linear:
 
 ```text
 G0 approved/open by Decision 0012
-  -> Phase 1 ready, not started
-  -> Phase 2
+  -> Phase 1 accepted by Decision 0013 and US-106
+  -> Phase 2 ready, not started
   -> Phase 3
   -> Phase 4
   -> Phase 5
@@ -112,9 +112,9 @@ No phase may borrow acceptance from a later phase. For example, a successful
 pilot cannot excuse an unauthenticated payload, and a passing platform build
 cannot excuse a bridge rollback that overwrites a target edit.
 
-Current phase state: Phase 1 is ready and not started. Phases 2-8 are not
-started and remain dependent on the preceding phase's accepted evidence plus
-their own gates.
+Current phase state: Phase 1 is implemented and accepted. Phase 2 is ready but
+not started. Phases 2-8 remain unimplemented and dependent on the preceding
+phase's accepted evidence plus their own gates.
 
 Anticipated paths below identify review surfaces, not permission to modify
 them in this planning change. New filenames remain subject to the Phase 1
@@ -122,9 +122,9 @@ contract inventory, but binary identities and boundaries are already locked.
 
 ### Phase 1: Contracts And Release Inventory
 
-**Dependency:** Satisfied by accepted Decision 0012. This phase is ready but
-not started and consumes the approved dates and retention policy; it does not
-choose defaults for them.
+**Dependency:** Satisfied by accepted Decision 0012. **Status: implemented and
+accepted by Decision 0013 and US-106.** The phase consumes the approved dates
+and retention policy; it does not choose defaults for them.
 
 **Implementation:**
 
@@ -149,7 +149,11 @@ decision documents remain history rather than being rewritten.
 one-to-one path disposition report; V0 category/range inventory; payload-index
 authentication verification; negative CI fixtures proving unindexed and
 forbidden V0 paths cannot enter core; durable reference to the approved G0
-decision values.
+decision values; strict small-order/zero-scalar rejection; descriptor-anchored
+capture drift proof; and exact bootstrap, release, and monthly complete-set
+receipt validation. Result: passed by
+`scripts/verify-v1-phase1-contracts.sh` (nine proof groups) and the full
+`scripts/validate-premerge.sh`; see US-106 validation evidence.
 
 **Logical commit boundary:** contracts, fixtures, inventory, and failing/pass
 contract enforcement land together; no Phase 2 V1 application behavior or

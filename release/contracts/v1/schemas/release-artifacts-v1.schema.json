@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/release-artifacts-v1.schema.json",
+  "title": "Repository Harness V0 release artifact inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "workflow", "build_script", "platforms"],
+  "properties": {
+    "schema": {"const": "repository-harness-v0-release-artifacts/v1"},
+    "workflow": {"const": ".github/workflows/harness-cli-release.yml"},
+    "build_script": {"const": "scripts/build-harness-cli-release.sh"},
+    "platforms": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["platform", "target", "runner", "binary", "checksum"],
+        "properties": {
+          "platform": {"type": "string"},
+          "target": {"type": "string"},
+          "runner": {"type": "string"},
+          "binary": {"type": "string"},
+          "checksum": {"type": "string"}
+        }
+      }
+    }
+  }
+}

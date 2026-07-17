@@ -1,0 +1,31 @@
+{
+  "schema": "repository-harness-manifest/v1",
+  "repository_mode": "converted-v1-with-archive",
+  "compatibility": {"cli_min": "1.0.0", "cli_max": "1.0.0", "template_release_min": "1.0.0", "template_release_max": "1.0.0"},
+  "payload": {"trust_domain": "repository-harness-core", "role": "core-release", "sequence": 42, "index_sha256": "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7"},
+  "roles": [
+    {
+      "role": "decisions",
+      "asset": "decision-template",
+      "activation": "active",
+      "ownership": "target-owned",
+      "origin": "v0-adopted",
+      "required": true,
+      "path": "docs/decisions",
+      "current_sha256": "e92ba7a5b7bc10ce6c213af75a191619fc305c3945cdd55d4dc6bac72dcd42c1",
+      "update_policy": "never-auto-patch",
+      "unresolved_markers": []
+    }
+  ],
+  "conversion_receipt": {
+    "schema": "repository-harness-conversion-receipt/v1",
+    "conversion_id": "fixture-wal-only",
+    "bridge_release": "1.0.0-test.1",
+    "archive_path": ".harness/legacy/v0-conversion/fixture-wal-only/conversion.age",
+    "export_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "standalone_backup_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "archive_sha256": "1fd136de7571d6d49ed6f026684eab79df44e9284bc89d28a2ddfb4fc90f307f",
+    "confidentiality_mode": "encrypted-age-x25519",
+    "recipient_fingerprints": ["age1fixtureowner000000000000000000000000000000000000000000000000000"]
+  }
+}

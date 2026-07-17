@@ -2,7 +2,7 @@
 
 Date: 2026-07-16
 
-Status: Direction accepted; implementation authorized; Phase 1 ready; Phases 2-8 unimplemented
+Status: Direction accepted; Phase 1 implemented and accepted; Phase 2 ready; Phases 2-8 unimplemented
 
 Planning stories: US-103 and US-104; implementation initiative: US-105
 
@@ -378,9 +378,12 @@ no phase relies on a pilot introduced later.
 Define the role/asset model, manifest schemas, V0/V1 grammar matrix,
 authenticated payload index and disposition ledger, Decision 0012's exact
 compatibility/retention contracts, and V0 fixtures. Freeze new V0 operational
-features. Gate G0 is approved and this phase is ready but not started.
-Acceptance: every current payload path and V0 data category has a disposition,
-and CI rejects forbidden V0 payload paths.
+features. **Implemented and accepted:** Decision 0013, `docs/contracts/v1/`,
+`release/contracts/v1/`, the US-106 packet, and deterministic Phase 1 fixtures
+freeze this boundary. `scripts/verify-v1-phase1-contracts.sh` proves every
+current payload path and V0 data category has one disposition and rejects
+unindexed or forbidden V0 core paths. Phase 2 is ready; no Phase 2 runtime or
+Phase 4 conversion behavior is implemented.
 
 ### Phase 2: Pure V1 Core
 
@@ -526,10 +529,14 @@ classification, semantic context selection, language packs, universal scores,
 issue tracking, PR automation, deployment automation, daemon scheduling, and
 automatic conversion of unknown tool metadata.
 
-Decision 0012 resolves Gate G0. This document now authorizes Phase 1
-implementation under the US-105 high-risk initiative; Phase 1 is ready but has
-not started. Phases 2-8 remain unimplemented and depend on the preceding
-phase's accepted evidence. No V1 code, test, installer, payload, manifest,
-database, pilot, release, tag, publish action, phase acceptance, or V0 removal
-is created or authorized by this documentation update. Phase 8 additionally
-requires Decision 0012's separate removal authorization and validation.
+Decision 0012 resolves Gate G0. Decision 0013 and US-106 now supply accepted
+Phase 1 security, schema, grammar, inventory, fixture, and enforcement evidence.
+That evidence includes strict vetted-library Ed25519 point/scalar rejection,
+descriptor-anchored pre/copy/post capture, exact bootstrap/command/release
+arrays, and complete-set calendar-month availability receipts.
+Phase 1 is implemented and accepted, so Phase 2 is ready. Phases 2-8 remain
+unimplemented and depend on the preceding phase's accepted evidence. No V1
+runtime binary, installer mutation, bridge conversion write, production key,
+pilot, release, tag, publish action, or V0 removal is created or authorized by
+Phase 1. Phase 8 additionally requires Decision 0012's separate removal
+authorization and validation.

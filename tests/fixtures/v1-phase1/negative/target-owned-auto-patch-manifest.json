@@ -1,0 +1,7 @@
+{
+  "schema": "repository-harness-manifest/v1",
+  "repository_mode": "brownfield-v1",
+  "compatibility": {"cli_min": "1.0.0", "cli_max": "1.0.0", "template_release_min": "1.0.0", "template_release_max": "1.0.0"},
+  "payload": {"trust_domain": "repository-harness-core", "role": "core-release", "sequence": 42, "index_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "roles": [{"role": "architecture", "asset": "target-architecture", "activation": "active", "ownership": "target-owned", "origin": "brownfield-mapped", "required": true, "path": "docs/ARCHITECTURE.md", "current_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "update_policy": "three-way-review", "unresolved_markers": []}]
+}

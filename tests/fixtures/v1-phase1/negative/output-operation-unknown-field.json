@@ -1,0 +1,29 @@
+{
+  "command": "audit",
+  "details": {
+    "operations": [
+      {
+        "after_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "before_sha256": null,
+        "disposition": "managed-v1",
+        "kind": "write-manifest",
+        "operation_id": "write-manifest",
+        "path": ".harness/manifest.json",
+        "shell_command": "forbidden"
+      }
+    ],
+    "readiness": "ready",
+    "violations": []
+  },
+  "exit_code": 0,
+  "mutation": "none",
+  "notices": [],
+  "outcome": "ready",
+  "release": {
+    "index_sha256": "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7",
+    "role": "core-release",
+    "sequence": 42
+  },
+  "repository_mode": "fresh-v1",
+  "schema": "repository-harness-output/v1"
+}

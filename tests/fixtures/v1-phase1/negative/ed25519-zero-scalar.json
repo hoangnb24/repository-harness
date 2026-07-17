@@ -1,0 +1,7 @@
+{
+  "case": "zero-signature-scalar",
+  "message_base64": "a9o4hKBrov/DVchtA+fhzqoZdZ60nNZB9iUVtQz1nQE=",
+  "public_key_base64": "XwzfwZZ75tZY2Y4CSFEnvN29MYldxzE5jTrXHM2eDPk=",
+  "schema": "repository-harness-ed25519-negative-vector/v1",
+  "signature_base64": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/archive-manifest-v1.schema.json",
+  "title": "Repository Harness V0 conversion archive manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "conversion_id", "source_schema", "confidentiality_mode", "recipient_fingerprints", "members", "standalone_backup_sha256", "archive_sha256", "custody"],
+  "properties": {
+    "schema": {"const": "repository-harness-v0-archive-manifest/v1"},
+    "conversion_id": {"type": "string"},
+    "source_schema": {"type": "integer", "minimum": 1, "maximum": 13},
+    "confidentiality_mode": {"enum": ["encrypted-age-x25519", "plaintext-explicit-override"]},
+    "recipient_fingerprints": {"type": "array", "items": {"type": "string"}},
+    "plaintext_risk_acknowledged": {"type": "boolean"},
+    "members": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "bytes", "capture"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer", "minimum": 0},
+          "capture": {"const": "pre-copy-post-equal"}
+        }
+      }
+    },
+    "standalone_backup_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "archive_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "custody": {"const": "repository-owner-indefinite-write-once"}
+  }
+}

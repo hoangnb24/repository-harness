@@ -1,0 +1,16 @@
+{
+  "expected_row": [
+    1,
+    "committed-only-in-wal"
+  ],
+  "files": {
+    "harness.db": "d0e57a12afb11c655f93ccdc60434db92aef62371e5ed2aca136f8e5c53da327",
+    "harness.db-shm": "df4e3e77a591a408ee82077b67fb36788cffaf6bdddd5db7799404f13ff1dc1d",
+    "harness.db-wal": "e00a2248e400bfe9c5326d4b5b29a8eb7c0e0c1309b827a0301b785c4e4c860a"
+  },
+  "logical_authority": "standalone-backup-from-staged-db-plus-wal",
+  "schema": "repository-harness-v0-capture-fixture/v1",
+  "shm_role": "forensic-only",
+  "source_mode": "read-only",
+  "writer_state": "quiesced-after-commit"
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "repository-harness-output/v1",
+  "command": "audit",
+  "outcome": "ready",
+  "exit_code": 0,
+  "mutation": "none",
+  "repository_mode": "fresh-v1",
+  "release": {
+    "role": "core-release",
+    "sequence": 42,
+    "index_sha256": "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7"
+  },
+  "notices": [],
+  "details": {"readiness": "ready", "violations": []}
+}
