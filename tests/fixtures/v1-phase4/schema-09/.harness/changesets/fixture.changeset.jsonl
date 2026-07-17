@@ -1,0 +1,2 @@
+{"op":"changeset.header","version":1,"run_id":"fixture-schema-9","base_schema_version":9}
+{"op":"story.add","version":2,"id":"US-FIXTURE","payload":{}}

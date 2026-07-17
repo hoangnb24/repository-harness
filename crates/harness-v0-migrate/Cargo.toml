@@ -1,0 +1,31 @@
+[package]
+name = "harness-v0-migrate"
+version = "1.0.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "harness_v0_migrate"
+
+[[bin]]
+name = "harness-v0-migrate"
+path = "src/main.rs"
+
+[dependencies]
+age = "0.12.1"
+fs2 = "0.4.3"
+harness-core = { path = "../harness-core" }
+rusqlite = { version = "0.39.0", features = ["backup", "bundled"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+sha2 = "0.10.9"
+tempfile = "3.27.0"
+thiserror = "2.0.18"
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1.1.4", features = ["fs"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
