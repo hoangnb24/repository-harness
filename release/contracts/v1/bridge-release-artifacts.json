@@ -1,0 +1,17 @@
+{
+  "schema": "repository-harness-v0-bridge-release-artifacts/v1",
+  "release_state": "source-present-unpromoted",
+  "workflow": ".github/workflows/harness-v0-bridge-release.yml",
+  "cargo_package": "harness-v0-migrate",
+  "binary_identity": "harness-v0-migrate",
+  "supported_schema": {"minimum": 1, "maximum": 13},
+  "retained_through": "2028-06-30T23:59:59Z",
+  "platforms": [
+    {"platform": "macos-arm64", "target": "aarch64-apple-darwin", "runner": "macos-15", "binary": "harness-v0-migrate-macos-arm64", "checksum": "harness-v0-migrate-macos-arm64.sha256"},
+    {"platform": "macos-x64", "target": "x86_64-apple-darwin", "runner": "macos-15-intel", "binary": "harness-v0-migrate-macos-x64", "checksum": "harness-v0-migrate-macos-x64.sha256"},
+    {"platform": "linux-x64", "target": "x86_64-unknown-linux-gnu", "runner": "ubuntu-24.04", "binary": "harness-v0-migrate-linux-x64", "checksum": "harness-v0-migrate-linux-x64.sha256"},
+    {"platform": "linux-arm64", "target": "aarch64-unknown-linux-gnu", "runner": "ubuntu-24.04-arm", "binary": "harness-v0-migrate-linux-arm64", "checksum": "harness-v0-migrate-linux-arm64.sha256"},
+    {"platform": "windows-x64", "target": "x86_64-pc-windows-msvc", "runner": "windows-latest", "binary": "harness-v0-migrate-windows-x64.exe", "checksum": "harness-v0-migrate-windows-x64.exe.sha256"}
+  ],
+  "production_promotion": "blocked-until-phase-7-and-external-evidence"
+}

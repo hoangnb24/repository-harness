@@ -1,0 +1,113 @@
+name: Repository Harness V0 Bridge Proof (Unpromoted)
+
+# Phase 4 proves source and platform build shape only. Production promotion,
+# signing, tagging, and publishing remain blocked until Phase 7 plus external
+# repository-protection and pinned artifact-attestation evidence.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: Exact source ref to prove
+        required: true
+        type: string
+      request_promotion:
+        description: Exercise the deliberately closed promotion guard
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-v0-bridge-proof-${{ inputs.candidate_ref }}
+  cancel-in-progress: false
+
+jobs:
+  repository-identity:
+    name: Verify reserved bridge workflow identity
+    if: github.repository == 'hoangnb24/repository-harness'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Prove unpromoted workflow identity
+        shell: bash
+        run: |
+          test "$GITHUB_WORKFLOW_REF" = "hoangnb24/repository-harness/.github/workflows/harness-v0-bridge-release.yml@refs/heads/main"
+          test "${{ inputs.candidate_ref }}" != ""
+
+  prove-before-promotion:
+    name: Prove ${{ matrix.platform }} bridge source
+    needs: repository-identity
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            target: aarch64-apple-darwin
+            runner: macos-15
+          - platform: macos-x64
+            target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - platform: linux-x64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+          - platform: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - platform: windows-x64
+            target: x86_64-pc-windows-msvc
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Check isolated bridge and permanent core
+        shell: bash
+        run: |
+          cargo check --workspace --locked
+          cargo test -p harness-v0-migrate --locked
+          cargo test -p harness-core --locked
+          cargo clippy -p harness-v0-migrate --all-targets --locked -- -D warnings
+
+      - name: Build exact platform bridge identity
+        shell: bash
+        run: cargo build -p harness-v0-migrate --bin harness-v0-migrate --target "${{ matrix.target }}" --locked
+
+      - name: Prove Unix bridge help identity
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p scripts/bin
+          install -m 755 "target/${{ matrix.target }}/debug/harness-v0-migrate" scripts/bin/harness-v0-migrate
+          scripts/bin/harness-v0-migrate --help > bridge-machine-grammar.json
+          python3 -m json.tool bridge-machine-grammar.json >/dev/null
+
+      - name: Prove Windows bridge help identity
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force scripts/bin | Out-Null
+          Copy-Item "target/${{ matrix.target }}/debug/harness-v0-migrate.exe" scripts/bin/harness-v0-migrate.exe
+          scripts/bin/harness-v0-migrate.exe --help | Set-Content -Encoding utf8 bridge-machine-grammar.json
+          Get-Content bridge-machine-grammar.json | ConvertFrom-Json | Out-Null
+
+  promotion-blocked:
+    name: Production promotion guard
+    needs: prove-before-promotion
+    if: inputs.request_promotion
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Refuse promotion without Phase 7 and external evidence
+        shell: bash
+        run: |
+          echo "Bridge production promotion is blocked: Phase 7, repository-protection, and pinned artifact-attestation evidence are not present." >&2
+          exit 1

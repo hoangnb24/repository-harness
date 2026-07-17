@@ -58,9 +58,9 @@
       "additionalProperties": false,
       "required": ["state", "reserved_for_phase", "source_path", "production_bootstrap_acceptance", "promotion_gate", "external_evidence"],
       "properties": {
-        "state": {"const": "reserved-absent"},
+        "state": {"const": "source-present-unpromoted"},
         "reserved_for_phase": {"const": 4},
-        "source_path": {"type": "null"},
+        "source_path": {"const": ".github/workflows/harness-v0-bridge-release.yml"},
         "production_bootstrap_acceptance": {"const": "blocked-until-promotion-gate"},
         "promotion_gate": {"$ref": "#/$defs/promotion_gate"},
         "external_evidence": {"$ref": "#/$defs/external_evidence"}

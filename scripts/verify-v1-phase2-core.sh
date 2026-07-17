@@ -13,7 +13,9 @@ done
 
 cargo test --quiet --locked --package harness-core
 cargo build --quiet --locked --package harness-core --bin harness
+cargo build --quiet --locked --package harness-v0-migrate --bin harness-v0-migrate
 mkdir -p scripts/bin
 install -m 755 target/debug/harness scripts/bin/harness
+install -m 755 target/debug/harness-v0-migrate scripts/bin/harness-v0-migrate
 
 python3 scripts/verify_v1_phase2_core.py

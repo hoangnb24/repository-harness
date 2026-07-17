@@ -80,7 +80,7 @@ CORE_LIVE_COMMAND_BINDING_REQUIREMENTS = [
 ]
 EXPECTED_COMMAND_BINDING = {
     "schema": "repository-harness-command-implementation-binding/v1",
-    "binding_state": "core-live-bridge-absent",
+    "binding_state": "core-live-bridge-live-unpromoted",
     "grammar_contract": "release/contracts/v1/command-grammars.json",
     "grammar_contract_sha256": "1afaf1eec75d10e7d474d5817144e1f3dc8add8b3ee9cdbb3f7610708cac6ef9",
     "grammar_schema": "release/contracts/v1/schemas/command-grammar-v1.schema.json",
@@ -101,10 +101,18 @@ EXPECTED_COMMAND_BINDING = {
             },
         },
         "bridge": {
-            "future_phase": 4,
-            "future_entrypoints": ["scripts/bin/harness-v0-migrate", "scripts/bin/harness-v0-migrate.exe"],
-            "entrypoint_state": "absent",
-            "live_binding_gate": {"phase_acceptance": "required-before-phase-4-acceptance", "replacement_state": "live-cli-and-source-extraction-parity", "requirements": LIVE_COMMAND_BINDING_REQUIREMENTS},
+            "phase": 4,
+            "entrypoints": ["scripts/bin/harness-v0-migrate", "scripts/bin/harness-v0-migrate.exe"],
+            "entrypoint_state": "live-platform-native-unpromoted",
+            "live_binding": {
+                "native_cli": "scripts/bin/harness-v0-migrate",
+                "windows_cli": "scripts/bin/harness-v0-migrate.exe",
+                "cargo_package": "harness-v0-migrate",
+                "cargo_binary": "harness-v0-migrate",
+                "source_command_definitions": "crates/harness-v0-migrate/src/command_spec.rs",
+                "help_argument": "--help",
+                "requirements": CORE_LIVE_COMMAND_BINDING_REQUIREMENTS[:-1] + ["windows-cargo-binary-identity-is-harness-v0-migrate.exe"],
+            },
         },
     },
 }
@@ -132,12 +140,12 @@ EXPECTED_BOOTSTRAP = {
         "tag_namespace": "harness-v0-bridge-v*",
         "protected_workflow": ".github/workflows/harness-v0-bridge-release.yml@refs/heads/main",
         "workflow_lifecycle": {
-            "state": "reserved-absent",
+            "state": "source-present-unpromoted",
             "reserved_for_phase": 4,
-            "source_path": None,
+            "source_path": ".github/workflows/harness-v0-bridge-release.yml",
             "production_bootstrap_acceptance": "blocked-until-promotion-gate",
             "promotion_gate": {"mode": "all-required", "requirements": PROMOTION_GATE_REQUIREMENTS},
-            "external_evidence": {"repository_protection": "not-applicable-until-live-source", "pinned_artifact_attestation": "not-applicable-until-live-source"},
+            "external_evidence": {"repository_protection": "required-not-present", "pinned_artifact_attestation": "required-not-present"},
         },
         "roles": {"root": "bridge-root", "root_rotation": "bridge-root-rotation", "release": "bridge-release"},
         "sequence_namespaces": {"root": "bridge-root", "release": "bridge-release"},
@@ -532,7 +540,7 @@ def validate_command_grammar(value: dict[str, Any]) -> None:
 
 def validate_command_binding(value: dict[str, Any], repository_root: Path = ROOT) -> None:
     validate_schema(value, load_json(SCHEMAS / "command-implementation-binding-v1.schema.json"))
-    check(value == EXPECTED_COMMAND_BINDING, "command implementation core-live/bridge-absent binding changed")
+    check(value == EXPECTED_COMMAND_BINDING, "command implementation core-live/bridge-live-unpromoted binding changed")
     grammar_path = ROOT / value["grammar_contract"]
     grammar_schema_path = ROOT / value["grammar_schema"]
     check(sha256_file(grammar_path) == value["grammar_contract_sha256"], "command grammar binding digest mismatch")
@@ -541,8 +549,8 @@ def validate_command_binding(value: dict[str, Any], repository_root: Path = ROOT
     core = value["surfaces"]["core"]
     bridge = value["surfaces"]["bridge"]
     check(core["entrypoints"] == grammar["core"]["binary"], "core live entrypoints differ from grammar binary identities")
-    check(bridge["future_entrypoints"] == grammar["bridge"]["binary"], "bridge future entrypoints differ from grammar binary identities")
-    for relative in core["entrypoints"] + bridge["future_entrypoints"]:
+    check(bridge["entrypoints"] == grammar["bridge"]["binary"], "bridge live entrypoints differ from grammar binary identities")
+    for relative in core["entrypoints"] + bridge["entrypoints"]:
         safe_path(relative)
     native_relative = core["live_binding"]["windows_cli" if os.name == "nt" else "native_cli"]
     native_entrypoint = repository_root / native_relative
@@ -579,8 +587,26 @@ def validate_command_binding(value: dict[str, Any], repository_root: Path = ROOT
     check(source_commands == grammar["core"], "live source command definitions differ from frozen grammar")
     cargo = (repository_root / "crates" / "harness-core" / "Cargo.toml").read_text(encoding="utf-8")
     check('name = "harness-core"' in cargo and 'name = "harness"' in cargo, "Cargo core/Windows binary identity differs")
-    for relative in bridge["future_entrypoints"]:
-        check(not os.path.lexists(repository_root / relative), f"Phase 4 bridge entrypoint appeared before its live gate: {relative}")
+    bridge_binding = bridge["live_binding"]
+    bridge_relative = bridge_binding["windows_cli" if os.name == "nt" else "native_cli"]
+    bridge_entrypoint = repository_root / bridge_relative
+    check(bridge_entrypoint.is_file(), f"platform-native bridge entrypoint is missing: {bridge_relative}")
+    if os.name != "nt":
+        check(os.access(bridge_entrypoint, os.X_OK), f"platform-native bridge entrypoint is not executable: {bridge_relative}")
+    result = subprocess.run([str(bridge_entrypoint), bridge_binding["help_argument"]], cwd=repository_root,
+                            stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
+    check(result.returncode == 0 and result.stderr == "", "live bridge help extraction failed")
+    live_bridge_help = json.loads(result.stdout, object_pairs_hook=duplicate_rejecting_object)
+    check(live_bridge_help == grammar["bridge"], "live bridge help differs from frozen grammar")
+    bridge_source = (repository_root / bridge_binding["source_command_definitions"]).read_text(encoding="utf-8")
+    bridge_match = re.search(
+        r'// BRIDGE_COMMAND_SPEC_JSON_BEGIN.*?pub const BRIDGE_COMMAND_SPEC_JSON: &str = r#"(?P<json>.*?)"#;.*?// BRIDGE_COMMAND_SPEC_JSON_END',
+        bridge_source, re.DOTALL)
+    check(bridge_match is not None, "live bridge source command definition markers are missing")
+    check(json.loads(bridge_match.group("json"), object_pairs_hook=duplicate_rejecting_object) == grammar["bridge"],
+          "live bridge source command definitions differ from frozen grammar")
+    bridge_cargo = (repository_root / "crates/harness-v0-migrate/Cargo.toml").read_text(encoding="utf-8")
+    check('name = "harness-v0-migrate"' in bridge_cargo, "Cargo bridge/Windows binary identity differs")
 
 
 def validate_bootstrap(value: dict[str, Any], repository_root: Path = ROOT) -> None:
@@ -617,8 +643,22 @@ def validate_bootstrap(value: dict[str, Any], repository_root: Path = ROOT) -> N
             for forbidden in ["gh release create", "git tag", "git push", "attest-build-provenance"]:
                 check(forbidden not in text, f"unpromoted core workflow contains production action: {forbidden}")
         else:
-            check(lifecycle["state"] == "reserved-absent" and lifecycle["source_path"] is None, "bridge workflow lifecycle is not reserved-absent")
-            check(not os.path.lexists(repository_root / workflow_path), f"bridge reserved workflow appeared before its promotion gate: {workflow_path}")
+            check(lifecycle["state"] == "source-present-unpromoted" and lifecycle["source_path"] == workflow_path,
+                  "bridge workflow lifecycle/source path mismatch")
+            check(lifecycle["external_evidence"] == {"repository_protection": "required-not-present", "pinned_artifact_attestation": "required-not-present"},
+                  "bridge external promotion evidence was claimed early")
+            workflow = repository_root / workflow_path
+            check(workflow.is_file(), "bridge workflow source is missing")
+            text = workflow.read_text(encoding="utf-8")
+            for fragment in ["Repository Harness V0 Bridge Proof (Unpromoted)",
+                             "github.repository == 'hoangnb24/repository-harness'",
+                             "prove-before-promotion:", "promotion-blocked:",
+                             "Phase 7, repository-protection, and pinned artifact-attestation evidence are not present", "exit 1"]:
+                check(fragment in text, f"bridge workflow source omits promotion guard: {fragment}")
+            check("contents: read" in text and "contents: write" not in text and "id-token: write" not in text,
+                  "unpromoted bridge workflow has production write permission")
+            for forbidden in ["gh release create", "git tag", "git push", "attest-build-provenance"]:
+                check(forbidden not in text, f"unpromoted bridge workflow contains production action: {forbidden}")
 
 
 def validate_release_inventory(value: dict[str, Any], *, live_sources: bool = False) -> None:
@@ -779,12 +819,6 @@ def proof_grammar() -> None:
     expect_failure(lambda: validate_command_grammar(load_json(NEG / "reordered-core-command.json")), "reordered core command")
     for name in ["command-binding-entrypoint-mismatch.json", "command-binding-state-mismatch.json", "command-binding-unknown-field.json"]:
         expect_failure(lambda fixture=name: validate_command_binding(load_json(NEG / fixture)), name)
-    with tempfile.TemporaryDirectory(prefix="harness-v1-bridge-entrypoint-") as temporary:
-        temporary_root = Path(temporary)
-        entrypoint = temporary_root / binding["surfaces"]["bridge"]["future_entrypoints"][0]
-        entrypoint.parent.mkdir(parents=True)
-        entrypoint.write_bytes(b"UNSAFE TEST ONLY future bridge entrypoint")
-        expect_failure(lambda root=temporary_root: validate_command_binding(binding, root), "bridge entrypoint appeared before live binding gate")
     audit = load_json(CONTRACT / "audit-rules.json")
     check(audit["process_execution_count"] == 0 and audit["forbidden_process_classes"], "audit zero-process rule missing")
     check("identity-stable-preview-to-commit" in audit["safe_path_rules"] and "pinned-root-fd-component-relative-no-follow" in audit["safe_path_rules"], "descriptor-anchored path-swap rule missing")
@@ -1325,21 +1359,24 @@ def proof_docs_and_scope() -> None:
         check(phrase in decision, f"Decision 0013 omits accepted contract: {phrase}")
     native_core = ROOT / "scripts" / "bin" / ("harness.exe" if os.name == "nt" else "harness")
     check(native_core.is_file(), f"Phase 2 live core binary is missing: {native_core.relative_to(ROOT)}")
-    for forbidden_runtime in [ROOT / "scripts" / "bin" / "harness-v0-migrate", ROOT / "scripts" / "bin" / "harness-v0-migrate.exe"]:
-        check(not forbidden_runtime.exists(), f"Phase 4 bridge binary entered Phase 2: {forbidden_runtime.relative_to(ROOT)}")
+    native_bridge = ROOT / "scripts" / "bin" / ("harness-v0-migrate.exe" if os.name == "nt" else "harness-v0-migrate")
+    check(native_bridge.is_file(), f"Phase 4 live-unpromoted bridge binary is missing: {native_bridge.relative_to(ROOT)}")
+    core_cargo = (ROOT / "crates/harness-core/Cargo.toml").read_text(encoding="utf-8").lower()
+    check("harness-v0-migrate" not in core_cargo and "rusqlite" not in core_cargo,
+          "Phase 4 bridge or SQLite dependency entered the permanent core")
 
 
 def main() -> None:
     os.chdir(ROOT)
     proof("closed schemas, manifest fields, and deterministic envelopes", proof_schemas_and_examples)
-    proof("core-live/bridge-absent six/seven-command grammar and source/CLI parity", proof_grammar)
+    proof("core-live/bridge-live-unpromoted six/seven-command grammar and source/CLI parity", proof_grammar)
     proof("one-to-one current install/release path ledger and core exclusions", proof_path_inventory)
     proof("exact V0 schemas 1-13, tables, commands, capabilities, and parser matrix", proof_v0_freeze)
     proof("Ed25519 thresholds, domains, freshness, rollback, revocation, and rotation", proof_trust)
     proof("safe paths, normalization/case collisions, symlinks, and path swaps", proof_paths_and_swaps)
     proof("read-only no-follow V0 capture and WAL-only standalone recovery", proof_wal_capture)
     proof("archive tamper, confidentiality, availability, bootstrap, and Phase 8 policy", proof_archive_and_policy)
-    proof("Decision 0013, Phase 1 contracts, live core, and bridge absence", proof_docs_and_scope)
+    proof("Decision 0013, Phase 1 contracts, live core, and isolated bridge", proof_docs_and_scope)
     print(f"V1 Phase 1 contract verification passed ({PASS_COUNT} proof groups)")
 
 

@@ -67,7 +67,9 @@ accepted.
 The core tag namespace is `harness-v1-core-v*`; the bridge namespace is
 `harness-v0-bridge-v*`. Their distinct protected workflow paths are frozen in
 `bootstrap-identity.json`. Phase 2 makes the core workflow source
-`source-present-unpromoted`; the bridge remains `reserved-absent` for Phase 4.
+`source-present-unpromoted`; Phase 4 makes the separate bridge workflow
+`source-present-unpromoted` as well. Neither state authorizes production
+promotion.
 An artifact or attestation with the wrong repository, workflow, tag namespace,
 trust domain, or role fails closed. The bootstrap file and its schema also
 freeze the exact verification-order array, signature-domain strings, roles,

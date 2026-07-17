@@ -7,7 +7,7 @@
   "required": ["schema", "binding_state", "grammar_contract", "grammar_contract_sha256", "grammar_schema", "grammar_schema_sha256", "surfaces"],
   "properties": {
     "schema": {"const": "repository-harness-command-implementation-binding/v1"},
-    "binding_state": {"const": "core-live-bridge-absent"},
+    "binding_state": {"const": "core-live-bridge-live-unpromoted"},
     "grammar_contract": {"const": "release/contracts/v1/command-grammars.json"},
     "grammar_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "grammar_schema": {"const": "release/contracts/v1/schemas/command-grammar-v1.schema.json"},
@@ -50,19 +50,23 @@
     "bridge_surface": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["future_phase", "future_entrypoints", "entrypoint_state", "live_binding_gate"],
+      "required": ["phase", "entrypoints", "entrypoint_state", "live_binding"],
       "properties": {
-        "future_phase": {"const": 4},
-        "future_entrypoints": {"const": ["scripts/bin/harness-v0-migrate", "scripts/bin/harness-v0-migrate.exe"]},
-        "entrypoint_state": {"const": "absent"},
-        "live_binding_gate": {
+        "phase": {"const": 4},
+        "entrypoints": {"const": ["scripts/bin/harness-v0-migrate", "scripts/bin/harness-v0-migrate.exe"]},
+        "entrypoint_state": {"const": "live-platform-native-unpromoted"},
+        "live_binding": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["phase_acceptance", "replacement_state", "requirements"],
+          "required": ["native_cli", "windows_cli", "cargo_package", "cargo_binary", "source_command_definitions", "help_argument", "requirements"],
           "properties": {
-            "phase_acceptance": {"const": "required-before-phase-4-acceptance"},
-            "replacement_state": {"const": "live-cli-and-source-extraction-parity"},
-            "requirements": {"const": ["future-entrypoint-files-present", "live-cli-help-extraction-equals-command-grammars", "live-source-command-extraction-equals-command-grammars", "options-exits-and-mutation-boundaries-equal-command-grammars"]}
+            "native_cli": {"const": "scripts/bin/harness-v0-migrate"},
+            "windows_cli": {"const": "scripts/bin/harness-v0-migrate.exe"},
+            "cargo_package": {"const": "harness-v0-migrate"},
+            "cargo_binary": {"const": "harness-v0-migrate"},
+            "source_command_definitions": {"const": "crates/harness-v0-migrate/src/command_spec.rs"},
+            "help_argument": {"const": "--help"},
+            "requirements": {"const": ["platform-native-entrypoint-file-present", "live-cli-help-extraction-equals-command-grammars", "live-source-command-extraction-equals-command-grammars", "options-exits-and-mutation-boundaries-equal-command-grammars", "windows-cargo-binary-identity-is-harness-v0-migrate.exe"]}
           }
         }
       }

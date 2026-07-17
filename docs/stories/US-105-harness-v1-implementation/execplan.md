@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-3 accepted / Phases 4-8 not started**
+Status: **Implementation in progress / Phases 1-3 accepted / Phase 4 candidate awaiting independent acceptance / Phases 5-8 not started**
 
 ## Goal
 
@@ -12,8 +12,9 @@ before its approved obligations end.
 Decision 0012 supplies the exact compatibility-window, retention, support, and
 retirement policy. Gate G0 is approved/open. Decision 0013 and US-106 implement
 and prove Phase 1; US-107 implements and proves Phase 2; US-108 implements,
-proves, and independently accepts Phase 3. Phase 4 is unblocked but not started.
-Phases 4-8 remain dependent on accepted evidence from their predecessors.
+proves, and independently accepts Phase 3. US-109 implements and locally
+validates Phase 4; independent acceptance is pending. Phases 5-8 remain
+dependent on accepted evidence from their predecessors.
 
 ## Scope
 
@@ -245,6 +246,9 @@ its production and platform evidence.
 **Dependency:** Phase 3 provides a stable V1 manifest commit/recovery target;
 Phase 1 has frozen the bridge compatibility and archive contracts.
 
+**Status:** implemented and locally validated by US-109; independent
+acceptance pending.
+
 **Implementation:**
 
 1. Build a separate bridge binary and release index with an immutable,
@@ -267,6 +271,11 @@ database/changeset before-and-after hashes proving immutability; export and
 archive digest verification; unknown metadata preservation; every kill point;
 idempotent apply/resume; target-edit rollback conflict; mixed-invalid
 detection; core artifact scan proving bridge/V0 reader absence.
+
+**Current evidence:** 13 focused bridge tests and 10/10 Phase 4 mechanical
+proof groups pass. Phase 5 remains closed pending independent acceptance;
+Windows safe capture/atomic commit and promoted five-platform artifacts remain
+Phase 7 evidence.
 
 **Logical commit boundary:** bridge reader, commands, recovery, fixtures, and
 separate packaging form an isolated review stack. The last commit in that stack

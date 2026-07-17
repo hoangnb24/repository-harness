@@ -215,8 +215,11 @@ def proof_phase4_and_phase7_gates() -> None:
     main = text(CORE / "src" / "main.rs")
     check("UnavailableReleasePort" in main and "UnavailableTrustPort" in main, "production release/trust was promoted")
     check("HarnessCore::with_mutations" not in main, "live binary was promoted before Phase 4/7 gates")
-    check(not (ROOT / "crates" / "harness-v0-reader").exists(), "V0 reader appeared in Phase 3")
-    check(not (ROOT / ".github/workflows/harness-v0-bridge-release.yml").exists(), "bridge workflow appeared in Phase 3")
+    check((ROOT / "crates/harness-v0-migrate").is_dir(), "Phase 4 isolated bridge crate is missing")
+    check((ROOT / ".github/workflows/harness-v0-bridge-release.yml").is_file(), "Phase 4 unpromoted bridge workflow is missing")
+    cargo = text(ROOT / "crates/harness-core/Cargo.toml").lower()
+    check("harness-v0-migrate" not in cargo and "rusqlite" not in cargo,
+          "Phase 4 bridge or SQLite dependency entered permanent core")
     check("safe descriptor-anchored mutation is unavailable until Phase 7" in text(RECOVERY), "non-Unix fail-closed boundary missing")
 
 
@@ -233,7 +236,6 @@ def proof_protected_paths_unchanged() -> None:
         "repomix-output.xml",
         "crates/harness-cli/",
         "scripts/schema/",
-        "scripts/bin/harness-v0-migrate",
     ]:
         check(forbidden not in changed, f"protected Phase 3 path changed: {forbidden}")
 

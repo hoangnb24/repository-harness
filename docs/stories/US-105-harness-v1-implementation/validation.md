@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Implementation in progress / Phases 1-3 accepted / Phases 4-8 not started**
+Status: **Implementation in progress / Phases 1-3 accepted / Phase 4 candidate awaiting independent acceptance / Phases 5-8 not started**
 
 ## Proof Strategy
 
@@ -262,7 +262,9 @@ git status --short
 
 ## Acceptance Evidence
 
-Current product evidence: **Phases 1-3 accepted; Phases 4-8 not started**.
+Current product evidence: **Phases 1-3 accepted; Phase 4 implemented and
+locally validated with independent acceptance pending; Phases 5-8 not
+started**.
 Decision 0012 is G0
 authorization evidence; Decision 0013 is the accepted security/data-integrity
 decision; US-106 supplies versioned contracts, frozen V0 inputs, complete
@@ -281,7 +283,7 @@ asset sets, and non-reproducible generated fixtures.
 | 1 | Contracts, schemas, disposition ledger, fixtures, G0 reference, CI negatives. | **Passed.** Nine focused proof groups and full premerge passed; Decision 0013 and US-106 are durable evidence. |
 | 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | **Accepted.** Forty-six Rust tests (24 unit, 22 integration), eleven mechanical proof groups, 72 deterministic fixtures, 138 workspace Rust tests, evolved nine-group Phase 1 proof, workspace check/test/clippy, and full premerge passed. Independent security and behavior review accepted exact candidate `1b1add5`, integrated as `e77e028` with the identical Git tree. The canary/tree/architecture proof is not claimed as universal syscall evidence; US-107 records the boundary. |
 | 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | **Accepted.** Forty-three focused tests (eighteen recovery unit, twenty-five signed integration), all 18 install, 15 update, and 13 committed-update rollback checkpoints, 89 total `harness-core` tests, 181 workspace Rust tests, and 11/11 mechanical proof groups pass. Exact emitted-preview/private-write binding, commit/resume payload reauthentication, root-bound recovery ownership, damaged-evidence probe refusal, crash-resumable reverse rollback, manifest-last durability, safe conflict/race handling, read-only status, idempotency, and monotonic mode/receipt preservation are covered. Independent security and behavior review accepted exact candidate `1f957ce`, integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. |
-| 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | Not started; Phase 3 dependency is satisfied. |
+| 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | **Candidate passes locally; independent acceptance pending.** Thirteen focused tests and ten mechanical proof groups pass; Phase 5 remains closed. |
 | 5 | Dogfood, enrollment, signed card, environment, and baseline records. | Not started; depends on Phase 4 acceptance. |
 | 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | Not started; depends on Phase 5 acceptance. |
 | 7 | Fixture matrix, five-platform exact artifacts, authentication, identity, and release proof. | Not started; depends on Phase 6 acceptance. |

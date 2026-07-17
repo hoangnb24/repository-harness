@@ -50,9 +50,9 @@
     "tag_namespace": "harness-v0-bridge-v*",
     "protected_workflow": ".github/workflows/harness-v0-bridge-release.yml@refs/heads/main",
     "workflow_lifecycle": {
-      "state": "reserved-absent",
+      "state": "source-present-unpromoted",
       "reserved_for_phase": 4,
-      "source_path": null,
+      "source_path": ".github/workflows/harness-v0-bridge-release.yml",
       "production_bootstrap_acceptance": "blocked-until-promotion-gate",
       "promotion_gate": {
         "mode": "all-required",
@@ -64,8 +64,8 @@
         ]
       },
       "external_evidence": {
-        "repository_protection": "not-applicable-until-live-source",
-        "pinned_artifact_attestation": "not-applicable-until-live-source"
+        "repository_protection": "required-not-present",
+        "pinned_artifact_attestation": "required-not-present"
       }
     },
     "roles": {

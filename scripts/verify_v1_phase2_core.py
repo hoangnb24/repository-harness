@@ -121,7 +121,7 @@ def proof_live_grammar() -> None:
     grammar = load_json(CONTRACT / "command-grammars.json")
     authority = grammar["core"]
     binding = load_json(CONTRACT / "command-implementation-binding.json")
-    check(binding["binding_state"] == "core-live-bridge-absent", "binding lifecycle is not core-live/bridge-absent")
+    check(binding["binding_state"] == "core-live-bridge-live-unpromoted", "binding lifecycle is not core-live/bridge-live-unpromoted")
     check(binding["surfaces"]["core"]["entrypoints"] == authority["binary"], "binding binary identities differ")
     check(binding["surfaces"]["core"]["live_binding"]["source_command_definitions"] == SOURCE.relative_to(ROOT).as_posix(), "binding source path differs")
     check(CLI.is_file() and (os.name == "nt" or os.access(CLI, os.X_OK)), "platform-native scripts/bin/harness identity is not live")
@@ -162,8 +162,8 @@ def proof_closed_dispatch_and_identity() -> None:
         < main_source.index("std::env::current_dir"),
         "live version constructs or opens repository state",
     )
-    check(not (ROOT / "scripts/bin/harness-v0-migrate").exists(), "bridge binary appeared in Phase 2")
-    check(not (ROOT / "scripts/bin/harness-v0-migrate.exe").exists(), "Windows bridge binary appeared in Phase 2")
+    bridge_cli = ROOT / "scripts/bin" / ("harness-v0-migrate.exe" if os.name == "nt" else "harness-v0-migrate")
+    check(bridge_cli.is_file(), "Phase 4 live-unpromoted bridge identity is missing")
 
 
 def sha256(value: bytes) -> str:
@@ -480,8 +480,17 @@ def proof_workflow_lifecycle_guard() -> None:
     for forbidden in ["contents: write", "id-token: write", "gh release create", "git push", "git tag"]:
         check(forbidden not in workflow, f"unpromoted workflow contains promotion capability: {forbidden}")
     bridge = identity["bridge"]["workflow_lifecycle"]
-    check(bridge["state"] == "reserved-absent" and bridge["source_path"] is None, "bridge lifecycle is not reserved-absent")
-    check(not (ROOT / ".github/workflows/harness-v0-bridge-release.yml").exists(), "bridge workflow appeared before Phase 4")
+    check(bridge["state"] == "source-present-unpromoted" and bridge["source_path"] == ".github/workflows/harness-v0-bridge-release.yml",
+          "bridge lifecycle is not source-present-unpromoted")
+    check(bridge["production_bootstrap_acceptance"] == "blocked-until-promotion-gate", "bridge production bootstrap was promoted")
+    check(bridge["external_evidence"] == {"repository_protection": "required-not-present", "pinned_artifact_attestation": "required-not-present"},
+          "bridge external evidence was falsely claimed")
+    bridge_workflow = (ROOT / ".github/workflows/harness-v0-bridge-release.yml").read_text(encoding="utf-8")
+    for fragment in ["Repository Harness V0 Bridge Proof (Unpromoted)", "prove-before-promotion:",
+                     "promotion-blocked:", "Phase 7, repository-protection, and pinned artifact-attestation evidence are not present", "exit 1"]:
+        check(fragment in bridge_workflow, f"bridge workflow proof-before-promotion structure omits {fragment}")
+    for forbidden in ["contents: write", "id-token: write", "gh release create", "git push", "git tag"]:
+        check(forbidden not in bridge_workflow, f"unpromoted bridge workflow contains promotion capability: {forbidden}")
 
 
 def proof_story_packet_and_phase3_boundary() -> None:
@@ -512,7 +521,7 @@ def main() -> None:
     proof("independent pinned trust and authenticated lifecycle adversaries pass", proof_independent_trust_and_lifecycle_tests)
     proof("pinned snapshots, Unicode folding, and exit mappings pass runtime tests", proof_snapshot_unicode_and_runtime_error_tests)
     proof("schema differential, CommonMark structure, and human/JSON parity pass", proof_schema_commonmark_and_human_parity)
-    proof("core workflow is present-unpromoted and bridge remains reserved-absent", proof_workflow_lifecycle_guard)
+    proof("core and bridge workflows are source-present-unpromoted with promotion blocked", proof_workflow_lifecycle_guard)
     proof("US-107 records concrete Phase 2 proof and residual Phase 3 gates", proof_story_packet_and_phase3_boundary)
     print(f"V1 Phase 2 pure core verification passed ({PASS_COUNT} proof groups)")
 

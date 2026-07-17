@@ -17,7 +17,9 @@ command -v cargo >/dev/null 2>&1 || {
 python3 tests/fixtures/v1-phase1/generate.py --check
 cargo build --quiet --locked --package v1-contract-crypto
 cargo build --quiet --locked --package harness-core --bin harness
+cargo build --quiet --locked --package harness-v0-migrate --bin harness-v0-migrate
 mkdir -p "$root/scripts/bin"
 install -m 755 "$root/target/debug/harness" "$root/scripts/bin/harness"
+install -m 755 "$root/target/debug/harness-v0-migrate" "$root/scripts/bin/harness-v0-migrate"
 V1_CONTRACT_CRYPTO="$root/target/debug/v1-contract-crypto" \
   python3 scripts/verify_v1_phase1_contracts.py

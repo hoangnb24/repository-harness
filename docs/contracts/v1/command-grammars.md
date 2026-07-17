@@ -4,22 +4,23 @@ Contract: `repository-harness-command-grammar/v1`
 
 The machine-readable design authority is
 `release/contracts/v1/command-grammars.json`. Phase 1 accepted both runtimes as
-absent. Phase 2 evolves the closed `command-implementation-binding.json` to
-`core-live-bridge-absent` while retaining the exact grammar and schema digests.
+absent. Phase 2 evolved the closed `command-implementation-binding.json` to
+`core-live-bridge-absent`; Phase 4 evolves it to
+`core-live-bridge-live-unpromoted` while retaining the exact grammar and schema
+digests.
 It binds these identities:
 
 - Phase 2 core: live platform-native `scripts/bin/harness`; Cargo binary name
   `harness`, which produces the Windows identity `scripts/bin/harness.exe`.
-- Phase 4 bridge: `scripts/bin/harness-v0-migrate` and
-  `scripts/bin/harness-v0-migrate.exe`, both still reserved absent.
+- Phase 4 bridge: live source and platform-native build identities
+  `scripts/bin/harness-v0-migrate` and `scripts/bin/harness-v0-migrate.exe`,
+  with production promotion still blocked.
 
-The evolved Phase 1 verifier builds the core, installs the native executable at
-the exact repository-local identity, parses `harness --help` as machine JSON,
-extracts the JSON command definition directly from
-`crates/harness-core/src/command_spec.rs`, and compares both with the frozen
-grammar. Phase 2 negative proof fails on an extra/reordered command or any
-option, exit, or mutation-boundary drift. The same verifier proves both bridge
-entrypoints remain absent. The schemas remain closed; an unknown field,
+The evolved Phase 1 verifier builds both identities, installs their native
+executables at the exact repository-local paths, parses both machine-help
+documents, extracts both Rust command definitions, and compares them with the
+frozen grammars. Negative proof fails on an extra/reordered command or any
+option, exit, or mutation-boundary drift. The schemas remain closed; an unknown field,
 changed digest, mismatched identity, or seventh core command is a contract
 failure.
 

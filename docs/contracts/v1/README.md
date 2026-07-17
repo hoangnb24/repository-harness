@@ -2,7 +2,8 @@
 
 Contract version: `1`
 
-Status: Normative; Phase 1 accepted and the Phase 2 core runtime is live.
+Status: Normative; Phase 1 accepted, the core runtime is live, and the Phase 4
+bridge source is live-unpromoted.
 
 These documents and the machine-readable material in
 `release/contracts/v1/` freeze the inputs to Phases 2–8. If prose and JSON
@@ -16,7 +17,8 @@ by a reviewed contract change before implementation proceeds.
   separate seven-command bridge grammar, including exits, preview,
   non-interactive confirmation, recovery options, and the implementation
   binding. Phase 2 replaces the core's former absence state with live CLI and
-  source parity while the Phase 4 bridge remains absent.
+  source parity; Phase 4 adds separate bridge CLI/source parity without adding
+  bridge commands or dependencies to the core.
 - `payload-trust.md` defines indexes, detached signatures, threshold bundles,
   canonicalization, freshness, bootstrap identity, destination rules, and the
   path-disposition ledger.

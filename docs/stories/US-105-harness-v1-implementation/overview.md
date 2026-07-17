@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation in progress / Phases 1-3 accepted / Phases 4-8 not started**
+Status: **Implementation in progress / Phases 1-3 accepted / Phase 4 candidate awaiting independent acceptance / Phases 5-8 not started**
 
 This is the durable implementation initiative packet for the eight phases in
 `docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement
@@ -9,8 +9,8 @@ boundary pass the full US-107 validation and independent review at exact
 candidate `1b1add5`, integrated as `e77e028` with the identical Git tree.
 US-108 supplies accepted Phase 3 mutation/recovery evidence at exact candidate
 `1f957ce`, integrated as `8e67593` with identical Git tree `9cd22cdb24d2`.
-Bridge conversion writes, production release, pilots, and Phase 4-8 acceptance
-do not exist.
+US-109 supplies the locally validated Phase 4 bridge candidate. Phase 4
+acceptance, production release, pilots, and Phase 5-8 behavior do not exist.
 Decision 0012 supplies authorization policy; Decision 0013 and US-106 supply
 accepted Phase 1. US-107 supplies validated Phase 2 implementation evidence,
 and US-108 supplies independently accepted Phase 3 evidence.
@@ -61,8 +61,9 @@ indefinitely, bridge release assets are retained through
 `2028-01-01T00:00:00Z` after every closure condition passes. Cause and effect:
 those values resolve Gate G0. Phase 1 froze the contract boundary and Phase 2
 implemented, validated, and accepted the pure core against it. Phase 3 is
-implemented, validated, and accepted by US-108. Phase 4 is unblocked but has
-not started; Phases 4-8 remain dependent on preceding acceptance.
+implemented, validated, and accepted by US-108. Phase 4 is implemented and
+locally validated by US-109 but awaits independent acceptance; Phases 5-8
+remain dependent on preceding acceptance.
 
 For example, the presence of `.harness/` cannot currently authorize a V1
 conversion. It may contain V0 changesets, another tool's metadata, or unrelated
@@ -144,7 +145,8 @@ This packet maps those contracts into implementation and proof. Decision 0012
 authorizes the schedule/retention boundary; Decision 0013 plus US-106 provide
 Phase 1 acceptance, US-107 provides accepted Phase 2 implementation and
 validation, and US-108 provides accepted Phase 3 mutation/recovery evidence.
-Phase 4 is unblocked but no Phase 4 or later implementation is claimed.
+US-109 implements the isolated Phase 4 candidate without claiming independent
+acceptance or any Phase 5+ implementation.
 
 ## Non-Goals
 

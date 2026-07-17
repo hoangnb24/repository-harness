@@ -43,12 +43,14 @@ here before importing their existing state.
 ## V1 Phase Gates
 
 The separate V1 core does not use the legacy SQLite matrix above. Its accepted
-Phase 1-3 gates are mechanical:
+Phase 1-3 gates and the locally implemented Phase 4 candidate gate are
+mechanical:
 
 ```bash
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
+scripts/verify-v1-phase4-bridge.sh
 ```
 
 US-108 records 43 focused Phase 3 test functions, all 18 install, 15 update,
@@ -67,3 +69,12 @@ status. Independent security (`gpt-5.4`, high reasoning) and behavior
 integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 bridge
 and Phase 7 production/platform rows remain absent and must not be inferred
 from those results.
+
+US-109 supplies a separate `harness-v0-migrate` candidate with 13 focused
+tests and 10 Phase 4 proof groups. The evidence covers every schema 1..=13,
+WAL-only recovery, unknown metadata, active-writer refusal, encrypted and
+explicit-risk plaintext archives, all seven kill points, deterministic resume,
+target-edit rollback refusal, immutable fixture digests, and the structural
+core boundary. Phase 4 remains `in_progress` pending independent acceptance;
+Phase 5 is closed. Five-platform promotion and Windows safe capture/atomic
+commit remain Phase 7 evidence, not Phase 4 claims.

@@ -98,9 +98,18 @@ git diff --check
 
 ## Acceptance Evidence
 
-Pending implementation. Record exact commands, exit codes, focused test names,
-fixture inventory digest, verifier proof count, and platform boundaries here.
-US-109 remains `in_progress` in the shared database until independent Phase 4
-acceptance. Phase 5 stays closed, and Phase 7 production/five-platform
-promotion remains closed.
+The preserved candidate passes the ready focused checks on macOS arm64:
 
+- `scripts/verify-v1-phase1-contracts.sh`: exit 0, 9/9 proof groups.
+- `scripts/verify-v1-phase2-core.sh`: exit 0, 11/11 proof groups.
+- `scripts/verify-v1-phase3-recovery.sh`: exit 0, 11/11 proof groups.
+- `scripts/verify-v1-phase4-bridge.sh`: exit 0, 10/10 proof groups and 13
+  focused bridge tests (2 unit plus 11 integration).
+- `git diff --check`: exit 0 before commit.
+
+The fixture verifier checks every inventory member's exact byte count and
+SHA-256, including schema 1..=13 DB/WAL/SHM and the WAL-only fixture. The full
+workspace test/fmt/clippy/premerge chain and independent review remain to be
+run after this safe milestone. US-109 remains `in_progress`; Phase 5 stays
+closed. Windows safe capture/atomic commit and promoted five-platform artifact
+equivalence remain Phase 7 production proof and are not claimed here.

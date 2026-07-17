@@ -2,10 +2,11 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-3 accepted; Phase 4 ready but not started; Phases 4-8 not started
+Status: Direction and Phases 1-3 accepted; Phase 4 implemented and awaiting independent acceptance; Phases 5-8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
-Phase 2 implementation: US-107; Phase 3 implementation: US-108
+Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
+implementation: US-109
 
 ## Executive Outcome
 
@@ -384,7 +385,7 @@ features. **Implemented and accepted:** Decision 0013, `docs/contracts/v1/`,
 freeze this boundary. `scripts/verify-v1-phase1-contracts.sh` proves every
 current payload path and V0 data category has one disposition and rejects
 unindexed or forbidden V0 core paths. This Phase remains accepted and unchanged
-under the evolved core-live/bridge-absent lifecycle.
+under the evolved core-live/bridge-live-unpromoted lifecycle.
 
 ### Phase 2: Pure V1 Core
 
@@ -403,8 +404,9 @@ parity; independently pinned trust-bundle/release lifecycle; indexed core-only
 payload planning; pinned Unix snapshot and race refusal; schema/CommonMark/
 Unicode/output determinism; the executable canary plus unchanged-tree
 no-spawn boundary; and no-op/refusal for writes that require Phase 3. This is
-not described as universal syscall/event proof. The reserved bridge remains
-absent and the release workflow remains present but unpromoted. Independent
+not described as universal syscall/event proof. Phase 4 later adds the isolated
+bridge without changing this accepted core boundary; both release workflows
+remain source-present and unpromoted. Independent
 security and behavior reviewers accepted exact candidate `1b1add5`, integrated
 as `e77e028` with the identical Git tree. That accepted Phase 2 evidence is
 unchanged; Phase 3 implementation and validation are recorded separately in
@@ -463,6 +465,17 @@ Release the separately versioned reader/bridge with schema 1..=13 fixtures,
 export/archive/journal state machine, resume/rollback, kill-point tests, and
 mixed-version detection. Acceptance: V0 inputs remain immutable, the bridge is
 not in the V1 core grammar, and unknown .harness metadata is preserved.
+
+**Implemented and locally validated; independent acceptance pending:** US-109
+adds the separate `harness-v0-migrate` crate and exact seven-command binary,
+descriptor-anchored read-only capture with SQLite writer quiescence and
+DB/WAL/SHM evidence, neutral export, age/X25519 encrypted write-once archives,
+manifest/receipt-last journal recovery, safe rollback, and structural-only core
+status integration. Thirteen focused bridge tests and the ten-group
+`scripts/verify-v1-phase4-bridge.sh` proof pass on macOS. This does not accept
+Phase 4: the Orchestrator must independently review the committed candidate.
+Phase 5 remains closed until that acceptance. Windows safe capture/atomic
+commit and promoted five-platform artifact equivalence remain Phase 7 work.
 
 ### Phase 5: Dogfood, Pilot Enrollment, And Baselines
 
