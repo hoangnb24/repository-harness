@@ -1773,7 +1773,7 @@ impl OsMutationPort {
         path: &str,
         bytes: &[u8],
         create_parent: bool,
-        mode: u16,
+        mode: rustix::fs::RawMode,
     ) -> Result<(), PortError> {
         use rustix::fs::{fsync, openat, Mode, OFlags};
 
