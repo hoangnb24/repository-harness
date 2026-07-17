@@ -57,17 +57,27 @@ def proof_exact_plan_binding() -> None:
 
 def proof_authenticated_recovery_binding() -> None:
     source = text(RECOVERY)
+    integration = text(INTEGRATION)
     for fragment in [
         "journal.operations != expected_operations",
         "recovery operation identifier does not authorize the exact post-images",
-        "asset_sha256",
-        "asset_bytes",
+        "RecoveryScope",
+        "authorization.assets",
+        "asset.sha256",
+        "asset.bytes",
         "verify_authenticated_post_images",
+        "validate_candidate_transition",
         "deterministic authenticated managed-block post-image",
         "recomputed_unkeyed_journal_digest_cannot_change_authorized_manifest_post_image",
         "nested_operation_unknown_field_is_rejected_even_with_recomputed_body_digest",
+        "fabricated_update_journal_cannot_patch_authoritative_target_owned_role",
+        "fabricated_fresh_journal_cannot_claim_preexisting_before_images",
+        "fabricated_scaffold_journal_cannot_expand_beyond_bound_destination",
     ]:
-        check(fragment in source, f"authenticated recovery binding omits {fragment}")
+        check(
+            fragment in source or fragment in integration,
+            f"authenticated recovery binding omits {fragment}",
+        )
 
 
 def proof_atomic_race_boundary() -> None:
@@ -78,6 +88,9 @@ def proof_atomic_race_boundary() -> None:
         "RenameFlags::EXCHANGE",
         "exchanged_stat.st_ino != destination_stat.st_ino",
         "intervening bytes were preserved",
+        "root_path",
+        "same_root_stat",
+        "rollback_rejects_repository_root_pathname_replacement",
         'target_os = "linux"',
         'target_os = "macos"',
         "Phase 7 platform gate remains closed",
@@ -88,18 +101,26 @@ def proof_atomic_race_boundary() -> None:
 
 def proof_manifest_last_and_rollback() -> None:
     source = text(RECOVERY)
+    integration = text(INTEGRATION)
     check("manifest_index + 1 != journal.steps.len()" in source, "manifest-last check missing")
-    check(
-        "applied[manifest_index] && journal.steps[manifest_index].before_sha256.is_some()"
-        in source,
-        "rollback can restore an unapplied old manifest",
-    )
-    for test in [
+    for fragment in [
+        "JournalState::RollingBack",
+        "journal.state = JournalState::RollingBack",
+        "restore_missing_manifest",
+        "removed new manifest before rollback",
+        "restored old manifest last journal fsync",
+        "validate_recovery_manifest_state",
         "manifest_is_committed_last_and_rollback_removes_exact_created_images",
         "rollback_does_not_restore_old_manifest_when_manifest_step_was_never_applied",
         "target_edit_blocks_rollback_before_any_restoration",
     ]:
-        check(test in source, f"rollback adversary is missing: {test}")
+        check(fragment in source, f"rollback protocol omits {fragment}")
+    for test in [
+        "every_committed_update_rollback_checkpoint_resumes_in_reverse_with_old_manifest_last",
+        "human_edit_during_committed_update_rollback_is_preserved_before_old_manifest_restore",
+        "rollback_deliberately_requires_live_release_authorization_before_using_local_evidence",
+    ]:
+        check(test in integration, f"rollback integration oracle is missing: {test}")
 
 
 def proof_status_probe_and_exact_rerun() -> None:
@@ -138,6 +159,10 @@ def proof_kill_points_and_idempotency() -> None:
     source = text(INTEGRATION)
     check("for checkpoint in 1..=18" in source, "all 18 install kill points are not enumerated")
     check("for checkpoint in 1..=15" in source, "all 15 update kill points are not enumerated")
+    check(
+        "for checkpoint in 1..=13" in source,
+        "all 13 committed-update rollback checkpoints are not enumerated",
+    )
     check(
         "every_install_kill_point_has_a_deterministic_rerun_resume_or_rollback" in source,
         "kill-point recovery proof missing",

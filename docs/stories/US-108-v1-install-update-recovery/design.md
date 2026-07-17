@@ -111,18 +111,32 @@ image matches. Applied steps are verified but not replayed. Pending steps run
 once. A manifest already at its recorded after digest means the atomic commit
 occurred; resume verifies all post-images and completes journal bookkeeping.
 
+The journal also binds command scope. Install/update are limited to authenticated
+release destinations. Scaffold binds one authenticated template and exact
+destination; status emits that complete parser-valid recovery command. Recovery
+validates the candidate transition against the backed-up authoritative
+pre-operation manifest, so target-owned and `never-auto-patch` roles cannot be
+reclassified by a recomputed journal.
+
 Recovery also compares full-file creates with authenticated asset digests and
 reconstructs a managed-block post-image from authenticated candidate interior
 bytes plus the backed-up prefix/suffix. Unknown fields are rejected at the
 journal, step, and nested operation levels.
 
 Rollback validates every affected current post-image before changing any
-target byte. For an already committed operation it first removes the new
-manifest from the authoritative path, then restores assets in reverse order,
-and restores the old manifest last only when that manifest step was actually
-applied. A created path is
+target byte. It then durably records `rolling-back`. For an already committed
+operation it first removes the new manifest from the authoritative path, then
+restores assets in reverse order, and restores the old manifest last only when
+that manifest step was actually applied. Every rollback boundary is resumable,
+including a crash immediately after new-manifest removal. A created path is
 removed only while it still has the exact journal after digest. Any human edit
 causes exit 4 and leaves all remaining evidence intact.
+
+Rollback continues to require the matching live authenticated release before
+local evidence is trusted. This is deliberate: without a separately
+authenticated durable authority, treating a self-consistent local journal as
+sufficient would let fabricated evidence bypass ownership policy. Temporary
+release unavailability therefore blocks rollback without mutating the tree.
 
 ## Interface Contract
 

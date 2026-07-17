@@ -11,8 +11,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{Disposition, Manifest, Operation, OperationKind, PayloadIdentity};
-use crate::path::validate_relative;
+use crate::domain::{
+    Disposition, Manifest, ManifestRepositoryMode, Operation, OperationKind, Origin, Ownership,
+    PayloadIdentity, Role, UpdatePolicy, CORE_VERSION, MANIFEST_SCHEMA,
+};
+use crate::path::{validate_exact_destination, validate_relative};
 use crate::ports::{MutationPort, PortError};
 use crate::strict_json::{canonical, digest, hex_sha256, parse};
 
@@ -38,6 +41,7 @@ pub struct PlannedWrite {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MutationRequest {
     pub command: String,
+    pub scope: RecoveryScope,
     pub operation_id: String,
     pub preview_sha256: String,
     pub accepted_preview_sha256: String,
@@ -46,12 +50,33 @@ pub struct MutationRequest {
     pub writes: Vec<PlannedWrite>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum RecoveryScope {
+    ReleaseAssets,
+    Scaffold {
+        template: String,
+        destination: String,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RecoveryAsset {
+    pub id: String,
+    pub role: Option<String>,
+    pub template: Option<String>,
+    pub destination: String,
+    pub disposition: Disposition,
+    pub sha256: String,
+    pub bytes: Vec<u8>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RecoveryAuthorization {
     pub release: PayloadIdentity,
-    pub asset_paths: BTreeSet<String>,
-    pub asset_sha256: BTreeMap<String, String>,
-    pub asset_bytes: BTreeMap<String, Vec<u8>>,
+    pub release_version: String,
+    pub scope: RecoveryScope,
+    pub assets: BTreeMap<String, RecoveryAsset>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,6 +88,7 @@ pub enum RecoveryMode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RecoveryProbe {
     pub command: String,
+    pub scope: RecoveryScope,
     pub operation_id: String,
     pub accepted_preview_sha256: String,
 }
@@ -101,6 +127,7 @@ enum JournalState {
     Prepared,
     Applying,
     Committed,
+    RollingBack,
     RolledBack,
 }
 
@@ -135,6 +162,7 @@ struct RecoveryJournal {
     body_sha256: String,
     operation_id: String,
     command: String,
+    scope: RecoveryScope,
     state: JournalState,
     preview_sha256: String,
     accepted_preview_sha256: String,
@@ -150,6 +178,7 @@ impl RecoveryJournal {
             body_sha256: String::new(),
             operation_id: request.operation_id.clone(),
             command: request.command.clone(),
+            scope: request.scope.clone(),
             state: JournalState::Prepared,
             preview_sha256: request.preview_sha256.clone(),
             accepted_preview_sha256: request.accepted_preview_sha256.clone(),
@@ -204,6 +233,8 @@ impl RecoveryJournal {
 /// only to make every durable boundary mechanically interruptible in tests.
 pub struct OsMutationPort {
     #[cfg(unix)]
+    root_path: PathBuf,
+    #[cfg(unix)]
     root: std::os::fd::OwnedFd,
     #[cfg(unix)]
     root_stat: rustix::fs::Stat,
@@ -232,6 +263,7 @@ impl OsMutationPort {
             .map_err(|error| map_errno(".", error))?;
             let root_stat = fstat(&root).map_err(|error| map_errno(".", error))?;
             Ok(Self {
+                root_path,
                 root,
                 root_stat,
                 kill_after_checkpoint: None,
@@ -336,19 +368,27 @@ impl OsMutationPort {
             };
             let authorization = RecoveryAuthorization {
                 release: journal.release.clone(),
-                asset_paths: journal
+                release_version: "probe-only".into(),
+                scope: journal.scope.clone(),
+                assets: journal
                     .steps
                     .iter()
                     .filter(|step| !step.manifest_commit)
-                    .map(|step| step.path.clone())
+                    .map(|step| {
+                        (
+                            step.path.clone(),
+                            RecoveryAsset {
+                                id: step.operation_id.clone(),
+                                role: None,
+                                template: None,
+                                destination: step.path.clone(),
+                                disposition: step.disposition,
+                                sha256: step.after_sha256.clone(),
+                                bytes: Vec::new(),
+                            },
+                        )
+                    })
                     .collect(),
-                asset_sha256: journal
-                    .steps
-                    .iter()
-                    .filter(|step| !step.manifest_commit && step.kind == OperationKind::Create)
-                    .map(|step| (step.path.clone(), step.after_sha256.clone()))
-                    .collect(),
-                asset_bytes: BTreeMap::new(),
             };
             validate_journal_ownership(&journal, &journal.command, &operation_id, &authorization)?;
             if matches!(
@@ -357,6 +397,7 @@ impl OsMutationPort {
             ) {
                 probes.push(RecoveryProbe {
                     command: journal.command,
+                    scope: journal.scope,
                     operation_id,
                     accepted_preview_sha256: journal.accepted_preview_sha256,
                 });
@@ -474,9 +515,12 @@ impl OsMutationPort {
         journal: &mut RecoveryJournal,
         validate_candidate: &mut dyn FnMut(&[u8]) -> Result<(), PortError>,
     ) -> Result<MutationResult, MutationFailure> {
-        if journal.state == JournalState::RolledBack {
+        if matches!(
+            journal.state,
+            JournalState::RollingBack | JournalState::RolledBack
+        ) {
             return Err(MutationFailure::after_journal(PortError::Conflict(
-                "rolled-back operation cannot be resumed".into(),
+                "rolling-back or rolled-back operation cannot be resumed".into(),
             )));
         }
         let manifest_index = journal
@@ -539,30 +583,10 @@ impl OsMutationPort {
         journal: &mut RecoveryJournal,
     ) -> Result<MutationResult, MutationFailure> {
         if journal.state == JournalState::RolledBack {
-            return Ok(MutationResult::RolledBack);
-        }
-
-        // Validate every current image before the first rollback mutation. A
-        // target edit therefore wins without a partially attempted rollback.
-        let mut applied = Vec::with_capacity(journal.steps.len());
-        for step in &journal.steps {
-            let current = self
-                .read_optional(&step.path)
+            self.validate_recovery_manifest_state(journal)?;
+            self.validate_root()
                 .map_err(MutationFailure::after_journal)?;
-            let is_after = current
-                .as_ref()
-                .is_some_and(|bytes| hex_sha256(bytes) == step.after_sha256);
-            let is_before = match (&step.before_sha256, &current) {
-                (None, None) => true,
-                (Some(expected), Some(bytes)) => hex_sha256(bytes) == *expected,
-                _ => false,
-            };
-            if !is_after && !is_before {
-                return Err(MutationFailure::after_journal(PortError::Conflict(
-                    format!("rollback refuses changed post-image at {}", step.path),
-                )));
-            }
-            applied.push(is_after);
+            return Ok(MutationResult::RolledBack);
         }
 
         let manifest_index = journal
@@ -572,30 +596,105 @@ impl OsMutationPort {
             .ok_or_else(|| {
                 MutationFailure::after_journal(invalid("journal has no manifest step"))
             })?;
-        if applied[manifest_index] {
+
+        // Validate every current image before recording intent or changing a
+        // target. A human edit therefore wins without a partially attempted
+        // rollback. RollingBack is durable authority for the otherwise
+        // ambiguous gap after the new manifest is removed.
+        self.validate_recovery_manifest_state(journal)?;
+        if journal.state != JournalState::RollingBack {
+            journal.state = JournalState::RollingBack;
+            self.persist_journal(journal)
+                .map_err(MutationFailure::after_journal)?;
+            self.checkpoint("rollback intent journal fsync")
+                .map_err(MutationFailure::after_journal)?;
+        }
+
+        let manifest_current = self
+            .read_optional(&journal.steps[manifest_index].path)
+            .map_err(MutationFailure::after_journal)?;
+        let manifest_is_after = manifest_current
+            .as_ref()
+            .is_some_and(|bytes| hex_sha256(bytes) == journal.steps[manifest_index].after_sha256);
+        if manifest_is_after {
             self.remove_exact(
                 &journal.steps[manifest_index].path,
                 &journal.steps[manifest_index].after_sha256,
             )?;
-            self.checkpoint("removed committed manifest before rollback")
+            self.checkpoint("removed new manifest before rollback")
+                .map_err(MutationFailure::after_journal)?;
+            journal.steps[manifest_index].state = StepState::Pending;
+            self.persist_journal(journal)
+                .map_err(MutationFailure::after_journal)?;
+            self.checkpoint("new manifest removal journal fsync")
                 .map_err(MutationFailure::after_journal)?;
         }
 
         for index in (0..manifest_index).rev() {
-            if applied[index] {
+            let current = self
+                .read_optional(&journal.steps[index].path)
+                .map_err(MutationFailure::after_journal)?;
+            let is_after = current
+                .as_ref()
+                .is_some_and(|bytes| hex_sha256(bytes) == journal.steps[index].after_sha256);
+            let is_before = match (&journal.steps[index].before_sha256, &current) {
+                (None, None) => true,
+                (Some(expected), Some(bytes)) => hex_sha256(bytes) == *expected,
+                _ => false,
+            };
+            if is_after {
                 self.restore_step(&journal.steps[index])?;
-                self.checkpoint("restored target rollback step")
+                journal.steps[index].state = StepState::Pending;
+                self.persist_journal(journal)
                     .map_err(MutationFailure::after_journal)?;
+                self.checkpoint("restored target rollback step journal fsync")
+                    .map_err(MutationFailure::after_journal)?;
+            } else if is_before {
+                self.cleanup_rollback_temporary(&journal.steps[index])?;
+            } else {
+                return Err(MutationFailure::after_journal(PortError::Conflict(
+                    format!(
+                        "rollback refuses changed post-image at {}",
+                        journal.steps[index].path
+                    ),
+                )));
             }
         }
-        if applied[manifest_index] && journal.steps[manifest_index].before_sha256.is_some() {
-            self.restore_step(&journal.steps[manifest_index])?;
+
+        let manifest = &journal.steps[manifest_index];
+        let current = self
+            .read_optional(&manifest.path)
+            .map_err(MutationFailure::after_journal)?;
+        match (&manifest.before_sha256, current) {
+            (None, None) => self.cleanup_rollback_temporary(manifest)?,
+            (Some(before), Some(bytes)) if hex_sha256(&bytes) == *before => {
+                self.cleanup_rollback_temporary(manifest)?;
+            }
+            (Some(_), None) => {
+                self.restore_missing_manifest(manifest)?;
+                self.persist_journal(journal)
+                    .map_err(MutationFailure::after_journal)?;
+                self.checkpoint("restored old manifest last journal fsync")
+                    .map_err(MutationFailure::after_journal)?;
+            }
+            _ => {
+                return Err(MutationFailure::after_journal(PortError::Conflict(
+                    "rollback refuses changed manifest before old-manifest restoration".into(),
+                )))
+            }
         }
+
+        self.validate_recovery_manifest_state(journal)?;
         journal.state = JournalState::RolledBack;
         for step in &mut journal.steps {
             step.state = StepState::Pending;
         }
         self.persist_journal(journal)
+            .map_err(MutationFailure::after_journal)?;
+        self.checkpoint("rolled-back journal fsync")
+            .map_err(MutationFailure::after_journal)?;
+        self.validate_recovery_manifest_state(journal)?;
+        self.validate_root()
             .map_err(MutationFailure::after_journal)?;
         Ok(MutationResult::RolledBack)
     }
@@ -693,8 +792,11 @@ impl OsMutationPort {
         journal: &RecoveryJournal,
         authorization: &RecoveryAuthorization,
     ) -> Result<(), MutationFailure> {
-        for (path, bytes) in &authorization.asset_bytes {
-            if authorization.asset_sha256.get(path) != Some(&hex_sha256(bytes)) {
+        // Recovery authorization is byte-level: every authenticated asset
+        // digest must match its authenticated bytes before journal evidence is
+        // trusted.
+        for (path, asset) in &authorization.assets {
+            if asset.destination != *path || asset.sha256 != hex_sha256(&asset.bytes) {
                 return Err(MutationFailure::after_journal(invalid(format!(
                     "authenticated asset bytes and digest disagree for {path}"
                 ))));
@@ -719,9 +821,18 @@ impl OsMutationPort {
             .map_err(invariant)
             .map_err(MutationFailure::after_journal)?;
 
+        let old_manifest = self.authoritative_pre_operation_manifest(journal)?;
+        self.validate_recovery_manifest_state(journal)?;
+        self.validate_candidate_transition(
+            journal,
+            authorization,
+            old_manifest.as_ref(),
+            &manifest,
+        )?;
+
         for step in journal.steps.iter().filter(|step| !step.manifest_commit) {
             self.verify_owned_evidence(step)?;
-            let asset = authorization.asset_bytes.get(&step.path).ok_or_else(|| {
+            let asset = authorization.assets.get(&step.path).ok_or_else(|| {
                 MutationFailure::after_journal(invalid(format!(
                     "no authenticated asset bytes authorize {}",
                     step.path
@@ -729,7 +840,7 @@ impl OsMutationPort {
             })?;
             match step.kind {
                 OperationKind::Create => {
-                    if hex_sha256(asset) != step.after_sha256 {
+                    if asset.sha256 != step.after_sha256 {
                         return Err(MutationFailure::after_journal(invalid(format!(
                             "{} differs from the authenticated asset post-image",
                             step.path
@@ -760,7 +871,7 @@ impl OsMutationPort {
                     let (mut prefix, _, suffix) = managed_block_parts(&before, marker)
                         .map_err(MutationFailure::after_journal)?;
                     prefix.extend_from_slice(
-                        &managed_candidate_interior(asset, marker)
+                        &managed_candidate_interior(&asset.bytes, marker)
                             .map_err(MutationFailure::after_journal)?,
                     );
                     prefix.extend_from_slice(&suffix);
@@ -780,6 +891,322 @@ impl OsMutationPort {
                         step.path
                     ))));
                 }
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn authoritative_pre_operation_manifest(
+        &self,
+        journal: &RecoveryJournal,
+    ) -> Result<Option<Manifest>, MutationFailure> {
+        let manifest_step = journal
+            .steps
+            .last()
+            .expect("journal ownership established manifest-last");
+        let Some(expected) = &manifest_step.before_sha256 else {
+            if manifest_step.backup_path.is_some() {
+                return Err(MutationFailure::after_journal(invalid(
+                    "fresh operation unexpectedly has a manifest backup",
+                )));
+            }
+            return Ok(None);
+        };
+        let backup_path = manifest_step.backup_path.as_deref().ok_or_else(|| {
+            MutationFailure::after_journal(invalid(
+                "pre-operation manifest digest has no authoritative backup",
+            ))
+        })?;
+        let bytes = self
+            .read_required(backup_path)
+            .map_err(MutationFailure::after_journal)?;
+        if hex_sha256(&bytes) != *expected {
+            return Err(MutationFailure::after_journal(invalid(
+                "authoritative pre-operation manifest backup digest mismatch",
+            )));
+        }
+        let value = parse(&bytes)
+            .map_err(invalid)
+            .map_err(MutationFailure::after_journal)?;
+        let manifest: Manifest = serde_json::from_value(value)
+            .map_err(invariant)
+            .map_err(MutationFailure::after_journal)?;
+        if manifest.schema != MANIFEST_SCHEMA {
+            return Err(MutationFailure::after_journal(invalid(
+                "authoritative pre-operation manifest schema mismatch",
+            )));
+        }
+        Ok(Some(manifest))
+    }
+
+    #[cfg(unix)]
+    fn validate_recovery_manifest_state(
+        &self,
+        journal: &RecoveryJournal,
+    ) -> Result<(), MutationFailure> {
+        let manifest = journal
+            .steps
+            .last()
+            .expect("journal ownership established manifest-last");
+        let current = self
+            .read_optional(&manifest.path)
+            .map_err(MutationFailure::after_journal)?;
+        let manifest_after = current
+            .as_ref()
+            .is_some_and(|bytes| hex_sha256(bytes) == manifest.after_sha256);
+        let manifest_before = match (&manifest.before_sha256, &current) {
+            (None, None) => true,
+            (Some(expected), Some(bytes)) => hex_sha256(bytes) == *expected,
+            _ => false,
+        };
+        let manifest_removed_during_rollback = journal.state == JournalState::RollingBack
+            && manifest.before_sha256.is_some()
+            && current.is_none();
+        if !manifest_after && !manifest_before && !manifest_removed_during_rollback {
+            return Err(MutationFailure::after_journal(PortError::Conflict(
+                "recovery refuses a changed manifest image".into(),
+            )));
+        }
+
+        let mut all_targets_after = true;
+        let mut all_targets_before = true;
+        for step in journal.steps.iter().filter(|step| !step.manifest_commit) {
+            let current = self
+                .read_optional(&step.path)
+                .map_err(MutationFailure::after_journal)?;
+            let is_after = current
+                .as_ref()
+                .is_some_and(|bytes| hex_sha256(bytes) == step.after_sha256);
+            let is_before = match (&step.before_sha256, &current) {
+                (None, None) => true,
+                (Some(expected), Some(bytes)) => hex_sha256(bytes) == *expected,
+                _ => false,
+            };
+            if !is_after && !is_before {
+                return Err(MutationFailure::after_journal(PortError::Conflict(
+                    format!("recovery refuses changed image at {}", step.path),
+                )));
+            }
+            all_targets_after &= is_after;
+            all_targets_before &= is_before;
+        }
+
+        if manifest_after && !all_targets_after {
+            return Err(MutationFailure::after_journal(invalid(
+                "manifest post-image cannot precede an unapplied target post-image",
+            )));
+        }
+        if journal.state == JournalState::RolledBack && (!manifest_before || !all_targets_before) {
+            return Err(MutationFailure::after_journal(invalid(
+                "rolled-back journal does not match all authoritative before-images",
+            )));
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn validate_candidate_transition(
+        &self,
+        journal: &RecoveryJournal,
+        authorization: &RecoveryAuthorization,
+        old: Option<&Manifest>,
+        candidate: &Manifest,
+    ) -> Result<(), MutationFailure> {
+        if candidate.schema != MANIFEST_SCHEMA || candidate.payload != authorization.release {
+            return Err(MutationFailure::after_journal(invalid(
+                "candidate manifest is not bound to the authenticated recovery release",
+            )));
+        }
+        match old {
+            Some(old) => {
+                if candidate.repository_mode != old.repository_mode
+                    || candidate.compatibility != old.compatibility
+                    || candidate.conversion_receipt != old.conversion_receipt
+                {
+                    return Err(MutationFailure::after_journal(invalid(
+                        "candidate changes pre-operation repository mode, compatibility, or conversion custody",
+                    )));
+                }
+            }
+            None => {
+                if journal.command == "update"
+                    || candidate.conversion_receipt.is_some()
+                    || candidate.compatibility.cli_min != CORE_VERSION
+                    || candidate.compatibility.cli_max != CORE_VERSION
+                    || candidate.compatibility.template_release_min != authorization.release_version
+                    || candidate.compatibility.template_release_max != "1.999.999"
+                {
+                    return Err(MutationFailure::after_journal(invalid(
+                        "fresh candidate does not match the closed initial manifest transition",
+                    )));
+                }
+            }
+        }
+
+        let target_steps: BTreeMap<&str, &JournalStep> = journal
+            .steps
+            .iter()
+            .filter(|step| !step.manifest_commit)
+            .map(|step| (step.path.as_str(), step))
+            .collect();
+        if old.is_none()
+            && target_steps
+                .values()
+                .any(|step| step.before_sha256.is_some())
+        {
+            return Err(MutationFailure::after_journal(invalid(
+                "fresh operation without an old manifest cannot claim preexisting before-images",
+            )));
+        }
+
+        let candidate_roles: BTreeMap<&str, &Role> = candidate
+            .roles
+            .iter()
+            .map(|role| (role.path.as_str(), role))
+            .collect();
+        if candidate_roles.len() != candidate.roles.len() {
+            return Err(MutationFailure::after_journal(invalid(
+                "candidate manifest contains duplicate role paths",
+            )));
+        }
+        let old_roles: BTreeMap<&str, &Role> = old
+            .into_iter()
+            .flat_map(|manifest| manifest.roles.iter())
+            .map(|role| (role.path.as_str(), role))
+            .collect();
+        if old_roles.len() != old.map_or(0, |manifest| manifest.roles.len()) {
+            return Err(MutationFailure::after_journal(invalid(
+                "pre-operation manifest contains duplicate role paths",
+            )));
+        }
+
+        for (path, old_role) in &old_roles {
+            let candidate_role = candidate_roles.get(path).ok_or_else(|| {
+                MutationFailure::after_journal(invalid(format!(
+                    "candidate removed pre-operation role {path}"
+                )))
+            })?;
+            if journal.command == "scaffold"
+                || old_role.ownership == Ownership::TargetOwned
+                || old_role.update_policy == UpdatePolicy::NeverAutoPatch
+            {
+                if *candidate_role != *old_role || target_steps.contains_key(path) {
+                    return Err(MutationFailure::after_journal(invalid(format!(
+                        "recovery cannot patch or reclassify target-owned role {path}"
+                    ))));
+                }
+                continue;
+            }
+            validate_role_policy_identity(old_role, candidate_role)
+                .map_err(MutationFailure::after_journal)?;
+            if let Some(step) = target_steps.get(path) {
+                if step.before_sha256.as_deref() != Some(old_role.current_sha256.as_str()) {
+                    return Err(MutationFailure::after_journal(invalid(format!(
+                        "target before-image does not match authoritative role {path}"
+                    ))));
+                }
+                let asset = authorization.assets.get(*path).ok_or_else(|| {
+                    MutationFailure::after_journal(invalid(format!(
+                        "managed transition has no authenticated asset for {path}"
+                    )))
+                })?;
+                validate_managed_role_transition(
+                    candidate_role,
+                    old_role,
+                    asset,
+                    step,
+                    authorization,
+                )
+                .map_err(MutationFailure::after_journal)?;
+            } else if let Some(asset) = authorization
+                .assets
+                .values()
+                .find(|asset| asset.id == old_role.asset)
+            {
+                if old_role.path != asset.destination
+                    || old_role.current_sha256 != asset.sha256
+                    || candidate_role.current_sha256 != old_role.current_sha256
+                    || candidate_role.base_sha256.as_deref() != Some(asset.sha256.as_str())
+                    || candidate_role.template_release.as_deref()
+                        != Some(authorization.release_version.as_str())
+                    || candidate_role.activation != old_role.activation
+                    || candidate_role.unresolved_markers != old_role.unresolved_markers
+                {
+                    return Err(MutationFailure::after_journal(invalid(format!(
+                        "unchanged managed role transition is not authenticated for {path}"
+                    ))));
+                }
+            } else if *candidate_role != *old_role {
+                return Err(MutationFailure::after_journal(invalid(format!(
+                    "candidate changed an unindexed pre-operation role {path}"
+                ))));
+            }
+        }
+
+        let old_asset_ids: BTreeSet<&str> =
+            old_roles.values().map(|role| role.asset.as_str()).collect();
+        let mut expected_new_paths = BTreeSet::new();
+        for asset in authorization.assets.values() {
+            if old_asset_ids.contains(asset.id.as_str()) {
+                continue;
+            }
+            expected_new_paths.insert(asset.destination.as_str());
+            let role = candidate_roles
+                .get(asset.destination.as_str())
+                .ok_or_else(|| {
+                    MutationFailure::after_journal(invalid(format!(
+                        "candidate omitted authenticated asset {}",
+                        asset.destination
+                    )))
+                })?;
+            if role.asset != asset.id {
+                return Err(MutationFailure::after_journal(invalid(format!(
+                    "candidate asset identity changed at {}",
+                    asset.destination
+                ))));
+            }
+            let step = target_steps.get(asset.destination.as_str()).copied();
+            validate_new_role_transition(journal, role, asset, step, authorization, self)?;
+        }
+
+        for role in &candidate.roles {
+            if !old_roles.contains_key(role.path.as_str())
+                && !expected_new_paths.contains(role.path.as_str())
+            {
+                return Err(MutationFailure::after_journal(invalid(format!(
+                    "candidate introduced a command-unowned role {}",
+                    role.path
+                ))));
+            }
+        }
+        for (path, step) in &target_steps {
+            let old_role = old_roles.get(path);
+            if old_role.is_none() && !expected_new_paths.contains(path) {
+                return Err(MutationFailure::after_journal(invalid(format!(
+                    "journal target {path} is outside the candidate transition"
+                ))));
+            }
+            if old_role.is_none() && step.before_sha256.is_some() {
+                return Err(MutationFailure::after_journal(invalid(format!(
+                    "new candidate role {path} cannot claim a preexisting before-image"
+                ))));
+            }
+        }
+
+        let has_brownfield = candidate.roles.iter().any(|role| {
+            !old_roles.contains_key(role.path.as_str()) && role.origin == Origin::BrownfieldMapped
+        });
+        if old.is_none() {
+            let expected_mode = if has_brownfield {
+                ManifestRepositoryMode::BrownfieldV1
+            } else {
+                ManifestRepositoryMode::FreshV1
+            };
+            if candidate.repository_mode != expected_mode {
+                return Err(MutationFailure::after_journal(invalid(
+                    "fresh candidate repository mode disagrees with before-image evidence",
+                )));
             }
         }
         Ok(())
@@ -838,6 +1265,8 @@ impl OsMutationPort {
                 }
                 self.write_temporary(&step.temporary_path, &backup)
                     .map_err(MutationFailure::after_journal)?;
+                self.checkpoint("rollback target temporary fsync")
+                    .map_err(MutationFailure::after_journal)?;
                 self.expect_current(&step.path, Some(&step.after_sha256))
                     .map_err(MutationFailure::after_journal)?;
                 self.rename_temporary(&step.temporary_path, &step.path, Some(&step.after_sha256))
@@ -848,6 +1277,56 @@ impl OsMutationPort {
                 step.path
             )))),
         }
+    }
+
+    #[cfg(unix)]
+    fn restore_missing_manifest(&self, step: &JournalStep) -> Result<(), MutationFailure> {
+        let before = step.before_sha256.as_deref().ok_or_else(|| {
+            MutationFailure::after_journal(invalid(
+                "missing old-manifest restoration has no before digest",
+            ))
+        })?;
+        let backup_path = step.backup_path.as_deref().ok_or_else(|| {
+            MutationFailure::after_journal(invalid(
+                "missing old-manifest restoration has no backup",
+            ))
+        })?;
+        let backup = self
+            .read_required(backup_path)
+            .map_err(MutationFailure::after_journal)?;
+        if hex_sha256(&backup) != before {
+            return Err(MutationFailure::after_journal(invalid(
+                "old-manifest rollback backup digest mismatch",
+            )));
+        }
+        self.write_temporary(&step.temporary_path, &backup)
+            .map_err(MutationFailure::after_journal)?;
+        self.checkpoint("rollback old manifest temporary fsync")
+            .map_err(MutationFailure::after_journal)?;
+        self.expect_current(&step.path, None)
+            .map_err(MutationFailure::after_journal)?;
+        self.rename_temporary(&step.temporary_path, &step.path, None)
+            .map_err(MutationFailure::after_journal)
+    }
+
+    #[cfg(unix)]
+    fn cleanup_rollback_temporary(&self, step: &JournalStep) -> Result<(), MutationFailure> {
+        let Some(bytes) = self
+            .read_optional(&step.temporary_path)
+            .map_err(MutationFailure::after_journal)?
+        else {
+            return Ok(());
+        };
+        let digest = hex_sha256(&bytes);
+        if digest != step.after_sha256 {
+            return Err(MutationFailure::after_journal(PortError::Conflict(
+                format!(
+                    "rollback preserves unexpected temporary bytes at {}",
+                    step.temporary_path
+                ),
+            )));
+        }
+        self.remove_exact(&step.temporary_path, &step.after_sha256)
     }
 
     #[cfg(unix)]
@@ -937,13 +1416,17 @@ impl OsMutationPort {
 
     #[cfg(unix)]
     fn validate_root(&self) -> Result<(), PortError> {
-        use rustix::fs::fstat;
+        use rustix::fs::{fstat, open, Mode, OFlags};
 
-        let current = fstat(&self.root).map_err(|error| map_errno(".", error))?;
-        if self.root_stat.st_dev != current.st_dev
-            || self.root_stat.st_ino != current.st_ino
-            || self.root_stat.st_mode != current.st_mode
-        {
+        let pinned = fstat(&self.root).map_err(|error| map_errno(".", error))?;
+        let current_root = open(
+            &self.root_path,
+            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
+            Mode::empty(),
+        )
+        .map_err(|_| PortError::Changed(".".into()))?;
+        let current = fstat(&current_root).map_err(|error| map_errno(".", error))?;
+        if !same_root_stat(&self.root_stat, &pinned) || !same_root_stat(&self.root_stat, &current) {
             return Err(PortError::Changed(".".into()));
         }
         Ok(())
@@ -1304,6 +1787,167 @@ impl OsMutationPort {
     }
 }
 
+fn validate_role_policy_identity(old: &Role, candidate: &Role) -> Result<(), PortError> {
+    if old.role != candidate.role
+        || old.asset != candidate.asset
+        || old.ownership != candidate.ownership
+        || old.origin != candidate.origin
+        || old.required != candidate.required
+        || old.path != candidate.path
+        || old.template != candidate.template
+        || old.marker != candidate.marker
+        || old.update_policy != candidate.update_policy
+    {
+        return Err(invalid(format!(
+            "candidate reclassified pre-operation role {}",
+            old.path
+        )));
+    }
+    Ok(())
+}
+
+fn validate_managed_role_transition(
+    candidate: &Role,
+    old: &Role,
+    asset: &RecoveryAsset,
+    step: &JournalStep,
+    authorization: &RecoveryAuthorization,
+) -> Result<(), PortError> {
+    if old.asset != asset.id
+        || old.path != asset.destination
+        || candidate.current_sha256 != step.after_sha256
+        || candidate.template_release.as_deref() != Some(authorization.release_version.as_str())
+        || step.disposition != asset.disposition
+    {
+        return Err(invalid(format!(
+            "managed role transition is not release-owned at {}",
+            old.path
+        )));
+    }
+    let expected_base = match old.ownership {
+        Ownership::ManagedFile => {
+            if step.kind != OperationKind::Create || step.after_sha256 != asset.sha256 {
+                return Err(invalid(format!(
+                    "managed-file transition differs from authenticated bytes at {}",
+                    old.path
+                )));
+            }
+            asset.sha256.clone()
+        }
+        Ownership::ManagedBlock => {
+            if step.kind != OperationKind::ReplaceManagedBlock {
+                return Err(invalid(format!(
+                    "managed-block transition uses the wrong operation at {}",
+                    old.path
+                )));
+            }
+            let marker = old.marker.as_deref().ok_or_else(|| {
+                invalid(format!("managed-block role has no marker at {}", old.path))
+            })?;
+            hex_sha256(&managed_candidate_interior(&asset.bytes, marker)?)
+        }
+        Ownership::TargetOwned => {
+            return Err(invalid(format!(
+                "target-owned role reached managed transition at {}",
+                old.path
+            )))
+        }
+    };
+    if candidate.base_sha256.as_deref() != Some(expected_base.as_str()) {
+        return Err(invalid(format!(
+            "managed role base is not the authenticated candidate at {}",
+            old.path
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn validate_new_role_transition(
+    journal: &RecoveryJournal,
+    role: &Role,
+    asset: &RecoveryAsset,
+    step: Option<&JournalStep>,
+    authorization: &RecoveryAuthorization,
+    port: &OsMutationPort,
+) -> Result<(), MutationFailure> {
+    let expected_role = asset
+        .role
+        .clone()
+        .unwrap_or_else(|| asset.id.replace('-', "_"));
+    let expected_template = asset.template.clone().or_else(|| Some(asset.id.clone()));
+    if role.role != expected_role
+        || role.asset != asset.id
+        || role.path != asset.destination
+        || role.template != expected_template
+        || role.template_release.as_deref() != Some(authorization.release_version.as_str())
+        || role.base_sha256.as_deref() != Some(asset.sha256.as_str())
+        || role.current_sha256 != asset.sha256
+        || role.marker.is_some()
+    {
+        return Err(MutationFailure::after_journal(invalid(format!(
+            "new role is not the authenticated asset transition at {}",
+            asset.destination
+        ))));
+    }
+    match (&journal.scope, step) {
+        (RecoveryScope::ReleaseAssets, Some(step)) => {
+            if step.before_sha256.is_some()
+                || step.kind != OperationKind::Create
+                || step.after_sha256 != asset.sha256
+                || step.disposition != asset.disposition
+                || role.ownership != Ownership::ManagedFile
+                || role.origin != Origin::Created
+                || role.update_policy != UpdatePolicy::ReplaceIfBase
+                || role.required != (asset.disposition == Disposition::ManagedV1)
+            {
+                return Err(MutationFailure::after_journal(invalid(format!(
+                    "new managed role claims unsupported before-image or policy at {}",
+                    asset.destination
+                ))));
+            }
+        }
+        (RecoveryScope::ReleaseAssets, None) => {
+            let current = port
+                .read_required(&asset.destination)
+                .map_err(MutationFailure::after_journal)?;
+            if current != asset.bytes
+                || role.ownership != Ownership::TargetOwned
+                || role.origin != Origin::BrownfieldMapped
+                || role.update_policy != UpdatePolicy::NeverAutoPatch
+                || role.required != (asset.disposition == Disposition::ManagedV1)
+            {
+                return Err(MutationFailure::after_journal(invalid(format!(
+                    "brownfield role is not backed by exact preexisting authenticated bytes at {}",
+                    asset.destination
+                ))));
+            }
+        }
+        (RecoveryScope::Scaffold { .. }, Some(step)) => {
+            if step.before_sha256.is_some()
+                || step.kind != OperationKind::Create
+                || step.after_sha256 != asset.sha256
+                || step.disposition != asset.disposition
+                || role.ownership != Ownership::TargetOwned
+                || role.origin != Origin::Created
+                || role.update_policy != UpdatePolicy::NeverAutoPatch
+                || role.required
+            {
+                return Err(MutationFailure::after_journal(invalid(format!(
+                    "scaffold transition is not one new target-owned destination at {}",
+                    asset.destination
+                ))));
+            }
+        }
+        (RecoveryScope::Scaffold { .. }, None) => {
+            return Err(MutationFailure::after_journal(invalid(
+                "scaffold recovery has no write for its bound destination",
+            )))
+        }
+    }
+    Ok(())
+}
+
 impl MutationPort for OsMutationPort {
     fn probe_recovery(&self) -> Result<Vec<RecoveryProbe>, PortError> {
         #[cfg(unix)]
@@ -1390,6 +2034,15 @@ fn validate_request(request: &MutationRequest) -> Result<(), PortError> {
             "mutation request violates the closed Phase 3 contract",
         ));
     }
+    validate_command_scope(
+        &request.command,
+        &request.scope,
+        request
+            .writes
+            .iter()
+            .filter(|write| !write.manifest_commit)
+            .map(|write| write.path.as_str()),
+    )?;
     let expected_operations = operations_from_writes(&request.operation_id, &request.writes);
     if request.operations != expected_operations {
         return Err(invalid(
@@ -1400,9 +2053,23 @@ fn validate_request(request: &MutationRequest) -> Result<(), PortError> {
         .writes
         .last()
         .expect("the closed request check requires a manifest step");
+    if manifest.before_sha256.is_none()
+        && request
+            .writes
+            .iter()
+            .any(|write| !write.manifest_commit && write.before_sha256.is_some())
+    {
+        return Err(invalid(
+            "fresh mutation without an old manifest cannot claim target before-images",
+        ));
+    }
+    if request.command == "update" && manifest.before_sha256.is_none() {
+        return Err(invalid("update recovery requires a pre-operation manifest"));
+    }
     let target_operations = target_operations_from_writes(&request.writes);
     let expected_operation_id = plan_operation_id(
         &request.command,
+        &request.scope,
         &request.release,
         &target_operations,
         &hex_sha256(&manifest.after_bytes),
@@ -1476,6 +2143,36 @@ fn validate_request(request: &MutationRequest) -> Result<(), PortError> {
         }
     }
     Ok(())
+}
+
+fn validate_command_scope<'a>(
+    command: &str,
+    scope: &RecoveryScope,
+    target_paths: impl Iterator<Item = &'a str>,
+) -> Result<(), PortError> {
+    let target_paths: Vec<&str> = target_paths.collect();
+    match (command, scope) {
+        ("install" | "update", RecoveryScope::ReleaseAssets) => Ok(()),
+        (
+            "scaffold",
+            RecoveryScope::Scaffold {
+                template,
+                destination,
+            },
+        ) => {
+            if !is_lower_kebab(template) {
+                return Err(invalid("scaffold recovery template identifier is invalid"));
+            }
+            validate_exact_destination(destination)?;
+            if target_paths.as_slice() != [destination.as_str()] {
+                return Err(invalid(
+                    "scaffold recovery must contain exactly its bound destination",
+                ));
+            }
+            Ok(())
+        }
+        _ => Err(invalid("recovery command and scope disagree")),
+    }
 }
 
 fn expected_temporary_path(
@@ -1590,12 +2287,14 @@ fn operations_from_steps(operation_id: &str, steps: &[JournalStep]) -> Vec<Opera
 
 fn plan_operation_id(
     command: &str,
+    scope: &RecoveryScope,
     release: &PayloadIdentity,
     target_operations: &[Operation],
     manifest_sha256: &str,
 ) -> Result<String, PortError> {
     let seed = serde_json::json!({
         "command": command,
+        "scope": scope,
         "release": release,
         "target_operations": target_operations,
         "manifest_sha256": manifest_sha256,
@@ -1613,12 +2312,22 @@ fn validate_journal_ownership(
     if journal.command != command
         || journal.operation_id != operation_id
         || journal.release != authorization.release
+        || journal.scope != authorization.scope
         || !is_lower_kebab(operation_id)
     {
         return Err(invalid(
             "recovery command, operation, or release identity mismatch",
         ));
     }
+    validate_command_scope(
+        command,
+        &journal.scope,
+        journal
+            .steps
+            .iter()
+            .filter(|step| !step.manifest_commit)
+            .map(|step| step.path.as_str()),
+    )?;
     let operation_root = OsMutationPort::operation_root(operation_id);
     let mut paths = BTreeSet::new();
     for step in &journal.steps {
@@ -1632,7 +2341,7 @@ fn validate_journal_ownership(
             validate_relative(path, true)?;
         }
         let authorized_target =
-            step.path == MANIFEST_PATH || authorization.asset_paths.contains(&step.path);
+            step.path == MANIFEST_PATH || authorization.assets.contains_key(&step.path);
         let expected_staged = format!("{operation_root}/staged/{}.after", step.step_id);
         let expected_backup = step
             .before_sha256
@@ -1705,6 +2414,7 @@ fn validate_journal_ownership(
     let target_operations = target_operations_from_steps(&journal.steps);
     let expected_operation_id = plan_operation_id(
         command,
+        &journal.scope,
         &authorization.release,
         &target_operations,
         manifest_sha256,
@@ -1716,7 +2426,11 @@ fn validate_journal_ownership(
     }
     for step in journal.steps.iter().filter(|step| !step.manifest_commit) {
         if step.kind == OperationKind::Create
-            && authorization.asset_sha256.get(&step.path) != Some(&step.after_sha256)
+            && authorization
+                .assets
+                .get(&step.path)
+                .map(|asset| &asset.sha256)
+                != Some(&step.after_sha256)
         {
             return Err(invalid(format!(
                 "{} is not the exact authenticated asset post-image",
@@ -1798,6 +2512,11 @@ fn is_sha256(value: &str) -> bool {
 }
 
 #[cfg(unix)]
+fn same_root_stat(left: &rustix::fs::Stat, right: &rustix::fs::Stat) -> bool {
+    left.st_dev == right.st_dev && left.st_ino == right.st_ino && left.st_mode == right.st_mode
+}
+
+#[cfg(unix)]
 fn same_stat(left: &rustix::fs::Stat, right: &rustix::fs::Stat) -> bool {
     left.st_dev == right.st_dev
         && left.st_ino == right.st_ino
@@ -1852,7 +2571,21 @@ mod tests {
                 "template_release_max": "1.999.999"
             },
             "payload": release,
-            "roles": []
+            "roles": [{
+                "role": "managed",
+                "asset": "managed",
+                "activation": "active",
+                "ownership": "managed-file",
+                "origin": "created",
+                "required": true,
+                "path": "managed.md",
+                "template": "managed",
+                "template_release": "1.0.0",
+                "base_sha256": hex_sha256(&asset),
+                "current_sha256": hex_sha256(&asset),
+                "update_policy": "replace-if-base",
+                "unresolved_markers": []
+            }]
         }))
         .unwrap();
         manifest.push(b'\n');
@@ -1866,6 +2599,7 @@ mod tests {
         }];
         let operation_id = plan_operation_id(
             "install",
+            &RecoveryScope::ReleaseAssets,
             &release,
             &target_operations,
             &hex_sha256(&manifest),
@@ -1917,6 +2651,7 @@ mod tests {
         let preview_sha256 = digest(&serde_json::to_value(&operations).unwrap()).unwrap();
         MutationRequest {
             command: "install".into(),
+            scope: RecoveryScope::ReleaseAssets,
             operation_id,
             preview_sha256: preview_sha256.clone(),
             accepted_preview_sha256: preview_sha256,
@@ -1930,9 +2665,20 @@ mod tests {
         let bytes = b"managed\n".to_vec();
         RecoveryAuthorization {
             release: request.release.clone(),
-            asset_paths: BTreeSet::from(["managed.md".into()]),
-            asset_sha256: BTreeMap::from([("managed.md".into(), hex_sha256(&bytes))]),
-            asset_bytes: BTreeMap::from([("managed.md".into(), bytes)]),
+            release_version: "1.0.0".into(),
+            scope: request.scope.clone(),
+            assets: BTreeMap::from([(
+                "managed.md".into(),
+                RecoveryAsset {
+                    id: "managed".into(),
+                    role: Some("managed".into()),
+                    template: None,
+                    destination: "managed.md".into(),
+                    disposition: Disposition::ManagedV1,
+                    sha256: hex_sha256(&bytes),
+                    bytes,
+                },
+            )]),
         }
     }
 
@@ -1944,6 +2690,7 @@ mod tests {
         let target_operations = target_operations_from_writes(&request.writes);
         request.operation_id = plan_operation_id(
             &request.command,
+            &request.scope,
             &request.release,
             &target_operations,
             &hex_sha256(&request.writes[1].after_bytes),
@@ -1973,6 +2720,7 @@ mod tests {
         let target_operations = target_operations_from_writes(&request.writes);
         request.operation_id = plan_operation_id(
             &request.command,
+            &request.scope,
             &request.release,
             &target_operations,
             &hex_sha256(&request.writes.last().unwrap().after_bytes),
@@ -1995,6 +2743,33 @@ mod tests {
         request.preview_sha256 =
             digest(&serde_json::to_value(&request.operations).unwrap()).unwrap();
         request.accepted_preview_sha256 = request.preview_sha256.clone();
+    }
+
+    #[cfg(unix)]
+    fn persist_fabricated_journal(port: &OsMutationPort, request: &MutationRequest) {
+        port.ensure_dir(&OsMutationPort::operation_root(&request.operation_id))
+            .unwrap();
+        port.ensure_dir(&format!(
+            "{}/backups",
+            OsMutationPort::operation_root(&request.operation_id)
+        ))
+        .unwrap();
+        port.ensure_dir(&format!(
+            "{}/staged",
+            OsMutationPort::operation_root(&request.operation_id)
+        ))
+        .unwrap();
+        for write in &request.writes {
+            if let Some(backup_path) = &write.backup_path {
+                let current = port.read_required(&write.path).unwrap();
+                port.write_owned_once(backup_path, &current).unwrap();
+            }
+            port.write_owned_once(&write.staged_path, &write.after_bytes)
+                .unwrap();
+        }
+        let mut journal = RecoveryJournal::from_request(request);
+        journal.state = JournalState::Applying;
+        port.persist_journal(&journal).unwrap();
     }
 
     #[cfg(unix)]
@@ -2026,6 +2801,180 @@ mod tests {
         assert_eq!(result, MutationResult::RolledBack);
         assert!(!temporary.path().join("managed.md").exists());
         assert!(!temporary.path().join(MANIFEST_PATH).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fabricated_update_journal_cannot_patch_authoritative_target_owned_role() {
+        let temporary = tempfile::tempdir().unwrap();
+        let old_target = b"human-owned managed path\n".to_vec();
+        let mut old_manifest_value =
+            parse(&request().writes[1].after_bytes).expect("fixture manifest parses");
+        old_manifest_value["roles"][0]["ownership"] = serde_json::json!("target-owned");
+        old_manifest_value["roles"][0]["origin"] = serde_json::json!("brownfield-mapped");
+        old_manifest_value["roles"][0]["update_policy"] = serde_json::json!("never-auto-patch");
+        old_manifest_value["roles"][0]["base_sha256"] = serde_json::json!(hex_sha256(&old_target));
+        old_manifest_value["roles"][0]["current_sha256"] =
+            serde_json::json!(hex_sha256(&old_target));
+        let mut old_manifest = canonical(&old_manifest_value).unwrap();
+        old_manifest.push(b'\n');
+        std::fs::create_dir_all(temporary.path().join(".harness")).unwrap();
+        std::fs::write(temporary.path().join("managed.md"), &old_target).unwrap();
+        std::fs::write(temporary.path().join(MANIFEST_PATH), &old_manifest).unwrap();
+
+        let fabricated = replacement_request(&old_target, &old_manifest);
+        let port = OsMutationPort::new(temporary.path()).unwrap();
+        persist_fabricated_journal(&port, &fabricated);
+        let result = port.recover(
+            "update",
+            &fabricated.operation_id,
+            RecoveryMode::Resume,
+            &authorization(&fabricated),
+            &mut |_| Ok(()),
+        );
+
+        assert!(matches!(
+            result,
+            Err(MutationFailure {
+                error: PortError::ManifestInvalid(_),
+                journal_started: true
+            })
+        ));
+        assert_eq!(
+            std::fs::read(temporary.path().join("managed.md")).unwrap(),
+            old_target
+        );
+        assert_eq!(
+            std::fs::read(temporary.path().join(MANIFEST_PATH)).unwrap(),
+            old_manifest
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fabricated_fresh_journal_cannot_claim_preexisting_before_images() {
+        let temporary = tempfile::tempdir().unwrap();
+        let human = b"preexisting human bytes\n".to_vec();
+        std::fs::write(temporary.path().join("managed.md"), &human).unwrap();
+        let mut fabricated = request();
+        fabricated.writes[0].before_sha256 = Some(hex_sha256(&human));
+        fabricated.writes[0].backup_path = Some("placeholder".into());
+        rebind_request(&mut fabricated);
+        let port = OsMutationPort::new(temporary.path()).unwrap();
+        persist_fabricated_journal(&port, &fabricated);
+
+        let result = port.recover(
+            "install",
+            &fabricated.operation_id,
+            RecoveryMode::Resume,
+            &authorization(&fabricated),
+            &mut |_| Ok(()),
+        );
+
+        assert!(matches!(
+            result,
+            Err(MutationFailure {
+                error: PortError::ManifestInvalid(_),
+                journal_started: true
+            })
+        ));
+        assert_eq!(
+            std::fs::read(temporary.path().join("managed.md")).unwrap(),
+            human
+        );
+        assert!(!temporary.path().join(MANIFEST_PATH).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fabricated_scaffold_journal_cannot_expand_beyond_bound_destination() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut fabricated = request();
+        fabricated.command = "scaffold".into();
+        fabricated.scope = RecoveryScope::Scaffold {
+            template: "managed".into(),
+            destination: "managed.md".into(),
+        };
+        fabricated.writes.insert(
+            1,
+            PlannedWrite {
+                step_id: "target-002-other".into(),
+                operation_id: "write-002-other".into(),
+                kind: OperationKind::Create,
+                disposition: Disposition::ManagedV1,
+                path: "other.md".into(),
+                before_sha256: None,
+                after_bytes: b"other authenticated-looking bytes\n".to_vec(),
+                backup_path: None,
+                staged_path: "placeholder".into(),
+                temporary_path: "placeholder".into(),
+                manifest_commit: false,
+            },
+        );
+        rebind_request(&mut fabricated);
+        let port = OsMutationPort::new(temporary.path()).unwrap();
+        persist_fabricated_journal(&port, &fabricated);
+        let mut authorization = authorization(&fabricated);
+        authorization.scope = fabricated.scope.clone();
+
+        let result = port.recover(
+            "scaffold",
+            &fabricated.operation_id,
+            RecoveryMode::Resume,
+            &authorization,
+            &mut |_| Ok(()),
+        );
+
+        assert!(matches!(
+            result,
+            Err(MutationFailure {
+                error: PortError::ManifestInvalid(_),
+                journal_started: true
+            })
+        ));
+        assert!(!temporary.path().join("managed.md").exists());
+        assert!(!temporary.path().join("other.md").exists());
+        assert!(!temporary.path().join(MANIFEST_PATH).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rollback_rejects_repository_root_pathname_replacement() {
+        let container = tempfile::tempdir().unwrap();
+        let repository = container.path().join("repository");
+        let old_repository = container.path().join("repository-old");
+        std::fs::create_dir(&repository).unwrap();
+        let port = OsMutationPort::new(&repository).unwrap();
+        let request = request();
+        port.apply(&request, &mut |_| Ok(())).unwrap();
+        std::fs::rename(&repository, &old_repository).unwrap();
+        std::fs::create_dir(&repository).unwrap();
+        std::fs::write(repository.join("sentinel"), b"replacement namespace\n").unwrap();
+
+        let result = port.recover(
+            "install",
+            &request.operation_id,
+            RecoveryMode::Rollback,
+            &authorization(&request),
+            &mut |_| Ok(()),
+        );
+
+        assert!(matches!(
+            result,
+            Err(MutationFailure {
+                error: PortError::Changed(path),
+                journal_started: false
+            }) if path == "."
+        ));
+        assert_eq!(
+            std::fs::read(old_repository.join("managed.md")).unwrap(),
+            b"managed\n"
+        );
+        assert!(old_repository.join(MANIFEST_PATH).is_file());
+        assert_eq!(
+            std::fs::read(repository.join("sentinel")).unwrap(),
+            b"replacement namespace\n"
+        );
     }
 
     #[cfg(unix)]
@@ -2300,13 +3249,14 @@ mod tests {
     fn rollback_does_not_restore_old_manifest_when_manifest_step_was_never_applied() {
         let temporary = tempfile::tempdir().unwrap();
         let old_target = b"old managed\n".to_vec();
-        let mut old_manifest = request().writes[1].after_bytes.clone();
-        let needle = b"\"sequence\":42";
-        let start = old_manifest
-            .windows(needle.len())
-            .position(|window| window == needle)
-            .unwrap();
-        old_manifest[start..start + needle.len()].copy_from_slice(b"\"sequence\":41");
+        let mut old_manifest_value =
+            parse(&request().writes[1].after_bytes).expect("fixture manifest parses");
+        old_manifest_value["payload"]["sequence"] = serde_json::json!(41);
+        old_manifest_value["roles"][0]["base_sha256"] = serde_json::json!(hex_sha256(&old_target));
+        old_manifest_value["roles"][0]["current_sha256"] =
+            serde_json::json!(hex_sha256(&old_target));
+        let mut old_manifest = canonical(&old_manifest_value).unwrap();
+        old_manifest.push(b'\n');
         std::fs::create_dir_all(temporary.path().join(".harness")).unwrap();
         std::fs::write(temporary.path().join("managed.md"), &old_target).unwrap();
         std::fs::write(temporary.path().join(MANIFEST_PATH), &old_manifest).unwrap();

@@ -234,11 +234,11 @@ success manifest after any failure.
 its fixtures land after the pure core boundary; no V0 reader or bridge command
 is linked into the V1 artifact.
 
-**Current evidence:** 26 focused Phase 3 Rust tests (ten recovery unit and
-sixteen signed integration), every one of 18 install and 15 update kill points,
-72 total `harness-core` tests, 164 workspace Rust tests, and 11/11 Phase 3
-mechanical proof groups. Phase 1/2 gates remain unchanged; Phase 4 and Phase 7
-remain closed pending acceptance.
+**Current evidence:** 33 focused Phase 3 Rust tests (fourteen recovery unit and
+nineteen signed integration), every one of 18 install, 15 update, and 13
+committed-update rollback checkpoints, 79 total `harness-core` tests, 171
+workspace Rust tests, and 11/11 Phase 3 mechanical proof groups. Phase 1/2 gates
+remain unchanged; Phase 4 and Phase 7 remain closed pending acceptance.
 
 ### Phase 4: Isolated V0 Bridge
 

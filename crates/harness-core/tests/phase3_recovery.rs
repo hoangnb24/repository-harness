@@ -2,12 +2,14 @@
 
 use std::cell::Cell;
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 use harness_core::application::HarnessCore;
 use harness_core::domain::{Command, Envelope, Mutation, MutatorOptions, Notice, ScaffoldOptions};
-use harness_core::infrastructure::{JsonManifestPort, OsFileSystem};
+use harness_core::infrastructure::{JsonManifestPort, OsFileSystem, UnavailableReleasePort};
+use harness_core::interface::{parse, Parsed};
 use harness_core::ports::{
     PinnedRootKey, PortError, ReleaseFreshness, ReleaseMaterial, ReleasePort, ReleaseTrustInput,
     TrustPolicy, TrustPort, TrustedRootState,
@@ -272,6 +274,38 @@ fn prepare_managed_block_update(root: &Path) -> Vec<u8> {
     [prefix.as_slice(), DECISION, suffix.as_slice()].concat()
 }
 
+fn prepare_two_managed_file_update(root: &Path) -> (Vec<u8>, Vec<u8>, Vec<u8>, String, String) {
+    let digest = preview(root, Command::Install).0;
+    assert!(matches!(
+        execute(root, Command::Install(confirm(digest)), None).exit_code,
+        0 | 2
+    ));
+    let old_decision = b"# Old managed decision\n".to_vec();
+    let old_story = b"# Old managed story\n".to_vec();
+    std::fs::write(root.join("docs/templates/decision.md"), &old_decision).unwrap();
+    std::fs::write(root.join("docs/templates/story.md"), &old_story).unwrap();
+    let manifest_path = root.join(".harness/manifest.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+    for (path, bytes) in [
+        ("docs/templates/decision.md", old_decision.as_slice()),
+        ("docs/templates/story.md", old_story.as_slice()),
+    ] {
+        let role = manifest["roles"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|role| role["path"] == path)
+            .unwrap();
+        role["base_sha256"] = serde_json::json!(sha256(bytes));
+        role["current_sha256"] = serde_json::json!(sha256(bytes));
+    }
+    let old_manifest = serde_json::to_vec(&manifest).unwrap();
+    std::fs::write(&manifest_path, &old_manifest).unwrap();
+    let (digest, operation, _) = preview(root, Command::Update);
+    (old_decision, old_story, old_manifest, digest, operation)
+}
+
 #[test]
 fn signed_install_requires_exact_confirmation_commits_manifest_last_and_is_idempotent() {
     let temporary = tempfile::tempdir().unwrap();
@@ -502,6 +536,36 @@ fn scaffold_kill_resume_is_one_destination_scoped_and_repeated_resume_is_idempot
         .join(format!(".harness/recovery/{operation}/journal.json"))
         .is_file());
 
+    let before_status = tree_snapshot(temporary.path());
+    let status = execute(temporary.path(), Command::Status { json: true }, None);
+    assert_eq!(status.exit_code, 3, "{status:?}");
+    assert_eq!(status.mutation, Mutation::RecoveryRequired);
+    assert_eq!(tree_snapshot(temporary.path()), before_status);
+    let recovery_notice = notice(&status.notices, "recovery-required");
+    assert!(recovery_notice.message.contains(&format!(
+        "scaffold --template decision-template --destination docs/templates/decision.md --resume {operation}"
+    )));
+    assert!(recovery_notice.message.contains(&format!(
+        "scaffold --template decision-template --destination docs/templates/decision.md --rollback {operation}"
+    )));
+
+    let before_wrong_scope = tree_snapshot(temporary.path());
+    let wrong_scope = execute(
+        temporary.path(),
+        Command::Scaffold(ScaffoldOptions {
+            template: Some("story-template".into()),
+            destination: Some("docs/templates/story.md".into()),
+            mutation: MutatorOptions {
+                resume: Some(operation.clone()),
+                ..MutatorOptions::default()
+            },
+        }),
+        None,
+    );
+    assert_eq!(wrong_scope.exit_code, 4, "{wrong_scope:?}");
+    assert_eq!(wrong_scope.mutation, Mutation::RecoveryRequired);
+    assert_eq!(tree_snapshot(temporary.path()), before_wrong_scope);
+
     let recovery_command = || {
         Command::Scaffold(ScaffoldOptions {
             template: Some("decision-template".into()),
@@ -512,7 +576,21 @@ fn scaffold_kill_resume_is_one_destination_scoped_and_repeated_resume_is_idempot
             },
         })
     };
-    let recovered = execute(temporary.path(), recovery_command(), None);
+    let parsed = parse([
+        OsString::from("scaffold"),
+        OsString::from("--template"),
+        OsString::from("decision-template"),
+        OsString::from("--destination"),
+        OsString::from("docs/templates/decision.md"),
+        OsString::from("--resume"),
+        OsString::from(&operation),
+    ])
+    .expect("emitted scaffold recovery syntax is accepted by the frozen parser");
+    let Parsed::Command(parsed_command) = parsed else {
+        panic!("recovery syntax unexpectedly parsed as help");
+    };
+    assert_eq!(parsed_command, recovery_command());
+    let recovered = execute(temporary.path(), parsed_command, None);
     assert!(matches!(recovered.exit_code, 0 | 2), "{recovered:?}");
     let manifest: serde_json::Value = serde_json::from_slice(
         &std::fs::read(temporary.path().join(".harness/manifest.json")).unwrap(),
@@ -1053,6 +1131,210 @@ fn every_update_backup_exchange_and_manifest_kill_point_resumes_deterministicall
             "checkpoint {checkpoint}"
         );
     }
+}
+
+#[test]
+fn every_committed_update_rollback_checkpoint_resumes_in_reverse_with_old_manifest_last() {
+    for checkpoint in 1..=13 {
+        let temporary = tempfile::tempdir().unwrap();
+        let (old_decision, old_story, old_manifest, digest, operation) =
+            prepare_two_managed_file_update(temporary.path());
+        let committed = execute(temporary.path(), Command::Update(confirm(digest)), None);
+        assert!(matches!(committed.exit_code, 0 | 2), "{committed:?}");
+        assert_eq!(
+            std::fs::read(temporary.path().join("docs/templates/decision.md")).unwrap(),
+            DECISION
+        );
+        assert_eq!(
+            std::fs::read(temporary.path().join("docs/templates/story.md")).unwrap(),
+            STORY
+        );
+
+        let interrupted = execute(
+            temporary.path(),
+            Command::Update(MutatorOptions {
+                rollback: Some(operation.clone()),
+                ..MutatorOptions::default()
+            }),
+            Some(checkpoint),
+        );
+        assert_eq!(
+            interrupted.exit_code, 4,
+            "checkpoint {checkpoint}: {interrupted:?}"
+        );
+        assert_eq!(interrupted.mutation, Mutation::RecoveryRequired);
+        if checkpoint == 2 {
+            assert!(
+                !temporary.path().join(".harness/manifest.json").exists(),
+                "the explicit rolling-back intent makes the new-manifest removal gap resumable"
+            );
+        }
+        if checkpoint == 6 {
+            assert_eq!(
+                std::fs::read(temporary.path().join("docs/templates/story.md")).unwrap(),
+                old_story,
+                "the lexically later target is restored first"
+            );
+            assert_eq!(
+                std::fs::read(temporary.path().join("docs/templates/decision.md")).unwrap(),
+                DECISION,
+                "the earlier target remains at its post-image until reverse restoration reaches it"
+            );
+            assert!(!temporary.path().join(".harness/manifest.json").exists());
+        }
+
+        let recovered = execute(
+            temporary.path(),
+            Command::Update(MutatorOptions {
+                rollback: Some(operation.clone()),
+                ..MutatorOptions::default()
+            }),
+            None,
+        );
+        assert_eq!(
+            recovered.exit_code, 0,
+            "checkpoint {checkpoint}: {recovered:?}"
+        );
+        assert_eq!(recovered.mutation, Mutation::RolledBack);
+        assert_eq!(
+            std::fs::read(temporary.path().join("docs/templates/decision.md")).unwrap(),
+            old_decision,
+            "checkpoint {checkpoint}"
+        );
+        assert_eq!(
+            std::fs::read(temporary.path().join("docs/templates/story.md")).unwrap(),
+            old_story,
+            "checkpoint {checkpoint}"
+        );
+        assert_eq!(
+            std::fs::read(temporary.path().join(".harness/manifest.json")).unwrap(),
+            old_manifest,
+            "checkpoint {checkpoint}: old manifest is restored only after both targets"
+        );
+
+        let repeated = execute(
+            temporary.path(),
+            Command::Update(MutatorOptions {
+                rollback: Some(operation),
+                ..MutatorOptions::default()
+            }),
+            None,
+        );
+        assert_eq!(
+            repeated.exit_code, 0,
+            "checkpoint {checkpoint}: {repeated:?}"
+        );
+        assert_eq!(repeated.mutation, Mutation::RolledBack);
+    }
+
+    let temporary = tempfile::tempdir().unwrap();
+    let (_, _, _, digest, operation) = prepare_two_managed_file_update(temporary.path());
+    assert!(matches!(
+        execute(temporary.path(), Command::Update(confirm(digest)), None).exit_code,
+        0 | 2
+    ));
+    let no_fourteenth_checkpoint = execute(
+        temporary.path(),
+        Command::Update(MutatorOptions {
+            rollback: Some(operation),
+            ..MutatorOptions::default()
+        }),
+        Some(14),
+    );
+    assert_eq!(
+        no_fourteenth_checkpoint.exit_code, 0,
+        "{no_fourteenth_checkpoint:?}"
+    );
+    assert_eq!(no_fourteenth_checkpoint.mutation, Mutation::RolledBack);
+}
+
+#[test]
+fn human_edit_during_committed_update_rollback_is_preserved_before_old_manifest_restore() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (_, _, _, digest, operation) = prepare_two_managed_file_update(temporary.path());
+    assert!(matches!(
+        execute(temporary.path(), Command::Update(confirm(digest)), None).exit_code,
+        0 | 2
+    ));
+    let interrupted = execute(
+        temporary.path(),
+        Command::Update(MutatorOptions {
+            rollback: Some(operation.clone()),
+            ..MutatorOptions::default()
+        }),
+        Some(2),
+    );
+    assert_eq!(interrupted.mutation, Mutation::RecoveryRequired);
+    assert!(!temporary.path().join(".harness/manifest.json").exists());
+    let human = b"# Human edit during rollback\n";
+    std::fs::write(temporary.path().join("docs/templates/story.md"), human).unwrap();
+
+    let refused = execute(
+        temporary.path(),
+        Command::Update(MutatorOptions {
+            rollback: Some(operation),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert_eq!(refused.exit_code, 4, "{refused:?}");
+    assert_eq!(refused.mutation, Mutation::RecoveryRequired);
+    assert_eq!(
+        std::fs::read(temporary.path().join("docs/templates/story.md")).unwrap(),
+        human
+    );
+    assert!(!temporary.path().join(".harness/manifest.json").exists());
+}
+
+#[test]
+fn rollback_deliberately_requires_live_release_authorization_before_using_local_evidence() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (old_decision, old_story, old_manifest, digest, operation) =
+        prepare_two_managed_file_update(temporary.path());
+    assert!(matches!(
+        execute(temporary.path(), Command::Update(confirm(digest)), None).exit_code,
+        0 | 2
+    ));
+    let committed_snapshot = tree_snapshot(temporary.path());
+    let trust = SignedFixtureRelease;
+    let refused = execute_with_release(
+        temporary.path(),
+        Command::Update(MutatorOptions {
+            rollback: Some(operation.clone()),
+            ..MutatorOptions::default()
+        }),
+        &UnavailableReleasePort,
+        &trust,
+    );
+    // Rollback remains deliberately bound to a live authenticated release;
+    // when that authority is unavailable, recovery stops before local
+    // evidence is consulted and reports the normal mutation conflict.
+    assert_eq!(refused.exit_code, 4, "{refused:?}");
+    assert_eq!(refused.mutation, Mutation::None);
+    assert_eq!(tree_snapshot(temporary.path()), committed_snapshot);
+
+    let authorized = execute(
+        temporary.path(),
+        Command::Update(MutatorOptions {
+            rollback: Some(operation),
+            ..MutatorOptions::default()
+        }),
+        None,
+    );
+    assert_eq!(authorized.exit_code, 0, "{authorized:?}");
+    assert_eq!(authorized.mutation, Mutation::RolledBack);
+    assert_eq!(
+        std::fs::read(temporary.path().join("docs/templates/decision.md")).unwrap(),
+        old_decision
+    );
+    assert_eq!(
+        std::fs::read(temporary.path().join("docs/templates/story.md")).unwrap(),
+        old_story
+    );
+    assert_eq!(
+        std::fs::read(temporary.path().join(".harness/manifest.json")).unwrap(),
+        old_manifest
+    );
 }
 
 #[test]

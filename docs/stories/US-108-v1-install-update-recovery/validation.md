@@ -24,7 +24,7 @@ five-platform parity.
 | --- | --- |
 | Unit | Deterministic operation IDs and preview digests; manifest construction; unresolved markers; monotonic transitions; replace-if-base; managed-block interior replacement; three-way-review tuple; never-auto-patch; journal canonical digest and path ownership. |
 | Integration | Threshold-signed fixture install/update/scaffold through the real Unix adapter; exact confirmation; backups; manifest-last commit; read-only audit of result; no promoted live adapter. |
-| Recovery | Failure after journal prepare, each backup/staged image, each target rename, candidate validation, manifest temporary, manifest rename, and journal commit; safe resume/rollback and target-edit conflicts. |
+| Recovery | Failure after journal prepare, each backup/staged image, each target rename, candidate validation, manifest temporary, manifest rename, journal commit, and all 13 committed-update rollback checkpoints; safe resume/rollback and target-edit conflicts. |
 | Idempotency | Repeated preview is byte-identical; repeated confirmed install/update does no duplicate target write; repeated resume/rollback is harmless and deterministic. |
 | Negative | Wrong preview digest; absent update manifest; unsupported downgrade/equal-different release; unsafe/link path; target-owned candidate; managed-file base drift; managed-block edit; journal/staged/backup tamper; injected I/O failure; no false exit 0/2. |
 | Boundary | Exact six commands; no V0/SQLite/process dependency; bridge entrypoints/workflow absent; production workflow still unpromoted; non-Unix mutation fails closed. |
@@ -64,14 +64,14 @@ git status --short -- .harness repomix-output.xml crates/harness-cli \
 
 ## Acceptance Evidence
 
-The candidate contains 26 focused Phase 3 Rust test functions: ten recovery
-unit adversaries and sixteen signed-release integration tests. The integration
-kill matrix interrupts all 18 install and 15 update checkpoints and proves
-deterministic pre-journal rerun, journal-owned resume, repeated resume, rollback,
-and repeated rollback. `harness-core` has 72 passing tests total (33 library
-unit, one binary unit, 22 Phase 2 integration, sixteen Phase 3 integration); the
-workspace has 164 passing Rust tests. The Phase 3 mechanical verifier passes
-11/11 proof groups.
+The candidate contains 33 focused Phase 3 Rust test functions: fourteen recovery
+unit adversaries and nineteen signed-release integration tests. The integration
+kill matrices interrupt all 18 install, 15 update, and 13 committed-update
+rollback checkpoints and prove deterministic pre-journal rerun, journal-owned
+resume, reverse-order crash-resumable rollback, and repeated recovery. `harness-core`
+has 79 passing tests total (37 library unit, one binary unit, 22 Phase 2
+integration, nineteen Phase 3 integration); the workspace has 171 passing Rust
+tests. The Phase 3 mechanical verifier passes 11/11 proof groups.
 
 The focused evidence explicitly includes:
 
@@ -81,6 +81,13 @@ The focused evidence explicitly includes:
 - altered journal/staged/manifest bytes with a recomputed unkeyed body hash and
   a nested-operation unknown field;
 - rollback with an old but never-applied manifest;
+- every committed-update rollback checkpoint, including the durable intent and
+  new-manifest-removal gap, with old-manifest restoration last;
+- a human edit during interrupted rollback preserved before any later restore;
+- fabricated update/fresh/scaffold journals rejected when they broaden
+  ownership, before-images, or the one-destination command scope;
+- current-root pathname replacement rejected before rollback mutation or
+  success;
 - an intervening final-component swap preserved by compensating exchange;
 - read-only status/audit and exact-rerun behavior around partial targets;
 - commit- and resume-time authenticated payload identity changes rejected before
@@ -98,3 +105,9 @@ the unchanged Phase 1 verifier (9/9 groups), the unchanged Phase 2 verifier
 (11/11 groups), the Phase 3 verifier (11/11 groups), `git diff --check`, and
 full `scripts/validate-premerge.sh`. No commit, production promotion, or Phase
 4/7 opening is claimed; orchestrator acceptance remains the outstanding gate.
+
+Rollback deliberately reloads the authenticated release before trusting local
+journal and backup evidence. If that live authority is unavailable or has a
+different identity, rollback refuses before mutation. This preserves the
+forged-journal boundary; Phase 3 does not claim externally independent rollback
+authority.

@@ -425,11 +425,14 @@ adds exact preview/private-write binding; authenticated install/update/scaffold
 planning; managed-file and managed-block mutation; target-owned preservation;
 backups, staged images, full-plan recovery commitments, atomic no-replace/
 exchange, fsync, and manifest-last commit; read-only recovery status; and
-deterministic rerun/resume/rollback. Twenty-six focused Phase 3 Rust tests include
-all 18 install and 15 update kill points plus the queued ownership/race/tamper
-adversaries and commit/resume payload-identity attacks. `harness-core` passes 72
-tests, the workspace passes 164 tests, and the Phase 3 mechanical verifier passes
-11/11 groups. The live binary still uses unavailable production release/trust
+deterministic rerun/resume/rollback. Thirty-three focused Phase 3 tests cover all
+18 install, 15 update, and 13 committed-update rollback checkpoints, including
+the gap immediately after new-manifest removal, plus ownership/race/tamper and
+commit/resume payload-identity attacks. `harness-core` passes 79 tests, the
+workspace passes 171 tests, and the Phase 3 mechanical verifier passes 11/11
+groups. Rollback remains deliberately dependent on matching live authenticated
+release authority so forged local evidence cannot broaden ownership. The live
+binary still uses unavailable production release/trust
 adapters. macOS/Linux are the proven mutation boundary; other platforms fail
 closed and remain Phase 7 work. Phase 4 remains closed until this candidate
 receives acceptance.

@@ -13,8 +13,8 @@ use crate::markdown::parse_commonmark;
 use crate::path::{validate_exact_destination, validate_relative};
 use crate::ports::{FileSystemPort, ManifestPort, MutationPort, PortError, ReleasePort, TrustPort};
 use crate::recovery::{
-    MutationFailure, MutationRequest, MutationResult, PlannedWrite, RecoveryAuthorization,
-    RecoveryMode,
+    MutationFailure, MutationRequest, MutationResult, PlannedWrite, RecoveryAsset,
+    RecoveryAuthorization, RecoveryMode, RecoveryProbe, RecoveryScope,
 };
 use crate::strict_json::{digest, hex_sha256};
 use crate::trust::{verify_release, VerifiedAsset, VerifiedRelease};
@@ -284,7 +284,7 @@ impl<'a> HarnessCore<'a> {
         let mut envelope = Envelope::new(command);
         if options.resume.is_some() || options.rollback.is_some() {
             if self.mutations.is_some() {
-                return self.recover_mutation(command, options);
+                return self.recover_mutation(command, options, scaffold);
             }
             conflict(
                 &mut envelope,
@@ -430,7 +430,12 @@ impl<'a> HarnessCore<'a> {
         envelope
     }
 
-    fn recover_mutation(&self, command: &str, options: &crate::domain::MutatorOptions) -> Envelope {
+    fn recover_mutation(
+        &self,
+        command: &str,
+        options: &crate::domain::MutatorOptions,
+        scaffold: Option<&ScaffoldOptions>,
+    ) -> Envelope {
         let mut envelope = Envelope::new(command);
         let (operation_id, mode) = match (&options.resume, &options.rollback) {
             (Some(operation_id), None) => (operation_id.as_str(), RecoveryMode::Resume),
@@ -452,23 +457,25 @@ impl<'a> HarnessCore<'a> {
             }
         };
         envelope.release = ReleaseOutput::from(release.identity().clone());
+        let scope = match recovery_scope(command, scaffold) {
+            Ok(scope) => scope,
+            Err(error) => {
+                apply_port_error(&mut envelope, error);
+                return envelope;
+            }
+        };
+        let assets = match recovery_assets(&release, &scope) {
+            Ok(assets) => assets,
+            Err(error) => {
+                apply_port_error(&mut envelope, error);
+                return envelope;
+            }
+        };
         let authorization = RecoveryAuthorization {
             release: release.identity().clone(),
-            asset_paths: release
-                .assets()
-                .iter()
-                .map(|asset| asset.destination.clone())
-                .collect(),
-            asset_sha256: release
-                .assets()
-                .iter()
-                .map(|asset| (asset.destination.clone(), asset.sha256.clone()))
-                .collect(),
-            asset_bytes: release
-                .assets()
-                .iter()
-                .map(|asset| (asset.destination.clone(), asset.bytes.clone()))
-                .collect(),
+            release_version: release.release().into(),
+            scope,
+            assets,
         };
         let mutations = self
             .mutations
@@ -488,7 +495,16 @@ impl<'a> HarnessCore<'a> {
                 }
             }
             Ok(MutationResult::RolledBack) => self.finish_rollback(&mut envelope),
-            Err(failure) => apply_mutation_failure(&mut envelope, failure),
+            Err(failure) => apply_mutation_failure(
+                &mut envelope,
+                failure,
+                Some(RecoveryProbe {
+                    command: command.into(),
+                    scope: authorization.scope.clone(),
+                    operation_id: operation_id.into(),
+                    accepted_preview_sha256: String::new(),
+                }),
+            ),
         }
         envelope
     }
@@ -521,13 +537,21 @@ impl<'a> HarnessCore<'a> {
             finish_semantic_state(&mut envelope, &candidate.manifest, Mutation::None);
             return envelope;
         }
-        let mut request = match self.build_mutation_request(command, release, existing, candidate) {
-            Ok(request) => request,
+        let scope = match recovery_scope(command, scaffold) {
+            Ok(scope) => scope,
             Err(error) => {
                 apply_port_error(&mut envelope, error);
                 return envelope;
             }
         };
+        let mut request =
+            match self.build_mutation_request(command, scope, release, existing, candidate) {
+                Ok(request) => request,
+                Err(error) => {
+                    apply_port_error(&mut envelope, error);
+                    return envelope;
+                }
+            };
         envelope.details.operations = Some(request.operations.clone());
         envelope.notices.push(Notice {
             code: "operation-id".into(),
@@ -600,7 +624,16 @@ impl<'a> HarnessCore<'a> {
                     "apply returned an impossible rollback result".into(),
                 );
             }
-            Err(failure) => apply_mutation_failure(&mut envelope, failure),
+            Err(failure) => apply_mutation_failure(
+                &mut envelope,
+                failure,
+                Some(RecoveryProbe {
+                    command: command.into(),
+                    scope: request.scope.clone(),
+                    operation_id: request.operation_id.clone(),
+                    accepted_preview_sha256: request.accepted_preview_sha256.clone(),
+                }),
+            ),
         }
         envelope
     }
@@ -890,6 +923,7 @@ impl<'a> HarnessCore<'a> {
     fn build_mutation_request(
         &self,
         command: &str,
+        scope: RecoveryScope,
         release: &VerifiedRelease,
         existing: Option<&Manifest>,
         mut candidate: CandidateMutation,
@@ -916,6 +950,7 @@ impl<'a> HarnessCore<'a> {
             .collect();
         let seed = serde_json::json!({
             "command": command,
+            "scope": scope,
             "release": release.identity(),
             "target_operations": target_operations,
             "manifest_sha256": hex_sha256(&manifest_bytes),
@@ -1028,6 +1063,7 @@ impl<'a> HarnessCore<'a> {
         let preview_sha256 = digest(&operations_value).map_err(PortError::ManifestInvalid)?;
         Ok(MutationRequest {
             command: command.into(),
+            scope,
             operation_id,
             preview_sha256: preview_sha256.clone(),
             accepted_preview_sha256: preview_sha256,
@@ -1210,6 +1246,78 @@ struct CandidateMutation {
     writes: Vec<TargetWriteDraft>,
 }
 
+fn recovery_scope(
+    command: &str,
+    scaffold: Option<&ScaffoldOptions>,
+) -> Result<RecoveryScope, PortError> {
+    match command {
+        "install" | "update" => Ok(RecoveryScope::ReleaseAssets),
+        "scaffold" => {
+            let options = scaffold.ok_or_else(|| {
+                PortError::ManifestInvalid("scaffold recovery scope is unavailable".into())
+            })?;
+            let template = options.template.clone().ok_or_else(|| {
+                PortError::ManifestInvalid("scaffold recovery template is unavailable".into())
+            })?;
+            let destination = options.destination.clone().ok_or_else(|| {
+                PortError::ManifestInvalid("scaffold recovery destination is unavailable".into())
+            })?;
+            validate_exact_destination(&destination)?;
+            Ok(RecoveryScope::Scaffold {
+                template,
+                destination,
+            })
+        }
+        _ => Err(PortError::ManifestInvalid(
+            "recovery command is outside the closed Phase 3 contract".into(),
+        )),
+    }
+}
+
+fn recovery_assets(
+    release: &VerifiedRelease,
+    scope: &RecoveryScope,
+) -> Result<std::collections::BTreeMap<String, RecoveryAsset>, PortError> {
+    let selected: Vec<&VerifiedAsset> = match scope {
+        RecoveryScope::ReleaseAssets => release.assets().iter().collect(),
+        RecoveryScope::Scaffold {
+            template,
+            destination,
+        } => {
+            let asset = release
+                .assets()
+                .iter()
+                .find(|asset| {
+                    (asset.id == *template || asset.template.as_deref() == Some(template.as_str()))
+                        && asset.destination == *destination
+                })
+                .ok_or_else(|| {
+                    PortError::ManifestInvalid(
+                        "scaffold recovery template/destination is not authenticated".into(),
+                    )
+                })?;
+            vec![asset]
+        }
+    };
+    Ok(selected
+        .into_iter()
+        .map(|asset| {
+            (
+                asset.destination.clone(),
+                RecoveryAsset {
+                    id: asset.id.clone(),
+                    role: asset.role.clone(),
+                    template: asset.template.clone(),
+                    destination: asset.destination.clone(),
+                    disposition: asset.disposition,
+                    sha256: asset.sha256.clone(),
+                    bytes: asset.bytes.clone(),
+                },
+            )
+        })
+        .collect())
+}
+
 struct TargetWriteDraft {
     label: String,
     path: String,
@@ -1383,7 +1491,11 @@ fn finish_committed(
     envelope.notices.extend(audit.notices);
 }
 
-fn apply_mutation_failure(envelope: &mut Envelope, failure: MutationFailure) {
+fn apply_mutation_failure(
+    envelope: &mut Envelope,
+    failure: MutationFailure,
+    probe: Option<RecoveryProbe>,
+) {
     apply_port_error(envelope, failure.error);
     if failure.journal_started {
         // A durable journal makes this a recoverable mutation conflict even
@@ -1394,8 +1506,13 @@ fn apply_mutation_failure(envelope: &mut Envelope, failure: MutationFailure) {
         envelope.notices.push(Notice {
             code: "recovery-required".into(),
             path: None,
-            message: "A durable operation journal exists; use command-owned resume or rollback"
-                .into(),
+            message: probe.as_ref().map_or_else(
+                || {
+                    "A durable operation journal exists; use command-owned resume or rollback"
+                        .into()
+                },
+                recovery_instructions,
+            ),
         });
     }
 }
@@ -1428,12 +1545,46 @@ fn recovery_required_envelope(
                 probe.operation_id
             )),
             message: format!(
-                "Incomplete {} operation {}; use {} --resume or --rollback with this operation ID",
-                probe.command, probe.operation_id, probe.command
+                "Incomplete {} operation {}; {}",
+                probe.command,
+                probe.operation_id,
+                recovery_instructions(&probe)
             ),
         });
     }
     envelope
+}
+
+fn recovery_instructions(probe: &RecoveryProbe) -> String {
+    let mut prefix = vec![shell_argument(&probe.command)];
+    if let RecoveryScope::Scaffold {
+        template,
+        destination,
+    } = &probe.scope
+    {
+        prefix.extend([
+            "--template".into(),
+            shell_argument(template),
+            "--destination".into(),
+            shell_argument(destination),
+        ]);
+    }
+    let prefix = prefix.join(" ");
+    format!(
+        "resume with `{prefix} --resume {operation}` or roll back with `{prefix} --rollback {operation}`",
+        operation = shell_argument(&probe.operation_id)
+    )
+}
+
+fn shell_argument(value: &str) -> String {
+    if !value.is_empty()
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'/'))
+    {
+        return value.into();
+    }
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
 #[derive(Default)]
