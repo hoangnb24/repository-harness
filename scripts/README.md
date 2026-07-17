@@ -270,12 +270,19 @@ The V1 implementation gates are also individually runnable:
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
+scripts/verify-v1-phase4-bridge.sh
 ```
 
 The Phase 3 gate runs the complete `harness-core` test target and an eleven-group
 mechanical verifier for exact preview/write binding, authenticated recovery
 ownership, manifest-last durability, kill points, idempotency, read-only status
 probing, platform fail-closed behavior, and the closed Phase 4/7 boundaries.
+
+The Phase 4 gate runs the archive-only bridge tests and ten executable proof
+groups: exact four-command grammar; schemas 1–13; WAL-aware live/archive export;
+unique no-replace publication; foreign custody preservation; tamper rejection;
+SQLite-free six-command core receipt recovery; Windows controlled unsupported
+exit 5; unpromoted lifecycle state; and immutable tracked fixture bytes.
 
 ## Changeset Rebuild Validation
 

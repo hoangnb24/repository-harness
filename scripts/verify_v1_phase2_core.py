@@ -29,7 +29,7 @@ EXPECTED_EXITS = {
     "version": [0, 64, 70],
 }
 FORBIDDEN_COMMANDS = [
-    "migrate", "inspect", "export", "preview", "apply", "resume", "rollback",
+    "migrate", "inspect", "export", "archive", "preview", "apply", "resume", "rollback",
     "init", "intake", "story", "query", "db",
 ]
 

@@ -14,7 +14,14 @@ command -v cargo >/dev/null 2>&1 || {
   exit 1
 }
 
-python3 tests/fixtures/v1-phase1/generate.py --check
+# Decision 0014 deliberately preserves the generated Phase 1 conversion
+# fixtures as historical evidence. Regenerating them from the superseding
+# archive-only contracts would rewrite accepted bytes, so prove that this
+# candidate has not modified the tracked fixture tree instead.
+git diff --quiet -- tests/fixtures || {
+  echo "tracked fixture bytes differ from the accepted baseline" >&2
+  exit 1
+}
 cargo build --quiet --locked --package v1-contract-crypto
 cargo build --quiet --locked --package harness-core --bin harness
 cargo build --quiet --locked --package harness-v0-migrate --bin harness-v0-migrate

@@ -36,7 +36,7 @@ FORBIDDEN_FIELDS = {
 }
 
 EXPECTED_CORE_COMMANDS = [
-    {"name": "install", "mutation": "managed-files-and-manifest", "options": ["--preview", "--non-interactive", "--accept-preview-sha256", "--resume", "--rollback"], "exits": [0, 2, 3, 4, 64, 70, 74]},
+    {"name": "install", "mutation": "managed-files-manifest-and-archive-receipt", "options": ["--preview", "--non-interactive", "--accept-preview-sha256", "--resume", "--rollback", "--v0-archive-manifest"], "exits": [0, 2, 3, 4, 64, 70, 74]},
     {"name": "update", "mutation": "managed-files-and-manifest", "options": ["--preview", "--non-interactive", "--accept-preview-sha256", "--resume", "--rollback"], "exits": [0, 2, 3, 4, 64, 70, 74]},
     {"name": "audit", "mutation": "none", "options": ["--json"], "exits": [0, 2, 3, 64, 70, 74]},
     {"name": "scaffold", "mutation": "one-explicit-neutral-artifact", "options": ["--template", "--destination", "--preview", "--non-interactive", "--accept-preview-sha256", "--resume", "--rollback"], "exits": [0, 3, 4, 64, 70, 74]},
@@ -44,12 +44,9 @@ EXPECTED_CORE_COMMANDS = [
     {"name": "version", "mutation": "none", "options": ["--json"], "exits": [0, 64, 70]},
 ]
 EXPECTED_BRIDGE_COMMANDS = [
-    {"name": "inspect", "mutation": "none", "options": ["--json"], "exits": [0, 3, 5, 64, 70, 74]},
-    {"name": "export", "mutation": "new-export-and-archive-only", "options": ["--output", "--age-recipient", "--archive-plaintext", "--acknowledge-plaintext-recovery-risk"], "exits": [0, 3, 5, 64, 70, 74]},
-    {"name": "preview", "mutation": "none", "options": ["--json"], "exits": [0, 2, 3, 4, 5, 64, 70, 74]},
-    {"name": "apply", "mutation": "journal-owned-conversion", "options": ["--non-interactive", "--accept-preview-sha256", "--age-recipient", "--archive-plaintext", "--acknowledge-plaintext-recovery-risk"], "exits": [0, 2, 3, 4, 5, 64, 70, 74]},
-    {"name": "resume", "mutation": "remaining-journal-operations", "options": ["--conversion-id"], "exits": [0, 2, 3, 4, 5, 64, 70, 74]},
-    {"name": "rollback", "mutation": "matching-journal-owned-post-images", "options": ["--conversion-id"], "exits": [0, 3, 4, 5, 64, 70, 74]},
+    {"name": "inspect", "mutation": "none", "options": ["--archive-manifest", "--age-identity-file", "--json"], "exits": [0, 3, 4, 5, 64, 70, 74]},
+    {"name": "export", "mutation": "new-export-only", "options": ["--output", "--archive-manifest", "--age-identity-file"], "exits": [0, 3, 4, 5, 64, 70, 74]},
+    {"name": "archive", "mutation": "new-append-only-archive", "options": ["--age-recipient", "--archive-plaintext", "--acknowledge-plaintext-recovery-risk"], "exits": [0, 3, 4, 5, 64, 70, 74]},
     {"name": "version", "mutation": "none", "options": ["--json"], "exits": [0, 64, 70]},
 ]
 EXPECTED_RELEASE_PLATFORMS = [
@@ -82,7 +79,7 @@ EXPECTED_COMMAND_BINDING = {
     "schema": "repository-harness-command-implementation-binding/v1",
     "binding_state": "core-live-bridge-live-unpromoted",
     "grammar_contract": "release/contracts/v1/command-grammars.json",
-    "grammar_contract_sha256": "1afaf1eec75d10e7d474d5817144e1f3dc8add8b3ee9cdbb3f7610708cac6ef9",
+    "grammar_contract_sha256": "4bd821883e1d41ef187f8d0766af53440ebb2522bad22b32f44c5f9511adfa4a",
     "grammar_schema": "release/contracts/v1/schemas/command-grammar-v1.schema.json",
     "grammar_schema_sha256": "99ef2353ec1dfd884f2583be91175a35577109808af804d47350e159198c42ee",
     "surfaces": {
@@ -362,7 +359,7 @@ def safe_path(value: str, *, allow_harness: bool = False) -> str:
         check(basename not in WINDOWS_DEVICES, f"Windows device component: {value}")
     check(".git" not in [part.casefold() for part in parts], f"Git internal path: {value}")
     if parts[0].casefold() == ".harness":
-        allowed = value == ".harness/manifest.json" or value.startswith(".harness/recovery/") or value.startswith(".harness/legacy/v0-conversion/")
+        allowed = value == ".harness/manifest.json" or value.startswith(".harness/recovery/")
         check(allow_harness and allowed, f"undeclared .harness path: {value}")
     return unicodedata.normalize("NFC", value).casefold()
 
@@ -493,18 +490,13 @@ def validate_manifest(value: dict[str, Any]) -> None:
             check(all(pattern.fullmatch(marker) for marker in role["unresolved_markers"]), "unresolved marker identity/path contract")
         else:
             check(not role["unresolved_markers"], "non-unresolved role cannot list unresolved markers")
-    if value["repository_mode"] == "converted-v1-with-archive":
-        check("conversion_receipt" in value, "converted mode requires embedded receipt")
-        receipt = value["conversion_receipt"]
-        expected_prefix = f".harness/legacy/v0-conversion/{receipt['conversion_id']}/"
-        safe_path(receipt["archive_path"], allow_harness=True)
-        check(receipt["archive_path"].startswith(expected_prefix), "conversion receipt archive placement mismatch")
-        if receipt["confidentiality_mode"] == "encrypted-age-x25519":
-            check(receipt["recipient_fingerprints"] and "plaintext_risk_acknowledged" not in receipt, "encrypted receipt recipient/mode mismatch")
-        else:
-            check(not receipt["recipient_fingerprints"] and receipt.get("plaintext_risk_acknowledged") is True, "plaintext receipt must record explicit risk acknowledgement")
-    else:
-        check("conversion_receipt" not in value, "non-converted mode cannot claim receipt")
+    check(value["repository_mode"] in {"fresh-v1", "brownfield-adopted"}, "automatic conversion mode survived Decision 0014")
+    if "v0_archive_receipt" in value:
+        receipt = value["v0_archive_receipt"]
+        check(receipt["schema"] == "repository-harness-v0-archive-receipt/v1", "archive receipt schema mismatch")
+        safe_path(receipt["archive_manifest_path"])
+        expected_prefix = f".harness-v0-archive/{receipt['archive_id']}/"
+        check(receipt["archive_manifest_path"] == expected_prefix + "archive-manifest.json", "archive receipt custody mismatch")
 
 
 def validate_archive_manifest(value: dict[str, Any]) -> None:
@@ -514,6 +506,8 @@ def validate_archive_manifest(value: dict[str, Any]) -> None:
         collision = safe_path(member["path"])
         check(collision not in collisions, "archive member path collision")
         collisions.add(collision)
+    check(value["custody"] == "repository-owner-indefinite-write-once", "archive custody changed")
+    check(value["payload_path"] in {"archive.age", "archive.bin"}, "archive payload name changed")
     if value["confidentiality_mode"] == "encrypted-age-x25519":
         check(value["recipient_fingerprints"], "encrypted archive recipient missing")
         check("plaintext_risk_acknowledged" not in value, "encrypted archive cannot claim plaintext override")
@@ -530,11 +524,11 @@ def validate_command_grammar(value: dict[str, Any]) -> None:
     check(core["top_level"] == [entry["name"] for entry in EXPECTED_CORE_COMMANDS], "core top-level command array changed")
     check(core["commands"] == EXPECTED_CORE_COMMANDS, "core command definitions changed")
     check(core["version_alias"] == "--version", "core version alias changed")
-    check(core["forbidden_top_level"] == ["migrate", "inspect", "export", "preview", "apply", "resume", "rollback", "init", "intake", "story", "query", "db"], "core forbidden command array changed")
+    check(core["forbidden_top_level"] == ["migrate", "inspect", "export", "archive", "preview", "apply", "resume", "rollback", "init", "intake", "story", "query", "db"], "core forbidden command array changed")
     check(bridge["binary"] == ["scripts/bin/harness-v0-migrate", "scripts/bin/harness-v0-migrate.exe"], "bridge binary names changed")
     check(bridge["top_level"] == [entry["name"] for entry in EXPECTED_BRIDGE_COMMANDS], "bridge top-level command array changed")
     check(bridge["commands"] == EXPECTED_BRIDGE_COMMANDS, "bridge command definitions changed")
-    check(bridge["forbidden_top_level"] == ["install", "update", "audit", "scaffold", "status", "migrate", "init", "query"], "bridge forbidden command array changed")
+    check(bridge["forbidden_top_level"] == ["preview", "apply", "resume", "rollback", "install", "update", "audit", "scaffold", "status", "migrate", "init", "query"], "bridge forbidden command array changed")
     check(value["deterministic_non_interactive"] == {"confirmation_requires": ["--non-interactive", "--accept-preview-sha256"], "preview_digest_algorithm": "sha256-rfc8785", "input_drift_exit": 4}, "deterministic non-interactive contract changed")
 
 
@@ -776,11 +770,57 @@ def proof_schemas_and_examples() -> None:
         envelope_value = load_json(path)
         check(path.read_bytes() == jcs(envelope_value), f"detached signature envelope is not canonical JSON: {path.relative_to(ROOT)}")
 
-    for name in ["manifest.json", "unresolved-manifest.json", "converted-manifest.json"]:
+    for name in ["manifest.json", "unresolved-manifest.json"]:
         validate_manifest(load_json(POS / name))
+    historical_converted = load_json(POS / "converted-manifest.json")
+    check(historical_converted["repository_mode"] == "converted-v1-with-archive", "historical conversion fixture changed")
+    expect_failure(lambda: validate_manifest(historical_converted), "superseded converted manifest")
+    receipt_manifest = load_json(POS / "manifest.json")
+    receipt_manifest["v0_archive_receipt"] = {
+        "schema": "repository-harness-v0-archive-receipt/v1",
+        "archive_id": "v0-fixture-archive",
+        "bridge_release": "1.0.0-test.1",
+        "archive_manifest_path": ".harness-v0-archive/v0-fixture-archive/archive-manifest.json",
+        "archive_manifest_sha256": "1" * 64,
+        "export_sha256": "2" * 64,
+        "standalone_backup_sha256": "3" * 64,
+        "payload_sha256": "4" * 64,
+        "source_sha256": "5" * 64,
+        "confidentiality_mode": "encrypted-age-x25519",
+    }
+    validate_manifest(receipt_manifest)
     validate_schema(load_json(POS / "output-envelope.json"), load_json(SCHEMAS / "output-envelope-v1.schema.json"))
-    validate_archive_manifest(load_json(POS / "archive" / "manifest.json"))
-    validate_archive_manifest(load_json(POS / "plaintext-override-archive-manifest.json"))
+    current_archive = {
+        "schema": "repository-harness-v0-archive-manifest/v1",
+        "archive_id": "v0-fixture-archive",
+        "bridge_release": "1.0.0-test.1",
+        "source_schema": 13,
+        "source_sha256": "1" * 64,
+        "capture_members_sha256": "2" * 64,
+        "export_sha256": "3" * 64,
+        "standalone_backup_sha256": "4" * 64,
+        "confidentiality_mode": "encrypted-age-x25519",
+        "recipient_fingerprints": ["age1fixture"],
+        "payload_path": "archive.age",
+        "payload_sha256": "5" * 64,
+        "payload_bytes": 1,
+        "members": [
+            {"path": "raw/harness.db", "sha256": "6" * 64, "bytes": 1, "capture": "pre-copy-post-equal"},
+            {"path": "standalone/standalone.db", "sha256": "4" * 64, "bytes": 1, "capture": "private-staged-wal-recovery-online-backup"},
+            {"path": "export/export.json", "sha256": "3" * 64, "bytes": 1, "capture": "neutral-read-only-export"},
+        ],
+        "custody": "repository-owner-indefinite-write-once",
+    }
+    validate_archive_manifest(current_archive)
+    historical_archive = load_json(POS / "archive" / "manifest.json")
+    check(
+        historical_archive["schema"] == "repository-harness-v0-archive-manifest/v1"
+        and "conversion_id" in historical_archive
+        and "archive_sha256" in historical_archive,
+        "historical archive fixture changed",
+    )
+    expect_failure(lambda: validate_archive_manifest(historical_archive), "superseded conversion archive")
+    expect_failure(lambda: validate_archive_manifest(load_json(POS / "plaintext-override-archive-manifest.json")), "superseded plaintext conversion archive")
     validate_schema(load_json(POS / "authorized-rollback.json"), load_json(SCHEMAS / "rollback-authorization-v1.schema.json"))
     validate_schema(load_json(POS / "availability-receipt.json"), load_json(SCHEMAS / "availability-receipt-v1.schema.json"))
     expect_failure(lambda: validate_manifest(load_json(NEG / "forbidden-field-manifest.json")), "manifest forbidden operational field")
@@ -788,7 +828,11 @@ def proof_schemas_and_examples() -> None:
         expect_failure(lambda fixture=name: validate_manifest(load_json(NEG / fixture)), name)
     expect_failure(lambda: validate_manifest(load_json(NEG / "malformed-schema-manifest.json")), "manifest schema discriminator mismatch")
     expect_failure(lambda: validate_schema(load_json(NEG / "output-operation-unknown-field.json"), load_json(SCHEMAS / "output-envelope-v1.schema.json")), "nested output operation unknown field")
-    expect_failure(lambda: validate_archive_manifest(load_json(NEG / "plaintext-without-ack-archive-manifest.json")), "plaintext archive without risk acknowledgement")
+    plaintext_archive = dict(current_archive)
+    plaintext_archive.update({"confidentiality_mode": "plaintext-explicit-override", "recipient_fingerprints": [], "payload_path": "archive.bin"})
+    expect_failure(lambda: validate_archive_manifest(plaintext_archive), "plaintext archive without risk acknowledgement")
+    plaintext_archive["plaintext_risk_acknowledged"] = True
+    validate_archive_manifest(plaintext_archive)
 
 
 def proof_grammar() -> None:
@@ -799,8 +843,8 @@ def proof_grammar() -> None:
     core = grammar["core"]
     bridge = grammar["bridge"]
     check(core["top_level"] == ["install", "update", "audit", "scaffold", "status", "version"], "core grammar is not exactly six commands")
-    check(bridge["top_level"] == ["inspect", "export", "preview", "apply", "resume", "rollback", "version"], "bridge grammar is not exactly seven commands")
-    check(not set(core["top_level"]) & {"migrate", "inspect", "export", "preview", "apply", "resume", "rollback"}, "bridge/migrate leaked into core")
+    check(bridge["top_level"] == ["inspect", "export", "archive", "version"], "bridge grammar is not exactly four commands")
+    check(not set(core["top_level"]) & {"migrate", "inspect", "export", "archive", "preview", "apply", "resume", "rollback"}, "bridge/migrate leaked into core")
     for command in core["commands"]:
         if command["name"] in {"audit", "status", "version"}:
             check(command["mutation"] == "none", f"read-only core boundary changed: {command['name']}")
@@ -808,13 +852,14 @@ def proof_grammar() -> None:
             check("--preview" in command["options"] and "--resume" in command["options"] and "--rollback" in command["options"], "mutator preview/recovery options missing")
             check("--non-interactive" in command["options"] and "--accept-preview-sha256" in command["options"], "deterministic non-interactive binding missing")
     for command in bridge["commands"]:
-        if command["name"] in {"inspect", "preview", "version"}:
+        if command["name"] in {"inspect", "version"}:
             check(command["mutation"] == "none", f"read-only bridge boundary changed: {command['name']}")
     cases = load_json(FIXTURES / "grammar-cases.json")
     check(cases["core_valid"] == core["top_level"] + ["--version"], "core grammar positive snapshot")
-    check(cases["bridge_valid"] == bridge["top_level"], "bridge grammar positive snapshot")
+    check(cases["bridge_valid"] == ["inspect", "export", "preview", "apply", "resume", "rollback", "version"], "historical bridge grammar fixture changed")
+    check(set(cases["bridge_valid"]) & {"preview", "apply", "resume", "rollback"}, "historical conversion grammar evidence missing")
     check(set(cases["core_invalid"]).isdisjoint(core["top_level"]), "invalid core command accepted")
-    check(set(cases["bridge_invalid"]).isdisjoint(bridge["top_level"]), "invalid bridge command accepted")
+    check(set(cases["bridge_invalid"]).isdisjoint(bridge["top_level"]), "historical invalid bridge command accepted")
     expect_failure(lambda: validate_command_grammar(load_json(NEG / "extra-core-command.json")), "extra core command")
     expect_failure(lambda: validate_command_grammar(load_json(NEG / "reordered-core-command.json")), "reordered core command")
     for name in ["command-binding-entrypoint-mismatch.json", "command-binding-state-mismatch.json", "command-binding-unknown-field.json"]:
@@ -1324,6 +1369,8 @@ def proof_archive_and_policy() -> None:
     policy = load_json(CONTRACT / "compatibility-policy.json")
     check(policy["compatibility_window"] == {"start": "2027-01-01T00:00:00Z", "end_inclusive": "2027-12-31T23:59:59Z", "minimum_supported_days_if_shifted": 365}, "Decision 0012 window changed")
     check(policy["local_archives"]["retention"] == "indefinite" and not policy["local_archives"]["automatic_delete_overwrite_truncate_relocate"], "archive custody/retention changed")
+    check(policy["cutover_decision"] == "docs/decisions/0014-archive-only-v0-v1-cutover.md", "archive-only cutover decision changed")
+    check(policy["local_archives"]["reserved_path"] == ".harness-v0-archive", "reserved archive custody changed")
     check(policy["bridge_assets"]["availability_check_max_interval_days"] == 7 and policy["bridge_assets"]["signed_receipt_interval"] == "calendar-month", "weekly/monthly availability obligation changed")
     check(policy["bridge_assets"]["supported_platforms"] == [entry["platform"] for entry in EXPECTED_RELEASE_PLATFORMS], "availability supported platform set changed")
     check(set(policy["bridge_assets"]["platform_scoped_categories"]) <= set(policy["bridge_assets"]["complete_set"]), "availability platform-scoped categories escape complete_set")
@@ -1349,6 +1396,7 @@ def proof_archive_and_policy() -> None:
 def proof_docs_and_scope() -> None:
     required_docs = [
         ROOT / "docs" / "decisions" / "0013-v1-security-and-v0-capture-contract.md",
+        ROOT / "docs" / "decisions" / "0014-archive-only-v0-v1-cutover.md",
         *(ROOT / "docs" / "contracts" / "v1" / name for name in ["README.md", "manifest-and-state.md", "command-grammars.md", "payload-trust.md", "scaffold-and-audit.md", "compatibility-conversion-and-retirement.md", "v0-compatibility.md"]),
         *(ROOT / "docs" / "stories" / "US-106-v1-phase1-contracts-and-release-inventory" / name for name in ["overview.md", "design.md", "execplan.md", "validation.md"]),
     ]
@@ -1357,6 +1405,9 @@ def proof_docs_and_scope() -> None:
     decision = required_docs[0].read_text(encoding="utf-8")
     for phrase in ["2-of-3", "RFC 8785", "small-order", "pipe-to-shell", "age/X25519", "WAL", "SHM", "604800", "Phase 8"]:
         check(phrase in decision, f"Decision 0013 omits accepted contract: {phrase}")
+    cutover = required_docs[1].read_text(encoding="utf-8")
+    for phrase in ["inspect", "export", "archive", ".harness-v0-archive", "never imported", "Windows"]:
+        check(phrase in cutover, f"Decision 0014 omits archive-only contract: {phrase}")
     native_core = ROOT / "scripts" / "bin" / ("harness.exe" if os.name == "nt" else "harness")
     check(native_core.is_file(), f"Phase 2 live core binary is missing: {native_core.relative_to(ROOT)}")
     native_bridge = ROOT / "scripts" / "bin" / ("harness-v0-migrate.exe" if os.name == "nt" else "harness-v0-migrate")
@@ -1369,14 +1420,14 @@ def proof_docs_and_scope() -> None:
 def main() -> None:
     os.chdir(ROOT)
     proof("closed schemas, manifest fields, and deterministic envelopes", proof_schemas_and_examples)
-    proof("core-live/bridge-live-unpromoted six/seven-command grammar and source/CLI parity", proof_grammar)
+    proof("core-live/bridge-live-unpromoted six/four-command grammar and source/CLI parity", proof_grammar)
     proof("one-to-one current install/release path ledger and core exclusions", proof_path_inventory)
     proof("exact V0 schemas 1-13, tables, commands, capabilities, and parser matrix", proof_v0_freeze)
     proof("Ed25519 thresholds, domains, freshness, rollback, revocation, and rotation", proof_trust)
     proof("safe paths, normalization/case collisions, symlinks, and path swaps", proof_paths_and_swaps)
     proof("read-only no-follow V0 capture and WAL-only standalone recovery", proof_wal_capture)
     proof("archive tamper, confidentiality, availability, bootstrap, and Phase 8 policy", proof_archive_and_policy)
-    proof("Decision 0013, Phase 1 contracts, live core, and isolated bridge", proof_docs_and_scope)
+    proof("Decisions 0013/0014, Phase 1 contracts, live core, and isolated bridge", proof_docs_and_scope)
     print(f"V1 Phase 1 contract verification passed ({PASS_COUNT} proof groups)")
 
 

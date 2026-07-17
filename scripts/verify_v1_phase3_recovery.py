@@ -168,7 +168,7 @@ def proof_signed_mutation_behaviors() -> None:
         "preview_sha256_matches_the_exact_emitted_operations_array",
         "scaffold_is_exact_and_update_preserves_target_owned_bytes",
         "identical_preexisting_asset_commits_brownfield_mode_and_target_ownership",
-        "converted_mode_and_receipt_survive_mapping_a_new_identical_authenticated_asset",
+        "fresh_install_recovery_commits_exact_v0_archive_receipt_without_reading_sqlite",
         "managed_file_drift_returns_exact_three_way_review_without_writing",
         "managed_block_update_replaces_only_authenticated_interior",
     ]
@@ -224,13 +224,17 @@ def proof_phase4_and_phase7_gates() -> None:
 
 
 def proof_protected_paths_unchanged() -> None:
-    changed = subprocess.run(
+    changed_lines = subprocess.run(
         ["git", "status", "--short", "--untracked-files=all"],
         cwd=ROOT,
         check=True,
         capture_output=True,
         text=True,
-    ).stdout
+    ).stdout.splitlines()
+    allowed_phase4_changeset = ".harness/changesets/harness_v1_phase4_bridge.changeset.jsonl"
+    changed = "\n".join(
+        line for line in changed_lines if not line.endswith(allowed_phase4_changeset)
+    )
     for forbidden in [
         ".harness/changesets/",
         "repomix-output.xml",
