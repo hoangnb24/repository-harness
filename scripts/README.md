@@ -264,6 +264,19 @@ task-effect contracts; release workflow structure; and whitespace errors.
 Installed consumer projects keep their own stack-specific validation commands;
 the template does not impose this repository's Rust gate on them.
 
+The V1 implementation gates are also individually runnable:
+
+```bash
+scripts/verify-v1-phase1-contracts.sh
+scripts/verify-v1-phase2-core.sh
+scripts/verify-v1-phase3-recovery.sh
+```
+
+The Phase 3 gate runs the complete `harness-core` test target and an eleven-group
+mechanical verifier for exact preview/write binding, authenticated recovery
+ownership, manifest-last durability, kill points, idempotency, read-only status
+probing, platform fail-closed behavior, and the closed Phase 4/7 boundaries.
+
 ## Changeset Rebuild Validation
 
 Run the durable repository rebuild and its validator contract regressions:

@@ -17,6 +17,7 @@ done < <(find scripts tests -type f -name '*.sh' -print | LC_ALL=C sort)
 
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
+scripts/verify-v1-phase3-recovery.sh
 
 cargo fmt --all -- --check
 cargo test --workspace --locked

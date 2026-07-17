@@ -278,13 +278,17 @@ impl ManifestPort for JsonManifestPort {
             Err(PortError::Missing(_)) => return Ok(None),
             Err(error) => return Err(error),
         };
-        let value = parse(&bytes).map_err(PortError::ManifestInvalid)?;
+        self.parse_bytes(&bytes).map(Some)
+    }
+
+    fn parse_bytes(&self, bytes: &[u8]) -> Result<Manifest, PortError> {
+        let value = parse(bytes).map_err(PortError::ManifestInvalid)?;
         reject_forbidden_fields(&value, "$")?;
         reject_schema_nulls(&value)?;
         let manifest: Manifest = serde_json::from_value(value)
             .map_err(|error| PortError::ManifestInvalid(error.to_string()))?;
         validate_manifest_schema(&manifest)?;
-        Ok(Some(manifest))
+        Ok(manifest)
     }
 }
 

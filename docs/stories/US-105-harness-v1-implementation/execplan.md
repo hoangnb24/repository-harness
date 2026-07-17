@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-2 accepted / Phase 3 ready, not started**
+Status: **Implementation in progress / Phases 1-2 accepted / Phase 3 implemented and locally validated, acceptance pending**
 
 ## Goal
 
@@ -11,8 +11,9 @@ before its approved obligations end.
 
 Decision 0012 supplies the exact compatibility-window, retention, support, and
 retirement policy. Gate G0 is approved/open. Decision 0013 and US-106 implement
-and prove Phase 1; US-107 implements and proves Phase 2. Phase 3 is ready.
-Phases 3-8 remain unimplemented and depend on accepted evidence from their
+and prove Phase 1; US-107 implements and proves Phase 2; US-108 implements and
+locally validates Phase 3. Phase 3 acceptance is pending. Phases 4-8 remain not
+started and depend on accepted evidence from their
 predecessors.
 
 ## Scope
@@ -71,7 +72,8 @@ Risk flags:
 - **Existing behavior:** V0 is implemented and distributed today.
 - **Weak proof:** Phase 1 contract fixtures and acceptance evidence now exist;
   Phase 2 core runtime evidence exists; atomic mutation/recovery, promoted
-  release artifacts, pilots, and Phase 3-8 evidence do not.
+  release artifacts, pilots, and Phase 4-8 evidence do not; US-108 contains
+  the Phase 3 candidate evidence.
 - **Multi-domain:** CLI, filesystem, installers, release integrity, migration,
   recovery, docs/templates, evaluation, and retirement.
 
@@ -101,7 +103,7 @@ The dependency chain is intentionally linear:
 G0 approved/open by Decision 0012
   -> Phase 1 accepted by Decision 0013 and US-106
   -> Phase 2 accepted by US-107 at exact candidate 1b1add5
-  -> Phase 3 unblocked, not started
+  -> Phase 3 implemented and locally validated by US-108, acceptance pending
   -> Phase 4
   -> Phase 5
   -> Phase 6
@@ -116,8 +118,9 @@ cannot excuse a bridge rollback that overwrites a target edit.
 
 Current phase state: Phases 1 and 2 are implemented and accepted. Independent
 security and behavior review accepted exact Phase 2 candidate `1b1add5`, which
-was integrated as `e77e028` with the identical Git tree. Phase 3 is unblocked
-and not started. Phases 3-8 remain unimplemented and dependent on the preceding
+was integrated as `e77e028` with the identical Git tree. Phase 3 is implemented
+and locally validated by US-108, with acceptance pending. Phases 4-8 remain not
+started and dependent on the preceding
 phase's accepted evidence plus their own gates.
 
 Anticipated paths below identify review surfaces, not permission to modify
@@ -202,6 +205,9 @@ bridge reader, pilot evidence, and release promotion stay out.
 
 **Dependency:** Phase 2 core command and mutation boundaries pass.
 
+**Status:** implemented and locally validated by US-108; orchestrator
+acceptance pending.
+
 **Implementation:**
 
 1. Implement fresh selection, V0-path adoption without conversion, and explicit
@@ -227,6 +233,12 @@ success manifest after any failure.
 **Logical commit boundary:** install/update mutation and recovery behavior plus
 its fixtures land after the pure core boundary; no V0 reader or bridge command
 is linked into the V1 artifact.
+
+**Current evidence:** 26 focused Phase 3 Rust tests (ten recovery unit and
+sixteen signed integration), every one of 18 install and 15 update kill points,
+72 total `harness-core` tests, 164 workspace Rust tests, and 11/11 Phase 3
+mechanical proof groups. Phase 1/2 gates remain unchanged; Phase 4 and Phase 7
+remain closed pending acceptance.
 
 ### Phase 4: Isolated V0 Bridge
 

@@ -54,7 +54,7 @@ pub struct ScaffoldOptions {
     pub mutation: MutatorOptions,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
     pub schema: String,
@@ -62,10 +62,11 @@ pub struct Manifest {
     pub compatibility: Compatibility,
     pub payload: PayloadIdentity,
     pub roles: Vec<Role>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub conversion_receipt: Option<ConversionReceipt>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum ManifestRepositoryMode {
     FreshV1,
@@ -83,7 +84,7 @@ impl ManifestRepositoryMode {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Compatibility {
     pub cli_min: String,
@@ -112,7 +113,7 @@ impl PayloadIdentity {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Role {
     pub role: String,
@@ -122,16 +123,20 @@ pub struct Role {
     pub origin: Origin,
     pub required: bool,
     pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub template_release: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_sha256: Option<String>,
     pub current_sha256: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub marker: Option<String>,
     pub update_policy: UpdatePolicy,
     pub unresolved_markers: Vec<String>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum Activation {
     Active,
@@ -139,7 +144,7 @@ pub enum Activation {
     Disabled,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum Ownership {
     ManagedFile,
@@ -147,7 +152,7 @@ pub enum Ownership {
     TargetOwned,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum Origin {
     Created,
@@ -155,7 +160,7 @@ pub enum Origin {
     BrownfieldMapped,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum UpdatePolicy {
     ReplaceIfBase,
@@ -163,7 +168,7 @@ pub enum UpdatePolicy {
     NeverAutoPatch,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct ConversionReceipt {
     pub schema: String,
@@ -175,6 +180,7 @@ pub struct ConversionReceipt {
     pub archive_sha256: String,
     pub confidentiality_mode: String,
     pub recipient_fingerprints: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub plaintext_risk_acknowledged: Option<bool>,
 }
 
@@ -365,7 +371,8 @@ impl Readiness {
     }
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct Operation {
     pub operation_id: String,
     pub kind: OperationKind,
@@ -375,7 +382,7 @@ pub struct Operation {
     pub after_sha256: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum OperationKind {
     Create,

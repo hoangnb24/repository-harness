@@ -2,10 +2,10 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-2 accepted; Phase 3 ready but not started; Phases 3-8 unimplemented
+Status: Direction and Phases 1-2 accepted; Phase 3 implemented and locally validated, acceptance pending; Phases 4-8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
-Phase 2 implementation: US-107
+Phase 2 implementation: US-107; Phase 3 implementation candidate: US-108
 
 ## Executive Outcome
 
@@ -406,10 +406,11 @@ no-spawn boundary; and no-op/refusal for writes that require Phase 3. This is
 not described as universal syscall/event proof. The reserved bridge remains
 absent and the release workflow remains present but unpromoted. Independent
 security and behavior reviewers accepted exact candidate `1b1add5`, integrated
-as `e77e028` with the identical Git tree. Phase 3 is therefore unblocked but
-not started; atomic writes, backup/journal/recovery, production trust/promotion,
-safe non-Unix handle behavior, portable event evidence, and five-platform
-artifact parity are not Phase 2 acceptance.
+as `e77e028` with the identical Git tree. That accepted Phase 2 evidence is
+unchanged; Phase 3 implementation and validation are recorded separately in
+US-108. Production trust/promotion, safe non-macOS/Linux handle behavior,
+portable event evidence, and five-platform artifact parity remain outside
+Phase 2 and Phase 3 acceptance.
 
 ### Phase 3: Install/Update Recovery
 
@@ -418,6 +419,20 @@ writes, preview, three-way review, idempotency, and V1 manifest transitions.
 Acceptance: target-owned files are never automatically patched; failed work
 leaves no claimed success; recovery operates through install/update under their
 documented contracts.
+
+**Implemented and locally validated; orchestrator acceptance pending:** US-108
+adds exact preview/private-write binding; authenticated install/update/scaffold
+planning; managed-file and managed-block mutation; target-owned preservation;
+backups, staged images, full-plan recovery commitments, atomic no-replace/
+exchange, fsync, and manifest-last commit; read-only recovery status; and
+deterministic rerun/resume/rollback. Twenty-six focused Phase 3 Rust tests include
+all 18 install and 15 update kill points plus the queued ownership/race/tamper
+adversaries and commit/resume payload-identity attacks. `harness-core` passes 72
+tests, the workspace passes 164 tests, and the Phase 3 mechanical verifier passes
+11/11 groups. The live binary still uses unavailable production release/trust
+adapters. macOS/Linux are the proven mutation boundary; other platforms fail
+closed and remain Phase 7 work. Phase 4 remains closed until this candidate
+receives acceptance.
 
 ### Phase 4: Isolated V0 Bridge
 
@@ -555,9 +570,10 @@ descriptor-anchored pre/copy/post capture, exact bootstrap/command/release
 arrays, and complete-set calendar-month availability receipts. US-107 supplies
 accepted Phase 2 evidence for the live six-command core, authenticated payload
 boundary, deterministic structural audit, no-target-execution canary, and safe
-mutation refusal. Phase 3 is therefore ready. Phases 3-8 remain unimplemented
-and depend on the preceding phase's accepted evidence. No atomic installer
-mutation, bridge conversion write, production key, promoted release, pilot,
-tag, publish action, or V0 removal is created or authorized by Phase 2. Phase 8
+mutation refusal. US-108 supplies the locally validated Phase 3 candidate and
+exact evidence counts above; acceptance is pending. Phases 4-8 remain not
+started and depend on preceding accepted evidence. No bridge conversion write,
+production key, promoted release, pilot, tag, publish action, or V0 removal is
+created or authorized by Phase 3. Phase 8
 additionally requires Decision 0012's separate removal authorization and
 validation.

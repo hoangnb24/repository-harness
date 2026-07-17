@@ -39,3 +39,19 @@ here before importing their existing state.
   behavior that cannot be proven in lower layers.
 - A story can be implemented without every proof column if the story packet
   explains why.
+
+## V1 Phase Gates
+
+The separate V1 core does not use the legacy SQLite matrix above. Its accepted
+Phase 1/2 gates and the locally validated Phase 3 candidate are mechanical:
+
+```bash
+scripts/verify-v1-phase1-contracts.sh
+scripts/verify-v1-phase2-core.sh
+scripts/verify-v1-phase3-recovery.sh
+```
+
+US-108 records 26 focused Phase 3 test functions, all 18 install and 15 update
+kill points, 72 total `harness-core` tests, 164 workspace Rust tests, and 11
+Phase 3 proof groups. Phase 4 bridge and Phase 7 production/platform rows remain
+absent and must not be inferred from those results.

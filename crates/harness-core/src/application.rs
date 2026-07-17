@@ -5,13 +5,17 @@ use std::collections::BTreeSet;
 use semver::Version;
 
 use crate::domain::{
-    Activation, Command, Envelope, Manifest, ManifestRepositoryMode, Mutation, Notice, Operation,
-    OperationKind, Outcome, Ownership, Readiness, ReleaseOutput, RepositoryMode, ScaffoldOptions,
-    UpdatePolicy, CORE_VERSION,
+    Activation, Command, Compatibility, Disposition, Envelope, Manifest, ManifestRepositoryMode,
+    Mutation, Notice, Operation, OperationKind, Origin, Outcome, Ownership, PayloadIdentity,
+    Readiness, ReleaseOutput, RepositoryMode, Role, ScaffoldOptions, UpdatePolicy, CORE_VERSION,
 };
 use crate::markdown::parse_commonmark;
 use crate::path::{validate_exact_destination, validate_relative};
-use crate::ports::{FileSystemPort, ManifestPort, PortError, ReleasePort, TrustPort};
+use crate::ports::{FileSystemPort, ManifestPort, MutationPort, PortError, ReleasePort, TrustPort};
+use crate::recovery::{
+    MutationFailure, MutationRequest, MutationResult, PlannedWrite, RecoveryAuthorization,
+    RecoveryMode,
+};
 use crate::strict_json::{digest, hex_sha256};
 use crate::trust::{verify_release, VerifiedAsset, VerifiedRelease};
 
@@ -46,6 +50,7 @@ pub struct HarnessCore<'a> {
     manifests: &'a dyn ManifestPort,
     releases: &'a dyn ReleasePort,
     trust: &'a dyn TrustPort,
+    mutations: Option<&'a dyn MutationPort>,
 }
 
 impl<'a> HarnessCore<'a> {
@@ -60,6 +65,23 @@ impl<'a> HarnessCore<'a> {
             manifests,
             releases,
             trust,
+            mutations: None,
+        }
+    }
+
+    pub fn with_mutations(
+        filesystem: &'a dyn FileSystemPort,
+        manifests: &'a dyn ManifestPort,
+        releases: &'a dyn ReleasePort,
+        trust: &'a dyn TrustPort,
+        mutations: &'a dyn MutationPort,
+    ) -> Self {
+        Self {
+            filesystem,
+            manifests,
+            releases,
+            trust,
+            mutations: Some(mutations),
         }
     }
 
@@ -74,7 +96,15 @@ impl<'a> HarnessCore<'a> {
                 self.plan_mutation("scaffold", &options.mutation, Some(options))
             }
         };
-        if !matches!(command, Command::Version { .. }) && matches!(envelope.exit_code, 0 | 2) {
+        let mutation_validated_its_anchored_root = self.mutations.is_some()
+            && matches!(
+                envelope.mutation,
+                Mutation::Committed | Mutation::RolledBack
+            );
+        if !matches!(command, Command::Version { .. })
+            && matches!(envelope.exit_code, 0 | 2)
+            && !mutation_validated_its_anchored_root
+        {
             if let Err(error) = self.filesystem.validate_snapshot() {
                 apply_port_error(&mut envelope, error);
             }
@@ -89,6 +119,20 @@ impl<'a> HarnessCore<'a> {
         let manifest = match self.manifests.load(self.filesystem) {
             Ok(Some(manifest)) => manifest,
             Ok(None) => {
+                if !audit {
+                    if let Some(mutations) = self.mutations {
+                        match mutations.probe_recovery() {
+                            Ok(probes) if !probes.is_empty() => {
+                                return recovery_required_envelope(envelope, probes, None);
+                            }
+                            Ok(_) => {}
+                            Err(error) => {
+                                apply_port_error(&mut envelope, error);
+                                return envelope;
+                            }
+                        }
+                    }
+                }
                 envelope.notices.push(Notice {
                     code: "manifest-absent".into(),
                     path: Some(".harness/manifest.json".into()),
@@ -111,6 +155,29 @@ impl<'a> HarnessCore<'a> {
         };
         envelope.repository_mode = output_mode(manifest.repository_mode);
         envelope.release = ReleaseOutput::from(manifest.payload.clone());
+        envelope.details.readiness = if manifest
+            .roles
+            .iter()
+            .any(|role| role.activation == Activation::Unresolved)
+        {
+            Readiness::Unresolved
+        } else {
+            Readiness::Ready
+        };
+        if !audit {
+            if let Some(mutations) = self.mutations {
+                match mutations.probe_recovery() {
+                    Ok(probes) if !probes.is_empty() => {
+                        return recovery_required_envelope(envelope, probes, None);
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        apply_port_error(&mut envelope, error);
+                        return envelope;
+                    }
+                }
+            }
+        }
         let audit_result = match self.audit_manifest(&manifest) {
             Ok(result) => result,
             Err(error) => {
@@ -216,12 +283,28 @@ impl<'a> HarnessCore<'a> {
     ) -> Envelope {
         let mut envelope = Envelope::new(command);
         if options.resume.is_some() || options.rollback.is_some() {
+            if self.mutations.is_some() {
+                return self.recover_mutation(command, options);
+            }
             conflict(
                 &mut envelope,
                 "phase3-recovery-unavailable",
                 "Atomic backup/journal resume and rollback belong to Phase 3",
             );
             return envelope;
+        }
+        if let Some(mutations) = self.mutations {
+            match mutations.probe_recovery() {
+                Ok(probes) if !probes.is_empty() => {
+                    let exact = options.accept_preview_sha256.as_deref();
+                    return recovery_required_envelope(envelope, probes, exact);
+                }
+                Ok(_) => {}
+                Err(error) => {
+                    apply_port_error(&mut envelope, error);
+                    return envelope;
+                }
+            }
         }
         let existing = match self.manifests.load(self.filesystem) {
             Ok(existing) => existing,
@@ -275,11 +358,26 @@ impl<'a> HarnessCore<'a> {
         };
         if let Some(manifest) = &existing {
             if let Err(violation) = validate_payload_transition(manifest, &release) {
+                let violation = if violation == "payload-transition-release-sequence-regressed" {
+                    format!("{violation}; resolve with explicit rollback or supported resume")
+                } else {
+                    violation
+                };
                 invalidate(&mut envelope, violation);
                 return envelope;
             }
         }
         envelope.release = ReleaseOutput::from(release.identity().clone());
+        if self.mutations.is_some() {
+            return self.execute_phase3_plan(
+                command,
+                options,
+                scaffold,
+                existing.as_ref(),
+                &release,
+                envelope,
+            );
+        }
         let operations = match command {
             "install" => self.plan_install(&release, &mut envelope),
             "update" => self.plan_install(&release, &mut envelope),
@@ -330,6 +428,683 @@ impl<'a> HarnessCore<'a> {
             );
         }
         envelope
+    }
+
+    fn recover_mutation(&self, command: &str, options: &crate::domain::MutatorOptions) -> Envelope {
+        let mut envelope = Envelope::new(command);
+        let (operation_id, mode) = match (&options.resume, &options.rollback) {
+            (Some(operation_id), None) => (operation_id.as_str(), RecoveryMode::Resume),
+            (None, Some(operation_id)) => (operation_id.as_str(), RecoveryMode::Rollback),
+            _ => {
+                invalidate(&mut envelope, "invalid recovery option state".into());
+                return envelope;
+            }
+        };
+        let release = match self.releases.load().and_then(|material| {
+            self.trust
+                .load()
+                .and_then(|trust| verify_release(material, trust))
+        }) {
+            Ok(release) => release,
+            Err(error) => {
+                apply_port_error(&mut envelope, error);
+                return envelope;
+            }
+        };
+        envelope.release = ReleaseOutput::from(release.identity().clone());
+        let authorization = RecoveryAuthorization {
+            release: release.identity().clone(),
+            asset_paths: release
+                .assets()
+                .iter()
+                .map(|asset| asset.destination.clone())
+                .collect(),
+            asset_sha256: release
+                .assets()
+                .iter()
+                .map(|asset| (asset.destination.clone(), asset.sha256.clone()))
+                .collect(),
+            asset_bytes: release
+                .assets()
+                .iter()
+                .map(|asset| (asset.destination.clone(), asset.bytes.clone()))
+                .collect(),
+        };
+        let mutations = self
+            .mutations
+            .expect("recovery dispatch requires the injected mutation port");
+        let expected_release = authorization.release.clone();
+        let mut validate = |bytes: &[u8]| {
+            self.validate_authenticated_candidate(bytes, &expected_release)
+                .map(|_| ())
+        };
+        match mutations.recover(command, operation_id, mode, &authorization, &mut validate) {
+            Ok(MutationResult::Committed { manifest_bytes }) => {
+                match self.validate_candidate_bytes(&manifest_bytes) {
+                    Ok((manifest, audit)) => {
+                        finish_committed(&mut envelope, &manifest, audit, Mutation::Committed)
+                    }
+                    Err(error) => apply_port_error(&mut envelope, error),
+                }
+            }
+            Ok(MutationResult::RolledBack) => self.finish_rollback(&mut envelope),
+            Err(failure) => apply_mutation_failure(&mut envelope, failure),
+        }
+        envelope
+    }
+
+    fn execute_phase3_plan(
+        &self,
+        command: &str,
+        options: &crate::domain::MutatorOptions,
+        scaffold: Option<&ScaffoldOptions>,
+        existing: Option<&Manifest>,
+        release: &VerifiedRelease,
+        mut envelope: Envelope,
+    ) -> Envelope {
+        let candidate =
+            match self.build_candidate(command, scaffold, existing, release, &mut envelope) {
+                Ok(Some(candidate)) => candidate,
+                Ok(None) => return envelope,
+                Err(error) => {
+                    apply_port_error(&mut envelope, error);
+                    return envelope;
+                }
+            };
+        if candidate.writes.is_empty() && existing == Some(&candidate.manifest) {
+            envelope.notices.push(Notice {
+                code: "idempotent-noop".into(),
+                path: None,
+                message: "Authenticated release and all declared bytes are already committed"
+                    .into(),
+            });
+            finish_semantic_state(&mut envelope, &candidate.manifest, Mutation::None);
+            return envelope;
+        }
+        let mut request = match self.build_mutation_request(command, release, existing, candidate) {
+            Ok(request) => request,
+            Err(error) => {
+                apply_port_error(&mut envelope, error);
+                return envelope;
+            }
+        };
+        envelope.details.operations = Some(request.operations.clone());
+        envelope.notices.push(Notice {
+            code: "operation-id".into(),
+            path: Some(format!(
+                ".harness/recovery/{}/journal.json",
+                request.operation_id
+            )),
+            message: request.operation_id.clone(),
+        });
+        envelope.notices.push(Notice {
+            code: "preview-sha256".into(),
+            path: None,
+            message: request.preview_sha256.clone(),
+        });
+        if options
+            .accept_preview_sha256
+            .as_ref()
+            .is_some_and(|accepted| accepted != &request.preview_sha256)
+        {
+            conflict(
+                &mut envelope,
+                "preview-digest-conflict",
+                "Accepted preview digest differs from current deterministic plan",
+            );
+            return envelope;
+        }
+        if options.preview {
+            envelope.outcome = Outcome::Success;
+            envelope.exit_code = 0;
+            envelope.mutation = Mutation::Preview;
+            return envelope;
+        }
+        let Some(accepted) = &options.accept_preview_sha256 else {
+            conflict(
+                &mut envelope,
+                "confirmation-required",
+                "Rerun with --non-interactive and the exact preview SHA-256",
+            );
+            return envelope;
+        };
+        if !options.non_interactive {
+            conflict(
+                &mut envelope,
+                "confirmation-required",
+                "Exact preview acceptance is valid only with --non-interactive",
+            );
+            return envelope;
+        }
+        request.accepted_preview_sha256 = accepted.clone();
+        let mutations = self
+            .mutations
+            .expect("Phase 3 planning requires the injected mutation port");
+        let expected_release = request.release.clone();
+        let mut validate = |bytes: &[u8]| {
+            self.validate_authenticated_candidate(bytes, &expected_release)
+                .map(|_| ())
+        };
+        match mutations.apply(&request, &mut validate) {
+            Ok(MutationResult::Committed { manifest_bytes }) => {
+                match self.validate_candidate_bytes(&manifest_bytes) {
+                    Ok((manifest, audit)) => {
+                        finish_committed(&mut envelope, &manifest, audit, Mutation::Committed)
+                    }
+                    Err(error) => apply_port_error(&mut envelope, error),
+                }
+            }
+            Ok(MutationResult::RolledBack) => {
+                invalidate(
+                    &mut envelope,
+                    "apply returned an impossible rollback result".into(),
+                );
+            }
+            Err(failure) => apply_mutation_failure(&mut envelope, failure),
+        }
+        envelope
+    }
+
+    fn build_candidate(
+        &self,
+        command: &str,
+        scaffold: Option<&ScaffoldOptions>,
+        existing: Option<&Manifest>,
+        release: &VerifiedRelease,
+        envelope: &mut Envelope,
+    ) -> Result<Option<CandidateMutation>, PortError> {
+        if command == "scaffold" {
+            return self.build_scaffold_candidate(
+                scaffold.expect("scaffold options are present"),
+                existing,
+                release,
+                envelope,
+            );
+        }
+        let no_prior_manifest = existing.is_none();
+        let mut manifest = existing.cloned().unwrap_or_else(|| Manifest {
+            schema: crate::domain::MANIFEST_SCHEMA.into(),
+            repository_mode: ManifestRepositoryMode::FreshV1,
+            compatibility: Compatibility {
+                cli_min: CORE_VERSION.into(),
+                cli_max: CORE_VERSION.into(),
+                template_release_min: release.release().into(),
+                template_release_max: "1.999.999".into(),
+            },
+            payload: release.identity().clone(),
+            roles: Vec::new(),
+            conversion_receipt: None,
+        });
+        manifest.payload = release.identity().clone();
+        let mut writes = Vec::new();
+        let mut assets: Vec<&VerifiedAsset> = release.assets().iter().collect();
+        assets.sort_by(|left, right| left.destination.cmp(&right.destination));
+        for asset in assets {
+            if let Some(index) = manifest
+                .roles
+                .iter()
+                .position(|role| role.asset == asset.id)
+            {
+                let role = &mut manifest.roles[index];
+                if role.ownership == Ownership::TargetOwned
+                    || role.update_policy == UpdatePolicy::NeverAutoPatch
+                {
+                    envelope.notices.push(Notice {
+                        code: "target-owned-preserved".into(),
+                        path: Some(role.path.clone()),
+                        message: format!(
+                            "Candidate {} is available but never-auto-patch preserves target bytes",
+                            asset.id
+                        ),
+                    });
+                    continue;
+                }
+                if role.path != asset.destination {
+                    conflict(
+                        envelope,
+                        "managed-destination-conflict",
+                        &format!(
+                            "Managed role {} is mapped to {}, not authenticated destination {}",
+                            role.role, role.path, asset.destination
+                        ),
+                    );
+                    return Ok(None);
+                }
+                let current = self.filesystem.read_declared(&role.path)?;
+                let current_sha256 = hex_sha256(&current);
+                if role.ownership == Ownership::ManagedBlock {
+                    let marker = role.marker.as_deref().ok_or_else(|| {
+                        PortError::ManifestInvalid(format!(
+                            "managed block {} has no marker",
+                            role.role
+                        ))
+                    })?;
+                    let (prefix, interior, suffix) = managed_block_parts(&current, marker)?;
+                    let candidate_interior = managed_candidate_interior(&asset.bytes, marker)?;
+                    let candidate_sha256 = hex_sha256(&candidate_interior);
+                    if interior == candidate_interior {
+                        role.base_sha256 = Some(candidate_sha256);
+                        role.template_release = Some(release.release().into());
+                        continue;
+                    }
+                    let base = role.base_sha256.as_deref().unwrap_or("");
+                    let interior_sha256 = hex_sha256(&interior);
+                    if base != interior_sha256 {
+                        three_way_conflict(
+                            envelope,
+                            &role.path,
+                            base,
+                            &interior_sha256,
+                            &candidate_sha256,
+                        );
+                        return Ok(None);
+                    }
+                    let mut after = prefix;
+                    after.extend_from_slice(&candidate_interior);
+                    after.extend_from_slice(&suffix);
+                    role.base_sha256 = Some(candidate_sha256);
+                    role.current_sha256 = hex_sha256(&after);
+                    role.template_release = Some(release.release().into());
+                    role.activation =
+                        activation_for(&role.role, &after, &mut role.unresolved_markers);
+                    writes.push(TargetWriteDraft {
+                        label: asset.id.clone(),
+                        path: role.path.clone(),
+                        before_sha256: Some(current_sha256),
+                        after_bytes: after,
+                        kind: OperationKind::ReplaceManagedBlock,
+                        disposition: asset.disposition,
+                    });
+                } else {
+                    if current == asset.bytes {
+                        role.base_sha256 = Some(asset.sha256.clone());
+                        role.current_sha256 = asset.sha256.clone();
+                        role.template_release = Some(release.release().into());
+                        continue;
+                    }
+                    let base = role.base_sha256.as_deref().unwrap_or("");
+                    if base != current_sha256 {
+                        three_way_conflict(
+                            envelope,
+                            &role.path,
+                            base,
+                            &current_sha256,
+                            &asset.sha256,
+                        );
+                        return Ok(None);
+                    }
+                    role.base_sha256 = Some(asset.sha256.clone());
+                    role.current_sha256 = asset.sha256.clone();
+                    role.template_release = Some(release.release().into());
+                    role.activation =
+                        activation_for(&role.role, &asset.bytes, &mut role.unresolved_markers);
+                    writes.push(TargetWriteDraft {
+                        label: asset.id.clone(),
+                        path: role.path.clone(),
+                        before_sha256: Some(current_sha256),
+                        after_bytes: asset.bytes.clone(),
+                        kind: OperationKind::Create,
+                        disposition: asset.disposition,
+                    });
+                }
+            } else {
+                let exists = self.filesystem.exists_declared(&asset.destination)?;
+                if exists {
+                    let bytes = self.filesystem.read_declared(&asset.destination)?;
+                    if bytes != asset.bytes {
+                        return Err(PortError::Conflict(format!(
+                            "{} exists with bytes outside the authenticated release",
+                            asset.destination
+                        )));
+                    }
+                    let mut role =
+                        role_from_asset(asset, release.release(), Origin::BrownfieldMapped);
+                    role.ownership = Ownership::TargetOwned;
+                    role.update_policy = UpdatePolicy::NeverAutoPatch;
+                    if no_prior_manifest {
+                        manifest.repository_mode = ManifestRepositoryMode::BrownfieldV1;
+                    }
+                    manifest.roles.push(role);
+                    envelope.notices.push(Notice {
+                        code: "brownfield-identical-mapped".into(),
+                        path: Some(asset.destination.clone()),
+                        message: "Existing identical bytes were conservatively mapped target-owned"
+                            .into(),
+                    });
+                } else {
+                    manifest
+                        .roles
+                        .push(role_from_asset(asset, release.release(), Origin::Created));
+                    writes.push(TargetWriteDraft {
+                        label: asset.id.clone(),
+                        path: asset.destination.clone(),
+                        before_sha256: None,
+                        after_bytes: asset.bytes.clone(),
+                        kind: OperationKind::Create,
+                        disposition: asset.disposition,
+                    });
+                }
+            }
+        }
+        manifest.roles.sort_by(|left, right| {
+            (&left.path, &left.role, &left.asset).cmp(&(&right.path, &right.role, &right.asset))
+        });
+        Ok(Some(CandidateMutation { manifest, writes }))
+    }
+
+    fn build_scaffold_candidate(
+        &self,
+        options: &ScaffoldOptions,
+        existing: Option<&Manifest>,
+        release: &VerifiedRelease,
+        envelope: &mut Envelope,
+    ) -> Result<Option<CandidateMutation>, PortError> {
+        let template = options
+            .template
+            .as_deref()
+            .expect("parser requires template");
+        let destination = options
+            .destination
+            .as_deref()
+            .expect("parser requires destination");
+        validate_exact_destination(destination)?;
+        let Some(asset) = release
+            .assets()
+            .iter()
+            .find(|asset| asset.id == template || asset.template.as_deref() == Some(template))
+        else {
+            invalidate(
+                envelope,
+                format!("template is not authenticated/indexed: {template}"),
+            );
+            return Ok(None);
+        };
+        if asset.destination != destination {
+            invalidate(
+                envelope,
+                "scaffold destination differs from the signed exact destination".into(),
+            );
+            return Ok(None);
+        }
+        if self.filesystem.exists_declared(destination)? {
+            if let Some(existing) = existing {
+                let exact_committed_role = existing.roles.iter().any(|role| {
+                    role.asset == asset.id
+                        && role.path == destination
+                        && role.ownership == Ownership::TargetOwned
+                        && role.update_policy == UpdatePolicy::NeverAutoPatch
+                });
+                let current = self.filesystem.read_declared(destination)?;
+                if exact_committed_role
+                    && current == asset.bytes
+                    && existing.payload == *release.identity()
+                {
+                    return Ok(Some(CandidateMutation {
+                        manifest: existing.clone(),
+                        writes: Vec::new(),
+                    }));
+                }
+            }
+            conflict(
+                envelope,
+                "scaffold-path-exists",
+                "Scaffold never overwrites a pre-existing destination",
+            );
+            return Ok(None);
+        }
+        let mut manifest = existing.cloned().unwrap_or_else(|| Manifest {
+            schema: crate::domain::MANIFEST_SCHEMA.into(),
+            repository_mode: ManifestRepositoryMode::FreshV1,
+            compatibility: Compatibility {
+                cli_min: CORE_VERSION.into(),
+                cli_max: CORE_VERSION.into(),
+                template_release_min: release.release().into(),
+                template_release_max: "1.999.999".into(),
+            },
+            payload: release.identity().clone(),
+            roles: Vec::new(),
+            conversion_receipt: None,
+        });
+        manifest.payload = release.identity().clone();
+        let mut role = role_from_asset(asset, release.release(), Origin::Created);
+        role.ownership = Ownership::TargetOwned;
+        role.update_policy = UpdatePolicy::NeverAutoPatch;
+        role.required = false;
+        manifest.roles.push(role);
+        manifest
+            .roles
+            .sort_by(|left, right| left.path.cmp(&right.path));
+        Ok(Some(CandidateMutation {
+            manifest,
+            writes: vec![TargetWriteDraft {
+                label: asset.id.clone(),
+                path: destination.into(),
+                before_sha256: None,
+                after_bytes: asset.bytes.clone(),
+                kind: OperationKind::Create,
+                disposition: asset.disposition,
+            }],
+        }))
+    }
+
+    fn build_mutation_request(
+        &self,
+        command: &str,
+        release: &VerifiedRelease,
+        existing: Option<&Manifest>,
+        mut candidate: CandidateMutation,
+    ) -> Result<MutationRequest, PortError> {
+        let mut manifest_bytes = serde_json::to_vec(&candidate.manifest)
+            .map_err(|error| PortError::ManifestInvalid(error.to_string()))?;
+        manifest_bytes.push(b'\n');
+        self.manifests.parse_bytes(&manifest_bytes)?;
+        candidate
+            .writes
+            .sort_by(|left, right| left.path.cmp(&right.path));
+        let target_operations: Vec<Operation> = candidate
+            .writes
+            .iter()
+            .enumerate()
+            .map(|(index, write)| Operation {
+                operation_id: format!("write-{:03}-{}", index + 1, sanitize_id(&write.label)),
+                kind: write.kind.clone(),
+                path: write.path.clone(),
+                disposition: write.disposition,
+                before_sha256: write.before_sha256.clone(),
+                after_sha256: Some(hex_sha256(&write.after_bytes)),
+            })
+            .collect();
+        let seed = serde_json::json!({
+            "command": command,
+            "release": release.identity(),
+            "target_operations": target_operations,
+            "manifest_sha256": hex_sha256(&manifest_bytes),
+        });
+        let operation_seed = digest(&seed).map_err(PortError::ManifestInvalid)?;
+        // Recovery receives this identifier from the authenticated caller, not
+        // from the journal. Keep the complete plan digest so it is also an
+        // immutable authorization commitment for every exact post-image.
+        let operation_id = format!("{command}-{operation_seed}");
+        let operation_root = format!(".harness/recovery/{operation_id}");
+        let mut operations = vec![Operation {
+            operation_id: format!("journal-{operation_id}"),
+            kind: OperationKind::WriteRecoveryJournal,
+            path: format!("{operation_root}/journal.json"),
+            disposition: Disposition::ManagedV1,
+            before_sha256: None,
+            after_sha256: None,
+        }];
+        let mut writes = Vec::new();
+        for (index, (draft, operation)) in candidate
+            .writes
+            .into_iter()
+            .zip(target_operations)
+            .enumerate()
+        {
+            let step_id = format!("target-{:03}-{}", index + 1, sanitize_id(&draft.label));
+            let backup_path = draft
+                .before_sha256
+                .as_ref()
+                .map(|_| format!("{operation_root}/backups/{step_id}.bak"));
+            if let (Some(before), Some(path)) = (&draft.before_sha256, &backup_path) {
+                operations.push(Operation {
+                    operation_id: format!("backup-{step_id}"),
+                    kind: OperationKind::Create,
+                    path: path.clone(),
+                    disposition: Disposition::ManagedV1,
+                    before_sha256: None,
+                    after_sha256: Some(before.clone()),
+                });
+            }
+            operations.push(operation);
+            writes.push(PlannedWrite {
+                step_id: step_id.clone(),
+                operation_id: operations
+                    .last()
+                    .expect("target operation was just appended")
+                    .operation_id
+                    .clone(),
+                kind: operations
+                    .last()
+                    .expect("target operation was just appended")
+                    .kind
+                    .clone(),
+                disposition: operations
+                    .last()
+                    .expect("target operation was just appended")
+                    .disposition,
+                path: draft.path.clone(),
+                before_sha256: draft.before_sha256,
+                after_bytes: draft.after_bytes,
+                backup_path,
+                staged_path: format!("{operation_root}/staged/{step_id}.after"),
+                temporary_path: temporary_path(&draft.path, &operation_id, &step_id),
+                manifest_commit: false,
+            });
+        }
+        let manifest_before = if existing.is_some() {
+            Some(self.filesystem.read_declared(".harness/manifest.json")?)
+        } else {
+            None
+        };
+        let manifest_before_sha256 = manifest_before.as_ref().map(|bytes| hex_sha256(bytes));
+        let manifest_step = "manifest";
+        let manifest_backup = manifest_before_sha256
+            .as_ref()
+            .map(|_| format!("{operation_root}/backups/{manifest_step}.bak"));
+        if let (Some(before), Some(path)) = (&manifest_before_sha256, &manifest_backup) {
+            operations.push(Operation {
+                operation_id: "backup-manifest".into(),
+                kind: OperationKind::Create,
+                path: path.clone(),
+                disposition: Disposition::ManagedV1,
+                before_sha256: None,
+                after_sha256: Some(before.clone()),
+            });
+        }
+        operations.push(Operation {
+            operation_id: "write-manifest".into(),
+            kind: OperationKind::WriteManifest,
+            path: ".harness/manifest.json".into(),
+            disposition: Disposition::ManagedV1,
+            before_sha256: manifest_before_sha256.clone(),
+            after_sha256: Some(hex_sha256(&manifest_bytes)),
+        });
+        writes.push(PlannedWrite {
+            step_id: manifest_step.into(),
+            operation_id: "write-manifest".into(),
+            kind: OperationKind::WriteManifest,
+            disposition: Disposition::ManagedV1,
+            path: ".harness/manifest.json".into(),
+            before_sha256: manifest_before_sha256,
+            after_bytes: manifest_bytes,
+            backup_path: manifest_backup,
+            staged_path: format!("{operation_root}/staged/{manifest_step}.after"),
+            temporary_path: temporary_path(".harness/manifest.json", &operation_id, manifest_step),
+            manifest_commit: true,
+        });
+        let operations_value = serde_json::to_value(&operations)
+            .map_err(|error| PortError::ManifestInvalid(error.to_string()))?;
+        let preview_sha256 = digest(&operations_value).map_err(PortError::ManifestInvalid)?;
+        Ok(MutationRequest {
+            command: command.into(),
+            operation_id,
+            preview_sha256: preview_sha256.clone(),
+            accepted_preview_sha256: preview_sha256,
+            release: release.identity().clone(),
+            operations,
+            writes,
+        })
+    }
+
+    fn validate_candidate_bytes(&self, bytes: &[u8]) -> Result<(Manifest, AuditResult), PortError> {
+        let manifest = self.manifests.parse_bytes(bytes)?;
+        let audit = self.audit_manifest(&manifest)?;
+        if !audit.violations.is_empty() {
+            return Err(PortError::ManifestInvalid(format!(
+                "candidate structural audit failed: {}",
+                audit.violations.join(",")
+            )));
+        }
+        Ok((manifest, audit))
+    }
+
+    fn validate_authenticated_candidate(
+        &self,
+        bytes: &[u8],
+        expected_release: &PayloadIdentity,
+    ) -> Result<(Manifest, AuditResult), PortError> {
+        let release = self
+            .releases
+            .load()
+            .and_then(|material| {
+                self.trust
+                    .load()
+                    .and_then(|trust| verify_release(material, trust))
+            })
+            .map_err(|error| {
+                PortError::Conflict(format!(
+                    "authenticated release could not be revalidated before manifest commit: {error}"
+                ))
+            })?;
+        if release.identity() != expected_release {
+            return Err(PortError::Conflict(
+                "authenticated payload identity changed before manifest commit".into(),
+            ));
+        }
+        let (manifest, audit) = self.validate_candidate_bytes(bytes)?;
+        if &manifest.payload != expected_release {
+            return Err(PortError::ManifestInvalid(
+                "candidate manifest payload differs from the authenticated operation identity"
+                    .into(),
+            ));
+        }
+        Ok((manifest, audit))
+    }
+
+    fn finish_rollback(&self, envelope: &mut Envelope) {
+        envelope.mutation = Mutation::RolledBack;
+        match self.manifests.load(self.filesystem) {
+            Ok(Some(manifest)) => match self.audit_manifest(&manifest) {
+                Ok(audit) if audit.violations.is_empty() => {
+                    finish_committed(envelope, &manifest, audit, Mutation::RolledBack)
+                }
+                Ok(audit) => {
+                    envelope.details.violations = audit.violations;
+                    invalidate(envelope, "rollback-restored-invalid-manifest".into());
+                    envelope.mutation = Mutation::RecoveryRequired;
+                }
+                Err(error) => apply_port_error(envelope, error),
+            },
+            Ok(None) => {
+                envelope.outcome = Outcome::Success;
+                envelope.exit_code = 0;
+                envelope.repository_mode = RepositoryMode::Absent;
+                envelope.details.readiness = Readiness::NotApplicable;
+                envelope.mutation = Mutation::RolledBack;
+            }
+            Err(error) => apply_port_error(envelope, error),
+        }
     }
 
     fn plan_install(
@@ -428,6 +1203,237 @@ impl<'a> HarnessCore<'a> {
             Err(error) => Err(error),
         }
     }
+}
+
+struct CandidateMutation {
+    manifest: Manifest,
+    writes: Vec<TargetWriteDraft>,
+}
+
+struct TargetWriteDraft {
+    label: String,
+    path: String,
+    before_sha256: Option<String>,
+    after_bytes: Vec<u8>,
+    kind: OperationKind,
+    disposition: Disposition,
+}
+
+type ManagedBlockParts = (Vec<u8>, Vec<u8>, Vec<u8>);
+
+fn role_from_asset(asset: &VerifiedAsset, release: &str, origin: Origin) -> Role {
+    let role_id = asset
+        .role
+        .clone()
+        .unwrap_or_else(|| asset.id.replace('-', "_"));
+    let mut unresolved_markers = Vec::new();
+    let activation = activation_for(&role_id, &asset.bytes, &mut unresolved_markers);
+    Role {
+        role: role_id,
+        asset: asset.id.clone(),
+        activation,
+        ownership: Ownership::ManagedFile,
+        origin,
+        required: asset.disposition == Disposition::ManagedV1,
+        path: asset.destination.clone(),
+        template: asset.template.clone().or_else(|| Some(asset.id.clone())),
+        template_release: Some(release.into()),
+        base_sha256: Some(asset.sha256.clone()),
+        current_sha256: asset.sha256.clone(),
+        marker: None,
+        update_policy: UpdatePolicy::ReplaceIfBase,
+        unresolved_markers,
+    }
+}
+
+fn activation_for(role: &str, bytes: &[u8], markers: &mut Vec<String>) -> Activation {
+    markers.clear();
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        markers.extend(
+            unresolved_tokens(text)
+                .into_iter()
+                .filter(|token| valid_unresolved_marker(role, token)),
+        );
+        markers.sort();
+        markers.dedup();
+    }
+    if markers.is_empty() {
+        Activation::Active
+    } else {
+        Activation::Unresolved
+    }
+}
+
+fn managed_block_parts(bytes: &[u8], marker: &str) -> Result<ManagedBlockParts, PortError> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|_| PortError::ManifestInvalid("managed block is not UTF-8".into()))?;
+    let open = format!("<!-- repository-harness:v1:begin:{marker} -->");
+    let close = format!("<!-- repository-harness:v1:end:{marker} -->");
+    let open_start = text.find(&open).ok_or_else(|| {
+        PortError::ManifestInvalid("managed block opening marker is missing".into())
+    })?;
+    let content_start = open_start + open.len();
+    let close_start = text[content_start..]
+        .find(&close)
+        .map(|offset| content_start + offset)
+        .ok_or_else(|| {
+            PortError::ManifestInvalid("managed block closing marker is missing".into())
+        })?;
+    if text[content_start..].matches(&close).count() != 1 || text.matches(&open).count() != 1 {
+        return Err(PortError::ManifestInvalid(
+            "managed block marker pair is not unique".into(),
+        ));
+    }
+    Ok((
+        bytes[..content_start].to_vec(),
+        bytes[content_start..close_start].to_vec(),
+        bytes[close_start..].to_vec(),
+    ))
+}
+
+fn managed_candidate_interior(bytes: &[u8], marker: &str) -> Result<Vec<u8>, PortError> {
+    let open = format!("<!-- repository-harness:v1:begin:{marker} -->");
+    if std::str::from_utf8(bytes).is_ok_and(|text| text.contains(&open)) {
+        managed_block_parts(bytes, marker).map(|(_, interior, _)| interior)
+    } else {
+        Ok(bytes.to_vec())
+    }
+}
+
+fn three_way_conflict(
+    envelope: &mut Envelope,
+    path: &str,
+    base: &str,
+    current: &str,
+    candidate: &str,
+) {
+    envelope.notices.extend([
+        Notice {
+            code: "three-way-base-sha256".into(),
+            path: Some(path.into()),
+            message: base.into(),
+        },
+        Notice {
+            code: "three-way-current-sha256".into(),
+            path: Some(path.into()),
+            message: current.into(),
+        },
+        Notice {
+            code: "three-way-candidate-sha256".into(),
+            path: Some(path.into()),
+            message: candidate.into(),
+        },
+    ]);
+    conflict(
+        envelope,
+        "three-way-review-required",
+        "Recorded base differs from current managed bytes; no automatic patch was attempted",
+    );
+}
+
+fn sanitize_id(value: &str) -> String {
+    let value = value
+        .bytes()
+        .map(|byte| {
+            if byte.is_ascii_lowercase() || byte.is_ascii_digit() {
+                char::from(byte)
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>();
+    value.trim_matches('-').to_string()
+}
+
+fn temporary_path(path: &str, operation_id: &str, step_id: &str) -> String {
+    if path == ".harness/manifest.json" {
+        return format!(".harness/recovery/{operation_id}/staged/{step_id}.commit-tmp");
+    }
+    let name = format!(".repository-harness-tmp-{operation_id}-{step_id}");
+    path.rsplit_once('/')
+        .map_or(name.clone(), |(parent, _)| format!("{parent}/{name}"))
+}
+
+fn finish_semantic_state(envelope: &mut Envelope, manifest: &Manifest, mutation: Mutation) {
+    envelope.repository_mode = output_mode(manifest.repository_mode);
+    envelope.release = ReleaseOutput::from(manifest.payload.clone());
+    envelope.mutation = mutation;
+    if manifest
+        .roles
+        .iter()
+        .any(|role| role.activation == Activation::Unresolved)
+    {
+        envelope.outcome = Outcome::Unresolved;
+        envelope.exit_code = 2;
+        envelope.details.readiness = Readiness::Unresolved;
+    } else {
+        envelope.outcome = Outcome::Ready;
+        envelope.exit_code = 0;
+        envelope.details.readiness = Readiness::Ready;
+    }
+}
+
+fn finish_committed(
+    envelope: &mut Envelope,
+    manifest: &Manifest,
+    audit: AuditResult,
+    mutation: Mutation,
+) {
+    finish_semantic_state(envelope, manifest, mutation);
+    envelope.notices.extend(audit.notices);
+}
+
+fn apply_mutation_failure(envelope: &mut Envelope, failure: MutationFailure) {
+    apply_port_error(envelope, failure.error);
+    if failure.journal_started {
+        // A durable journal makes this a recoverable mutation conflict even
+        // when the underlying I/O failure would normally map to 74.
+        envelope.exit_code = 4;
+        envelope.outcome = Outcome::Conflict;
+        envelope.mutation = Mutation::RecoveryRequired;
+        envelope.notices.push(Notice {
+            code: "recovery-required".into(),
+            path: None,
+            message: "A durable operation journal exists; use command-owned resume or rollback"
+                .into(),
+        });
+    }
+}
+
+fn recovery_required_envelope(
+    mut envelope: Envelope,
+    probes: Vec<crate::recovery::RecoveryProbe>,
+    accepted_preview: Option<&str>,
+) -> Envelope {
+    let command = envelope.command.clone();
+    let status = command == "status";
+    envelope.outcome = if status {
+        Outcome::Invalid
+    } else {
+        Outcome::Conflict
+    };
+    envelope.exit_code = if status { 3 } else { 4 };
+    envelope.mutation = Mutation::RecoveryRequired;
+    for probe in probes {
+        let exact_rerun = probe.command == command
+            && accepted_preview == Some(probe.accepted_preview_sha256.as_str());
+        envelope.notices.push(Notice {
+            code: if exact_rerun {
+                "exact-rerun-recovery-required".into()
+            } else {
+                "recovery-required".into()
+            },
+            path: Some(format!(
+                ".harness/recovery/{}/journal.json",
+                probe.operation_id
+            )),
+            message: format!(
+                "Incomplete {} operation {}; use {} --resume or --rollback with this operation ID",
+                probe.command, probe.operation_id, probe.command
+            ),
+        });
+    }
+    envelope
 }
 
 #[derive(Default)]

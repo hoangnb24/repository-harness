@@ -5,6 +5,10 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 
 use crate::domain::Manifest;
+use crate::recovery::{
+    MutationFailure, MutationRequest, MutationResult, RecoveryAuthorization, RecoveryMode,
+    RecoveryProbe,
+};
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum PortError {
@@ -36,6 +40,7 @@ pub trait FileSystemPort {
 
 pub trait ManifestPort {
     fn load(&self, filesystem: &dyn FileSystemPort) -> Result<Option<Manifest>, PortError>;
+    fn parse_bytes(&self, bytes: &[u8]) -> Result<Manifest, PortError>;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -105,4 +110,27 @@ pub trait ReleasePort {
 
 pub trait TrustPort {
     fn load(&self) -> Result<ReleaseTrustInput, PortError>;
+}
+
+/// Explicit Phase 3 write boundary. The application calls this only after the
+/// Phase 2 trust verifier has returned an authenticated release.
+pub trait MutationPort {
+    /// Read-only discovery of structurally valid, incomplete tool-local
+    /// journals. This method must never create, repair, or rewrite evidence.
+    fn probe_recovery(&self) -> Result<Vec<RecoveryProbe>, PortError>;
+
+    fn apply(
+        &self,
+        request: &MutationRequest,
+        validate_candidate: &mut dyn FnMut(&[u8]) -> Result<(), PortError>,
+    ) -> Result<MutationResult, MutationFailure>;
+
+    fn recover(
+        &self,
+        command: &str,
+        operation_id: &str,
+        mode: RecoveryMode,
+        authorization: &RecoveryAuthorization,
+        validate_candidate: &mut dyn FnMut(&[u8]) -> Result<(), PortError>,
+    ) -> Result<MutationResult, MutationFailure>;
 }
