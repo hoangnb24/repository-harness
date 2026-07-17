@@ -36,6 +36,21 @@ pub trait FileSystemPort {
     fn read_declared(&self, path: &str) -> Result<Vec<u8>, PortError>;
     fn exists_declared(&self, path: &str) -> Result<bool, PortError>;
     fn validate_snapshot(&self) -> Result<(), PortError>;
+
+    /// Structural compatibility observation only. Implementations may inspect
+    /// path identities, but this boundary never opens SQLite, parses V0
+    /// changesets, or depends on the conversion bridge.
+    fn observe_compatibility(&self) -> Result<CompatibilityObservation, PortError> {
+        Ok(CompatibilityObservation::default())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CompatibilityObservation {
+    pub observed: bool,
+    pub legacy_artifact_present: bool,
+    pub conversion_journal_present: bool,
+    pub conversion_archive_present: bool,
 }
 
 pub trait ManifestPort {

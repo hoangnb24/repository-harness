@@ -58,6 +58,7 @@ pub fn validate_relative(value: &str, allow_harness: bool) -> Result<String, Por
     if components[0].eq_ignore_ascii_case(".harness") {
         let declared = value == ".harness/manifest.json"
             || value.starts_with(".harness/recovery/")
+            || value == ".harness/legacy/v0-conversion"
             || value.starts_with(".harness/legacy/v0-conversion/");
         if !allow_harness || !declared {
             return Err(PortError::UnsafePath(value.into()));

@@ -117,9 +117,51 @@ impl<'a> HarnessCore<'a> {
     fn inspect(&self, audit: bool) -> Envelope {
         let command = if audit { "audit" } else { "status" };
         let mut envelope = Envelope::new(command);
+        let compatibility = match self.filesystem.observe_compatibility() {
+            Ok(observation) => observation,
+            Err(error) => {
+                apply_port_error(&mut envelope, error);
+                return envelope;
+            }
+        };
         let manifest = match self.manifests.load(self.filesystem) {
             Ok(Some(manifest)) => manifest,
             Ok(None) => {
+                if compatibility.observed && compatibility.conversion_journal_present {
+                    envelope.repository_mode = RepositoryMode::ConversionInProgress;
+                    envelope.notices.push(Notice {
+                        code: "conversion-in-progress".into(),
+                        path: Some(".harness/recovery/v0-conversion".into()),
+                        message: "A structural conversion journal boundary is present; use the isolated bridge resume or rollback command"
+                            .into(),
+                    });
+                    if audit {
+                        envelope.outcome = Outcome::Invalid;
+                        envelope.exit_code = 3;
+                        envelope.details.readiness = Readiness::Invalid;
+                        envelope
+                            .details
+                            .violations
+                            .push("conversion-in-progress".into());
+                    }
+                    return envelope;
+                }
+                if compatibility.observed && compatibility.legacy_artifact_present {
+                    envelope.repository_mode = RepositoryMode::V0Legacy;
+                    envelope.notices.push(Notice {
+                        code: "v0-legacy-structural-boundary".into(),
+                        path: Some("harness.db".into()),
+                        message: "A repository-root legacy artifact is present; the core did not read SQLite or changesets and mutation requires the isolated bridge"
+                            .into(),
+                    });
+                    if audit {
+                        envelope.outcome = Outcome::Invalid;
+                        envelope.exit_code = 3;
+                        envelope.details.readiness = Readiness::Invalid;
+                        envelope.details.violations.push("v0-legacy".into());
+                    }
+                    return envelope;
+                }
                 if !audit {
                     if let Some(mutations) = self.mutations {
                         match mutations.probe_recovery() {
@@ -154,6 +196,25 @@ impl<'a> HarnessCore<'a> {
                 return envelope;
             }
         };
+        let has_receipt = manifest.conversion_receipt.is_some();
+        if compatibility.observed
+            && (compatibility.conversion_journal_present && !has_receipt
+                || compatibility.legacy_artifact_present
+                    && (!has_receipt || !compatibility.conversion_archive_present))
+        {
+            envelope.repository_mode = RepositoryMode::MixedInvalid;
+            envelope.outcome = Outcome::Invalid;
+            envelope.exit_code = 3;
+            envelope.details.readiness = Readiness::Invalid;
+            envelope.details.violations.push("mixed-v0-v1-state".into());
+            envelope.notices.push(Notice {
+                code: "mixed-invalid".into(),
+                path: Some(".harness/manifest.json".into()),
+                message: "Legacy artifacts, conversion evidence, and the completed manifest receipt are structurally inconsistent"
+                    .into(),
+            });
+            return envelope;
+        }
         envelope.repository_mode = output_mode(manifest.repository_mode);
         envelope.release = ReleaseOutput::from(manifest.payload.clone());
         envelope.details.readiness = if manifest
@@ -283,6 +344,22 @@ impl<'a> HarnessCore<'a> {
         scaffold: Option<&ScaffoldOptions>,
     ) -> Envelope {
         let mut envelope = Envelope::new(command);
+        let compatibility = match self.filesystem.observe_compatibility() {
+            Ok(observation) => observation,
+            Err(error) => {
+                apply_port_error(&mut envelope, error);
+                return envelope;
+            }
+        };
+        if compatibility.observed && compatibility.conversion_journal_present {
+            envelope.repository_mode = RepositoryMode::ConversionInProgress;
+            conflict(
+                &mut envelope,
+                "conversion-in-progress",
+                "V1 mutation is blocked until the isolated bridge resumes or rolls back",
+            );
+            return envelope;
+        }
         if options.resume.is_some() || options.rollback.is_some() {
             if self.mutations.is_some() {
                 return self.recover_mutation(command, options, scaffold);
@@ -314,6 +391,17 @@ impl<'a> HarnessCore<'a> {
                 return envelope;
             }
         };
+        let has_receipt = existing
+            .as_ref()
+            .is_some_and(|manifest| manifest.conversion_receipt.is_some());
+        if compatibility.observed
+            && compatibility.legacy_artifact_present
+            && (!has_receipt || !compatibility.conversion_archive_present)
+        {
+            envelope.repository_mode = RepositoryMode::MixedInvalid;
+            invalidate(&mut envelope, "mixed-v0-v1-state".into());
+            return envelope;
+        }
         if command == "update" && existing.is_none() {
             conflict(
                 &mut envelope,

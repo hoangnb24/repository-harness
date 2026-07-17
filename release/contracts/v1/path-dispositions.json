@@ -83,10 +83,12 @@
     {"path": "scripts/build-harness-cli-release.sh", "surface": "release-source", "disposition": "source-only", "reason": "Current V0 build source"},
     {"path": ".github/workflows/harness-cli-release.yml", "surface": "release-source", "disposition": "source-only", "reason": "Current V0 release workflow source"},
     {"path": ".github/workflows/harness-v1-release.yml", "surface": "release-source", "disposition": "source-only", "reason": "Phase 2 present-but-unpromoted V1 proof workflow source"},
+    {"path": ".github/workflows/harness-v0-bridge-release.yml", "surface": "release-source", "disposition": "bridge-only-legacy", "reason": "Phase 4 present-but-unpromoted isolated bridge proof workflow source"},
 
     {"path": "release/contracts/v1/README.md", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Phase 1 contract catalog, not installed payload"},
     {"path": "release/contracts/v1/audit-rules.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Core implementation input, not installed payload"},
     {"path": "release/contracts/v1/bootstrap-identity.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Bootstrap policy input, not installed payload"},
+    {"path": "release/contracts/v1/bridge-release-artifacts.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Phase 4 unpromoted bridge release inventory, prohibited from core payload"},
     {"path": "release/contracts/v1/command-implementation-binding.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Phase 1 contract-only command binding and future live-parity gate, not installed payload"},
     {"path": "release/contracts/v1/command-grammars.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "CLI implementation input, not installed payload"},
     {"path": "release/contracts/v1/compatibility-policy.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Release policy input, not installed payload"},

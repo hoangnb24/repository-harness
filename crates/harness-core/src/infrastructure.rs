@@ -11,8 +11,8 @@ use std::path::PathBuf;
 use crate::domain::{Manifest, MANIFEST_SCHEMA};
 use crate::path::validate_relative;
 use crate::ports::{
-    FileSystemPort, ManifestPort, PortError, ReleaseMaterial, ReleasePort, ReleaseTrustInput,
-    TrustPort,
+    CompatibilityObservation, FileSystemPort, ManifestPort, PortError, ReleaseMaterial,
+    ReleasePort, ReleaseTrustInput, TrustPort,
 };
 #[cfg(unix)]
 use crate::strict_json::hex_sha256;
@@ -125,6 +125,15 @@ impl FileSystemPort for OsFileSystem {
                 message: "safe command-scoped filesystem snapshots are unavailable on this platform until Phase 7".into(),
             })
         }
+    }
+
+    fn observe_compatibility(&self) -> Result<CompatibilityObservation, PortError> {
+        Ok(CompatibilityObservation {
+            observed: true,
+            legacy_artifact_present: self.exists_declared("harness.db")?,
+            conversion_journal_present: self.exists_declared(".harness/recovery/v0-conversion")?,
+            conversion_archive_present: self.exists_declared(".harness/legacy/v0-conversion")?,
+        })
     }
 }
 

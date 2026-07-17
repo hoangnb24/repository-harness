@@ -2,12 +2,15 @@ use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 
 use harness_core::application::HarnessCore;
-use harness_core::domain::{Command, MutatorOptions, Outcome, Readiness, ScaffoldOptions};
+use harness_core::domain::{
+    Command, MutatorOptions, Outcome, Readiness, RepositoryMode, ScaffoldOptions,
+};
 use harness_core::infrastructure::JsonManifestPort;
 use harness_core::path::validate_relative;
 use harness_core::ports::{
-    FileSystemPort, ManifestPort, PinnedRootKey, PortError, ReleaseFreshness, ReleaseMaterial,
-    ReleasePort, ReleaseTrustInput, RollbackMaterial, TrustPolicy, TrustPort, TrustedRootState,
+    CompatibilityObservation, FileSystemPort, ManifestPort, PinnedRootKey, PortError,
+    ReleaseFreshness, ReleaseMaterial, ReleasePort, ReleaseTrustInput, RollbackMaterial,
+    TrustPolicy, TrustPort, TrustedRootState,
 };
 use harness_core::trust::{verify_release, VerifiedRelease};
 use sha2::{Digest, Sha256};
@@ -71,11 +74,17 @@ const STORY: &[u8] = include_bytes!("../../../docs/templates/story.md");
 struct MemoryFileSystem {
     files: BTreeMap<String, Vec<u8>>,
     reads: Cell<usize>,
+    compatibility: CompatibilityObservation,
 }
 
 impl MemoryFileSystem {
     fn with(mut self, path: &str, bytes: impl Into<Vec<u8>>) -> Self {
         self.files.insert(path.into(), bytes.into());
+        self
+    }
+
+    fn with_compatibility(mut self, compatibility: CompatibilityObservation) -> Self {
+        self.compatibility = compatibility;
         self
     }
 }
@@ -97,6 +106,10 @@ impl FileSystemPort for MemoryFileSystem {
 
     fn validate_snapshot(&self) -> Result<(), PortError> {
         Ok(())
+    }
+
+    fn observe_compatibility(&self) -> Result<CompatibilityObservation, PortError> {
+        Ok(self.compatibility)
     }
 }
 
@@ -145,7 +158,7 @@ fn core_trust() -> ReleaseTrustInput {
     ReleaseTrustInput {
         trusted_root: fixture_root("core"),
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "e26476d03baf7b44a99fa3c6c9aab0dd5de107be6c3ed1f2c0c318591b919f5e"
+        path_ledger_sha256: "b79b21419115860f4d481c500074235619ae8dde8996df7b887cd9059b6535cf"
             .into(),
         freshness: ReleaseFreshness::Existing {
             sequence: 42,
@@ -292,7 +305,7 @@ fn strict_release_verifier_rejects_bridge_domain_and_rollback() {
     let bridge_trust = ReleaseTrustInput {
         trusted_root: fixture_root("bridge"),
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "e26476d03baf7b44a99fa3c6c9aab0dd5de107be6c3ed1f2c0c318591b919f5e"
+        path_ledger_sha256: "b79b21419115860f4d481c500074235619ae8dde8996df7b887cd9059b6535cf"
             .into(),
         freshness: ReleaseFreshness::FirstInstallMinimumSequence(7),
     };
@@ -664,6 +677,50 @@ fn audit_is_deterministic_ready_or_unresolved_from_declared_bytes_only() {
     let result = core.execute(&Command::Audit { json: true });
     assert_eq!(result.exit_code, 2);
     assert_eq!(result.details.readiness, Readiness::Unresolved);
+}
+
+#[test]
+fn status_classifies_structural_v0_and_mixed_state_without_a_sqlite_or_bridge_dependency() {
+    let release = MemoryRelease::core();
+    let legacy = MemoryFileSystem::default().with_compatibility(CompatibilityObservation {
+        observed: true,
+        legacy_artifact_present: true,
+        conversion_journal_present: false,
+        conversion_archive_present: false,
+    });
+    let result = HarnessCore::new(&legacy, &JsonManifestPort, &release, &release)
+        .execute(&Command::Status { json: true });
+    assert_eq!(result.exit_code, 0);
+    assert_eq!(result.repository_mode, RepositoryMode::V0Legacy);
+
+    let bytes = b"# Managed\n";
+    let mixed = MemoryFileSystem::default()
+        .with("managed.md", bytes)
+        .with(
+            ".harness/manifest.json",
+            manifest("managed.md", bytes, "active", &[]),
+        )
+        .with_compatibility(CompatibilityObservation {
+            observed: true,
+            legacy_artifact_present: true,
+            conversion_journal_present: false,
+            conversion_archive_present: false,
+        });
+    let result = HarnessCore::new(&mixed, &JsonManifestPort, &release, &release)
+        .execute(&Command::Status { json: true });
+    assert_eq!(result.exit_code, 3);
+    assert_eq!(result.repository_mode, RepositoryMode::MixedInvalid);
+
+    let interrupted = MemoryFileSystem::default().with_compatibility(CompatibilityObservation {
+        observed: true,
+        legacy_artifact_present: true,
+        conversion_journal_present: true,
+        conversion_archive_present: true,
+    });
+    let result = HarnessCore::new(&interrupted, &JsonManifestPort, &release, &release)
+        .execute(&Command::Status { json: true });
+    assert_eq!(result.exit_code, 0);
+    assert_eq!(result.repository_mode, RepositoryMode::ConversionInProgress);
 }
 
 #[test]
