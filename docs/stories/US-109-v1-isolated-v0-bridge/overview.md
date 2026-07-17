@@ -1,6 +1,6 @@
 # US-109: Archive-Only V0 Bridge
 
-Status: **in_progress — local Phase 4 candidate implemented; independent acceptance pending**
+Status: **Implemented, fully validated, and accepted**
 
 Decision 0014 supersedes US-109's earlier automatic-conversion design. The
 bridge preserves V0 as archive evidence and never imports V0 operational rows
@@ -37,7 +37,9 @@ The V1 manifest instead records which immutable archive/export preserved it.
 
 ## Acceptance state
 
-The local candidate includes contracts, crate code, temporary-copy fixtures,
-workflow structure, and Phase 1–4 verifier updates. This is implementation
-evidence, not independent acceptance. US-109 remains `in_progress` until the
-separate acceptance authority reviews the exact committed candidate.
+The accepted implementation includes contracts, crate code, temporary-copy
+fixtures, workflow structure, and Phase 1–4 verifier updates. An independent
+reviewer accepted exact candidate `880cb9b`; it was fast-forwarded to the
+primary branch with the identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked
+but not started. Phase 7, production promotion, signing, and publishing remain
+closed.

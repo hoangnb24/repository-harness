@@ -96,9 +96,11 @@ def source_grammar() -> dict[str, object]:
 
 def proof_story_status() -> None:
     packet = "\n".join((STORY / name).read_text(encoding="utf-8") for name in ["overview.md", "design.md", "execplan.md", "validation.md"])
-    check("in_progress" in packet, "US-109 must remain in progress")
+    check("accepted" in packet.lower(), "US-109 must record acceptance")
+    check("in_progress" not in packet, "US-109 story packet still claims in-progress status")
     check("Decision 0014" in packet, "US-109 does not bind the archive-only decision")
-    check("Phase 5" in packet and "Phase 7" in packet and "closed" in packet.lower(), "later gates are not closed")
+    check("Phase 5" in packet and "not started" in packet.lower(), "Phase 5 must remain not started")
+    check("Phase 7" in packet and "closed" in packet.lower(), "Phase 7 must remain closed")
 
 
 def proof_closed_grammar() -> None:
@@ -228,7 +230,7 @@ def main() -> None:
     before = inventory_snapshot()
     run(["cargo", "build", "--quiet", "--locked", "--offline", "--package", "harness-v0-migrate", "--bin", "harness-v0-migrate"])
     run(["cargo", "test", "--quiet", "--locked", "--offline", "--package", "harness-v0-migrate"])
-    proof("US-109 stays in progress under Decision 0014 with later gates closed", proof_story_status)
+    proof("US-109 is accepted under Decision 0014 with later phases unopened", proof_story_status)
     proof("live/source/contract grammar is exactly inspect/export/archive/version", proof_closed_grammar)
     proof("all frozen schemas inspect read-only from temporary copies", proof_all_frozen_schemas_execute)
     proof("live and archived exports preserve WAL-only committed history exactly", proof_live_and_archive_export_are_exact)

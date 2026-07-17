@@ -1,6 +1,6 @@
 # US-109 Validation Contract
 
-Status: **in_progress pending independent acceptance**
+Status: **Implemented, fully validated, and accepted**
 
 ## Required proof matrix
 
@@ -52,6 +52,9 @@ scripts/validate-premerge.sh
 git diff --check
 ```
 
-Passing these commands proves the local candidate only. Independent review of
-the committed hashes is still required before Phase 4 acceptance. Phase 5,
+These commands passed on exact candidate `880cb9b`, which an independent
+reviewer accepted after two correction loops. The workspace passed all 203
+tests; Phase 1–4 verifiers passed 10/11/11/10 proof groups; fmt, check, and
+clippy also passed. The candidate was fast-forwarded to the primary branch with
+the identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked but not started.
 Phase 7, production promotion, signing, and publishing stay closed.

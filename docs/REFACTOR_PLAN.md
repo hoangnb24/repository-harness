@@ -2,7 +2,7 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-3 accepted; Phase 4 implemented and awaiting independent acceptance; Phases 5-8 not started
+Status: Direction and Phases 1-4 accepted; Phases 5-8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
@@ -438,17 +438,18 @@ and ownership/tamper tests. Acceptance: V0 inputs remain immutable, the bridge
 never mutates V1, no bridge code enters the six-command core, and unknown
 `.harness` metadata is preserved.
 
-**Implemented and locally validated; independent acceptance pending:** US-109
+**Implemented, fully validated, and accepted:** US-109
 adds the separate `harness-v0-migrate` crate and exact four-command binary,
 descriptor-anchored read-only capture with SQLite writer quiescence and
 DB/WAL/SHM evidence, neutral export, age/X25519 encrypted write-once archives,
 unique no-replace custody, and Phase 3 manifest/receipt-last core recovery.
 Focused bridge tests and the ten-group
-`scripts/verify-v1-phase4-bridge.sh` proof pass on macOS. This does not accept
-Phase 4: the Orchestrator must independently review the committed candidate.
-Phase 5 remains closed until that acceptance. Windows safe capture/atomic
-publication and promoted five-platform artifact equivalence remain Phase 7 work;
-Phase 4 proves the controlled unsupported exit 5.
+`scripts/verify-v1-phase4-bridge.sh` proof pass on macOS. An independent
+reviewer accepted exact candidate `880cb9b`, fast-forwarded to the primary
+branch with identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked but not
+started. Windows safe capture/atomic publication and promoted five-platform
+artifact equivalence remain Phase 7 work; Phase 4 proves the controlled
+unsupported exit 5.
 
 ### Phase 5: Dogfood, Pilot Enrollment, And Baselines
 
@@ -582,9 +583,9 @@ arrays, and complete-set calendar-month availability receipts. US-107 supplies
 accepted Phase 2 evidence for the live six-command core, authenticated payload
 boundary, deterministic structural audit, no-target-execution canary, and safe
 mutation refusal. US-108 supplies accepted Phase 3 mutation/recovery evidence
-and the exact evidence counts above. Phase 4 is implemented locally and awaits
-independent acceptance; Phases 5-8 remain closed and depend
-on preceding accepted evidence. No bridge conversion write,
+and the exact evidence counts above. US-109 supplies accepted archive-only
+Phase 4 evidence. Phases 5-8 remain not started and depend on preceding
+accepted evidence. No bridge conversion write,
 production key, promoted release, pilot, tag, publish action, or V0 removal is
 created or authorized by Phase 3. Phase 8
 additionally requires Decision 0012's separate removal authorization and

@@ -1,6 +1,6 @@
 # US-109 Execution Plan
 
-Status: **in_progress; implementation complete locally, independent acceptance pending**
+Status: **Implemented, fully validated, and accepted**
 
 ## Intake and context limitation
 
@@ -43,4 +43,5 @@ PR, modify the primary checkout, or start Phase 5.
 - Interrupted core install resumes with the exact receipt and fresh mode.
 - Windows workflow builds the crate, proves four-command help, and asserts exit
   5 for repository capture.
-- US-109 remains `in_progress`; Phase 5, Phase 7, and production remain closed.
+- US-109 is accepted; Phase 5 is unblocked but not started, while Phase 7 and
+  production remain closed.
