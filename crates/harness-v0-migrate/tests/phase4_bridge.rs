@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::process::Command as ProcessCommand;
 use std::str::FromStr;
 use std::sync::Mutex;
 
@@ -164,6 +165,45 @@ fn changeset_unknown_operation_duplicate_member_and_foreign_schema_fail_closed()
         capture(temporary.path()),
         Err(BridgeError::Unsupported(_))
     ));
+}
+
+#[test]
+fn writer_lock_helper() {
+    let Some(root) = std::env::var_os("HARNESS_V0_MIGRATE_WRITER_ROOT") else {
+        return;
+    };
+    let root = PathBuf::from(root);
+    let connection = rusqlite::Connection::open(root.join("harness.db")).unwrap();
+    connection.execute_batch("BEGIN IMMEDIATE").unwrap();
+    std::fs::write(root.join("writer-ready"), b"ready\n").unwrap();
+    while !root.join("writer-release").exists() {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    connection.execute_batch("ROLLBACK").unwrap();
+}
+
+#[test]
+fn capture_refuses_an_active_v0_writer() {
+    let temporary = copy_fixture("schema-13");
+    let mut writer = ProcessCommand::new(std::env::current_exe().unwrap())
+        .arg("writer_lock_helper")
+        .arg("--exact")
+        .env("HARNESS_V0_MIGRATE_WRITER_ROOT", temporary.path())
+        .spawn()
+        .unwrap();
+    for _ in 0..2_000 {
+        if temporary.path().join("writer-ready").exists() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(temporary.path().join("writer-ready").exists());
+    let result = capture(temporary.path());
+    std::fs::write(temporary.path().join("writer-release"), b"release\n").unwrap();
+    assert!(writer.wait().unwrap().success());
+    assert!(
+        matches!(result, Err(BridgeError::Conflict(message)) if message.contains("not quiesced"))
+    );
 }
 
 #[test]

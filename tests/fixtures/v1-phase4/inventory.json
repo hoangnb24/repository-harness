@@ -13,12 +13,12 @@
     {
       "bytes": 49152,
       "path": "schema-01/harness.db",
-      "sha256": "6a7ba61f83d53dfa3e39994110e7e24ecbc88991e2015896c8b5e8d39c5193fc"
+      "sha256": "2f0823a4833d05fbcb5ae405ac14b479ae09bfba3a0cee843532bf1dc635de27"
     },
     {
       "bytes": 32768,
       "path": "schema-01/harness.db-shm",
-      "sha256": "a455ca09adf8aec6bc4675c4aed9b5dc4d60cd0694cdef1023c98618e52f7d78"
+      "sha256": "009bbb1fa52e1466fcd78cec87465ff7d4a141b19f4f32b0100d27395a0b3f3a"
     },
     {
       "bytes": 0,
@@ -38,12 +38,12 @@
     {
       "bytes": 49152,
       "path": "schema-02/harness.db",
-      "sha256": "8c65b0bb12c2fca5f15eb999626d89ffef343762739e905fea9b0d9d4edac88f"
+      "sha256": "153128203cf3cc133c9088902e11978a8958978afa8c5464a4d51ece74c7607f"
     },
     {
       "bytes": 32768,
       "path": "schema-02/harness.db-shm",
-      "sha256": "f65ede6a427093a51f181a1886a37f3c8f27011208227c63fcc256196de06584"
+      "sha256": "2f66572e600eea05b25fb022b38f23922aa111e4c38a7312ac812d5d9075944a"
     },
     {
       "bytes": 0,
@@ -63,12 +63,12 @@
     {
       "bytes": 57344,
       "path": "schema-03/harness.db",
-      "sha256": "6172593c973e6d3fe86069a7bdac6acececa2c07b3373ab3b23132928fe70a4a"
+      "sha256": "156c42387369ab685192c6cc225bb14ad87a9b321a3530c8d0ea7d3237558135"
     },
     {
       "bytes": 32768,
       "path": "schema-03/harness.db-shm",
-      "sha256": "a8d34702913a5e2ed28d84a97c94eb5d364131370fa6710ea65ff6c6283d3625"
+      "sha256": "59b50c7b514aa7e3a93c87ea00af3fac07e14ab5caee9e91874f6e6d0248f1ac"
     },
     {
       "bytes": 0,
@@ -88,12 +88,12 @@
     {
       "bytes": 61440,
       "path": "schema-04/harness.db",
-      "sha256": "7897b6a4b74c312d8c406355b2d45d2422ec6592852efb7142818daed8543860"
+      "sha256": "81496feafb8ba0728bcd2b4f4881a5a199df206baae6043cd677d83b09464236"
     },
     {
       "bytes": 32768,
       "path": "schema-04/harness.db-shm",
-      "sha256": "2025399cebb9e32c3f67e5f935342754c40eb00e62194952a3f5aee7f85bb0c7"
+      "sha256": "ca297bb364858920f3ec2a3bd53449737c8e3861044537298990374881479165"
     },
     {
       "bytes": 0,
@@ -113,12 +113,12 @@
     {
       "bytes": 61440,
       "path": "schema-05/harness.db",
-      "sha256": "e8cc8a3bb47658f0216cf22b669528e7ebe59ea01d794dd00bf045722fae062c"
+      "sha256": "cb44d52ed1e0fa799c6fb5f1e447be60fd27fcc883f264b54598e468ac23b8fb"
     },
     {
       "bytes": 32768,
       "path": "schema-05/harness.db-shm",
-      "sha256": "fe9958f986ee2c4d4571fd5c80ca0bf9ffee74d0de4c1fc6ffda32647f11059b"
+      "sha256": "ca09c49f0dd0619f9c7f50850631f35846e91305c85d129c146b5a9613acbdeb"
     },
     {
       "bytes": 0,
@@ -138,12 +138,12 @@
     {
       "bytes": 69632,
       "path": "schema-06/harness.db",
-      "sha256": "511803d7d79c5823e32c27de9fff2783c5b65aa560e5980ff2aaa7835c7a5862"
+      "sha256": "e7595e7f09ea38ef66ef387ff2a8622509c3a68e67964feaed5c082dd7ad3281"
     },
     {
       "bytes": 32768,
       "path": "schema-06/harness.db-shm",
-      "sha256": "db9c1028beaeb6239aa67599c7947a12e4079bdfbefd71c8f31c5d56e941b746"
+      "sha256": "8b3011976edaa92fa66164deed693931519e8acd431d02b878a1e4bc04a4a8f2"
     },
     {
       "bytes": 0,
@@ -163,12 +163,12 @@
     {
       "bytes": 81920,
       "path": "schema-07/harness.db",
-      "sha256": "51f4fe37f6825c7d0bfdfa42ce2881b07d62143bc249f41075dfa1685107a657"
+      "sha256": "cafe385af83eb31750c2f522cb2ddd9e00d3324e59d99e888323be9eed419b33"
     },
     {
       "bytes": 32768,
       "path": "schema-07/harness.db-shm",
-      "sha256": "2c77bbc113b98ed68fc0650a7b8e6a0ef075631f6e62783c01ab45bead00d9a3"
+      "sha256": "4617c6e80063be3e389197e2359c4c11eddf7fe6f9fd2f49794503e38ab9a26c"
     },
     {
       "bytes": 0,
@@ -188,12 +188,12 @@
     {
       "bytes": 94208,
       "path": "schema-08/harness.db",
-      "sha256": "6364929f565890fe42cd65fa46b1de93a77077e65a0fd1fbe60a706475a2e5d7"
+      "sha256": "50ff96de696c1f63b32b088e6a2a0487e4aecc22304031917884cb6ce310e631"
     },
     {
       "bytes": 32768,
       "path": "schema-08/harness.db-shm",
-      "sha256": "c86b0db000e40a1ef0bfcfe34731ed6305981e769c2d603cf9856d235147a0ab"
+      "sha256": "e52471349752cf5df687ce3002b7b2fc496d1cddc76ce81d75980833754057f2"
     },
     {
       "bytes": 0,
@@ -213,12 +213,12 @@
     {
       "bytes": 151552,
       "path": "schema-09/harness.db",
-      "sha256": "79a1fc85a9b028f985f403334198c75cd1a079976ee4be362809e7211338e08e"
+      "sha256": "79d3b145f6d2992dd00a14c355708f266df5ddfb5c402ba1456773ec4a69c7ed"
     },
     {
       "bytes": 32768,
       "path": "schema-09/harness.db-shm",
-      "sha256": "d935f91f1ac179f55cc73371df63f28441ec3645fcff34a673ba1e4124e76f51"
+      "sha256": "435d1b2c108fbc7998d17c16e3cc96029bdb9043acf12ff96ba4c857c9cf7f0f"
     },
     {
       "bytes": 0,
@@ -238,12 +238,12 @@
     {
       "bytes": 167936,
       "path": "schema-10/harness.db",
-      "sha256": "6bfe882548e49174f72c1161d07e5e20427b3e46771f36c83c2a53eecdac0e1a"
+      "sha256": "d61faa7dd14bae6c7fe8e55593af931e6d07f03b7f07b0d6e4ef0c9492f5d93b"
     },
     {
       "bytes": 32768,
       "path": "schema-10/harness.db-shm",
-      "sha256": "0046e3e60b49af14c5e16e8531a01ae1a3b1c6a079ee4212fd09fcef952ceafb"
+      "sha256": "8182ca583d974ecea40f7cdadb82874bd3840bd082fee01a10e3c783f111c41a"
     },
     {
       "bytes": 0,
@@ -263,12 +263,12 @@
     {
       "bytes": 184320,
       "path": "schema-11/harness.db",
-      "sha256": "2aa254b53cf6fd38ced0551cb468b9e7cf41af6ebf110f3a4fc39333d2a8aa95"
+      "sha256": "cb2fa821acb1ad1525d386969571cf8fb16215bc5304514b8279dde4ed2e643c"
     },
     {
       "bytes": 32768,
       "path": "schema-11/harness.db-shm",
-      "sha256": "e71c9233a7ff022619ffca643d285e192c4bae16b9f63c2e6b7bd5174165290c"
+      "sha256": "90502858254f44698351ac0822bad2591607c2457b7ee53b31a68fc819d629f3"
     },
     {
       "bytes": 0,
@@ -288,12 +288,12 @@
     {
       "bytes": 184320,
       "path": "schema-12/harness.db",
-      "sha256": "656c52674091f25d0e50ad94288c44f710abe1cb50c7dbc67094159820c8c6e6"
+      "sha256": "a51b1c59ce41b56be377dac7e7c03fecb466ceea107c85b6d56a6e3271b41fb6"
     },
     {
       "bytes": 32768,
       "path": "schema-12/harness.db-shm",
-      "sha256": "94c240edec07dbd500146277b5841071eae47d33b1d84e4f1ed22b2cc1e170e4"
+      "sha256": "9db812d58cb019c7e8c5cf4db59eb9bd4857676d8cc84e3ec39dc6dff4672595"
     },
     {
       "bytes": 0,
@@ -323,12 +323,12 @@
     {
       "bytes": 184320,
       "path": "schema-13/harness.db",
-      "sha256": "5a3d0c1790952be1c98d56fc8d671334e1a96b3340858fc73f4503f86e932fc2"
+      "sha256": "a29a90d5ca5276742e085e03e706c79796d54614024ce8c8a890e2639b5fe4fc"
     },
     {
       "bytes": 32768,
       "path": "schema-13/harness.db-shm",
-      "sha256": "dc946e010afaf0e9e8c1b9104a3cd53bc2002bd86102b7c5c0fe862817ff4943"
+      "sha256": "8d8038a56038a4c1426cb5c32dbf73c6225bdbb2fb726f954be21a8b7f11cbd7"
     },
     {
       "bytes": 0,
@@ -348,17 +348,17 @@
     {
       "bytes": 184320,
       "path": "wal-only-schema-13/harness.db",
-      "sha256": "5a3d0c1790952be1c98d56fc8d671334e1a96b3340858fc73f4503f86e932fc2"
+      "sha256": "a29a90d5ca5276742e085e03e706c79796d54614024ce8c8a890e2639b5fe4fc"
     },
     {
       "bytes": 32768,
       "path": "wal-only-schema-13/harness.db-shm",
-      "sha256": "af1f3eed02bd27a7c5fdce00b6f43e8e76277d68f5d2e2743ce18600468d2953"
+      "sha256": "1aada9246598c53cbe32a88722d60cd82931906f7a615f19b0a0ce9ba73f9e14"
     },
     {
       "bytes": 8272,
       "path": "wal-only-schema-13/harness.db-wal",
-      "sha256": "3af4513a0e90a092e8a470612a661af2375096a7ded347b7a5d4ea56a63e8a53"
+      "sha256": "4ce879d6850fb6e8000defc754f883d49f673f8ac90fbf392cb11a44307f15ab"
     }
   ],
   "schema": "repository-harness-v0-fixture-inventory/v1"

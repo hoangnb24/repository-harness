@@ -51,7 +51,7 @@ pub fn capture(root: &Path) -> Result<Capture> {
 
 #[cfg(unix)]
 fn capture_unix(root: &Path) -> Result<Capture> {
-    use rustix::fs::{open, openat, Mode, OFlags};
+    use rustix::fs::{fcntl_lock, open, openat, FlockOperation, Mode, OFlags};
 
     let root_handle = open(
         root,
@@ -68,10 +68,11 @@ fn capture_unix(root: &Path) -> Result<Capture> {
     .map_err(|_| {
         BridgeError::Unsupported("recognized repository-root harness.db is absent".into())
     })?;
+    let db = File::from(db);
     let mut sources = vec![(
         "harness.db".to_owned(),
         "filesystem.harness.db".to_owned(),
-        File::from(db),
+        db,
     )];
 
     for (name, category) in [
@@ -86,6 +87,17 @@ fn capture_unix(root: &Path) -> Result<Capture> {
         ) {
             sources.push((name.into(), category.into(), File::from(handle)));
         }
+    }
+    let captured_sqlite_names = sources
+        .iter()
+        .map(|(path, _, _)| path.clone())
+        .collect::<BTreeSet<_>>();
+    for (path, _, handle) in &sources {
+        fcntl_lock(handle, FlockOperation::NonBlockingLockShared).map_err(|error| {
+            BridgeError::Conflict(format!(
+                "source V0 database is not quiesced; an SQLite writer holds a conflicting lock on {path}: {error}"
+            ))
+        })?;
     }
 
     let mut recognized_metadata = BTreeSet::new();
@@ -285,6 +297,20 @@ fn capture_unix(root: &Path) -> Result<Capture> {
         if identity(&reopened)? != *expected || identity(retained)? != *expected {
             return Err(BridgeError::Conflict(format!(
                 "source pathname identity changed during capture: {path}"
+            )));
+        }
+    }
+    for name in ["harness.db", "harness.db-wal", "harness.db-shm"] {
+        let present = openat(
+            &root_handle,
+            name,
+            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+            Mode::empty(),
+        )
+        .is_ok();
+        if present != captured_sqlite_names.contains(name) {
+            return Err(BridgeError::Conflict(format!(
+                "SQLite source set changed during capture: {name}"
             )));
         }
     }
