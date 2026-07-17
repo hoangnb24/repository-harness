@@ -2,6 +2,10 @@
 
 Status: **Implementation in progress / Phases 1-3 accepted / Phase 4 candidate awaiting independent acceptance / Phases 5-8 not started**
 
+Decision 0014 supersedes every Phase 4 automatic-conversion step below. The
+authoritative replacement is US-109: four bridge commands, append-only archive
+and export, then ordinary fresh V1 install with a Phase 3 receipt.
+
 ## Goal
 
 Deliver the accepted Repository Harness V1 refactor through all eight phases
@@ -113,14 +117,15 @@ G0 approved/open by Decision 0012
 
 No phase may borrow acceptance from a later phase. For example, a successful
 pilot cannot excuse an unauthenticated payload, and a passing platform build
-cannot excuse a bridge rollback that overwrites a target edit.
+cannot excuse archive capture that mutates a target or overwrites foreign data.
 
 Current phase state: Phases 1-3 are implemented and accepted. Independent
 security and behavior review accepted exact Phase 2 candidate `1b1add5`, which
 was integrated as `e77e028` with the identical Git tree. Independent security
 and behavior review accepted exact Phase 3 candidate `1f957ce`, integrated as
-`8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 is unblocked but not
-started; Phases 4-8 still require their own evidence and gates.
+`8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 is implemented
+locally under Decision 0014 and awaits independent acceptance;
+Phases 5-8 remain closed and require their own evidence and gates.
 
 Anticipated paths below identify review surfaces, not permission to modify
 them in this planning change. New filenames remain subject to the Phase 1
@@ -253,31 +258,31 @@ acceptance pending.
 
 1. Build a separate bridge binary and release index with an immutable,
    read-only V0 reader.
-2. Implement `inspect`, `export`, `preview`, `apply`, `resume`, `rollback`, and
-   `version` around the export/archive/journal state machine.
-3. Add conservative V0 detection, unknown/unowned preservation,
-   mixed-version detection, atomic receipt commit, and conflict-safe recovery.
-4. Execute the complete parameterized kill-point suite.
+2. Implement exactly `inspect`, `export`, `archive`, and `version`.
+3. Publish unique staged archives atomically no-replace under authenticated
+   `.harness-v0-archive`; preserve unknown/unowned paths.
+4. Add only the core first-install archive-manifest input and commit its exact
+   receipt through the existing Phase 3 transaction.
 
 **Anticipated files/subsystems:** a separate bridge/reader crate or binary under
 `crates/`, bridge-only release/build metadata and repository-local binary path,
-immutable copies of supported V0 fixtures under `tests/fixtures/`, conversion
-and cutover tests under `tests/cutover/`, and bridge artifact checks in
+immutable copies of supported V0 fixtures under `tests/fixtures/`, archive and
+cutover tests, and bridge artifact checks in
 `tests/release/` and `.github/workflows/`. The reader may understand V0; the V1
 core crate and payload may not depend on it.
 
 **Acceptance evidence:** schema 1..=13 and exact-grammar fixture results;
-database/changeset before-and-after hashes proving immutability; export and
-archive digest verification; unknown metadata preservation; every kill point;
-idempotent apply/resume; target-edit rollback conflict; mixed-invalid
-detection; core artifact scan proving bridge/V0 reader absence.
+database/changeset before-and-after hashes proving immutability; exact live and
+archived export bytes; append-only retry/crash behavior; foreign metadata and
+custody preservation; Phase 3 receipt recovery; and core artifact scan proving
+bridge/V0 reader absence.
 
 **Current evidence:** 13 focused bridge tests and 10/10 Phase 4 mechanical
 proof groups pass. Phase 5 remains closed pending independent acceptance;
 Windows safe capture/atomic commit and promoted five-platform artifacts remain
 Phase 7 evidence.
 
-**Logical commit boundary:** bridge reader, commands, recovery, fixtures, and
+**Logical commit boundary:** bridge reader, commands, archive custody, fixtures, and
 separate packaging form an isolated review stack. The last commit in that stack
 must demonstrate no bridge object/path entered the V1 core index.
 

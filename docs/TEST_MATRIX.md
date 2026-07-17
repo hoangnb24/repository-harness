@@ -73,8 +73,11 @@ from those results.
 US-109 supplies a separate `harness-v0-migrate` candidate with 13 focused
 tests and 10 Phase 4 proof groups. The evidence covers every schema 1..=13,
 WAL-only recovery, unknown metadata, active-writer refusal, encrypted and
-explicit-risk plaintext archives, all seven kill points, deterministic resume,
-target-edit rollback refusal, immutable fixture digests, and the structural
-core boundary. Phase 4 remains `in_progress` pending independent acceptance;
-Phase 5 is closed. Five-platform promotion and Windows safe capture/atomic
-commit remain Phase 7 evidence, not Phase 4 claims.
+explicit-risk plaintext archives, unique staging and atomic no-replace
+publication, abandoned/foreign custody preservation, exact live/archive export,
+Phase 3 receipt recovery, immutable fixture digests, and the structural core
+boundary. The bridge never mutates V1 and has exactly four commands. Phase 4
+remains `in_progress` pending independent acceptance; Phase 5 is closed.
+Five-platform promotion and Windows safe capture/atomic publication remain
+Phase 7 evidence; Phase 4 proves only coherent compilation/help and controlled
+unsupported exit 5 on Windows.

@@ -11,7 +11,7 @@
     "outcome": {"enum": ["ready", "unresolved", "invalid", "conflict", "unsupported", "success"]},
     "exit_code": {"enum": [0, 2, 3, 4, 5, 64, 70, 74]},
     "mutation": {"enum": ["none", "preview", "committed", "recovery-required", "rolled-back"]},
-    "repository_mode": {"enum": ["absent", "fresh-v1", "brownfield-v1", "v0-legacy", "conversion-in-progress", "converted-v1-with-archive", "mixed-invalid"]},
+    "repository_mode": {"enum": ["absent", "fresh-v1", "brownfield-v1", "v0-legacy", "mixed-invalid"]},
     "release": {
       "type": "object",
       "additionalProperties": false,

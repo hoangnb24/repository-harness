@@ -14,8 +14,8 @@ by a reviewed contract change before implementation proceeds.
   compatibility ranges, receipt placement, unresolved markers, forbidden
   fields, and deterministic output.
 - `command-grammars.md` defines the permanent six-command V1 grammar and the
-  separate seven-command bridge grammar, including exits, preview,
-  non-interactive confirmation, recovery options, and the implementation
+  separate four-command archive-only bridge grammar, including exits,
+  append-only publication, archive-source options, and the implementation
   binding. Phase 2 replaces the core's former absence state with live CLI and
   source parity; Phase 4 adds separate bridge CLI/source parity without adding
   bridge commands or dependencies to the core.
@@ -24,8 +24,9 @@ by a reviewed contract change before implementation proceeds.
   path-disposition ledger.
 - `scaffold-and-audit.md` defines deterministic safe-path, link, marker,
   digest, and zero-process-execution rules.
-- `compatibility-conversion-and-retirement.md` binds Decision 0012 and Decision
-  0013 to archive custody, exact V0 capture, availability evidence, and Phase 8.
+- `compatibility-conversion-and-retirement.md` binds Decisions 0012, 0013, and
+  0014 to archive custody, exact V0 capture, fresh V1 receipt linkage,
+  availability evidence, and Phase 8.
 - `v0-compatibility.md` freezes schemas 1–13, the changeset parser matrix, V0
   feature surface, and category dispositions without extending V0 behavior.
 

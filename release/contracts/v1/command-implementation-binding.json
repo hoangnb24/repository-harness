@@ -2,7 +2,7 @@
   "schema": "repository-harness-command-implementation-binding/v1",
   "binding_state": "core-live-bridge-live-unpromoted",
   "grammar_contract": "release/contracts/v1/command-grammars.json",
-  "grammar_contract_sha256": "1afaf1eec75d10e7d474d5817144e1f3dc8add8b3ee9cdbb3f7610708cac6ef9",
+  "grammar_contract_sha256": "4bd821883e1d41ef187f8d0766af53440ebb2522bad22b32f44c5f9511adfa4a",
   "grammar_schema": "release/contracts/v1/schemas/command-grammar-v1.schema.json",
   "grammar_schema_sha256": "99ef2353ec1dfd884f2583be91175a35577109808af804d47350e159198c42ee",
   "surfaces": {

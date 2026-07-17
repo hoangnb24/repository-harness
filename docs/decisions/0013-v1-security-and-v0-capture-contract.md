@@ -6,6 +6,11 @@ Date: 2026-07-17
 
 Accepted
 
+Decision 0014 preserves this decision's capture, WAL recovery, confidentiality,
+custody, release-trust, and fail-closed requirements. It supersedes bridge
+target mutation and conversion-journal mechanics; the normal Phase 3 core
+install transaction now owns the archive receipt and all V1 writes.
+
 ## Context
 
 Decision 0012 opened Gate G0, but dates and retention alone do not make a V1

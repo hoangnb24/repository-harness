@@ -1,20 +1,28 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/archive-manifest-v1.schema.json",
-  "title": "Repository Harness V0 conversion archive manifest",
+  "title": "Repository Harness V0 archive manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "conversion_id", "source_schema", "confidentiality_mode", "recipient_fingerprints", "members", "standalone_backup_sha256", "archive_sha256", "custody"],
+  "required": ["schema", "archive_id", "bridge_release", "source_schema", "source_sha256", "capture_members_sha256", "export_sha256", "standalone_backup_sha256", "confidentiality_mode", "recipient_fingerprints", "payload_path", "payload_sha256", "payload_bytes", "members", "custody"],
   "properties": {
     "schema": {"const": "repository-harness-v0-archive-manifest/v1"},
-    "conversion_id": {"type": "string"},
+    "archive_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "bridge_release": {"type": "string"},
     "source_schema": {"type": "integer", "minimum": 1, "maximum": 13},
+    "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "capture_members_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "export_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "standalone_backup_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "confidentiality_mode": {"enum": ["encrypted-age-x25519", "plaintext-explicit-override"]},
     "recipient_fingerprints": {"type": "array", "items": {"type": "string"}},
     "plaintext_risk_acknowledged": {"type": "boolean"},
+    "payload_path": {"enum": ["archive.age", "archive.bin"]},
+    "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "payload_bytes": {"type": "integer", "minimum": 1},
     "members": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 3,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -23,12 +31,10 @@
           "path": {"type": "string"},
           "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
           "bytes": {"type": "integer", "minimum": 0},
-          "capture": {"const": "pre-copy-post-equal"}
+          "capture": {"enum": ["pre-copy-post-equal", "private-staged-wal-recovery-online-backup", "neutral-read-only-export"]}
         }
       }
     },
-    "standalone_backup_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "archive_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "custody": {"const": "repository-owner-indefinite-write-once"}
   }
 }

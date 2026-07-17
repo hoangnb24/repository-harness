@@ -1,157 +1,74 @@
-# Design
+# US-109 Design: Freeze, Archive, Fresh V1
 
-## Boundary And Dependency Direction
+## Components and ownership
 
-`harness-v0-migrate` is a separate workspace package and binary. It owns V0
-recognition, `rusqlite`, raw capture, export/archive encoding, and conversion
-journals. It may consume pure V1 manifest/domain validation, but
-`harness-core` must not depend on the bridge, SQLite, V0 schema SQL, or the V0
-changeset grammar.
+`harness-v0-migrate` owns only V0 recognition, exact capture, SQLite WAL
+recovery in private staging, neutral export, and append-only archive custody.
+It imports the core's public frozen repository-relative path validator so the
+two binaries do not disagree on traversal, Windows device names, ADS, Unicode,
+or `.git` rejection. It does not depend on core mutation code.
 
-Mixed-version integration uses a structural observation port: the filesystem
-adapter reports whether recognized V0 path signatures and conversion journal
-or receipt structures coexist with a manifest. The core uses those booleans to
-classify `v0-legacy`, `conversion-in-progress`,
-`converted-v1-with-archive`, or `mixed-invalid`; it never queries a V0 table or
-parses a changeset. This produces the required status decision without
-reversing dependency direction.
+`harness-core` owns normal install/update recovery. Its only Phase 4 addition is
+the first-install `--v0-archive-manifest` input and closed receipt fields. It
+verifies manifest/payload/member digests as opaque bytes; it has no SQLite,
+schema 1–13, changeset, or V0 row mapping code.
 
-## Domain Model
+## Capture and export
 
-- `SourceIdentity`: repository-root identity plus each retained file identity,
-  size, and SHA-256.
-- `RecognizedInput`: raw DB/WAL/SHM, closed-grammar changeset, or known V0
-  installer provenance; every item has a category and disposition.
-- `UnknownMetadata`: a reported, unowned path that is never read as V0 state or
-  mutated.
-- `V0Export`: deterministic `repository-harness-v0-export/v1` containing source
-  schema, stable source/category/payload digests, and dispositions. V0 rows are
-  legacy evidence, not V1 task records.
-- `ConversionArchive`: immutable custody directory, archive manifest,
-  standalone snapshot, raw evidence, export, and encrypted or explicitly
-  acknowledged plaintext payload.
-- `ConversionJournal`: conversion identity, pinned input/compatibility digests,
-  confidentiality decision, exact operations, before/post-image evidence, and
-  one enumerated state.
-- `ConversionReceipt`: embedded V1 manifest record binding bridge release,
-  archive path, export/snapshot/archive digests, confidentiality mode, and
-  recipient fingerprints.
+Capture pins the repository root and opens every recognized source without
+following links. Identity, size, and SHA-256 must match before/copy/after.
+DB+WAL are copied to private staging; SHM is preserved as forensic evidence but
+not used as SQLite recovery input. SQLite online backup turns the staged
+DB+WAL into a standalone snapshot, including WAL-only commits. Export derives
+from that snapshot and preserves exact SQLite value types and bytes.
 
-The journal transition order is closed:
+`inspect`/`export` can use live frozen input. They can also use a published
+archive manifest; encrypted inner verification/export additionally needs an age
+identity. Caller output uses create-new semantics, so a pre-existing path is
+never truncated.
 
-```text
-discovered -> inspected -> exported -> archived -> prepared -> applying
-           -> committed -> completed
-```
+## Archive publication
 
-Failure before completion leaves a journal at the last durable state. Evidence
-conflict changes it to `recovery-required`; that state is never reported as
-success.
+Custody is `.harness-v0-archive`, outside `.harness` core state. Initial custody
+is created through a unique sibling stage containing a private key and a marker
+HMAC-bound to repository root/device/inode, then atomically renamed no-replace.
+An existing path without that authentication is foreign.
 
-## Immutable Recognition And Capture
+Each archive attempt:
 
-Recognition requires a regular repository-root `harness.db`, opened read-only
-and no-follow, with schema version 1 through 13 and no unsupported schema
-objects. Changesets are UTF-8 JSON Lines: first nonblank line is the version-1
-header, operation versions are 1 or 2 (missing means 1), and every operation is
-in the frozen matrix. Duplicate members, malformed lines, unknown operations,
-or unsupported versions fail closed. Arbitrary `.harness` entries remain
-unknown/unowned.
+1. creates a fresh unique `.staging-*` directory;
+2. captures raw members and builds the standalone backup/export;
+3. creates encrypted `archive.age` by default or explicitly acknowledged
+   plaintext `archive.bin`;
+4. writes the closed checksummed manifest and verifies staged bytes; and
+5. atomically renames staging no-replace to a unique `v0-*` archive ID.
 
-On Unix, one open repository-root descriptor anchors traversal. Each component
-is opened relative to its retained parent with no-follow semantics. The bridge
-keeps final handles open, reads `(identity, size, SHA-256)`, rewinds and copies
-through the same handle while hashing, then rewinds and hashes again. It
-revalidates component identity through the parent after copy. Any link,
-replacement, ancestor swap, size drift, or byte drift stops before target
-mutation. Source files are never opened writable.
+If power fails at step 1–4, no accepted final archive exists. Retry chooses a
+new stage/ID and leaves abandoned or foreign bytes untouched. If step 5
+succeeds, later attempts cannot replace that archive.
 
-Staging contains private copies of raw DB, WAL, and SHM. Before SQLite opens the
-staged database, staged SHM is moved out of the recovery pair inside staging
-and retained only as raw archive evidence. SQLite uses read-only source plus
-its online-backup API to make a standalone snapshot. Export reads only the
-standalone snapshot. Unsupported platforms fail closed at this descriptor
-boundary; five-platform parity remains Phase 7 evidence.
+## Fresh install receipt
 
-Writer quiescence is proven by an exclusive repository-local bridge lock plus
-stable DB/WAL identity/size/digest observations. A changing or independently
-locked V0 writer makes capture fail rather than producing mixed-time evidence.
+Core first install authenticates the archive custody marker and closed manifest,
+checks the named opaque payload and required raw/backup/export members, then
+copies only receipt metadata into the candidate V1 manifest. The ordinary Phase
+3 operation plan, preview digest, journal, resume/rollback validation, and
+manifest-last commit protect this receipt exactly like every other install byte.
+Recovery therefore belongs to core install, not the bridge.
 
-## Export And Archive
+The repository mode stays `fresh-v1` or `brownfield-adopted`. This matters:
+receipt presence says “this archive was preserved,” not “these V0 rows became
+V1 operational state.”
 
-Export ordering is stable by source identifier and category. JSON uses closed
-objects and deterministic member/array ordering; SHA-256 is calculated over
-the exact emitted UTF-8 bytes. SQLite values are encoded without inference as
-typed neutral payloads so task rows cannot become V1 lifecycle fields.
+## Rejected designs
 
-The archive path is
-`.harness/legacy/v0-conversion/<conversion-id>/`. Creation uses no-replace
-semantics. Existing exact evidence may be revalidated for idempotent resume,
-but no archive byte is opened for truncation or replacement. Default output is
-an age/X25519 encrypted payload for the supplied repository-owner recipient;
-the manifest records recipient fingerprints and ciphertext digest. Plaintext
-is accepted only when both `--archive-plaintext` and
-`--acknowledge-plaintext-recovery-risk` are present, and both manifest and
-receipt record the override.
-
-## Preview, Apply, And Commit
-
-Preview performs recognition and deterministic planning without mutation. Its
-SHA-256 covers the exact public operation projection. Apply requires
-`--non-interactive` plus the accepted preview digest, redoes compatibility and
-source checks, creates export/archive/journal evidence, and then processes each
-operation once.
-
-Each operation records safe repository-relative path, before digest or
-absence, exact intended after digest, and completion evidence. A preexisting
-different image is a conflict. The candidate manifest adopts useful existing
-documents as target-owned `v0-adopted` roles and contains no V0 operational
-records. The bridge audits that candidate with pure V1 validation. It writes
-temporary manifest and receipt evidence, fsyncs prerequisites, and atomically
-renames the single complete manifest containing the receipt last. Therefore a
-pre-commit stop cannot leave a manifest claiming success.
-
-## Resume And Rollback
-
-Resume requires an explicit conversion ID. It reopens only that journal,
-validates root/source/archive/export/plan digests, verifies all completed
-post-images, and repeats incomplete operations. If manifest commit already
-occurred, resume verifies the exact committed receipt and advances to
-completed without replaying target writes.
-
-Rollback also requires the journal ID. It first validates every affected live
-path. Created paths are removed only when their current digest equals the
-journal post-image; replaced paths are restored only when their backup and
-current post-image both authenticate. Any mismatch causes zero rollback
-mutation and `recovery-required`. Rollback never touches V0 input or any
-archive path. There is no reconstruction of V0 history from V1 content.
-
-## Interface Contract
-
-The closed bridge grammar is the frozen `release/contracts/v1/command-grammars.json`
-bridge object. `inspect`, `preview`, and `version` are read-only. `export`
-creates only new export/archive evidence. `apply` owns journal conversion,
-`resume` owns remaining operations, and `rollback` owns matching post-images.
-Usage errors exit 64; unsupported input exits 5; drift/conflict exits 4; invalid
-state exits 3; unresolved V1 structure exits 2; internal and output failures
-use 70 and 74.
-
-## Observability And Kill Points
-
-Machine output is deterministic and excludes absolute paths, time, random
-values, raw command output, and V0 task fields. Test-only kill-point injection
-stops after detection, export, archive, every filesystem operation, temporary
-manifest/receipt write, and atomic commit. Tests snapshot all V0 inputs before
-the operation and compare them after every failure, resume, and rollback.
-
-## Alternatives Considered
-
-1. Put conversion in `harness-core`. Rejected because SQLite and V0 semantics
-   would become permanent dependencies.
-2. Copy only `harness.db`. Rejected because committed WAL-only rows disappear.
-3. Treat `.harness/` as owned. Rejected because a directory name is not
-   provenance and could destroy foreign metadata.
-4. Overwrite archive files on retry. Rejected because recovery evidence is
-   write-once and retained indefinitely.
-5. Best-effort rollback over target edits. Rejected because it would destroy
-   human post-conversion work.
+- Automatic row-to-V1 mapping: rejected because operational semantics are not
+  equivalent and archive evidence is sufficient.
+- Bridge target writes and rollback journals: rejected because normal Phase 3
+  install already owns safe V1 mutation/recovery.
+- `.harness/legacy` custody: rejected because pre-existing content is ambiguous
+  and core recovery owns `.harness`.
+- Fixed archive names or overwrite-on-retry: rejected because a crash or
+  attacker-prepositioned path could be adopted or destroyed.
+- Windows capture emulation in Phase 4: deferred to Phase 7; this candidate
+  compiles and exits 5 before repository capture.

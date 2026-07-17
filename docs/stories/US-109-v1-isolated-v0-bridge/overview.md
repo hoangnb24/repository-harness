@@ -1,107 +1,43 @@
-# US-109: V1 Isolated V0 Bridge
+# US-109: Archive-Only V0 Bridge
 
-## Current Behavior
+Status: **in_progress — local Phase 4 candidate implemented; independent acceptance pending**
 
-Phases 1 through 3 freeze the V0 compatibility contracts and implement the
-permanent six-command V1 core, but no executable conversion bridge exists.
-`harness` deliberately rejects `inspect`, `export`, `preview`, `apply`,
-`resume`, `rollback`, and `migrate`; it has no SQLite dependency and never
-opens V0 state. A V0 repository therefore has no accepted path to produce a
-neutral export, retain recovery evidence, or atomically enter
-`converted-v1-with-archive` mode.
+Decision 0014 supersedes US-109's earlier automatic-conversion design. The
+bridge preserves V0 as archive evidence and never imports V0 operational rows
+as active V1 state. Phase 5, Phase 7 platform promotion, production signing,
+publishing, and Phase 8 remain closed.
 
-The frozen Phase 1 bridge grammar and schema 1 through 13 inventory are
-contract inputs only. The bridge workflow identity is reserved but absent,
-and earlier verifiers correctly require that absence until Phase 4 supplies a
-live, separately versioned artifact.
+## User outcome
 
-## Target Behavior
+1. Stop V0 writers.
+2. Run `harness-v0-migrate inspect`, then `archive` to capture DB+WAL+SHM,
+   recognized changesets, and provenance under `.harness-v0-archive`.
+3. Optionally run `export` for neutral read-only access to V0 history.
+4. Run normal `harness install --v0-archive-manifest
+   .harness-v0-archive/<archive-id>/archive-manifest.json`.
+5. The Phase 3 install transaction initializes fresh V1 from repository files
+   and commits a receipt binding the exact archive/export digest.
+6. All later writes use `harness`; the V0 archive remains read-only indefinitely.
 
-Add a repository-local binary named `harness-v0-migrate` with exactly seven
-top-level commands: `inspect`, `export`, `preview`, `apply`, `resume`,
-`rollback`, and `version`. It is a separate crate and release surface whose
-dependency direction is bridge to pure V1 behavior. The permanent core neither
-depends on the bridge nor gains SQLite, V0 schemas, V0 changesets, a `migrate`
-verb, or bridge dispatch.
+Concrete example: a task committed only in `harness.db-wal` appears in the
+standalone backup and neutral export. It does not appear as an active V1 task.
+The V1 manifest instead records which immutable archive/export preserved it.
 
-The bridge conservatively recognizes a repository-root `harness.db` only when
-its `schema_version` is in 1 through 13 and its database shape is compatible
-with the frozen schema sequence. Recognized changesets must satisfy the closed
-header and operation/version matrix. Unknown `.harness` metadata is reported
-as unknown/unowned and preserved byte-for-byte.
+## Boundaries
 
-Capture is source-immutable. Writers must be quiesced; the bridge pins the
-repository root and opens descendants no-follow relative to retained parent
-descriptors. Each raw DB, WAL, SHM, recognized changeset, and recognized
-provenance file is observed before, during, and after copy through the same
-final handle. Identity, size, and SHA-256 must remain equal. SQLite then opens
-only private staged DB+WAL, treats staged SHM as forensic-only, and creates a
-standalone online-backup snapshot.
+- Bridge grammar is exactly `inspect`, `export`, `archive`, `version`.
+- There is no bridge `preview`, `apply`, `resume`, `rollback`, conversion
+  journal, row mapper, V1 target writer, or bridge-owned rollback state.
+- Core remains exactly six commands and contains no SQLite/V0 implementation.
+- No command creates `harness-v1.db`.
+- Existing `.harness/legacy`, `.harness/recovery`, or unauthenticated
+  `.harness-v0-archive` content is foreign and never adopted.
+- macOS/Linux exercise descriptor-safe capture. Windows builds and proves
+  repository capture exits controlled-unsupported code 5 until Phase 7.
 
-Before target mutation, the bridge emits a deterministic
-`repository-harness-v0-export/v1` document and creates write-once archive
-evidence under `.harness/legacy/v0-conversion/<conversion-id>/`. Encryption to
-an age/X25519 recipient is the default. Plaintext requires both the contracted
-override and the separate risk acknowledgement. No automated action deletes,
-overwrites, truncates, moves, or replaces an archive.
+## Acceptance state
 
-Apply follows the journal states `discovered`, `inspected`, `exported`,
-`archived`, `prepared`, `applying`, `committed`, and `completed`. It rechecks
-source and compatibility digests, applies only deterministic filesystem
-operations, audits the candidate V1 structure, and atomically commits the V1
-manifest with its embedded completed receipt last. Resume validates journal
-evidence and repeats incomplete work only. Rollback changes only journal-owned
-post-images whose digests still match; a human edit causes
-`recovery-required`, preservation of all evidence, and refusal to overwrite.
-
-## Concrete Cause And Effect
-
-1. A V0 transaction is committed only in `harness.db-wal`.
-2. Capture copies and verifies the same open DB and WAL handles without writing
-   them.
-3. SQLite recovers the staged pair and online backup produces one standalone
-   snapshot containing the committed row.
-4. Export reads that snapshot, so the row is retained without checkpointing or
-   migrating the source database.
-
-1. Apply writes one target-owned V1 artifact and records its exact post-image.
-2. The process stops at the next kill point.
-3. A human edits the written artifact before rollback.
-4. Its live digest no longer equals the journal post-image, so rollback changes
-   nothing, marks recovery required, and preserves the human edit, V0 inputs,
-   journal, and archive.
-
-1. A V1 manifest exists beside active V0 artifacts but has no completed
-   receipt.
-2. The pure core receives only a structural repository-state observation from
-   its filesystem boundary; it does not open SQLite or parse changesets.
-3. Status reports `mixed-invalid` and core mutation remains blocked until the
-   bridge resolves the journal.
-
-## Affected Users
-
-- Repository owners converting a supported V0 checkout during the Decision
-  0012 compatibility window.
-- Release maintainers retaining and verifying the separate bridge artifact
-  set through `2028-06-30T23:59:59Z`.
-- Reviewers proving that V0 compatibility did not leak into the permanent V1
-  core.
-
-## Affected Product Docs
-
-- `docs/REFACTOR_PLAN.md`
-- `docs/TEST_MATRIX.md`
-- `docs/stories/US-105-harness-v1-implementation/`
-- `docs/decisions/0011-time-bounded-v0-conversion.md`
-- `docs/decisions/0012-v0-compatibility-window-and-retention.md`
-- `docs/decisions/0013-v1-security-and-v0-capture-contract.md`
-- `docs/contracts/v1/` and `release/contracts/v1/`
-
-## Non-Goals
-
-- No new V0 feature, schema, migration, lifecycle behavior, or source write.
-- No permanent V1 `migrate` or bridge command.
-- No conversion of arbitrary `.harness` metadata or import of V0 task state
-  into the V1 manifest.
-- No target tool execution, automatic V1-to-V0 downgrade, archive cleanup, PR,
-  publish, deployment, production key, or Phase 7 platform promotion.
+The local candidate includes contracts, crate code, temporary-copy fixtures,
+workflow structure, and Phase 1–4 verifier updates. This is implementation
+evidence, not independent acceptance. US-109 remains `in_progress` until the
+separate acceptance authority reviews the exact committed candidate.

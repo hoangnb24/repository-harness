@@ -4,12 +4,13 @@ Contract: `repository-harness-manifest/v1`
 
 ## Placement and compatibility
 
-The only committed V1 manifest is `.harness/manifest.json`. A completed V0
-conversion receipt is embedded at the manifest's top-level
-`conversion_receipt` field. It is never inferred from an archive directory and
-is never placed in a target-owned document. The receipt names the untracked
-archive path, export digest, standalone backup digest, archive/ciphertext
-digest, confidentiality mode, recipient fingerprints, and bridge release.
+The only committed V1 manifest is `.harness/manifest.json`. A first install may
+embed a top-level `v0_archive_receipt`; this records evidence linkage, not
+converted operational state. It is accepted only from an explicit
+`--v0-archive-manifest` path under authenticated `.harness-v0-archive` custody.
+The receipt binds the exact archive manifest, neutral export, standalone backup,
+payload, source capture, confidentiality mode, archive ID, and bridge release.
+It is write-once: later install/update cannot replace it.
 
 The manifest declares:
 
@@ -68,12 +69,19 @@ surface safely.
 
 | Mode | Required evidence | Mutating V1 behavior |
 | --- | --- | --- |
-| `fresh-v1` | Valid manifest; no recognized active V0 state. | Allowed within command contract. |
-| `brownfield-v1` | Valid explicit target mappings; no V0 conversion claim. | Allowed; target-owned bytes remain immutable. |
-| `v0-legacy` | Recognized V0 state and no V1 manifest. | Core mutation refused; bridge may inspect. |
-| `conversion-in-progress` | Valid untracked bridge journal; no completed receipt. | Core mutation refused; bridge resume/rollback only. |
-| `converted-v1-with-archive` | Valid manifest plus embedded completed receipt and matching archive/export identities. | Allowed; archive never mutated. |
-| `mixed-invalid` | Contradictory V0/V1 state, false/missing receipt, or ambiguous ownership. | All mutation refused; status/audit explain exact causes. |
+| `fresh-v1` | Valid manifest initialized from repository files. It may contain an authenticated V0 archive receipt. | Allowed within the six-command core contract; archived V0 rows are never active state. |
+| `brownfield-adopted` | Valid explicit target mappings initialized from existing repository files. It may contain an authenticated V0 archive receipt. | Allowed; target-owned bytes remain immutable. |
+
+Recognized live `harness.db` without an explicit first-install archive receipt
+blocks mutation: the user must freeze and archive it first. A foreign or
+unauthenticated `.harness-v0-archive`, `.harness/legacy`, or `.harness/recovery`
+pathname grants no ownership and remains untouched. There is no
+`conversion-in-progress` or `converted-v1-with-archive` mode.
+
+Example: V0 contains task row 42. The bridge export retains row 42 as historical
+evidence. Core install reads repository files, not row 42, so fresh V1 has no
+active task 42. The manifest receipt proves exactly which archive/export was
+preserved before cutover.
 
 A pathname alone never proves a mode. For example, `.harness/` plus an unknown
 file is not V0 evidence; it is preserved as unknown/unowned.

@@ -8,6 +8,10 @@ Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
 implementation: US-109
 
+Decision 0014 is the current Phase 4 authority. It supersedes the plan's former
+automatic conversion/journal design with freeze, archive/export, and normal
+fresh V1 install plus an authenticated receipt.
+
 ## Executive Outcome
 
 Repository Harness V1 is an installable, template-first seed kit for
@@ -67,8 +71,8 @@ The following accepted decisions are normative for V1:
   prose semantics.
 - Release promotion requires behavior proof, not template-presence proof.
 - Permanent V1 core commands are install, update, audit, scaffold, status, and
-  version. Conversion from V0 is a separately versioned, time-bounded bridge,
-  not a permanent V1 command.
+  version. V0 evidence capture is a separately versioned, time-bounded bridge,
+  not a permanent V1 command; it never converts active operational state.
 - Decision 0012 fixes the compatibility window, local-archive custody,
   bridge-release retention, and Phase 8 eligibility and closure conditions.
 - Repository Harness validates its own source layering. V1 templates ask a
@@ -108,10 +112,9 @@ must not silently shrink. A new explicit decision must shift the start, end,
 bridge-asset retention, and Phase 8 eligibility together, reaffirm indefinite
 local-archive retention, and preserve at least 365 supported days.
 
-A conversion journal created before `2027-12-31T23:59:59Z` closes the window
-remains eligible for supported resume or rollback. Cause and effect: the end of
-the calendar window stops new ordinary window obligations, but it does not
-abandon an already-started recovery case; any known unresolved case delays
+An archive support case opened before `2027-12-31T23:59:59Z` remains eligible
+for supported inspection/export and repair. The calendar boundary does not
+abandon an unresolved data-loss or archive-integrity case; any such case delays
 actual Phase 8 removal.
 
 ## Product Boundary And Stable Repository Shape
@@ -232,11 +235,11 @@ silently change database semantics.
 | --- | --- | --- | --- | --- |
 | V0 operational CLI | scripts/bin/harness-cli or harness-cli.exe | harness-cli v0.x init, migrate, audit, intake, story, query, and other V0 lifecycle verbs | migrate changes SQLite schema; audit inspects V0 database/changeset operational state | Frozen during compatibility window; it never interprets a V1 manifest. |
 | V1 core CLI | scripts/bin/harness or harness.exe | harness install, update, audit, scaffold, status, version; --version is equivalent to version | install/update/scaffold are explicit file mutations; audit/status/version are read-only structural operations | It never opens or mutates V0 SQLite/changesets. No migrate verb exists. |
-| V0 conversion bridge | scripts/bin/harness-v0-migrate or harness-v0-migrate.exe | inspect, export, preview, apply, resume, rollback, version | Reads V0 state, produces a neutral export/archive, and performs one bounded conversion | Separate release and support window; not installed as the V1 core command. |
+| V0 archive bridge | scripts/bin/harness-v0-migrate or harness-v0-migrate.exe | inspect, export, archive, version | Reads frozen V0 state and publishes neutral export/archive evidence; never mutates V1 targets | Separate release and support window; not installed as the V1 core command. |
 
 No alias maps harness to harness-cli, or harness-cli to a V1 grammar. The
 installer may place V1 beside V0 during the compatibility window, but must
-print both identities and require an explicit bridge apply before cutover.
+print both identities and require explicit archive capture before fresh install.
 Shell wrappers may invoke the binary of the same identity only; they may not
 translate one grammar into the other.
 
@@ -247,12 +250,9 @@ unsupported downgrade. A template release declares its required V1 CLI range.
 Status reports the three identities and compatibility decision without changing
 state.
 
-Repository modes are fresh-v1, brownfield-v1, v0-legacy,
-conversion-in-progress, converted-v1-with-archive, and mixed-invalid. A
-converted repository has a V1 manifest plus a completed bridge receipt naming
-the export and archive digests. V0 artifacts plus a manifest without that
-receipt are mixed-invalid; ordinary V1 mutation is blocked until bridge resume
-or rollback resolves it.
+Repository modes are `fresh-v1` and `brownfield-adopted`; either may carry a
+write-once authenticated V0 archive receipt. Receipt presence proves evidence
+linkage only. It never claims that V0 operational rows were imported.
 
 ## Authoritative Payload And V1 Core Boundaries
 
@@ -293,12 +293,12 @@ Repository Harness itself follows ports between CLI application logic,
 filesystem/release/manifest infrastructure, and interface code. That is a
 check on this product's implementation, not a target architecture template.
 
-## Legacy V0 Conversion And Recovery
+## Legacy V0 Archive-Only Cutover
 
-Decision 0011 makes conversion a separately versioned, time-bounded,
-repository-local harness-v0-migrate artifact. Decision 0012 supplies its exact
-window, retention, support, and retirement policy. The bridge is not a V1 core
-command and does not make V0 operational behavior permanent.
+Decision 0014 retains a separately versioned, time-bounded,
+repository-local `harness-v0-migrate` artifact but supersedes automatic
+conversion. Decision 0012 supplies its window/retention policy and Decision
+0013 supplies exact capture/trust. The bridge is not a V1 core command.
 
 ### Detection And Supported Inputs
 
@@ -315,57 +315,28 @@ widens this range is a new versioned artifact with fixtures and an explicit
 compatibility statement. The immutable reader opens the V0 database read-only,
 does not run a V0 migration, and never writes the database or changesets.
 
-### Export, Archive, And State Machine
+### Export, Archive, And Fresh Install
 
-The bridge produces a neutral, versioned repository-harness-v0-export/v1
-document. It preserves source identifiers, source schema version, category,
-payload digest, and disposition without making V0 task state part of V1.
-Before any target mutation, it writes a checksummed archive of the V0 database,
-recognized changesets, known V0 provenance, export, and archive manifest under
-.harness/legacy/v0-conversion/<conversion-id>/. This archive is tool-local and
-untracked; its digest is referenced, not copied, by the V1 receipt. It is
-write-once recovery evidence retained indefinitely under repository-owner
-custody. Automated product actions never delete, overwrite, truncate, or move
-it; explicit manual deletion warns that V0 recovery will be lost.
+The bridge produces a neutral versioned export that preserves WAL-only
+committed data without making V0 task state part of V1. `archive` captures exact
+DB+WAL+SHM, recognized changesets/provenance, standalone backup, and export.
+It stages beneath authenticated `.harness-v0-archive` custody and atomically
+publishes a unique final directory no-replace. A pre-publication crash leaves no
+accepted archive; retry uses fresh unique staging without adopting foreign data.
 
-A transient untracked operation journal records only conversion filesystem
-operations and their before/after digests. It contains no task lifecycle
-records. Its state machine is:
-
-~~~text
-discovered -> inspected -> exported -> archived -> prepared -> applying
-    -> committed -> completed
-                         ^
-failure -----------------+ (resume or rollback from a recorded safe point)
-~~~
-
-The commit point is the atomic rename of a fully validated V1 manifest and
-conversion receipt after export/archive verification, all selected filesystem
-operations, and a deterministic V1 audit. Unresolved roles are allowed at this
-point because they are valid but not ready. Before the commit point there is no
-manifest that claims conversion success.
-
-Apply is idempotent. Resume validates journal digests, repeats only incomplete
-operations, and stops on a conflict. Rollback restores only journal-owned
-created files or managed blocks whose post-image digests still match; it never
-overwrites a subsequent target edit. It removes no archive and does not alter
-the V0 database. A conflict is reject-and-preserve: leave all evidence in
-place, mark the journal recovery-required, and require human selection.
-
-Kill-point fixtures terminate after detection, export, archive, every planned
-file operation, temporary-manifest write, and atomic commit. Each proves that
-the V0 inputs remain intact, no false success manifest exists before commit,
-and resume or safe rollback has the stated result.
+The bridge never writes `.harness/manifest.json`, `.harness/recovery`, target
+documents, or `harness-v1.db`. After archive publication, normal core install
+initializes V1 from repository files. Its optional first-install
+`--v0-archive-manifest` input binds exact archive/export digests into the
+manifest using the existing Phase 3 transaction and recovery behavior.
 
 ### Mixed Versions And Downgrade
 
-The bridge verifies V0 binary/schema/changeset compatibility before preview and
-again before apply. V1 status detects active V0 state, completed archive state,
-and incomplete/mixed state rather than guessing from a directory name.
+The bridge verifies V0 schema/changeset compatibility on every live capture.
+Archive ownership is authenticated rather than guessed from a pathname.
 
 There is no automatic V1-to-V0 downgrade. To recover, use the immutable
-archive in a clean clone with a compatible V0 binary, or roll back
-transaction-owned V1 changes before the bridge commit. V1-only manifest schema
+archive in a clean clone with a compatible V0 binary. V1-only manifest schema
 transitions are owned by V1 install/update and follow their own supported
 downgrade policy: reject unsupported schema downgrade while preserving the
 repository. No operation reconstructs V0 database history from V1 content.
@@ -462,20 +433,22 @@ platform claims remain closed.
 ### Phase 4: Isolated V0 Bridge
 
 Release the separately versioned reader/bridge with schema 1..=13 fixtures,
-export/archive/journal state machine, resume/rollback, kill-point tests, and
-mixed-version detection. Acceptance: V0 inputs remain immutable, the bridge is
-not in the V1 core grammar, and unknown .harness metadata is preserved.
+exact live/archive export, append-only archive publication, receipt recovery,
+and ownership/tamper tests. Acceptance: V0 inputs remain immutable, the bridge
+never mutates V1, no bridge code enters the six-command core, and unknown
+`.harness` metadata is preserved.
 
 **Implemented and locally validated; independent acceptance pending:** US-109
-adds the separate `harness-v0-migrate` crate and exact seven-command binary,
+adds the separate `harness-v0-migrate` crate and exact four-command binary,
 descriptor-anchored read-only capture with SQLite writer quiescence and
 DB/WAL/SHM evidence, neutral export, age/X25519 encrypted write-once archives,
-manifest/receipt-last journal recovery, safe rollback, and structural-only core
-status integration. Thirteen focused bridge tests and the ten-group
+unique no-replace custody, and Phase 3 manifest/receipt-last core recovery.
+Focused bridge tests and the ten-group
 `scripts/verify-v1-phase4-bridge.sh` proof pass on macOS. This does not accept
 Phase 4: the Orchestrator must independently review the committed candidate.
 Phase 5 remains closed until that acceptance. Windows safe capture/atomic
-commit and promoted five-platform artifact equivalence remain Phase 7 work.
+publication and promoted five-platform artifact equivalence remain Phase 7 work;
+Phase 4 proves the controlled unsupported exit 5.
 
 ### Phase 5: Dogfood, Pilot Enrollment, And Baselines
 
@@ -561,7 +534,8 @@ written evaluator finding; or gardening churn outside its bounded scope.
 Deterministic proof covers manifest/role transitions; safe paths; marker
 integrity; unresolved versus invalid outcomes; link/index checks; authenticated
 payload ledger; mutation boundaries; three-way update; install/update recovery;
-V0 bridge exports, archives, journals, kill points, resume/rollback; and
+V0 bridge exact exports, append-only archives, fresh-stage retry, and core
+receipt recovery; and
 platform-equivalent installers.
 
 Release promotion requires all of the following:
@@ -572,7 +546,7 @@ Release promotion requires all of the following:
   operational fields;
 - authenticated payload index and CI path-ledger proof;
 - deterministic audit never executes target tools;
-- path-stable V0 conversion with archive/export/recovery proof;
+- path-stable V0 archive/export with fresh V1 receipt proof;
 - target-owned adopted/mapped files survive install, update, and recovery;
 - all required active roles are ready or the release explicitly remains
   unresolved and is not promoted as ready;
@@ -588,7 +562,7 @@ Release promotion requires all of the following:
 | Risk | Mitigation |
 | --- | --- |
 | A template becomes generic prose | Require target-native commands, evidence routes, or an explicit unresolved/disabled state. |
-| Brownfield or conversion loss | Preview, immutable reader, neutral export, pre-mutation archive, journal, kill points, and reject-and-preserve conflicts. |
+| Brownfield or archive loss | Immutable reader, neutral export, authenticated append-only custody, no-replace publication, and Phase 3 receipt recovery. |
 | V0 support becomes permanent | Separate bridge identity, Decision 0012's exact window/support scope, and no V1 migrate grammar. |
 | Audit grows into an orchestrator | Mechanical no-target-execution and mutation-boundary tests. |
 | Pilots hide human labor | Fixed cards, exact environment, intervention taxonomy, and total attention accounting. |
@@ -599,7 +573,8 @@ classification, semantic context selection, language packs, universal scores,
 issue tracking, PR automation, deployment automation, daemon scheduling, and
 automatic conversion of unknown tool metadata.
 
-Decision 0012 resolves Gate G0. Decision 0013 and US-106 now supply accepted
+Decision 0012 resolves Gate G0. Decision 0014 fixes the archive-only cutover.
+Decision 0013 and US-106 now supply accepted
 Phase 1 security, schema, grammar, inventory, fixture, and enforcement evidence.
 That evidence includes strict vetted-library Ed25519 point/scalar rejection,
 descriptor-anchored pre/copy/post capture, exact bootstrap/command/release
@@ -607,7 +582,8 @@ arrays, and complete-set calendar-month availability receipts. US-107 supplies
 accepted Phase 2 evidence for the live six-command core, authenticated payload
 boundary, deterministic structural audit, no-target-execution canary, and safe
 mutation refusal. US-108 supplies accepted Phase 3 mutation/recovery evidence
-and the exact evidence counts above. Phases 4-8 remain not started and depend
+and the exact evidence counts above. Phase 4 is implemented locally and awaits
+independent acceptance; Phases 5-8 remain closed and depend
 on preceding accepted evidence. No bridge conversion write,
 production key, promoted release, pilot, tag, publish action, or V0 removal is
 created or authorized by Phase 3. Phase 8

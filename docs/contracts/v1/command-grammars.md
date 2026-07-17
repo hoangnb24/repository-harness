@@ -49,7 +49,7 @@ lifecycle verb, and every bridge verb are unknown-command errors.
 
 | Command | Boundary | Preview and recovery |
 | --- | --- | --- |
-| `install` | May create declared managed assets/recovery data and atomically commit the manifest. | `--preview`; `--resume <operation-id>` or `--rollback <operation-id>`. |
+| `install` | May create declared managed assets/recovery data and atomically commit the manifest. On first install only, `--v0-archive-manifest <path>` binds a verified archive receipt into that same transaction. | `--preview`; `--resume <operation-id>` or `--rollback <operation-id>`. |
 | `update` | May update declared managed surfaces/recovery data and atomically commit the manifest. | Same options as install. |
 | `audit` | Strictly read-only; starts zero processes. | No recovery option. |
 | `scaffold` | May create one explicitly selected neutral artifact; never operational task state. | `--preview`; `--resume` or `--rollback` for its own interrupted operation. |
@@ -69,23 +69,28 @@ only matching command-owned bytes and stops before overwriting a target edit.
 
 ## Separate V0 bridge
 
-The bridge identity is `harness-v0-migrate` (`.exe` on Windows). Its only
-top-level commands are `inspect`, `export`, `preview`, `apply`, `resume`,
-`rollback`, and `version`.
+Decision 0014 replaces the proposed conversion grammar. The bridge identity is
+`harness-v0-migrate` (`.exe` on Windows), and its only top-level commands are
+exactly `inspect`, `export`, `archive`, and `version`. `preview`, `apply`,
+`resume`, and `rollback` are usage errors; the bridge has no conversion journal
+or target mutation to preview or recover.
 
-`inspect`, `preview`, and `version` are read-only. `export` may write only a new
-neutral export and archive staging output after exact source capture; it never
-writes V0 sources or selected target paths. `apply` performs the bounded
-journal-owned conversion. `resume` and `rollback` are explicit top-level bridge
-commands because they are part of the temporary bridge state machine, not the
-permanent core grammar.
+- `inspect` reads either frozen live V0 input or an archive manifest. With an
+  age identity it also verifies encrypted inner members.
+- `export --output <new-path>` writes one new neutral, read-only SQLite export
+  from live frozen input or `--archive-manifest`; an encrypted archive also
+  needs `--age-identity-file`.
+- `archive` writes one new archive under `.harness-v0-archive`. Encrypted mode
+  requires `--age-recipient`; plaintext requires both
+  `--archive-plaintext` and `--acknowledge-plaintext-recovery-risk`.
+- `version` is repository-independent and read-only.
 
-All bridge commands are deterministic and non-interactive unless `apply`
-requests confirmation. Non-interactive apply requires
-`--non-interactive --accept-preview-sha256 <digest>`. Archive recovery choices
-are options: default encrypted `--age-recipient`, or
-`--archive-plaintext --acknowledge-plaintext-recovery-risk`. These options do
-not add commands or permit source writes.
+Cause and effect: `archive` captures exact DB+WAL+SHM and recognized evidence,
+publishes a unique checksummed archive with no-replace semantics, and stops.
+It cannot create `.harness/manifest.json`, `.harness/recovery`, or
+`harness-v1.db`. The user then runs normal `harness install
+--v0-archive-manifest <path>`; Phase 3 recovery commits fresh V1 files and the
+archive receipt together, manifest last.
 
 ## Exit contract
 

@@ -7,7 +7,7 @@
   "required": ["schema", "repository_mode", "compatibility", "payload", "roles"],
   "properties": {
     "schema": {"const": "repository-harness-manifest/v1"},
-    "repository_mode": {"enum": ["fresh-v1", "brownfield-v1", "converted-v1-with-archive"]},
+    "repository_mode": {"enum": ["fresh-v1", "brownfield-v1"]},
     "compatibility": {
       "type": "object",
       "additionalProperties": false,
@@ -55,21 +55,21 @@
         }
       }
     },
-    "conversion_receipt": {
+    "v0_archive_receipt": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "conversion_id", "bridge_release", "archive_path", "export_sha256", "standalone_backup_sha256", "archive_sha256", "confidentiality_mode", "recipient_fingerprints"],
+      "required": ["schema", "archive_id", "bridge_release", "archive_manifest_path", "archive_manifest_sha256", "export_sha256", "standalone_backup_sha256", "payload_sha256", "source_sha256", "confidentiality_mode"],
       "properties": {
-        "schema": {"const": "repository-harness-conversion-receipt/v1"},
-        "conversion_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "schema": {"const": "repository-harness-v0-archive-receipt/v1"},
+        "archive_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
         "bridge_release": {"type": "string"},
-        "archive_path": {"type": "string"},
+        "archive_manifest_path": {"type": "string", "pattern": "^\\.harness-v0-archive/[a-z0-9][a-z0-9-]*/archive-manifest\\.json$"},
+        "archive_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "export_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "standalone_backup_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "archive_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "confidentiality_mode": {"enum": ["encrypted-age-x25519", "plaintext-explicit-override"]},
-        "recipient_fingerprints": {"type": "array", "items": {"type": "string"}},
-        "plaintext_risk_acknowledged": {"type": "boolean"}
+        "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "confidentiality_mode": {"enum": ["encrypted-age-x25519", "plaintext-explicit-override"]}
       }
     }
   }

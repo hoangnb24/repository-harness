@@ -1,5 +1,10 @@
 # US-105 Repository Harness V1 Implementation Design
 
+> **Phase 4 supersession:** Decision 0014 replaces this packet's earlier
+> automatic-conversion design. For Phase 4, US-109's archive-only design is
+> authoritative: no bridge target writes, conversion journal, row mapping,
+> `apply`/`resume`/`rollback`, or converted repository mode.
+
 Status: **Implementation in progress / Phases 1-3 accepted / Phases 4-8 not started**
 
 ## Domain Model
@@ -79,7 +84,7 @@ Valid readiness transitions are deterministic:
 | --- | --- | --- | --- |
 | V0 operational CLI | `scripts/bin/harness-cli` or `.exe` | Existing V0 lifecycle verbs, including database `migrate` and operational `audit` | May operate on V0 SQLite and changesets; never interprets a V1 manifest. |
 | V1 core | `scripts/bin/harness` or `.exe` | `install`, `update`, `audit`, `scaffold`, `status`, `version` | Never opens V0 SQLite/changesets; has no `migrate` verb. |
-| V0 bridge | `scripts/bin/harness-v0-migrate` or `.exe` | `inspect`, `export`, `preview`, `apply`, `resume`, `rollback`, `version` | Immutable read of published V0 inputs plus bounded journal-owned filesystem conversion. |
+| V0 bridge | `scripts/bin/harness-v0-migrate` or `.exe` | `inspect`, `export`, `archive`, `version` | Exact V0 capture plus neutral export and append-only archive; no V1 target mutation. |
 
 Aliases and grammar-translation wrappers across these identities are invalid.
 Each artifact reports its own semantic version. The V1 CLI declares supported
@@ -87,19 +92,17 @@ manifest-schema and template-release ranges; each template release declares
 its required CLI range; the bridge declares its exact V0 schema and changeset
 grammar range.
 
-### Release, conversion, and evaluation records
+### Release, archive cutover, and evaluation records
 
 - `PayloadIndex`: authenticated release inventory and destination rules.
 - `DispositionEntry`: one classification for every candidate release path.
 - `V0Export`: neutral `repository-harness-v0-export/v1` representation that
   preserves source identity, schema version, category, digest, and disposition
   without importing V0 task state into V1.
-- `ConversionArchive`: checksummed, untracked preservation of recognized V0
-  inputs, export, provenance, and its own manifest.
-- `OperationJournal`: transient untracked filesystem-operation log with
-  before/after digests; never a task lifecycle log.
-- `CutoverReceipt`: V1-manifest record of a completed conversion, written only
-  at the atomic commit point and naming export/archive digests.
+- `V0Archive`: checksummed, append-only preservation of recognized V0 inputs,
+  export, provenance, and its own manifest under authenticated custody.
+- `V0ArchiveReceipt`: write-once V1-manifest evidence binding exact
+  archive/export digests through normal core install; never converted state.
 - `PilotCard`: immutable release-only scenario definition P0-P7 with repository
   revision, candidate identities, environment, prompt, fixtures, acceptance
   tests, evaluator, intervention log, and evidence locations.
@@ -159,33 +162,19 @@ returns 2. V1 does not fill the marker by guessing a test command.
 - `version` and `--version` report identical V1 identity and compatibility
   ranges without reading or changing target state.
 
-### V0 bridge conversion
+### V0 archive-only cutover
 
-1. `inspect` recognizes V0 only from the conservative database/schema,
-   companion-changeset, or known-installer signature; unknown `.harness`
-   metadata is classified unknown/unowned and preserved.
-2. The immutable reader opens recognized schema versions 1 through 13
-   read-only, verifies the bridge's published changeset grammar range, and
-   never runs a V0 migration.
-3. `export` writes and checksums the neutral export.
-4. Before target mutation, the bridge writes and verifies the conversion
-   archive under
-   `.harness/legacy/v0-conversion/<conversion-id>/`.
-5. `preview` lists every proposed managed operation, conflict, preserved path,
-   archive/export digest, and resulting role state.
-6. `apply` creates the transient journal, rechecks compatibility and input
-   digests, performs idempotent operations, and validates V1 structure.
-7. The commit point atomically renames a fully validated V1 manifest plus
-   receipt. Only then is conversion `completed`.
-8. `resume` repeats only incomplete journal operations after validating all
-   recorded digests. `rollback` restores only journal-owned paths whose current
-   post-image still matches; neither operation deletes the archive or writes
-   the V0 database.
-
-Conflict example: after an interrupted apply, a maintainer edits a newly
-created managed block. The current digest no longer matches the journal's
-post-image. Rollback refuses to overwrite it, preserves the V0 inputs and
-archive, marks recovery required, and asks for a human choice.
+1. Stop V0 writers; `inspect` recognizes schemas 1–13 and reports unknown state
+   unowned.
+2. `archive` captures DB+WAL+SHM and recognized evidence, builds a WAL-aware
+   standalone backup/export, then publishes a unique checksummed archive
+   no-replace under `.harness-v0-archive`.
+3. `export` creates one new neutral read-only history file from frozen live
+   input or the archive.
+4. Normal core install initializes V1 from repository files and records only
+   the authenticated archive/export receipt through Phase 3 recovery.
+5. Future writes use core. No V0 row becomes active V1 state and no bridge
+   command mutates V1 targets.
 
 ## Interface Contract
 
@@ -209,10 +198,7 @@ Only `install`, `update`, and `scaffold` may mutate files.
 | --- | --- | --- |
 | `inspect` | Read-only | Recognized/preserved/unsupported inventory and compatibility result. |
 | `export` | Creates export only | Versioned neutral export with source/category/payload digests. |
-| `preview` | Read-only apart from already requested export/archive preparation | Exact operation plan, conflicts, result state, and digests; no target mutation. |
-| `apply` | Journal-bounded writes | Idempotent conversion and atomic receipt, or preserved recovery-required state. |
-| `resume` | Journal-bounded writes | Only incomplete operations after digest validation; conflict stops. |
-| `rollback` | Journal-bounded restoration | Only matching journal-owned changes restored; archive and V0 inputs preserved. |
+| `archive` | Creates one append-only archive | Unique staged capture atomically published no-replace under authenticated custody; no V1 mutation. |
 | `version` | Read-only | Bridge version, supported V0 schema/grammar range, platform identity, and compatibility statement. |
 
 The bridge's first accepted schema range is 1 through 13 inclusive. The exact
@@ -221,11 +207,10 @@ in Phase 1; this packet does not invent them.
 
 ### Repository modes and errors
 
-The modes are `fresh-v1`, `brownfield-v1`, `v0-legacy`,
-`conversion-in-progress`, `converted-v1-with-archive`, and `mixed-invalid`.
-V0 artifacts plus a V1 manifest without a completed receipt are
-`mixed-invalid`; V1 mutation is blocked until bridge resume or rollback
-resolves the state.
+The durable manifest modes are `fresh-v1` and `brownfield-adopted`. Either may
+contain a write-once authenticated V0 archive receipt. Live V0 input blocks
+ordinary first install unless the explicit archive manifest is supplied; a
+receipt records evidence linkage, never converted operational state.
 
 Errors are reject-and-preserve. They name the failed contract, affected path or
 identity, expected/actual digest when safe to disclose, and next allowed
@@ -332,9 +317,9 @@ results sufficient to identify release, mode, role state, path, digest
 conflicts, and next action. Exact envelope/version fields are frozen in Phase
 1. Core commands do not send telemetry or create task/run/trace records.
 
-The bridge journal and receipt are recovery/provenance records, not product
-analytics. They remain local and untracked except for explicit evidence copies
-authorized by a pilot owner.
+The bridge archive/export and core-owned receipt are recovery/provenance
+evidence, not product analytics. Archive custody remains local and untracked
+except for explicit evidence copies authorized by a pilot owner.
 
 Pilot evidence is release-only. Each intervention records actor, timestamp,
 taxonomy reason, minutes, and outcome effect; reports total human attention by

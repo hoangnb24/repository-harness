@@ -11,7 +11,11 @@ schemas plus exact validators. The command binding is now
 `core-live-bridge-live-unpromoted`: the evolved verifiers compare both
 platform-native machine-help identities and both Rust source definitions with
 their frozen grammars. Core remains exactly six commands and has no bridge or
-SQLite dependency.
+SQLite dependency. The bridge is exactly `inspect`, `export`, `archive`, and
+`version`; it has no executable rollback command, conversion journal, or V1
+target mutation. The frozen historical Phase 1 trust-domain fixture remains
+for byte stability but authorizes no bridge operation. Fresh V1 install may bind
+only the closed authenticated archive receipt described by Decision 0014.
 
 The core and bridge workflow sources are present but unpromoted. The closed
 lifecycle still blocks production bootstrap because external

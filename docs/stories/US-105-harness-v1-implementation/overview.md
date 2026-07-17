@@ -15,6 +15,12 @@ Decision 0012 supplies authorization policy; Decision 0013 and US-106 supply
 accepted Phase 1. US-107 supplies validated Phase 2 implementation evidence,
 and US-108 supplies independently accepted Phase 3 evidence.
 
+Decision 0014 is the authority for Phase 4 and supersedes every automatic
+conversion, bridge journal, target-write, and converted-mode statement retained
+later in this historical initiative packet. The current design is freeze V0,
+publish an immutable archive/export, then run normal fresh V1 install with an
+authenticated archive receipt. US-109 contains the detailed replacement.
+
 ## Current Behavior
 
 The repository currently implements Harness V0:
@@ -32,7 +38,8 @@ The accepted V1 direction now has the Phase 1 contract layer and the Phase 2
 pure core runtime:
 
 - `docs/REFACTOR_PLAN.md` defines the eight implementation phases.
-- Decision 0011 accepts a separate, time-bounded `harness-v0-migrate` bridge.
+- Decision 0011 originally accepted a time-bounded conversion bridge; Decision
+  0014 retains the separate bridge but supersedes automatic conversion.
 - Decision 0012 accepts the exact compatibility, retention, support, and
   retirement policy and opens Gate G0.
 - Decision 0013 accepts the threshold trust, bootstrap, archive
@@ -65,11 +72,10 @@ implemented, validated, and accepted by US-108. Phase 4 is implemented and
 locally validated by US-109 but awaits independent acceptance; Phases 5-8
 remain dependent on preceding acceptance.
 
-For example, the presence of `.harness/` cannot currently authorize a V1
-conversion. It may contain V0 changesets, another tool's metadata, or unrelated
-files. The future bridge must first prove a recognized V0 signature, preserve
-unknown state, and create an export and archive before it changes any selected
-target path.
+For example, the presence of `.harness/` cannot authorize ownership. It may
+contain V0 changesets, another tool's metadata, or unrelated files. The bridge
+proves recognized V0 input, preserves unknown state, and creates an export and
+archive; it never changes a selected V1 target path.
 
 ## Target Behavior
 
@@ -86,13 +92,12 @@ permanent path afterward:
    or semantic-changeset state.
 3. Ordinary target work uses the target's own docs, scripts, tests, CI, review,
    runtime feedback, deployment, and recovery. It requires no Harness command.
-4. The separately versioned `scripts/bin/harness-v0-migrate[.exe]` bridge reads
-   only its published V0 range, produces a neutral export and checksummed
-   archive, and uses an untracked operation journal for `apply`, `resume`, and
-   safe `rollback`.
-5. V1 commits conversion success only after the archive/export, selected file
-   operations, and deterministic V1 audit succeed. Before that atomic commit,
-   no manifest may claim success.
+4. The separately versioned `scripts/bin/harness-v0-migrate[.exe]` bridge has
+   exactly `inspect`, `export`, `archive`, and `version`; it publishes neutral
+   read-only evidence under authenticated `.harness-v0-archive` custody.
+5. Normal `harness install --v0-archive-manifest <path>` initializes fresh V1
+   from repository files and uses Phase 3 recovery to commit the exact archive
+   receipt. V0 operational rows remain archive-only evidence.
 6. Release promotion depends on deterministic product proof and fixed
    release-only pilot cards P0-P7. Template presence alone is insufficient.
 7. V0 operational code and payload leave the default product only in Phase 8,

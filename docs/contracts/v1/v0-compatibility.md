@@ -51,5 +51,7 @@ mapped without importing their V0 operational records.
 
 Example: a V0 `story` row is exported as categorized legacy evidence and stays
 in the archive. It does not become a V1 task record. An existing useful
-`docs/ARCHITECTURE.md` may be mapped target-owned, but conversion does not move
-or automatically rewrite it.
+`docs/ARCHITECTURE.md` may be mapped target-owned by normal V1 install, which
+does not move or automatically rewrite it. Under Decision 0014 the bridge performs no mapping
+at all: normal fresh V1 install may adopt the repository file, while the V0 row
+remains only in archive/export evidence.

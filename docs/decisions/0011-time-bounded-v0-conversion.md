@@ -6,6 +6,11 @@ Date: 2026-07-16
 
 Accepted
 
+Superseded in part by Decision 0014. The automatic conversion, target mutation,
+bridge journal, resume/rollback, and bridge-written V1 receipt described below
+remain historical rationale; the separate time-bounded reader/archive boundary
+remains in force.
+
 ## Context
 
 Decision 0004 made SQLite, schema migrations, and operational records the V0

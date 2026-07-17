@@ -6,6 +6,12 @@ Date: 2026-07-17
 
 Accepted
 
+Decision 0014 changes cutover mechanics but preserves this decision's dates,
+indefinite local-archive retention, bridge-asset retention, and Phase 8 gates.
+Because the archive-only bridge creates no conversion journal, the historical
+post-window journal clause applies only to any previously accepted journal; it
+does not authorize new bridge recovery state.
+
 ## Context
 
 Decision 0011 established a separate, time-bounded V0 conversion bridge but

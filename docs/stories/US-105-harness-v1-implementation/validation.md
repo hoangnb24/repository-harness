@@ -2,6 +2,11 @@
 
 Status: **Implementation in progress / Phases 1-3 accepted / Phase 4 candidate awaiting independent acceptance / Phases 5-8 not started**
 
+Decision 0014 supersedes this packet's former bridge conversion/journal matrix.
+The Phase 4 acceptance oracle is archive-only: exact capture/export,
+append-only publication, no bridge V1 mutation, and core Phase 3 receipt
+recovery. US-109 is authoritative for the detailed proof.
+
 ## Proof Strategy
 
 US-105 is complete only when each phase has evidence for the exact artifact it
@@ -48,11 +53,11 @@ remain not-started dependencies. Only the Phase 1-3 matrix rows are passed.
 | Layer | Cases |
 | --- | --- |
 | Unit | Role activation/ownership/origin/required combinations; update policies; safe paths; manifest forbidden fields; schema/range compatibility; repository-mode transitions; payload disposition; journal state transitions; audit/status exits. |
-| Integration | Authenticated-index install; fresh/brownfield/update filesystems; backups and atomic rename; target-owned preservation; mixed-invalid blocking; bridge read-only database/export/archive/apply/resume/rollback; digest conflicts; process-spawn denial. |
-| E2E | Repository-local CLI flows for all six core and seven bridge commands; dogfood; release-only P0-P7 cards; complete V0-to-V1 cutover and post-window V0 removal. No browser E2E is implied. |
+| Integration | Authenticated-index install; fresh/brownfield/update filesystems; backups and atomic rename; target-owned preservation; bridge read-only database/export and append-only archive; exact receipt recovery; digest conflicts; process-spawn denial. |
+| E2E | Repository-local CLI flows for all six core and four bridge commands; dogfood; release-only P0-P7 cards; archive-only V0-to-V1 cutover and post-window V0 removal. No browser E2E is implied. |
 | Platform | Bash/direct binary on macOS arm64/x64 and Linux x64/arm64; PowerShell/direct `.exe` on Windows x64; checksums/authentication, paths with spaces/Unicode, line endings, atomic/recovery semantics, and equivalent manifests/exits. |
 | Performance | No speed claim is required for acceptance. Record command duration/resource regressions during release proof, but never trade integrity, deterministic results, or recovery for a threshold invented after implementation. |
-| Logs/Audit | Deterministic machine/human output contains identity, mode, role/path issue, and next action; no telemetry/task/run/trace state; audit starts no target tool; bridge journal contains only conversion operations; pilot interventions are release evidence only. |
+| Logs/Audit | Deterministic machine/human output contains identity, mode, role/path issue, and next action; no telemetry/task/run/trace state; audit starts no target tool; bridge reports archive/export identities only; pilot interventions are release evidence only. |
 
 ### Contract Boundary Proof
 
@@ -62,8 +67,8 @@ remain not-started dependencies. Only the Phase 1-3 matrix rows are passed.
 | Manifest is provenance, not operations. | Add `task`, `run`, `prompt`, `result`, `trace`, telemetry, scheduler, database, or semantic-changeset fields. | Schema rejects each field and audit returns invalid. | Phase 1 schema fixtures and Phase 2 negative tests. |
 | Payload index is authoritative. | Add an unindexed file or forbidden `harness.db*`, changeset, schema, V0 binary, or lifecycle path. | Build/release verification fails before artifact promotion. | Phase 1 ledger and Phase 7 exact-artifact report. |
 | Audit is structural and read-only. | Manifest asks audit to run a target test or a malicious fixture exposes a process hook. | No process starts; audit reports only structural state. | Phase 2 process-denial integration proof on all release platforms. |
-| Conversion commits once. | Crash before manifest/receipt atomic rename. | No success receipt exists; V0 inputs hash identically; resume/rollback is safe. | Phase 4 parameterized kill-point report. |
-| Unknown state is preserved. | `.harness/foreign-tool.json` exists beside recognized V0 state. | Inspect/preview report unknown/unowned; apply/resume/rollback leave its digest unchanged. | Phase 4 unknown-metadata fixture. |
+| Archive publishes once. | Crash before no-replace archive rename. | No accepted archive exists; fresh unique retry preserves abandoned/foreign bytes; V0 inputs hash identically. | Phase 4 append-only archive proof. |
+| Unknown state is preserved. | `.harness/foreign-tool.json` exists beside recognized V0 state. | Inspect/archive report unknown/unowned and leave its digest unchanged. | Phase 4 unknown-metadata fixture. |
 | Phase 8 is time/policy gated. | Engineering is ready but it is before `2028-01-01T00:00:00Z`, a supported recovery/security/data-loss/archive-integrity case remains open, retained assets are unverified, or separate removal authorization/validation is missing. | Retirement change is blocked, V0 default artifacts remain, and local archives are never automatically removed. | Decision 0012, G8 evidence, and the Phase 8 precondition report. |
 
 ## Requirement-To-Proof Matrix
@@ -73,23 +78,20 @@ remain not-started dependencies. Only the Phase 1-3 matrix rows are passed.
 | Requirement | Positive cases | Negative / boundary cases | Required acceptance proof | Status |
 | --- | --- | --- | --- | --- |
 | `install` | Fresh selected roles; V0-path adoption where permitted; explicit brownfield mapping; valid unresolved install. | Unsafe destination; ambiguous ownership; mixed-invalid state; bad payload digest; crash before manifest commit. | Exact preview; byte/digest before-after report; atomic-manifest kill point; no database/changesets; target-owned bytes unchanged; resulting mode/readiness. | **Phase 3 accepted:** signed install, exact confirmation, fresh brownfield mapping, manifest-last commit, all 18 install kill points, deterministic rerun/resume/rollback, and no false success pass. |
-| `update` | Replace-if-base; supported manifest transition; explicit three-way review; idempotent rerun. | Edited base; target-owned asset; unsupported downgrade; interrupted write; payload/template/CLI range mismatch. | Policy matrix, conflict output, backups, unchanged target bytes, no false success, rerun equivalence. | **Phase 3 accepted:** managed-file conflict, managed-block interior replacement, target-owned preservation, converted-mode receipt retention, backups, atomic exchange, status probe, and recovery pass. |
+| `update` | Replace-if-base; supported manifest transition; explicit three-way review; idempotent rerun. | Edited base; target-owned asset; unsupported downgrade; interrupted write; payload/template/CLI range mismatch. | Policy matrix, conflict output, backups, unchanged target bytes, no false success, rerun equivalence. | **Phase 3 accepted:** managed-file conflict, managed-block interior replacement, target-owned preservation, archive-receipt retention, backups, atomic exchange, status probe, and recovery pass. |
 | `audit` | Ready exit 0; unresolved exit 2; deterministic repeated result. | Bad schema/path/digest/marker/link/forbidden field exit 3; malicious target-tool hook; V0-only repository. | Golden machine/human output, filesystem/process monitor showing no writes/spawns, no V0 database open, stable exits. | **Phase 2 accepted:** pinned Unix snapshot tests, deterministic structural exits, unchanged canary tree/sentinel, and no process/DB port. This is not universal event proof; safe non-Unix inspection and portable event evidence remain Phase 7. |
 | `scaffold` | Explicit selected neutral template at safe target path; repeated preview. | Stack inference; overwrite existing target content; lifecycle/task record creation; unsafe path. | Payload/template identity, exact preview/diff, collision rejection, manifest/provenance result, no operational fields. | **Phase 3 accepted:** exact authenticated creation, target-owned/never-auto-patch manifest state, and repeated exact idempotent no-op pass. |
-| `status` | Fresh-v1, brownfield-v1, v0-legacy, conversion-in-progress, converted-with-archive; valid and unresolved exit 0. | Mixed-invalid or corrupt manifest exit 3; attempt to repair state. | Mode/identity/readiness golden outputs, read-only filesystem/database/process proof, exact invalid reason. | **Phase 2 accepted:** absent/ready/unresolved/invalid V1 structural states are deterministic and read-only on the safe Unix adapter. V0/bridge modes remain Phase 4; non-Unix safe handles remain Phase 7. |
+| `status` | Fresh-v1 or brownfield-adopted, with or without an authenticated archive receipt; valid and unresolved exit 0. | Live V0 without explicit archive receipt, foreign custody, or corrupt manifest exit 3; attempt to repair state. | Mode/identity/readiness golden outputs, read-only filesystem/database/process proof, exact invalid reason. | **Phase 2 accepted; Phase 4 receipt case implemented locally:** structural states remain deterministic/read-only; non-Unix safe handles remain Phase 7. |
 | `version` and `--version` | Same V1 version and accepted manifest/template ranges on every platform. | Alias to V0, mismatched output, unrecognized/downgrade range. | Byte-equivalent normalized output, binary identity/digest, grammar snapshot with only six commands. | **Phase 2 accepted:** native alias output and exact six-command grammar match. Five-platform promoted artifacts remain Phase 7. |
 
 ### V0 Bridge Commands
 
 | Requirement | Positive cases | Negative / boundary cases | Required acceptance proof | Status |
 | --- | --- | --- | --- | --- |
-| `inspect` | Recognized V0 schema 1..=13 and published changeset grammar; known provenance; companion layout. | Schema outside range; unreadable DB; arbitrary `.harness`; foreign metadata. | Read-only-open instrumentation, categorized inventory, before/after source hashes, unsupported/preserved output. | Not started; depends on Phase 4. |
-| `export` | Neutral `repository-harness-v0-export/v1` for every supported category. | Unknown category, corrupt row, grammar outside range, partial output. | Schema validation, stable category/source/payload digests, no V0 task fields in V1 manifest, safe retry. | Not started; depends on Phase 4. |
-| `preview` | Exact archive/export identity, planned operations, preserved paths, role/readiness outcome. | Input changes after inspect/export; ambiguous ownership; unsafe destination; unsupported V1 range. | Zero target mutation, expected/actual digest conflict, complete operation ledger, deterministic repeated preview. | Not started; depends on Phase 4. |
-| `apply` | Archived supported input; all selected idempotent operations; deterministic V1 audit; atomic receipt. | Kill at every point; target conflict; input digest drift; audit invalid; receipt rename failure. | Full kill-point matrix, V0 immutability, no pre-commit success, completed receipt binds bridge/export/archive digests. | Not started; depends on Phase 4. |
-| `resume` | Continue only incomplete operations from a validated journal; repeated resume after completion is harmless. | Journal tamper; changed source/post-image; unsupported bridge; unknown operation. | Operation execution counts, journal/digest verification, reject-and-preserve conflict, unchanged completed operations. | Not started; depends on Phase 4. |
-| `rollback` | Restore/remove only journal-owned matching writes before commit. | Human edit after apply; path now foreign; rollback after unsupported state; request to delete archive/V0 DB. | Pre/post byte hashes, conflict preservation, archive/source survival, recovery-required result when ownership/digest fails. | Not started; depends on Phase 4. |
-| `version` | Bridge version, platform, schema 1..=13, exact changeset grammar range, compatibility statement. | Pretends to be V1 core/V0 CLI; range differs from release metadata; unsupported platform. | Binary/index identity match, cross-platform golden output, separate artifact/payload scan. | Not started; depends on Phases 1, 4, and 7. |
+| `inspect` | Recognized V0 schema 1..=13 and published changeset grammar; known provenance; companion layout. | Schema outside range; unreadable DB; arbitrary `.harness`; foreign metadata. | Read-only-open instrumentation, categorized inventory, before/after source hashes, unsupported/preserved output. | Implemented locally; independent Phase 4 acceptance pending. |
+| `export` | Neutral `repository-harness-v0-export/v1` for every supported category. | Unknown category, corrupt row, grammar outside range, partial output. | Schema validation, stable category/source/payload digests, no V0 task fields in V1 manifest, safe retry. | Implemented locally; independent Phase 4 acceptance pending. |
+| `archive` | Frozen supported input; encrypted default or explicit plaintext; unique final ID. | Source drift; tamper; foreign custody; abandoned staging; publication collision. | DB/WAL/SHM exact hashes, member/aggregate digests, no-replace retry, no V1 target mutation. | Implemented locally; independent Phase 4 acceptance pending. |
+| `version` | Bridge version, platform, schema 1..=13, exact changeset grammar range, compatibility statement. | Pretends to be V1 core/V0 CLI; range differs from release metadata; unsupported platform. | Binary/index identity match, cross-platform golden output, separate artifact/payload scan. | Implemented locally; promoted five-platform identity remains Phase 7. |
 
 ### Supported Platforms
 
@@ -110,17 +112,12 @@ does not substitute for it.
 
 ### Recovery And Kill Points
 
-| Kill / conflict case | Expected state after interruption | Required resume proof | Required rollback proof | Status |
-| --- | --- | --- | --- | --- |
-| After V0 detection | V0 inputs unchanged; no export/archive/journal/success manifest required. | Reinspect from immutable inputs and reach same inventory. | No-op; never touches V0. | Not started; depends on Phase 4. |
-| After export write | Verified or safely replaceable export; no target mutation or success manifest. | Validate/recreate export deterministically, then continue once. | Remove only journal-owned incomplete export if policy permits; V0 unchanged. | Not started; depends on Phase 4. |
-| After archive write/verification | Checksummed archive present; no target mutation or success manifest. | Verify archive/export digests and continue without rewriting V0. | Preserve archive; no target/V0 mutation. | Not started; depends on Phase 4. |
-| After each planned filesystem operation | Journal names completed operation and before/after digest; no success receipt before commit. | Parameterized test repeats only remaining operations; completed post-images unchanged. | Restore/remove only matching journal-owned operations in reverse-safe order; stop on changed post-image. | Not started; depends on Phase 4. |
-| After temporary manifest/receipt write | Temporary files uncommitted; old manifest state remains authoritative. | Revalidate all operations/audit and atomically commit once. | Remove only matching temporaries and roll back matching journal-owned writes; preserve archive/V0. | Not started; depends on Phase 4. |
-| Immediately after atomic commit | One coherent manifest/receipt references verified export/archive; state is committed/completable. | Detect committed identity, finish bookkeeping idempotently, never replay target writes. | No automatic pre-commit rollback claim; follow documented post-commit recovery while preserving V0/archive. | Not started; depends on Phase 4. |
-| Input changes between preview and apply | No mutation; digest conflict and recovery/represent action required. | Reinspect/re-export only after explicit new preview. | No-op; preserve all evidence. | Not started; depends on Phase 4. |
-| Target edit after a recorded file operation | Recovery-required; human bytes preserved. | Stop because post-image digest differs; require human decision. | Stop and reject overwrite; preserve journal/archive/V0. | Not started; depends on Phase 4. |
-| Journal/archive/export tamper | Invalid/recovery-required; no further mutation. | Refuse until trusted evidence is restored or a human chooses a new conversion. | Never use untrusted digests to overwrite paths. | Not started; depends on Phase 4. |
+| Kill / conflict case | Expected state | Required proof | Status |
+| --- | --- | --- | --- |
+| Before archive publication | No accepted archive; V0 unchanged; unique staging may remain. | Retry uses a fresh stage/ID and preserves the abandoned path. | Implemented locally; independent acceptance pending. |
+| After archive publication | One immutable accepted archive; V0 unchanged. | Re-inspect/export verifies exact manifest/member digests; a new archive cannot overwrite it. | Implemented locally; independent acceptance pending. |
+| During core receipt install | Phase 3 recovery evidence exists; bridge owns no recovery. | Exact `install --resume` commits the same receipt manifest-last or rollback follows ordinary core rules. | Implemented locally; independent acceptance pending. |
+| Archive/export tamper | Invalid; no V1 mutation. | Bridge/core refuse the mismatched digest and preserve every source/archive byte. | Implemented locally; independent acceptance pending. |
 
 ### Pilot Cards P0-P7
 
@@ -177,9 +174,9 @@ Planned deterministic fixtures include:
 - Immutable V0 schema versions 1 through 13, plus below/above/unknown versions;
   the exact supported changeset grammar versions frozen in Phase 1; corrupt,
   partial, WAL/companion, known-provenance, and foreign `.harness` cases.
-- Parameterized bridge journals for every state and kill point, tampered
-  digests, incomplete operations, human post-image edits, committed receipts,
-  and recovery-required conflicts.
+- Unique archive staging/publication, abandoned and foreign custody, tampered
+  members, exact live/archive exports, core receipt interruption/resume, and
+  immutable V0 source bytes.
 - Exact release artifacts and authenticated indexes for all five platform
   labels; normalization compares semantics while preserving expected
   platform-specific executable suffixes and line endings.

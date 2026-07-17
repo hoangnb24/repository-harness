@@ -32,6 +32,6 @@
     {"category": "archive.raw-capture", "disposition": "bridge-only-legacy"},
     {"category": "archive.standalone-logical-backup", "disposition": "bridge-only-legacy"},
     {"category": "archive.neutral-export", "disposition": "bridge-only-legacy"},
-    {"category": "manifest.conversion-receipt", "disposition": "managed-v1"}
+    {"category": "manifest.v0-archive-receipt", "disposition": "managed-v1"}
   ]
 }
