@@ -130,7 +130,8 @@ was integrated as `e77e028` with the identical Git tree. Independent security
 and behavior review accepted exact Phase 3 candidate `1f957ce`, integrated as
 `8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 was accepted at exact
 candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. US-110's live gate
-on exact `b2dd775` passed six proof groups and rejected 44/44 adversarial cases;
+on exact `b2dd775` passed six proof groups and rejected 42/42 adversarial cases;
+the corrected current gate rejects four more GitHub path/hostname aliases for 46/46;
 the two authenticated packets resolve distinct bundle revisions under one
 stable owner identity with separate external Ed25519 keys. Their failures and
 inapplicability are honest baseline measurements, not Phase 6 acceptance.

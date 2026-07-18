@@ -112,8 +112,8 @@ git diff --check
 The authenticated live gate on exact `b2dd775` was invoked with the
 caller-pinned registry outside the candidate repository at SHA-256
 `f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d`.
-Tracked `evidence/trusted-owners.json` remains empty. The command passed six
-proof groups, rejected 44/44 adversarial cases, verified both SSH Ed25519
+Tracked `evidence/trusted-owners.json` remains empty. The corrected current command passed six
+proof groups, rejected 46/46 adversarial cases, verified both SSH Ed25519
 signatures and both bundle-resolved revisions, and accepted two packets with
 distinct owner IDs, canonical repositories, bundles, and external keys under
 one stable GitHub identity.

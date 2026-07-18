@@ -99,7 +99,8 @@ scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
 ```
 
 On exact `b2dd775`, the full caller-pinned live invocation passed six proof groups
-and rejected 44/44 adversarial cases. It authenticated two complete packets for
+and rejected 42/42 adversarial cases. The corrected current gate rejects four
+additional GitHub path/hostname alias attacks, for 46/46. It authenticated two complete packets for
 distinct canonical repositories, repository-scoped owner IDs, bundles, and
 external Ed25519 keys under one stable GitHub identity. Both signatures and
 bundle revisions verified. The external registry remains outside the candidate

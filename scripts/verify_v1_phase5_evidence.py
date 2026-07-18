@@ -219,6 +219,8 @@ def canonical_repository(value: str) -> str:
     parts = PurePosixPath(parsed.path).parts
     check(parts and parts[-1].endswith(".git") and all(part not in {".", ".."} for part in parts), "repository identity must end in an unambiguous .git path")
     canonical_hostname = hostname.lower()
+    if canonical_hostname == "www.github.com":
+        canonical_hostname = "github.com"
     canonical_path = parsed.path.lower() if canonical_hostname == "github.com" else parsed.path
     normalized = f"https://{canonical_hostname}{canonical_path}"
     check(value == normalized, "repository identity is not canonical")
@@ -1262,6 +1264,31 @@ def prove_negative_contracts() -> None:
                 trusted_owner_registry_sha256=sha256_file(repository_alias_registry),
             ),
         )
+
+        github_hostname_alias = "https://www.github.com/synthetic-owner/synthetic-a.git"
+        github_hostname_owner_b = {
+            **repository_alias_owner_b,
+            "canonical_repository": github_hostname_alias,
+        }
+        github_hostname_trusted = {
+            github_owner_a["owner_id"]: github_owner_a,
+            github_hostname_owner_b["owner_id"]: github_hostname_owner_b,
+        }
+        write_json(repository_alias_registry, external_registry_document(github_hostname_trusted))
+        expect_rejection(
+            "GitHub www-host repository alias in external trusted-owner registry",
+            lambda: parse_trusted_owners(repository_alias_registry, "GitHub www-host alias trust fixture"),
+        )
+        rewrite_packet_repository(alias_packet_b, repository_alias_key, github_hostname_alias)
+        expect_rejection(
+            "GitHub www-host repository alias in complete signed live index",
+            lambda: verify_index_mode(
+                repository_alias_index, repository_alias_evidence,
+                repository_alias_catalog, repository_alias_cards, require_live=False,
+                trusted_owner_registry=repository_alias_registry,
+                trusted_owner_registry_sha256=sha256_file(repository_alias_registry),
+            ),
+        )
         expect_rejection(
             "raw dot-dot repository path segment",
             lambda: canonical_repository("https://example.test/scope/../synthetic-a.git"),
@@ -1309,7 +1336,7 @@ def prove_negative_contracts() -> None:
             completed = run(["/bin/bash", str(wrapper_path), "--dogfood-only"], expected=1, environment={"PATH": str(path_root)})
             check(b"requires: rg" in completed.stderr, "wrapper did not fail deterministically when rg was missing")
             NEGATIVE_COUNT += 1
-        check(NEGATIVE_COUNT == 44, f"adversarial suite count changed: {NEGATIVE_COUNT}")
+        check(NEGATIVE_COUNT == 46, f"adversarial suite count changed: {NEGATIVE_COUNT}")
 
 
 def validate_story_packet() -> None:
@@ -1354,7 +1381,7 @@ def main() -> None:
     index = load_evidence_index(EVIDENCE)
     proof("Draft 2020-12 contracts, fixed P0-P7 catalog, empty tracked trust placeholder, and candidate index validate", lambda: None)
     proof("one stable owner and SSH Ed25519 key authenticate two repository-scoped packets with distinct repositories and bundles", prove_positive_packet)
-    proof("44 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
+    proof("46 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
     proof("US-110 records accepted authenticated baselines and leaves Phase 6 closed", validate_story_packet)
     if index["status"] == "complete":
         proof(
