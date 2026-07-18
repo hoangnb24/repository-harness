@@ -531,19 +531,60 @@ def validate_subject(
                     document["source_revision"],
                 ]
             )
+            capability_artifacts_by_path = {
+                artifact["path"]: artifact
+                for artifact in document["artifacts"]
+                if artifact["role"] == "capability-asset"
+            }
             for capability in document["capability_paths"]:
                 relative_name(capability, "candidate capability path")
-                kind = run(
+                tree_output = run(
                     [
                         "git",
                         "-C",
                         str(repository),
-                        "cat-file",
-                        "-t",
-                        f"{document['source_revision']}:{capability}",
+                        "ls-tree",
+                        "-z",
+                        "--full-tree",
+                        document["source_revision"],
+                        "--",
+                        capability,
                     ]
-                ).decode("ascii").strip()
-                check(kind == "blob", f"candidate capability path is not a committed file: {capability}")
+                )
+                entries = [entry for entry in tree_output.split(b"\0") if entry]
+                check(
+                    len(entries) == 1 and b"\t" in entries[0],
+                    f"candidate capability path is missing or ambiguous: {capability}",
+                )
+                metadata, resolved_path = entries[0].split(b"\t", 1)
+                try:
+                    mode, kind, blob_oid = metadata.decode("ascii").split(" ")
+                    resolved = resolved_path.decode("utf-8")
+                except (UnicodeDecodeError, ValueError) as error:
+                    raise VerificationError(
+                        f"candidate capability tree entry is malformed: {capability}"
+                    ) from error
+                check(resolved == capability, f"candidate capability resolved a different path: {capability}")
+                check(
+                    mode in {"100644", "100755"} and kind == "blob",
+                    f"candidate capability path is not a regular file: {capability}",
+                )
+                blob = run(
+                    ["git", "-C", str(repository), "cat-file", "blob", blob_oid]
+                )
+                blob_sha256 = sha256_bytes(blob)
+                artifact = capability_artifacts_by_path[capability]
+                packet_member = contained_member(
+                    packet, capability, "candidate capability packet artifact"
+                )
+                packet_sha256 = sha256_file(packet_member)
+                check(
+                    blob_sha256
+                    == packet_sha256
+                    == artifact["sha256"]
+                    == artifact_digests.get(capability),
+                    f"candidate capability bytes differ between Git and packet custody: {capability}",
+                )
 
 
 def validate_interventions(document: dict[str, Any], lane: dict[str, Any]) -> None:
@@ -1417,7 +1458,10 @@ def self_test_candidate_bundle_binding() -> None:
             member = packet.joinpath(*PurePosixPath(path).parts)
             if path != "candidate.bundle":
                 member.parent.mkdir(parents=True, exist_ok=True)
-                member.write_text(f"synthetic {role}\n", encoding="utf-8")
+                if role == "capability-asset":
+                    member.write_bytes(capability.read_bytes())
+                else:
+                    member.write_text(f"synthetic {role}\n", encoding="utf-8")
             digest = sha256_file(member)
             artifact_digests[path] = digest
             artifacts.append({"role": role, "path": path, "sha256": digest})
@@ -1484,6 +1528,70 @@ def self_test_candidate_bundle_binding() -> None:
             "candidate capability absent from resolved tree",
             lambda: validate_subject(
                 missing_capability, lane, missing_digests, packet
+            ),
+        )
+
+        capability_path = "docs/capabilities/native-check.md"
+        packet_capability = packet / capability_path
+        packet_capability.write_text(
+            "unrelated benign packet bytes\n", encoding="utf-8"
+        )
+        divergent_digest = sha256_file(packet_capability)
+        divergent_subject = deepcopy(subject)
+        divergent_digests = dict(artifact_digests)
+        divergent_digests[capability_path] = divergent_digest
+        for artifact in divergent_subject["artifacts"]:
+            if artifact["role"] == "capability-asset":
+                artifact["sha256"] = divergent_digest
+        divergent_subject["subject_identity_sha256"] = canonical_digest(
+            divergent_subject, "subject_identity_sha256"
+        )
+        expect_rejection(
+            "candidate capability packet/tree byte divergence",
+            lambda: validate_subject(
+                divergent_subject, lane, divergent_digests, packet
+            ),
+        )
+
+        link_oid = run(
+            ["git", "-C", str(source), "hash-object", "-w", "--stdin"],
+            input_bytes=b"../../README.md",
+        ).decode("ascii").strip()
+        run(
+            [
+                "git", "-C", str(source), "update-index", "--add", "--cacheinfo",
+                f"120000,{link_oid},{capability_path}",
+            ]
+        )
+        run(["git", "-C", str(source), "commit", "-m", "symlink capability"])
+        symlink_revision = run(
+            ["git", "-C", str(source), "rev-parse", "HEAD^{commit}"]
+        ).decode("ascii").strip()
+        symlink_tree = run(
+            ["git", "-C", str(source), "rev-parse", "HEAD^{tree}"]
+        ).decode("ascii").strip()
+        symlink_bundle = packet / "symlink.bundle"
+        run(
+            ["git", "-C", str(source), "bundle", "create", str(symlink_bundle), "HEAD"]
+        )
+        symlink_subject = deepcopy(subject)
+        symlink_subject["source_revision"] = symlink_revision
+        symlink_subject["source_tree"] = symlink_tree
+        symlink_digests = dict(divergent_digests)
+        symlink_digests["symlink.bundle"] = sha256_file(symlink_bundle)
+        for artifact in symlink_subject["artifacts"]:
+            if artifact["role"] == "pilot-candidate-bundle":
+                artifact["path"] = "symlink.bundle"
+                artifact["sha256"] = symlink_digests["symlink.bundle"]
+            elif artifact["role"] == "capability-asset":
+                artifact["sha256"] = divergent_digest
+        symlink_subject["subject_identity_sha256"] = canonical_digest(
+            symlink_subject, "subject_identity_sha256"
+        )
+        expect_rejection(
+            "candidate capability symlink mode",
+            lambda: validate_subject(
+                symlink_subject, lane, symlink_digests, packet
             ),
         )
 
