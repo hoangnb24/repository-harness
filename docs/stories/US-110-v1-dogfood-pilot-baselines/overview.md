@@ -42,13 +42,16 @@ The repository-owned Phase 5 candidate has three effects:
 
 Exact Phase 5 acceptance remains the authority in `docs/REFACTOR_PLAN.md`: no
 required path move; no ordinary-task Harness core call; and at least two
-unrelated, owner-authorized pilots, each with an immutable starting revision,
-complete P0-P7 eligibility, independently authenticated complete packet,
-environment lock, resolved repository revision, and a baseline result or
-written inapplicability for every card, including complete intervention/time
-totals. This candidate satisfies the repository-owned first two conditions and
-defines/verifies the evidence format; it does not satisfy external-pilot
-conditions.
+owner-authorized pilots for distinct canonical repositories, each with a
+different repository-scoped owner ID, authenticated repository-bundle digest,
+immutable starting revision, complete P0-P7 eligibility, authenticated complete
+packet, environment lock, resolved repository revision, and a baseline result
+or written inapplicability for every card, including complete
+intervention/time totals. The stable owner identity may be the same for both
+repositories. One signing key may authorize both only when that stable identity
+matches; separate evaluation keys remain recommended. This candidate satisfies
+the repository-owned first two conditions and defines/verifies the evidence
+format; it does not satisfy external-pilot conditions.
 
 ## Affected Users
 
@@ -85,7 +88,7 @@ conditions.
   bridge, production gates, compatibility dates, or archive custody policy.
 
 Pilot authorization is a hard boundary: an empty tracked trust placeholder and
-evidence index are correct until two owners act and an invoking authority pins
-external trust bytes. The verifier generates an ephemeral
-SSH Ed25519 key and local Git bundle only inside temporary adversarial tests;
-neither is trusted live pilot evidence.
+evidence index are correct until the repository-scoped authorizations exist and
+an invoking authority pins external trust bytes. The verifier generates an
+ephemeral SSH Ed25519 key and local Git bundles only inside temporary tests;
+none is trusted live pilot evidence.

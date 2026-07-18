@@ -382,15 +382,35 @@ def parse_trusted_owners(path: Path, location: str) -> tuple[dict[str, Any], dic
     document = load_json(path)
     validate(document, schema("trusted-owners"), location)
     owners: dict[str, dict[str, Any]] = {}
-    fingerprints: set[str] = set()
+    repositories: set[str] = set()
+    fingerprint_scopes: dict[str, dict[str, Any]] = {}
     for owner in document["owners"]:
-        check(owner["owner_id"] not in owners, f"trusted owner identity is duplicated: {owner['owner_id']}")
-        canonical_repository(owner["canonical_repository"])
+        owner_id = owner["owner_id"]
+        owner_identity = owner["owner_identity"]
+        check(owner_id not in owners, f"repository-scoped trusted owner ID is duplicated: {owner_id}")
+        repository = canonical_repository(owner["canonical_repository"])
+        check(repository not in repositories, f"trusted owner repository scope is duplicated: {repository}")
         fingerprint = signing_key_fingerprint(owner["public_key"])
-        check(fingerprint not in fingerprints, f"trusted owner signing key is reused: {fingerprint}")
+        prior_scope = fingerprint_scopes.get(fingerprint)
+        if prior_scope is not None:
+            check(
+                prior_scope["owner_identity"] == owner_identity,
+                f"trusted owner signing key is reused across stable owner identities: {fingerprint}",
+            )
+            check(
+                repository not in prior_scope["repositories"],
+                f"trusted owner signing key is reused within one repository scope: {fingerprint}",
+            )
         parse_time(owner["trusted_at"], "trusted owner time")
-        owners[owner["owner_id"]] = {**owner, "signing_key_fingerprint": fingerprint}
-        fingerprints.add(fingerprint)
+        owners[owner_id] = {**owner, "signing_key_fingerprint": fingerprint}
+        repositories.add(repository)
+        if prior_scope is None:
+            fingerprint_scopes[fingerprint] = {
+                "owner_identity": owner_identity,
+                "repositories": {repository},
+            }
+        else:
+            prior_scope["repositories"].add(repository)
     return document, owners
 
 
@@ -574,13 +594,22 @@ def validate_packet(
 def validate_pilot_independence(packets: list[dict[str, Any]]) -> None:
     repositories = [packet["repository"] for packet in packets]
     owner_ids = [packet["owner_id"] for packet in packets]
-    identities = [packet["owner_identity"] for packet in packets]
-    signing_keys = [packet["signing_key_fingerprint"] for packet in packets]
     repository_bundles = [packet["repository_bundle_sha256"] for packet in packets]
     check(len(repositories) == len(set(repositories)), "pilots reuse the same canonical repository")
-    check(len(owner_ids) == len(set(owner_ids)) and len(identities) == len(set(identities)), "pilots reuse the same owner identity")
-    check(len(signing_keys) == len(set(signing_keys)), "pilots reuse the same signing-key fingerprint")
+    check(len(owner_ids) == len(set(owner_ids)), "pilots reuse the same repository-scoped owner ID")
     check(len(repository_bundles) == len(set(repository_bundles)), "pilots reuse the same authenticated repository bundle")
+    fingerprint_identities: dict[str, str] = {}
+    for packet in packets:
+        fingerprint = packet["signing_key_fingerprint"]
+        identity = packet["owner_identity"]
+        prior_identity = fingerprint_identities.get(fingerprint)
+        if prior_identity is None:
+            fingerprint_identities[fingerprint] = identity
+        else:
+            check(
+                prior_identity == identity,
+                "pilots reuse one signing-key fingerprint across different stable owner identities",
+            )
 
 
 def load_evidence_index(evidence_root: Path) -> dict[str, Any]:
@@ -625,12 +654,14 @@ def verify_index_mode(
     return False
 
 
-def make_git_bundle(root: Path) -> tuple[Path, str]:
+def make_git_bundle(root: Path, fixture_label: str = "a") -> tuple[Path, str]:
     root.mkdir(parents=True)
     repository = root / "source"
     repository.mkdir()
     run(["git", "init", str(repository)])
-    (repository / "README.md").write_text("synthetic authenticated pilot fixture\n", encoding="utf-8")
+    (repository / "README.md").write_text(
+        f"synthetic authenticated pilot fixture {fixture_label}\n", encoding="utf-8",
+    )
     run(["git", "add", "README.md"], cwd=repository)
     environment = hardened_env({
         "GIT_AUTHOR_NAME": "Synthetic Fixture", "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
@@ -760,21 +791,29 @@ def external_registry_document(trusted: dict[str, dict[str, Any]]) -> dict[str, 
     return {"schema": "repository-harness-trusted-pilot-owners/v1", "owners": owners}
 
 
-def build_aliased_packet(
-    source: Path, destination: Path, key: Path, source_owner: dict[str, Any],
+def build_repository_scoped_packet(
+    source: Path, destination: Path, key: Path, source_owner: dict[str, Any], *,
+    owner_identity: str, distinct_bundle: bool,
 ) -> dict[str, Any]:
-    """Build the exact historical attack: new claims, same key and bundle."""
+    """Build a second repository authorization under one existing signing key."""
     shutil.copytree(source, destination)
     pilot_id = "synthetic-pilot-b"
     owner_id = "synthetic-owner-b"
     repository = "https://example.test/synthetic-b.git"
-    authorization_scope = "synthetic aliased verifier fixture"
+    authorization_scope = "synthetic repository-scoped verifier fixture"
+
+    revision: str | None = None
+    if distinct_bundle:
+        bundle, revision = make_git_bundle(destination.parent / "git-evidence-b", "b")
+        shutil.copyfile(bundle, destination / "repository.bundle")
 
     enrollment = load_json(destination / "enrollment.json")
     enrollment.update({
         "pilot_id": pilot_id, "canonical_repository": repository,
         "owner_id": owner_id, "authorization_scope": authorization_scope,
     })
+    if revision is not None:
+        enrollment["starting_revision"]["value"] = revision
     environment = load_json(destination / "environment.json")
     environment["pilot_id"] = pilot_id
     environment["environment_sha256"] = canonical_digest(environment, "environment_sha256")
@@ -789,6 +828,8 @@ def build_aliased_packet(
         write_json(destination / name, document)
     baseline = load_json(destination / "baseline-result.json")
     baseline["pilot_id"] = pilot_id
+    if revision is not None:
+        baseline["starting_revision"] = revision
     baseline["environment_sha256"] = environment["environment_sha256"]
     baseline["intervention_log_sha256"] = sha256_file(destination / "interventions.json")
     baseline["result_sha256"] = canonical_digest(baseline, "result_sha256")
@@ -806,6 +847,8 @@ def build_aliased_packet(
     statement.update({
         "pilot_id": pilot_id, "canonical_repository": repository,
         "owner_id": owner_id, "authorization_scope": authorization_scope,
+        "starting_revision": enrollment["starting_revision"]["value"],
+        "repository_bundle_sha256": sha256_file(destination / "repository.bundle"),
         "packet_manifest_sha256": sha256_file(destination / "packet-manifest.json"),
         "publication_id": "synthetic-pilot-b-baseline-publication-1",
         "custody_id": manifest["custody_id"],
@@ -814,11 +857,11 @@ def build_aliased_packet(
     write_json(destination / "authentication.json", authentication)
     return {
         "owner_id": owner_id,
-        "owner_identity": "synthetic-independent-owner-b",
+        "owner_identity": owner_identity,
         "canonical_repository": repository,
         "authorization_scope": authorization_scope,
         "public_key": source_owner["public_key"],
-        "trust_source": "synthetic aliased verifier fixture",
+        "trust_source": "synthetic repository-scoped verifier fixture",
         "trusted_at": source_owner["trusted_at"],
         "signing_key_fingerprint": source_owner["signing_key_fingerprint"],
     }
@@ -837,11 +880,23 @@ def expect_rejection(label: str, function: Callable[[], None]) -> None:
 def prove_positive_packet() -> None:
     with tempfile.TemporaryDirectory(prefix="phase5-positive-") as temporary:
         root = Path(temporary)
-        packet, trusted, _, cards, catalog_digest = build_synthetic_packet(root / "evidence")
+        evidence = root / "evidence"
+        packet_a, trusted, key, cards, catalog_digest = build_synthetic_packet(evidence)
+        owner_a = trusted[next(iter(trusted))]
+        packet_b = evidence / "synthetic-pilot-b"
+        owner_b = build_repository_scoped_packet(
+            packet_a, packet_b, key, owner_a,
+            owner_identity=owner_a["owner_identity"], distinct_bundle=True,
+        )
+        trusted[owner_b["owner_id"]] = owner_b
         registry = root / "external-trusted-owners.json"
         write_json(registry, external_registry_document(trusted))
         loaded, _ = load_external_trusted_owners(registry, sha256_file(registry))
-        validate_packet(packet, packet.name, loaded, catalog_digest, cards)
+        packets = [
+            validate_packet(packet_a, packet_a.name, loaded, catalog_digest, cards),
+            validate_packet(packet_b, packet_b.name, loaded, catalog_digest, cards),
+        ]
+        validate_pilot_independence(packets)
 
 
 def prove_negative_contracts() -> None:
@@ -951,12 +1006,12 @@ def prove_negative_contracts() -> None:
             "signing_key_fingerprint": "SHA256:key-b", "repository_bundle_sha256": "b" * 64,
         }
         same_repository = {**independent, "repository": identity["repository"]}
-        same_owner = {**independent, "owner_id": identity["owner_id"], "owner_identity": identity["owner_identity"]}
+        same_owner_id = {**independent, "owner_id": identity["owner_id"], "owner_identity": identity["owner_identity"]}
         same_signing_key = {**independent, "signing_key_fingerprint": identity["signing_key_fingerprint"]}
         same_bundle = {**independent, "repository_bundle_sha256": identity["repository_bundle_sha256"]}
         expect_rejection("same repository dual pilots", lambda: validate_pilot_independence([identity, same_repository]))
-        expect_rejection("same owner dual pilots", lambda: validate_pilot_independence([identity, same_owner]))
-        expect_rejection("same signing key dual pilots", lambda: validate_pilot_independence([identity, same_signing_key]))
+        expect_rejection("same repository-scoped owner ID dual pilots", lambda: validate_pilot_independence([identity, same_owner_id]))
+        expect_rejection("same signing key across different stable identities", lambda: validate_pilot_independence([identity, same_signing_key]))
         expect_rejection("same repository bundle dual pilots", lambda: validate_pilot_independence([identity, same_bundle]))
 
         alias_root = root / "one-key-one-bundle-attack"
@@ -964,14 +1019,17 @@ def prove_negative_contracts() -> None:
         packet_a, alias_trusted, alias_key, alias_cards, alias_catalog = build_synthetic_packet(alias_evidence)
         owner_a = alias_trusted[next(iter(alias_trusted))]
         packet_b = alias_evidence / "synthetic-pilot-b"
-        owner_b = build_aliased_packet(packet_a, packet_b, alias_key, owner_a)
+        owner_b = build_repository_scoped_packet(
+            packet_a, packet_b, alias_key, owner_a,
+            owner_identity=owner_a["owner_identity"], distinct_bundle=False,
+        )
         alias_trusted[owner_b["owner_id"]] = owner_b
         aliased_packets = [
             validate_packet(packet_a, packet_a.name, {owner_a["owner_id"]: owner_a}, alias_catalog, alias_cards),
             validate_packet(packet_b, packet_b.name, {owner_b["owner_id"]: owner_b}, alias_catalog, alias_cards),
         ]
         expect_rejection(
-            "one-key one-bundle two-owner two-repository packet construction",
+            "same-owner one-key one-bundle two-repository packet construction",
             lambda: validate_pilot_independence(aliased_packets),
         )
         write_json(alias_evidence / "trusted-owners.json", {"schema": "repository-harness-trusted-pilot-owners/v1", "owners": []})
@@ -984,12 +1042,40 @@ def prove_negative_contracts() -> None:
         write_json(alias_registry, external_registry_document(alias_trusted))
         alias_index = load_json(alias_evidence / "index.json")
         expect_rejection(
-            "duplicate signing key in external live trust registry",
+            "same-owner one-key one-bundle complete live index",
             lambda: verify_index_mode(
                 alias_index, alias_evidence, alias_catalog, alias_cards, require_live=False,
                 trusted_owner_registry=alias_registry,
                 trusted_owner_registry_sha256=sha256_file(alias_registry),
             ),
+        )
+
+        different_identity_registry = alias_root / "different-identity-trust.json"
+        different_identity_owner = {**owner_b, "owner_identity": "synthetic-independent-owner-b"}
+        write_json(
+            different_identity_registry,
+            external_registry_document({
+                owner_a["owner_id"]: owner_a,
+                different_identity_owner["owner_id"]: different_identity_owner,
+            }),
+        )
+        expect_rejection(
+            "one signing key claimed by different stable owner identities",
+            lambda: parse_trusted_owners(different_identity_registry, "different-identity trust fixture"),
+        )
+
+        duplicate_scope_registry = alias_root / "duplicate-scope-trust.json"
+        duplicate_scope_owner = {**owner_b, "canonical_repository": owner_a["canonical_repository"]}
+        write_json(
+            duplicate_scope_registry,
+            external_registry_document({
+                owner_a["owner_id"]: owner_a,
+                duplicate_scope_owner["owner_id"]: duplicate_scope_owner,
+            }),
+        )
+        expect_rejection(
+            "two repository-scoped owner IDs claim one canonical repository",
+            lambda: parse_trusted_owners(duplicate_scope_registry, "duplicate-scope trust fixture"),
         )
 
         shallow = root / "shallow-evidence"
@@ -1030,7 +1116,7 @@ def prove_negative_contracts() -> None:
             completed = run(["/bin/bash", str(wrapper_path), "--dogfood-only"], expected=1, environment={"PATH": str(path_root)})
             check(b"requires: rg" in completed.stderr, "wrapper did not fail deterministically when rg was missing")
             NEGATIVE_COUNT += 1
-        check(NEGATIVE_COUNT == 32, f"adversarial suite count changed: {NEGATIVE_COUNT}")
+        check(NEGATIVE_COUNT == 34, f"adversarial suite count changed: {NEGATIVE_COUNT}")
 
 
 def validate_story_packet() -> None:
@@ -1060,8 +1146,8 @@ def main() -> None:
     catalog_digest, cards = validate_catalog()
     index = load_evidence_index(EVIDENCE)
     proof("Draft 2020-12 contracts, fixed P0-P7 catalog, empty tracked trust placeholder, and candidate index validate", lambda: None)
-    proof("caller-pinned external test trust authenticates a complete manifest and resolvable repository bundle with SSH Ed25519", prove_positive_packet)
-    proof("32 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
+    proof("one stable owner and SSH Ed25519 key authenticate two repository-scoped packets with distinct repositories and bundles", prove_positive_packet)
+    proof("34 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
     proof("US-110 documents only corrected repository-owned candidate proof", validate_story_packet)
     if index["status"] == "complete":
         proof(

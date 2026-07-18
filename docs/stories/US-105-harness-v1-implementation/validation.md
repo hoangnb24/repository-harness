@@ -142,7 +142,8 @@ records actor, timestamp, taxonomy, minutes, and outcome effect.
 | P6 | Capability inheritance. | Repeated correction becomes a durable target capability; held-out agent discovers and uses it without original discussion. | Capability exists only in chat, evaluator points it out, held-out task is not comparable. | Not started; depends on Phases 5-6. |
 | P7 | Gardening convergence. | First run makes bounded relevant repair; second identical-condition run finds no repeat drift or unrelated rewrite. | Repeated churn, scope expansion, undocumented evaluator cleanup. | Not started; depends on Phases 5-6. |
 
-Release comparison additionally requires at least two unrelated eligible pilots,
+Release comparison additionally requires at least two eligible pilots for
+distinct canonical repositories and authenticated repository-bundle digests,
 no functional regression, all applicable cards, and one concrete fully
 accounted human-attention or context/validation-discovery improvement. A card
 may be inapplicable only with a written evaluator finding.
@@ -187,7 +188,9 @@ Planned deterministic fixtures include:
   platform-specific executable suffixes and line endings.
 - Signed P0-P7 card definitions, immutable target revisions, locked
   environments, seeded failures, baseline/candidate evidence, evaluator
-  findings, and intervention logs for at least two unrelated authorized pilots.
+  findings, and intervention logs for at least two authorized pilots with
+  distinct canonical repositories, repository-scoped owner IDs, and bundle
+  digests. The stable owner identity may be the same.
 - Pre-window and post-window retirement fixtures driven by approved policy
   values; no test substitutes invented dates or retention defaults.
 
@@ -287,7 +290,7 @@ asset sets, and non-reproducible generated fixtures.
 | 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | **Accepted.** Forty-six Rust tests (24 unit, 22 integration), eleven mechanical proof groups, 72 deterministic fixtures, 138 workspace Rust tests, evolved nine-group Phase 1 proof, workspace check/test/clippy, and full premerge passed. Independent security and behavior review accepted exact candidate `1b1add5`, integrated as `e77e028` with the identical Git tree. The canary/tree/architecture proof is not claimed as universal syscall evidence; US-107 records the boundary. |
 | 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | **Accepted.** Forty-three focused tests (eighteen recovery unit, twenty-five signed integration), all 18 install, 15 update, and 13 committed-update rollback checkpoints, 89 total `harness-core` tests, 181 workspace Rust tests, and 11/11 mechanical proof groups pass. Exact emitted-preview/private-write binding, commit/resume payload reauthentication, root-bound recovery ownership, damaged-evidence probe refusal, crash-resumable reverse rollback, manifest-last durability, safe conflict/race handling, read-only status, idempotency, and monotonic mode/receipt preservation are covered. Independent security and behavior review accepted exact candidate `1f957ce`, integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. |
 | 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | **Accepted.** Thirteen focused tests and ten mechanical proof groups pass; independent review accepted exact candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. |
-| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | **Corrected repository-owned candidate implemented by US-110; not accepted.** Exact dogfood argv, caller-pinned external SSH Ed25519 authentication, distinct key/bundle identities, enabled versioned acceptance tools, bundle-resolved revisions, complete packet custody/digests, strict timeline, evidence binding, and adversarial negatives exist. External trust and two real distinct owner/repository packets remain absent. |
+| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | **Corrected repository-owned candidate implemented by US-110; not accepted.** Exact dogfood argv, caller-pinned external SSH Ed25519 authentication, distinct canonical repositories/repository-scoped owner IDs/bundle identities, same-stable-owner-only key sharing, enabled versioned acceptance tools, bundle-resolved revisions, complete packet custody/digests, strict timeline, evidence binding, and adversarial negatives exist. External trust and two real distinct repository packets remain absent. |
 | 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | Not started; depends on Phase 5 acceptance. |
 | 7 | Fixture matrix, five-platform exact artifacts, authentication, identity, and release proof. | Not started; depends on Phase 6 acceptance. |
 | 8 | G8 closure/policy evidence, removal ledger, fresh-install/core-grammar/platform regressions. | Not started; depends on Phase 7, G8, and separate removal authorization/validation. |

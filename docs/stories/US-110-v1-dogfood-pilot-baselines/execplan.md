@@ -6,7 +6,8 @@ Status: **Evidence-oracle correction implemented / external enrollment and basel
 
 Produce a stable, reviewable repository-owned Phase 5 candidate that dogfoods
 V1 without path churn, freezes deterministic pilot evidence contracts, and
-fails closed until two external owners supply real baseline evidence.
+fails closed until two distinct repository scopes supply authorized real
+baseline evidence. One stable owner may authorize both scopes.
 
 ## Scope
 
@@ -54,9 +55,11 @@ Hard gates:
 - Validation integrity: missing baselines cannot be reconstructed after Phase
   6 candidate results exist.
 
-No new durable decision is needed because this packet implements the exact
-accepted Phase 5 protocol in `docs/REFACTOR_PLAN.md` and US-105 without
-changing its architecture, authorization, or acceptance rules.
+This correction records the user-approved acceptance semantics directly in
+`docs/REFACTOR_PLAN.md`, US-105, and US-110: repository and bundle independence
+remain mandatory, while stable owner identity and same-identity key reuse are
+separate concepts. It does not weaken the external trust boundary or create an
+authorization, trust record, pilot packet, or architecture change.
 
 ## Work Phases
 
@@ -67,16 +70,22 @@ changing its architecture, authorization, or acceptance rules.
 3. Pin the accepted Phase 4 source revision and map only current useful files;
    reject every rename or mapped deletion.
 4. Freeze P0-P7 and schemas, then bind caller-pinned external owner,
-   distinct signing-key fingerprint, repository bundle digest/resolved commit,
-   scope, complete packet manifest,
+   distinct repository-scoped owner ID, repository bundle digest/resolved
+   commit, scope, complete packet manifest,
    environment, eligibility, interventions, baseline, custody, publication,
    and pre-disclosure timeline under verified SSH Ed25519 authentication.
+   Keep separate per-repository evaluation keys recommended, but permit one
+   key only when the stable owner identity is the same across distinct
+   repository scopes.
 5. Execute only the three exact repository-native dogfood argv arrays with Git
    and ripgrep configuration/alias/exec bypasses disabled.
 6. Exercise an ephemeral cryptographic positive packet and adversarial
    reproductions for every confirmed oracle failure. Confirm the awaiting live
    index still returns exit 2 and a future complete index cannot skip packets,
-   reuse a signing key/bundle, or rely on tracked self-authorized trust.
+   reuse a repository/owner ID/bundle, claim one signing key for different
+   stable identities, or rely on tracked self-authorized trust. Positively
+   prove that the same stable owner and key can authenticate two distinct
+   repository scopes with different bundles.
 7. Run affected Phase 1-4 verifiers, formatting/lint/tests, diff checks, and
    commit the stable candidate in this worktree only.
 
@@ -89,7 +98,8 @@ Stop and request owner input if:
 - An external repository must be opened or changed without explicit owner
   authorization.
 - Phase 5 acceptance or Phase 6 execution is requested before two complete
-  baselines exist.
+  baselines for distinct canonical repositories and distinct authenticated
+  bundle digests exist.
 - A useful Repository Harness path would need to move or duplicate.
 - Verification would need to weaken a Phase 1-4 contract, the six-command
   core, four-command bridge, production gate, or archive custody rule.

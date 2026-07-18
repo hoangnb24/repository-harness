@@ -299,9 +299,11 @@ the controlling compatibility policy.
 
 1. Dogfood V1 against Repository Harness's current useful paths without a
    cosmetic move or mandatory ordinary-task command.
-2. Enroll at least two unrelated target repositories with immutable starting
-   revisions, eligibility findings, owners, evidence custody, and environment
-   locks.
+2. Enroll at least two distinct canonical target repositories with immutable
+   starting revisions, eligibility findings, repository-scoped owner IDs,
+   evidence custody, and environment locks. A stable owner identity may repeat
+   across repositories; one signing key may repeat only for that identity and
+   distinct repository scopes. Separate evaluation keys remain recommended.
 3. Freeze signed cards P0-P7 and run applicable baseline cards before candidate
    capability evaluation.
 4. Record written evaluator findings for any inapplicable card; do not silently
@@ -325,8 +327,9 @@ silently folded into this repository's commit.
 
 **Corrected current candidate:** US-110 maps useful paths in place, freezes
 P0-P7, closes ordinary execution to exact argv, verifies caller-pinned external
-SSH Ed25519 owner authentication, rejects reused key/bundle identities, resolves
-commits from manifest-bound bundles,
+SSH Ed25519 owner authentication, rejects reused repository/owner-ID/bundle
+identities and cross-stable-identity key reuse, resolves commits from
+manifest-bound bundles,
 and authenticates complete custody, environment, eligibility, interventions,
 baseline evidence, and pre-disclosure publication. External owner trust and
 live packets remain absent, so Phase 5 is not accepted and Phase 6 is closed.

@@ -86,7 +86,8 @@ unsupported exit 5 on Windows.
 US-110 supplies the corrected repository-owned Phase 5 candidate: an in-place
 map pinned to accepted Phase 4, fixed P0-P7 schemas, exact ordinary-task argv,
 offline SSH Ed25519 verification against caller-pinned out-of-repository owner
-material, distinct key/bundle identities, enabled versioned acceptance tools,
+material, distinct repository-scoped owner IDs/repositories/bundle identities,
+conditional same-stable-owner key sharing, enabled versioned acceptance tools,
 bundle-resolved commits, complete packet custody/digests, strict UTC ordering,
 and adversarial oracle verification:
 
@@ -100,8 +101,11 @@ The live gate remains intentionally blocked:
 scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines
 ```
 
-It exits 2 until two distinct owners/repositories/keys/bundles supply complete
-authenticated packets. If the index becomes `complete`, default/premerge
+It exits 2 until two distinct canonical repositories with distinct
+repository-scoped owner IDs and authenticated bundle digests supply complete
+authenticated packets. One stable owner identity may authorize both, and one
+key may be shared only for that stable identity across the distinct scopes. If
+the index becomes `complete`, default/premerge
 automatically runs the same full live gate and fails without an explicitly
 supplied external trust registry and pinned digest. This is candidate tracking,
 not acceptance, and Phase 6 has not started.

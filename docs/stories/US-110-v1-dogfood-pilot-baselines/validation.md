@@ -9,18 +9,22 @@ ephemeral actually signed positive packet, and adversarial rejection. Candidate
 status may pass the framework with no pilots. If the index ever says
 `complete`, the same default/premerge command automatically loads every packet,
 verifies owner trust/signature/repository/custody/timeline/evidence, and requires
-two independent pilots. Explicit live mode exits 2 now.
+two packets for distinct canonical repositories. Explicit live mode exits 2
+now.
 
 Exact Phase 5 acceptance still requires all of these together:
 
 1. No required Repository Harness path move or duplicate knowledge path.
 2. The fixed ordinary task executes only its exact allowlisted argv with zero
    V1 core commands and no Harness-only durable plan.
-3. At least two pairwise-distinct canonical repositories, owner identities,
-   SSH Ed25519 key fingerprints, and authenticated repository-bundle digests
-   are evaluated against a caller-pinned registry outside the repository. The
-   machine validates that input but does not claim to prove its authorization
-   provenance.
+3. At least two pairwise-distinct canonical repositories,
+   repository-scoped owner IDs, and authenticated repository-bundle digests are
+   evaluated against a caller-pinned registry outside the repository. The same
+   stable `owner_identity` may authorize both repositories. An SSH Ed25519 key
+   fingerprint may repeat only for that same stable identity across the
+   distinct repository scopes; separate per-repository evaluation keys remain
+   recommended. The machine validates that input but does not claim to prove
+   its authorization provenance.
 4. Each digest-bound repository bundle resolves the named immutable commit.
 5. Each offline SSH Ed25519 signature authenticates repository/commit/scope,
    card catalog, complete packet manifest, custody/publication identity,
@@ -57,18 +61,20 @@ result exists. Phase 5 is not accepted and Phase 6 remains closed.
 - Accepted Phase 4 source commit
   `04f953d0f4c8aa42689c1565178376143916c8b5` and target-owned path blob/SHA
   provenance.
-- One temporary synthetic Git repository/bundle and ephemeral SSH Ed25519 key,
-  supplied through an out-of-repository test registry with its exact digest and
-  deleted with its temporary directory. This proves input binding, not external
-  authorization provenance.
-- Thirty-two adversarial cases covering the confirmed forged packet,
+- Two temporary synthetic Git repositories/bundles and one ephemeral SSH
+  Ed25519 key, supplied through two repository-scoped authorization records for
+  one stable owner in an out-of-repository test registry with its exact digest
+  and deleted with its temporary directory. This proves the allowed shared-owner
+  topology and input binding, not external authorization provenance.
+- Thirty-four adversarial cases covering the confirmed forged packet,
   one-character/unknown signatures, malformed and
   post-disclosure times, fake repository/commit, unsigned intervention rewrite,
-  same-repository/same-owner pilots, absolute/traversal/symlink/mismatched
-  custody, shallow complete index, one-key/one-bundle aliased pilots, tracked
-  self-authorization, undeclared acceptance executables, inconsistent
-  tools/fake evidence, Git alias core-call bypass, subprocess OSError, and
-  missing ripgrep.
+  same-repository/same-owner-ID pilots, cross-identity key reuse, duplicate
+  trust-registry repository scope, absolute/traversal/symlink/mismatched
+  custody, shallow complete index, same-owner one-key/one-bundle aliased
+  pilots, tracked self-authorization, undeclared acceptance executables,
+  inconsistent tools/fake evidence, Git alias core-call bypass, subprocess
+  OSError, and missing ripgrep.
 - Empty tracked trust placeholder and pilot index with real blockers only.
 
 ## Commands
@@ -105,10 +111,11 @@ This is correct negative evidence, not Phase 5 acceptance.
 
 Correction-candidate results on 2026-07-18:
 
-- Corrected Phase 5 verifier: **5/5 proof groups passed**, including one
-  ephemeral packet whose SSH Ed25519 signature is actually verified and whose
-  named commit resolves from its authenticated Git bundle.
-- Adversarial suite: **32/32 rejected**, covering the confirmed oracle,
+- Corrected Phase 5 verifier: **5/5 proof groups passed**, including two
+  ephemeral repository-scoped packets for one stable owner and key; both SSH
+  Ed25519 signatures are verified, both named commits resolve, and their
+  repository and bundle identities differ.
+- Adversarial suite: **34/34 rejected**, covering the confirmed oracle,
   external/tracked trust boundary, repository/key/bundle identity, manifest,
   timeline, independence, custody, acceptance-tool/environment/evidence,
   subprocess, Git-alias, missing-ripgrep, and legacy negative cases.
@@ -129,5 +136,7 @@ Correction-candidate results on 2026-07-18:
   paths remain visible, and mandatory premerge requires its ending Git status
   to equal its starting Git status.
 
-Only two complete independently owned live packets and independent review can
-accept Phase 5; Phase 6 remains closed.
+Only two complete live packets for distinct canonical repositories,
+repository-scoped owner IDs, and authenticated bundle digests plus independent
+review can accept Phase 5. One stable owner may authorize both; Phase 6 remains
+closed.

@@ -14,12 +14,18 @@ mandatory failures, and evidence requirements. `CardCatalog` contains exactly
 P0-P7 and exact file digests.
 
 `TrustedOwner` is caller-supplied material outside both a pilot packet and the
-candidate repository: owner ID, stable owner identity, canonical HTTPS `.git`
-repository, exact authorization scope, `ssh-ed25519` public key, trust source,
-and strict RFC 3339 UTC trust time. Its exact bytes are pinned by a required
-CLI SHA-256. The tracked registry is an enforced-empty placeholder and cannot
-authorize a packet. The verifier authenticates against caller-supplied bytes;
-the caller, not the machine, establishes their independent authorization.
+candidate repository: a repository-scoped owner ID, stable owner identity,
+canonical HTTPS `.git` repository, exact authorization scope, `ssh-ed25519`
+public key, trust source, and strict RFC 3339 UTC trust time. Owner IDs and
+repository scopes are unique. The stable owner identity may repeat across
+distinct repositories. A key may repeat only for that same stable identity
+across distinct repository scopes; the same key claimed by different stable
+identities fails closed. Separate per-repository evaluation keys remain
+recommended, not mandatory. The registry's exact bytes are pinned by a
+required CLI SHA-256. The tracked registry is an enforced-empty placeholder
+and cannot authorize a packet. The verifier authenticates against
+caller-supplied bytes; the caller, not the machine, establishes their
+independent authorization.
 
 `PilotEnrollment` repeats the trusted owner ID, canonical repository, exact
 scope, authorization time, card catalog digest, and full Git starting commit.
@@ -80,8 +86,10 @@ Repository-owned dogfood flow:
 Authorized pilot flow:
 
 1. Require the tracked trust placeholder to be empty. For a complete live gate,
-   hash and load the explicit external trust registry and reject duplicate IDs
-   or signing-key fingerprints.
+   hash and load the explicit external trust registry. Reject duplicate
+   repository-scoped owner IDs or canonical repository scopes. Permit a
+   repeated signing-key fingerprint only when the stable owner identity is the
+   same and the repository scopes differ.
 2. Load the evidence index. A `complete` index automatically enters full live
    verification even under the default/premerge command.
 3. Resolve each relative pilot directory beneath the evidence root and reject
@@ -93,8 +101,10 @@ Authorized pilot flow:
    repository/owner/scope/revision/catalog/environment/intervention identities.
 8. Import the authenticated bundle and resolve the exact starting commit.
 9. Enforce trust/authorization/run/publication/disclosure chronology.
-10. Require pairwise-distinct canonical repositories, owners, signing-key
-    fingerprints, and authenticated repository-bundle digests.
+10. Require pairwise-distinct canonical repositories, repository-scoped owner
+    IDs, and authenticated repository-bundle digests. Stable owner identities
+    may repeat. Signing-key fingerprints may repeat only for the same stable
+    owner identity across the already-distinct repositories.
 
 Current candidate flow stops before step 3 because the index is awaiting owner
 authorization and has no pilots.
@@ -153,13 +163,17 @@ product equivalence remains Phase 7.
 
 ## Observability
 
-The verifier prints numbered proof groups. The positive packet uses an
-ephemeral generated test key and local synthetic Git bundle; neither is written
+The verifier prints numbered proof groups. The positive packets use an
+ephemeral generated test key and local synthetic Git bundles; none is written
 to live evidence. Adversarial tests reproduce forged signatures, fake commits
 and repositories, timestamp reversal, unsigned rewrites, shallow complete
-indexes, same-owner/repository/key/bundle pilots, tracked self-authorization,
-undeclared acceptance executables, custody escapes, environment/evidence
-inconsistency, Git alias bypass, missing ripgrep, and subprocess OSError.
+indexes, duplicate repository-scoped owner IDs/repositories/bundles,
+cross-identity signing-key reuse, same-owner one-key/one-bundle aliasing,
+tracked self-authorization, undeclared acceptance executables, custody escapes,
+environment/evidence inconsistency, Git alias bypass, missing ripgrep, and
+subprocess OSError. The positive integration fixture uses one stable owner and
+one key for two repository-scoped authorizations while proving that their
+canonical repositories and authenticated bundles differ.
 `tests/evals/test-phase5-premerge-trust-forwarding.sh` copies premerge into an
 isolated temporary harness and proves exact paired argv, both partial failures,
 CLI/environment bypass rejection, reserved-variable removal, and zero-argument

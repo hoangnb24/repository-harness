@@ -36,9 +36,23 @@ must supply an absolute, non-symlink registry path and its independently pinned
 SHA-256 with `--trusted-owner-registry` and
 `--trusted-owner-registry-sha256`. The registry records each `ssh-ed25519`
 public key, stable owner identity, canonical HTTPS `.git` repository identity,
-exact authorization scope, trust source, and trust time. A tracked entry can
-never authorize a pilot: the verifier requires the repository placeholder to
-remain empty and rejects an external registry located inside this repository.
+exact repository-scoped authorization ID and scope, trust source, and trust
+time. Repository scopes and authorization IDs are unique. The same stable
+`owner_identity` may appear in records for multiple repositories. One key may
+also appear in those records only when the stable owner identity is identical
+and every canonical repository scope is different. Reusing a key for two
+claimed identities or repeating one repository scope fails closed. A tracked
+entry can never authorize a pilot: the verifier requires the repository
+placeholder to remain empty and rejects an external registry located inside
+this repository.
+
+For example, one owner may authorize `repository-a.git` with `owner_id`
+`owner-repository-a` and `repository-b.git` with `owner_id`
+`owner-repository-b`. The two records may use one SSH key because their stable
+owner identity is the same. They still need different authenticated repository
+bundles. Separate per-repository evaluation keys reduce key-correlation and
+operational blast radius and remain recommended, but they are not an
+acceptance requirement.
 
 The verifier proves that packets authenticate under the exact caller-supplied
 registry bytes; it does not prove who authorized those bytes. The invoking
@@ -106,10 +120,12 @@ scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines
 If the index is changed to `complete`, the default/premerge invocation
 automatically enters the live gate and fails closed unless the two external
 trust arguments are supplied. With those inputs it verifies every packet and
-requires pairwise-distinct canonical repositories, owner IDs, owner identities,
-SSH Ed25519 key fingerprints, and authenticated repository-bundle SHA-256
-identities. A shallow complete index, one reused key, or one reused bundle can
-never pass.
+requires pairwise-distinct canonical repositories, repository-scoped owner
+IDs, and authenticated repository-bundle SHA-256 identities. Stable owner
+identities may repeat. An SSH Ed25519 key fingerprint may repeat only for that
+same stable owner across the distinct repository scopes. A shallow complete
+index, a repeated repository/owner ID/bundle, or one key claimed by different
+stable identities can never pass.
 
 Example live invocation after authorization exists:
 

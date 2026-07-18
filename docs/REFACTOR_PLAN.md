@@ -455,25 +455,40 @@ unsupported exit 5.
 ### Phase 5: Dogfood, Pilot Enrollment, And Baselines
 
 Dogfood the V1 map in Repository Harness's current layout. Enroll at least two
-unrelated target repositories, record immutable starting revisions and
-eligibility, and run the fixed baseline scenario cards before capability
+distinct canonical target repositories, record immutable starting revisions
+and eligibility, and run the fixed baseline scenario cards before capability
 evaluation. Acceptance: no required path move, no ordinary-task Harness call,
-and each enrolled pilot has a signed card set, environment lock, and baseline
-or documented inapplicability.
+and each enrolled repository has its own repository-scoped authorization ID,
+authenticated bundle digest, signed card set, environment lock, and baseline
+or documented inapplicability. The same stable owner identity may authorize
+both repositories.
 
 **Corrected repository-owned candidate; Phase 5 not accepted:** US-110 maps
 accepted Phase 4 paths in place, freezes P0-P7, and verifies exact ordinary
 argv. Live packets require caller-pinned, out-of-repository owner SSH Ed25519
-material, distinct signing-key and repository-bundle identities, canonical
-repository identity, a bundle-resolved commit, a complete
+material, distinct canonical repository identities, distinct
+repository-scoped owner IDs, distinct authenticated repository-bundle digests,
+a bundle-resolved commit, a complete
 digest-bound packet manifest, consistent environment/card evidence, direct
 intervention binding, and authenticated custody/publication before candidate
 disclosure. Default/premerge automatically loads packets when an index becomes
 complete; its only live-trust operator input is a paired absolute registry path
 and lowercase SHA-256 environment contract, forwarded without bypass flags.
-The tracked trust placeholder and live index remain empty; external trust
-authorization, two distinct real owners/repositories/keys/bundles, and
-independent acceptance are still required.
+The same stable owner identity may authorize both repository scopes. One
+signing key may be shared only for that same stable identity across the distinct
+repository scopes; using separate per-repository evaluation keys remains
+recommended, not required. The tracked trust placeholder and live index remain
+empty; external repository-scoped authorization, two distinct real
+repositories and bundles, and independent acceptance are still required.
+
+Concretely, `https://github.com/hoangnb24/harness-benchmark.git` and
+`https://github.com/hoangnb24/e-inna-brain.git` may use the same stable
+`owner_identity` (`hoangnb24`). They must still use different `owner_id` values
+because each ID authorizes one repository scope, and their authenticated bundle
+SHA-256 values must differ. They may use one signing key because the claimed
+stable identity matches, although separate evaluation keys are preferred. This
+example defines acceptable identity topology only; it is not pilot evidence,
+authorization, a trust record, or Phase 5 acceptance.
 
 ### Phase 6: Capability Evaluation
 
@@ -566,7 +581,9 @@ Release promotion requires all of the following:
 - target-owned adopted/mapped files survive install, update, and recovery;
 - all required active roles are ready or the release explicitly remains
   unresolved and is not promoted as ready;
-- at least two unrelated enrolled pilots and all applicable fixed cards;
+- at least two enrolled pilots with distinct canonical repositories,
+  repository-scoped owner IDs, and authenticated bundle digests, plus all
+  applicable fixed cards;
 - no functional regression against baseline and a concrete, fully accounted
   human-attention or context/validation-discovery improvement in at least one
   pilot;
@@ -582,7 +599,7 @@ Release promotion requires all of the following:
 | V0 support becomes permanent | Separate bridge identity, Decision 0012's exact window/support scope, and no V1 migrate grammar. |
 | Audit grows into an orchestrator | Mechanical no-target-execution and mutation-boundary tests. |
 | Pilots hide human labor | Fixed cards, exact environment, intervention taxonomy, and total attention accounting. |
-| Dogfood biases a portable core | Unrelated pilots and no language/framework branches in core install/audit. |
+| Dogfood biases a portable core | Distinct pilot repositories and no language/framework branches in core install/audit. |
 
 Deferred from V1 core: hosted telemetry, cross-user traces, automatic task
 classification, semantic context selection, language packs, universal scores,
