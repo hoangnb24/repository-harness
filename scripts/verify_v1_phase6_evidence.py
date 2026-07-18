@@ -87,14 +87,18 @@ ALLOWED_CHANGED_FILES = {
     "docs/templates/story.md",
     "docs/templates/validation-report.md",
     "release/contracts/v1/path-dispositions.json",
+    "release/contracts/v1/schemas/phase7-release-proof-v1.schema.json",
     "scripts/capture-v1-phase6-warm-v0.py",
     "scripts/harness-install-files.txt",
+    "scripts/validate-premerge.sh",
     "scripts/verify-v1-phase6-evidence.sh",
+    "scripts/verify-v1-phase7-release-proof.sh",
     PHASE5_VERIFIER_COMPATIBILITY_PATH,
     "scripts/verify_v1_phase1_contracts.py",
     "scripts/verify_v1_phase2_core.py",
     "scripts/verify_v1_phase3_recovery.py",
     "scripts/verify_v1_phase6_evidence.py",
+    "scripts/verify_v1_phase7_release_proof.py",
     "tests/evals/test-v1-phase6-evidence.sh",
     "tests/evals/v1-phase6/README.md",
     "tests/evals/v1-phase6/baseline-lock.json",
@@ -115,6 +119,29 @@ ALLOWED_CHANGED_FILES = {
     "tests/fixtures/v1-phase2/current-core-payload-index.json",
     "tests/fixtures/v1-phase2/current-core-payload-index.signatures.json",
     "tests/fixtures/v1-phase2/historical-phase1-story.md",
+    "tests/fixtures/v1-phase7/.gitattributes",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-linux-arm64",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-linux-arm64.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-linux-x64",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-linux-x64.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-macos-arm64",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-macos-arm64.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-macos-x64",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-macos-x64.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-windows-x64.exe",
+    "tests/fixtures/v1-phase7/artifacts/harness-cli-windows-x64.exe.sha256",
+    "tests/fixtures/v1-phase7/phase7-release-proof.json",
+    "tests/fixtures/v1-phase7/repositories/bridge/legacy/bridge-record.txt",
+    "tests/fixtures/v1-phase7/repositories/brownfield/existing.txt",
+    "tests/fixtures/v1-phase7/repositories/crlf/line-endings.txt",
+    "tests/fixtures/v1-phase7/repositories/custom-update/.harness/custom-update.txt",
+    "tests/fixtures/v1-phase7/repositories/docs-only/docs/guide.md",
+    "tests/fixtures/v1-phase7/repositories/fresh/README.md",
+    "tests/fixtures/v1-phase7/repositories/lf/line-endings.txt",
+    "tests/fixtures/v1-phase7/repositories/monorepo/apps/web/README.md",
+    "tests/fixtures/v1-phase7/repositories/nested-instructions/packages/api/AGENTS.md",
+    "tests/fixtures/v1-phase7/repositories/spaces-unicode/docs/Release notes/你好.md",
+    "tests/release/test-v1-phase7-release-proof.sh",
 }
 FORBIDDEN_PHASE6_FILENAMES = {
     "harness.db",
@@ -443,8 +470,12 @@ def verify_phase5_immutability(lock: dict[str, Any]) -> None:
 
 
 def changed_paths() -> set[str]:
-    tracked = run(["git", "diff", "--name-only", BASE_COMMIT, "--"]).decode("utf-8").splitlines()
-    untracked = run(["git", "ls-files", "--others", "--exclude-standard"]).decode("utf-8").splitlines()
+    tracked = run(
+        ["git", "diff", "--name-only", "-z", BASE_COMMIT, "--"]
+    ).decode("utf-8").split("\0")
+    untracked = run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"]
+    ).decode("utf-8").split("\0")
     return {path for path in tracked + untracked if path}
 
 
@@ -846,6 +877,68 @@ def verify_phase7_opening_gate() -> None:
             )
         finally:
             connection.close()
+
+
+def verify_phase7_proof_contract_boundary() -> None:
+    schema_document = load_json(
+        ROOT / "release/contracts/v1/schemas/phase7-release-proof-v1.schema.json"
+    )
+    check(
+        schema_document.get("$schema")
+        == "https://json-schema.org/draft/2020-12/schema",
+        "Phase 7 proof schema is not Draft 2020-12",
+    )
+    check(
+        schema_document.get("additionalProperties") is False,
+        "Phase 7 proof schema root is not closed",
+    )
+    document = load_json(
+        ROOT / "tests/fixtures/v1-phase7/phase7-release-proof.json"
+    )
+    check(
+        document.get("evidence_kind") == "fixture-only-non-production",
+        "Phase 7 opening evidence is no longer fixture-only and non-production",
+    )
+    promotion = document.get("promotion")
+    check(isinstance(promotion, dict), "Phase 7 promotion state is missing")
+    check(
+        promotion
+        == {
+            "phase6_live_evidence": "pending",
+            "phase7_results": "pending",
+            "phase7_acceptance": "blocked",
+            "production": False,
+            "promotable": False,
+            "tag_authorized": False,
+            "publish_authorized": False,
+            "promotion_authorized": False,
+            "production_signing_authorized": False,
+            "phase8": "closed",
+            "blockers": [
+                "deferred-phase6-live-p0-p7-evidence-pending",
+                "phase7-five-platform-results-pending",
+            ],
+        },
+        "Phase 7 fixture contract opened an acceptance or release authority",
+    )
+    artifacts = document.get("artifacts")
+    check(
+        isinstance(artifacts, list) and len(artifacts) == 5,
+        "Phase 7 fixture contract lost the five-platform inventory",
+    )
+    for artifact in artifacts:
+        check(
+            artifact.get("authentication", {}).get("state") == "pending"
+            and all(
+                artifact.get(result, {}).get("state") == "pending"
+                for result in (
+                    "build_result",
+                    "direct_binary_result",
+                    "installer_result",
+                )
+            ),
+            "Phase 7 fixture contract makes a platform pass claim",
+        )
 
 
 def self_test_phase5_compatibility_boundary(lock: dict[str, Any]) -> None:
@@ -2150,6 +2243,10 @@ def main() -> int:
         proof(
             "semantic Phase 7 engineering-only opening and isolated replay",
             verify_phase7_opening_gate,
+        )
+        proof(
+            "Phase 7 fixture contract remains non-production and promotion-blocked",
+            verify_phase7_proof_contract_boundary,
         )
         proof("no raw V0 database or archive in Phase 6 custody", scan_no_raw_state)
         registry = Path(arguments.trusted_owner_registry) if arguments.trusted_owner_registry else None

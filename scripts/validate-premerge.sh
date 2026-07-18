@@ -58,6 +58,7 @@ else
   scripts/verify-v1-phase5-evidence.sh
 fi
 tests/evals/test-phase5-premerge-trust-forwarding.sh
+tests/release/test-v1-phase7-release-proof.sh
 
 cargo fmt --all -- --check
 cargo test --workspace --locked

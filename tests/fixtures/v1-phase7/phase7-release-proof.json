@@ -1,0 +1,273 @@
+{
+  "schema": "repository-harness-v1-phase7-release-proof/v1",
+  "evidence_kind": "fixture-only-non-production",
+  "candidate": {
+    "source_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+    "v1_cli_identity": "harness-v1-core/unpromoted-fixture",
+    "v1_cli_sha256": "7befc96ed7cb2682d03a4da9887beeb94f28296e467eeeac5142030a37a532c7",
+    "template_release": "repository-harness-template/v1-fixture-only",
+    "template_sha256": "0e630b8654d7f72cba550bdb837681b8d15d8a7c7ee10cab936c5df2fffb9771",
+    "payload_index_sha256": "b60128ef75ba97f724361c6fd67c831d96609c80f4c39797ea23c3a31ccf0a7d",
+    "bridge_identity": "harness-v0-migrate/unpromoted-fixture",
+    "bridge_sha256": "7d1f8acc461de95654fe62c4cf4b9463f1a912b728ad73e025fb57697994e170",
+    "build_input_sha256": "8ed0b5a513d335eaee01a992b08a59a5a92e3acd1ad5e977076c6179c05bbc80",
+    "workflow_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+    "fixture_revision": "a58f92383f087705d257f9f2cd19129bfca192c374ddfd73870d5ccc6c80165b"
+  },
+  "fixtures": [
+    {
+      "case": "fresh",
+      "shape": "empty-adoption-root",
+      "condition": "no-managed-files",
+      "operation": "install",
+      "path": "repositories/fresh/README.md",
+      "sha256": "f2c94610444053b0c3b1cde7adb54bcfba84f215cf7b17107544b28391eb8dc6",
+      "expected_result": "owner content preserved and unresolved state reported without a platform claim",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "brownfield",
+      "shape": "existing-owner-content",
+      "condition": "pre-existing-file",
+      "operation": "install",
+      "path": "repositories/brownfield/existing.txt",
+      "sha256": "64c177521b52116599b44fb07a0088055d5553fc59f776fe5aae4afd1f0ecb16",
+      "expected_result": "existing owner bytes remain unchanged",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "nested-instructions",
+      "shape": "nested-authority-file",
+      "condition": "nested-AGENTS.md",
+      "operation": "audit",
+      "path": "repositories/nested-instructions/packages/api/AGENTS.md",
+      "sha256": "4bf3158b99dea99a5c95459d261a2ad0d28fe6c2a3e0e92f327ce159ca796b2a",
+      "expected_result": "nested authority is discovered as repository content and never executed",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "docs-only",
+      "shape": "documentation-only",
+      "condition": "no-language-manifest",
+      "operation": "install",
+      "path": "repositories/docs-only/docs/guide.md",
+      "sha256": "481ab7ad33739f45254663d994a09401f092b200be85a6a28c6859040f23260e",
+      "expected_result": "no target language or package manifest is inferred",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "monorepo",
+      "shape": "multi-root-path",
+      "condition": "application-leaf",
+      "operation": "audit",
+      "path": "repositories/monorepo/apps/web/README.md",
+      "sha256": "840ab93dd528609a51677738b68e53105eff01180dc0654bfbc5cb5e2b71faea",
+      "expected_result": "path is inventoried without package semantics",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "spaces-unicode",
+      "shape": "portable-path-bytes",
+      "condition": "spaces-and-unicode",
+      "operation": "update",
+      "path": "repositories/spaces-unicode/docs/Release notes/你好.md",
+      "sha256": "d7af26c1180911220a78926ebd5151e6536af174b2b1249852fe8b514a10c5e1",
+      "expected_result": "path and UTF-8 content remain byte-exact",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "lf",
+      "shape": "line-ending-fixture",
+      "condition": "LF",
+      "operation": "update",
+      "path": "repositories/lf/line-endings.txt",
+      "sha256": "4fdbc441ea7b546100e086ac1e4fc5ae6749b7314311c99db05be450eca12996",
+      "expected_result": "LF bytes remain unchanged",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "crlf",
+      "shape": "line-ending-fixture",
+      "condition": "CRLF",
+      "operation": "update",
+      "path": "repositories/crlf/line-endings.txt",
+      "sha256": "c8dba68945249de9b4faed72b89e041e3df77ffff885122599e6c2f7c65a68b2",
+      "expected_result": "CRLF bytes remain unchanged",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "custom-update",
+      "shape": "owner-adopted-managed-path",
+      "condition": "custom-update",
+      "operation": "update",
+      "path": "repositories/custom-update/.harness/custom-update.txt",
+      "sha256": "0eed0d097173ddbc6340a529e360fa5dd21b3bafdb0b9f8fe414131820261fdd",
+      "expected_result": "owner-adopted mapping survives a three-way update",
+      "platform_result": "not-run"
+    },
+    {
+      "case": "bridge",
+      "shape": "legacy-bridge-input",
+      "condition": "fixture-record-only",
+      "operation": "bridge-inspect",
+      "path": "repositories/bridge/legacy/bridge-record.txt",
+      "sha256": "b8365988d0b7bb0d99daeec83c51756c78ef32c250fb7ac7b3ccdbb6a83dd3bd",
+      "expected_result": "bridge input is read without V1 mutation",
+      "platform_result": "not-run"
+    }
+  ],
+  "fixture_support": [
+    {
+      "path": ".gitattributes",
+      "sha256": "1edeaa40ea3e099263a3767e448ef00beb7d4c0e02156682177cd8310fefebe7"
+    }
+  ],
+  "artifacts": [
+    {
+      "platform": "macos-arm64",
+      "target": "aarch64-apple-darwin",
+      "runner": "macos-15",
+      "artifact": "artifacts/harness-cli-macos-arm64",
+      "checksum": "artifacts/harness-cli-macos-arm64.sha256",
+      "artifact_sha256": "aa37d5cba714d2faaae17a6bb4734c1491a684b59b27e0c5150a7f33f913b115",
+      "checksum_sha256": "7e478daa70699ad77bf85a21744a4b03d693d9eadd8e905ab02a35300ed2dd22",
+      "authentication": {"state": "pending", "production_signing": false, "evidence": []},
+      "build_result": {"state": "pending", "evidence": []},
+      "direct_binary_result": {"state": "pending", "evidence": []},
+      "installer_result": {"state": "pending", "evidence": []},
+      "candidate": {
+        "source_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "v1_cli_identity": "harness-v1-core/unpromoted-fixture",
+        "v1_cli_sha256": "7befc96ed7cb2682d03a4da9887beeb94f28296e467eeeac5142030a37a532c7",
+        "template_release": "repository-harness-template/v1-fixture-only",
+        "template_sha256": "0e630b8654d7f72cba550bdb837681b8d15d8a7c7ee10cab936c5df2fffb9771",
+        "payload_index_sha256": "b60128ef75ba97f724361c6fd67c831d96609c80f4c39797ea23c3a31ccf0a7d",
+        "bridge_identity": "harness-v0-migrate/unpromoted-fixture",
+        "bridge_sha256": "7d1f8acc461de95654fe62c4cf4b9463f1a912b728ad73e025fb57697994e170",
+        "build_input_sha256": "8ed0b5a513d335eaee01a992b08a59a5a92e3acd1ad5e977076c6179c05bbc80",
+        "workflow_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "fixture_revision": "a58f92383f087705d257f9f2cd19129bfca192c374ddfd73870d5ccc6c80165b"
+      }
+    },
+    {
+      "platform": "macos-x64",
+      "target": "x86_64-apple-darwin",
+      "runner": "macos-15-intel",
+      "artifact": "artifacts/harness-cli-macos-x64",
+      "checksum": "artifacts/harness-cli-macos-x64.sha256",
+      "artifact_sha256": "3c08a277bf01df11ef77cd7cd9dc28171922a1dca6b5869b0e99dc76ad34e211",
+      "checksum_sha256": "d5f75fe100725c6ed880b380c5d204a189eb269805ccb5dc5c51c03f1dd5b688",
+      "authentication": {"state": "pending", "production_signing": false, "evidence": []},
+      "build_result": {"state": "pending", "evidence": []},
+      "direct_binary_result": {"state": "pending", "evidence": []},
+      "installer_result": {"state": "pending", "evidence": []},
+      "candidate": {
+        "source_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "v1_cli_identity": "harness-v1-core/unpromoted-fixture",
+        "v1_cli_sha256": "7befc96ed7cb2682d03a4da9887beeb94f28296e467eeeac5142030a37a532c7",
+        "template_release": "repository-harness-template/v1-fixture-only",
+        "template_sha256": "0e630b8654d7f72cba550bdb837681b8d15d8a7c7ee10cab936c5df2fffb9771",
+        "payload_index_sha256": "b60128ef75ba97f724361c6fd67c831d96609c80f4c39797ea23c3a31ccf0a7d",
+        "bridge_identity": "harness-v0-migrate/unpromoted-fixture",
+        "bridge_sha256": "7d1f8acc461de95654fe62c4cf4b9463f1a912b728ad73e025fb57697994e170",
+        "build_input_sha256": "8ed0b5a513d335eaee01a992b08a59a5a92e3acd1ad5e977076c6179c05bbc80",
+        "workflow_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "fixture_revision": "a58f92383f087705d257f9f2cd19129bfca192c374ddfd73870d5ccc6c80165b"
+      }
+    },
+    {
+      "platform": "linux-x64",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": "ubuntu-24.04",
+      "artifact": "artifacts/harness-cli-linux-x64",
+      "checksum": "artifacts/harness-cli-linux-x64.sha256",
+      "artifact_sha256": "f75fb1a0e0adb228474faf375b310872f8614be659a61bfedd0bbfccaedf3990",
+      "checksum_sha256": "f68ef708dc24d7fcee4b3f5c37b877c319e3c3ce4a58e54be345d79d636aa747",
+      "authentication": {"state": "pending", "production_signing": false, "evidence": []},
+      "build_result": {"state": "pending", "evidence": []},
+      "direct_binary_result": {"state": "pending", "evidence": []},
+      "installer_result": {"state": "pending", "evidence": []},
+      "candidate": {
+        "source_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "v1_cli_identity": "harness-v1-core/unpromoted-fixture",
+        "v1_cli_sha256": "7befc96ed7cb2682d03a4da9887beeb94f28296e467eeeac5142030a37a532c7",
+        "template_release": "repository-harness-template/v1-fixture-only",
+        "template_sha256": "0e630b8654d7f72cba550bdb837681b8d15d8a7c7ee10cab936c5df2fffb9771",
+        "payload_index_sha256": "b60128ef75ba97f724361c6fd67c831d96609c80f4c39797ea23c3a31ccf0a7d",
+        "bridge_identity": "harness-v0-migrate/unpromoted-fixture",
+        "bridge_sha256": "7d1f8acc461de95654fe62c4cf4b9463f1a912b728ad73e025fb57697994e170",
+        "build_input_sha256": "8ed0b5a513d335eaee01a992b08a59a5a92e3acd1ad5e977076c6179c05bbc80",
+        "workflow_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "fixture_revision": "a58f92383f087705d257f9f2cd19129bfca192c374ddfd73870d5ccc6c80165b"
+      }
+    },
+    {
+      "platform": "linux-arm64",
+      "target": "aarch64-unknown-linux-gnu",
+      "runner": "ubuntu-24.04-arm",
+      "artifact": "artifacts/harness-cli-linux-arm64",
+      "checksum": "artifacts/harness-cli-linux-arm64.sha256",
+      "artifact_sha256": "7e38f311be9b79a150612754a2e163f9bbac5ca5496c4423f4aeeb1873f6a566",
+      "checksum_sha256": "d4b1f0ceb48617173fa21f2a617546d6f74924f3e057c140d7fa0c03b8c14297",
+      "authentication": {"state": "pending", "production_signing": false, "evidence": []},
+      "build_result": {"state": "pending", "evidence": []},
+      "direct_binary_result": {"state": "pending", "evidence": []},
+      "installer_result": {"state": "pending", "evidence": []},
+      "candidate": {
+        "source_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "v1_cli_identity": "harness-v1-core/unpromoted-fixture",
+        "v1_cli_sha256": "7befc96ed7cb2682d03a4da9887beeb94f28296e467eeeac5142030a37a532c7",
+        "template_release": "repository-harness-template/v1-fixture-only",
+        "template_sha256": "0e630b8654d7f72cba550bdb837681b8d15d8a7c7ee10cab936c5df2fffb9771",
+        "payload_index_sha256": "b60128ef75ba97f724361c6fd67c831d96609c80f4c39797ea23c3a31ccf0a7d",
+        "bridge_identity": "harness-v0-migrate/unpromoted-fixture",
+        "bridge_sha256": "7d1f8acc461de95654fe62c4cf4b9463f1a912b728ad73e025fb57697994e170",
+        "build_input_sha256": "8ed0b5a513d335eaee01a992b08a59a5a92e3acd1ad5e977076c6179c05bbc80",
+        "workflow_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "fixture_revision": "a58f92383f087705d257f9f2cd19129bfca192c374ddfd73870d5ccc6c80165b"
+      }
+    },
+    {
+      "platform": "windows-x64",
+      "target": "x86_64-pc-windows-msvc",
+      "runner": "windows-latest",
+      "artifact": "artifacts/harness-cli-windows-x64.exe",
+      "checksum": "artifacts/harness-cli-windows-x64.exe.sha256",
+      "artifact_sha256": "8e7dcb922b8982fcc8c6f52a04fe0380795cceb8774cada172ba38642b6133a8",
+      "checksum_sha256": "26f07521bdac7defd9d2f9ae168fa8e109a7438f82c44cd7269215f6c0733725",
+      "authentication": {"state": "pending", "production_signing": false, "evidence": []},
+      "build_result": {"state": "pending", "evidence": []},
+      "direct_binary_result": {"state": "pending", "evidence": []},
+      "installer_result": {"state": "pending", "evidence": []},
+      "candidate": {
+        "source_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "v1_cli_identity": "harness-v1-core/unpromoted-fixture",
+        "v1_cli_sha256": "7befc96ed7cb2682d03a4da9887beeb94f28296e467eeeac5142030a37a532c7",
+        "template_release": "repository-harness-template/v1-fixture-only",
+        "template_sha256": "0e630b8654d7f72cba550bdb837681b8d15d8a7c7ee10cab936c5df2fffb9771",
+        "payload_index_sha256": "b60128ef75ba97f724361c6fd67c831d96609c80f4c39797ea23c3a31ccf0a7d",
+        "bridge_identity": "harness-v0-migrate/unpromoted-fixture",
+        "bridge_sha256": "7d1f8acc461de95654fe62c4cf4b9463f1a912b728ad73e025fb57697994e170",
+        "build_input_sha256": "8ed0b5a513d335eaee01a992b08a59a5a92e3acd1ad5e977076c6179c05bbc80",
+        "workflow_revision": "9da1c49e497b0fedcbd87c877da1186c8a6a582f",
+        "fixture_revision": "a58f92383f087705d257f9f2cd19129bfca192c374ddfd73870d5ccc6c80165b"
+      }
+    }
+  ],
+  "promotion": {
+    "phase6_live_evidence": "pending",
+    "phase7_results": "pending",
+    "phase7_acceptance": "blocked",
+    "production": false,
+    "promotable": false,
+    "tag_authorized": false,
+    "publish_authorized": false,
+    "promotion_authorized": false,
+    "production_signing_authorized": false,
+    "phase8": "closed",
+    "blockers": [
+      "deferred-phase6-live-p0-p7-evidence-pending",
+      "phase7-five-platform-results-pending"
+    ]
+  }
+}

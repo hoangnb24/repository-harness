@@ -1,22 +1,26 @@
 # US-112 V1 Phase 7 Portability And Release Proof Validation
 
-Status: **Opening contract only / executable Phase 7 proof pending / no
-promotion**
+Status: **Executable fixture/candidate contract implemented / all live Phase 6
+and Phase 7 results pending / no acceptance or promotion**
 
 ## Proof Strategy
 
-The opening slice proves only that Phase 7 engineering is authorized under a
-closed promotion boundary. Later implementation must prove one exact candidate
-across every fixture and platform. A passing macOS test cannot substitute for a
-missing Windows artifact, and a complete platform matrix cannot substitute for
-the deferred Phase 6 pilot comparison.
+This bounded slice proves that a closed evidence document can bind one exact
+candidate, every fixture byte, and exactly five unique pending platform
+artifact/checksum records while refusing acceptance and promotion. For example,
+changing the CRLF fixture to LF changes its digest and rejects the record;
+duplicating `linux-x64` leaves `linux-arm64` missing and rejects the matrix.
+It does not execute an artifact or prove a platform. Later implementation must
+prove one exact candidate across every fixture and platform. A passing macOS
+test cannot substitute for a missing Windows artifact, and a complete platform
+matrix cannot substitute for the deferred Phase 6 pilot comparison.
 
 ## Test Plan
 
 | Layer | Cases |
 | --- | --- |
-| Unit | Candidate identity, platform labels, normalized outcomes, closed evidence records. |
-| Integration | Fresh/brownfield/update/audit/recovery fixtures and authenticated artifact selection. |
+| Unit | Closed schema, duplicate-key rejection, exact candidate identity, platform/path uniqueness, digest and promotion-state negatives. |
+| Integration | Fixture-only fresh/brownfield/nested/docs/monorepo/path/line-ending/custom-update/bridge inventory; no live operation claim. |
 | E2E | Bash, PowerShell, and direct-binary install-to-audit flows. |
 | Platform | macOS arm64/x64, Linux x64/arm64, and Windows x64 exact artifacts. |
 | Performance | Build/proof duration recorded; no performance acceptance claim in the opening slice. |
@@ -80,11 +84,27 @@ workflow negatives. Conversation history alone cannot waive or prove them.
 
 ## Commands
 
-Commands will be added after the Phase 7 proof scripts exist. The opening slice
-uses documentation contracts, Phase 1-6 regressions, and full premerge only.
+```bash
+python3 -m py_compile scripts/verify_v1_phase7_release_proof.py
+scripts/verify-v1-phase7-release-proof.sh
+tests/release/test-v1-phase7-release-proof.sh
+scripts/verify-v1-phase7-release-proof.sh --require-promotable  # expected exit 2
+tests/docs/test-doc-contracts.sh
+scripts/verify-v1-phase6-evidence.sh --framework-only
+```
 
 ## Acceptance Evidence
 
-Decision 0016 and this packet open engineering only. No Phase 7 executable
-evidence, five-platform acceptance, pilot comparison, tag, publish, or
-promotion is claimed.
+The schema, deterministic fixture inventory, verifier, and adversarial focused
+test are implemented. All five artifact authentication/build/direct-binary/
+installer results remain `pending`; fixtures say `not-run`; Phase 6 live P0-P7
+evidence remains pending; every story proof flag remains unasserted; Phase 7
+acceptance, tag, publish, production signing, and promotion remain blocked; and
+Phase 8 remains closed.
+
+Full `scripts/validate-premerge.sh` was attempted after the focused ladder and
+stopped at the accepted Phase 1 verifier's fixed twelve-schema inventory. Its
+one-to-one Phase 1 path ledger would also need an explicit cross-phase decision
+for the new contract file. This slice does not modify that excluded earlier-
+phase verifier or ledger, so full premerge remains a named integration gap
+rather than a passing claim.

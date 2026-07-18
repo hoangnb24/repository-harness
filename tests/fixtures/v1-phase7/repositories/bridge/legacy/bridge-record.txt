@@ -1,0 +1,1 @@
+fixture-only legacy bridge input; no live database or archive bytes

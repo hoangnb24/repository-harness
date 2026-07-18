@@ -1,6 +1,7 @@
 # US-112 V1 Phase 7 Portability And Release Proof Exec Plan
 
-Status: **In progress: gate opened by Decision 0016; implementation pending**
+Status: **In progress: first proof-contract slice implemented; platform execution,
+acceptance, and promotion pending**
 
 ## Goal
 
@@ -56,13 +57,22 @@ work. Ordinary repository tasks do not require this plan.
 6. Verify identity/equivalence and promotion refusal; obtain independent
    review before any separate release action.
 
+The first bounded slice implements steps 3-4 only as a non-production fixture
+contract. It adds exact candidate identity, ten byte-bound repository-shape
+fixtures, five pending artifact/checksum placeholders, and fail-closed
+promotion negatives. It does not execute or satisfy step 5, and it does not
+assert any Phase 7 proof flag.
+
 ## Resume Capsule
 
 - Objective: implement Phase 7 portability and release proof without promotion.
-- Completed: Decision 0016 accepted; intake #9 recorded; US-112 packet opened.
-- Remaining: inventory, schemas, fixtures, runners, workflows, five-platform
-  execution, identity lock, and independent review.
-- Exact next action: `inspect .github/workflows and tests/release for the current five-platform artifact matrix and immutable promotion guards`
+- Completed: Decision 0016 accepted; intake #9 recorded; US-112 packet opened;
+  closed schema, fixture inventory, verifier, and focused adversarial test added.
+- Remaining: real platform runners/workflows, authenticated builds, direct-binary
+  and installer execution, cross-platform equivalence, deferred Phase 6 live
+  evidence, separately scoped Phase 1 contract-inventory integration, review,
+  acceptance, and any separately authorized release action.
+- Exact next action: `inspect scripts/verify_v1_phase1_contracts.py proof_schemas_and_examples and proof_path_inventory before authorizing a cross-phase inventory slice`
 - Validation ladder: documentation and JSON checks; focused fixture/proof
   tests; installer/direct-binary tests; five-platform workflow; full premerge;
   stop at the first failed boundary.
@@ -70,8 +80,9 @@ work. Ordinary repository tasks do not require this plan.
   deferred live experiments remain mandatory before acceptance/promotion.
 - Blockers and owners: external pilot custody/signatures remain with repository
   owners; production release authority remains with release maintainers.
-- Working state: branch `refactor/harness-v1` at the Decision 0016 opening
-  changeset; no tag, publish, or live pilot mutation.
+- Working state: branch `agent/phase7-proof-contract` based at `9da1c49`; the
+  candidate is fixture-only and no tag, publish, workflow-permission, or live
+  pilot mutation is authorized.
 
 ## Stop Conditions
 

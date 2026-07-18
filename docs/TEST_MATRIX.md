@@ -124,6 +124,23 @@ card, comparison, or pilot improvement. Decision 0016 records the separate
 owner framework acceptance and Phase 7 engineering opening; it does not supply
 Phase 7 acceptance, promotion, or Phase 8 progress.
 
+US-112's first bounded Phase 7 slice adds a Draft 2020-12 closed candidate and
+fixture evidence contract plus byte-bound fresh, brownfield, nested-instruction,
+docs-only, monorepo, spaces/Unicode, LF, CRLF, custom-update, and bridge cases.
+The focused gate rejects duplicate JSON keys, incomplete or colliding platform
+inventories, digest/candidate drift, and unsafe acceptance/release claims:
+
+```bash
+scripts/verify-v1-phase7-release-proof.sh
+tests/release/test-v1-phase7-release-proof.sh
+scripts/verify-v1-phase7-release-proof.sh --require-promotable  # expected exit 2
+```
+
+This is fixture-only evidence: all five platform results and authentication
+states are pending, no real platform has passed, deferred Phase 6 live evidence
+is pending, every US-112 proof flag remains unasserted, Phase 7 acceptance/tag/
+publish/signing/promotion remain blocked, and Phase 8 remains closed.
+
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256` variables; the focused forwarding

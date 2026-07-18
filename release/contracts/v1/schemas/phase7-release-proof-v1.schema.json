@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/phase7-release-proof-v1.schema.json",
+  "title": "Repository Harness V1 Phase 7 candidate and fixture proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "evidence_kind", "candidate", "fixtures", "fixture_support", "artifacts", "promotion"],
+  "properties": {
+    "schema": {"const": "repository-harness-v1-phase7-release-proof/v1"},
+    "evidence_kind": {"enum": ["fixture-only-non-production", "platform-evidence-non-production"]},
+    "candidate": {"$ref": "#/$defs/candidateIdentity"},
+    "fixtures": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/fixtureRecord"}
+    },
+    "fixture_support": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {"$ref": "#/$defs/fileRecord"}
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/artifactRecord"}
+    },
+    "promotion": {"$ref": "#/$defs/promotionState"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitRevision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+    },
+    "candidateIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_revision",
+        "v1_cli_identity",
+        "v1_cli_sha256",
+        "template_release",
+        "template_sha256",
+        "payload_index_sha256",
+        "bridge_identity",
+        "bridge_sha256",
+        "build_input_sha256",
+        "workflow_revision",
+        "fixture_revision"
+      ],
+      "properties": {
+        "source_revision": {"$ref": "#/$defs/gitRevision"},
+        "v1_cli_identity": {"type": "string", "minLength": 1},
+        "v1_cli_sha256": {"$ref": "#/$defs/sha256"},
+        "template_release": {"type": "string", "minLength": 1},
+        "template_sha256": {"$ref": "#/$defs/sha256"},
+        "payload_index_sha256": {"$ref": "#/$defs/sha256"},
+        "bridge_identity": {"type": "string", "minLength": 1},
+        "bridge_sha256": {"$ref": "#/$defs/sha256"},
+        "build_input_sha256": {"$ref": "#/$defs/sha256"},
+        "workflow_revision": {"$ref": "#/$defs/gitRevision"},
+        "fixture_revision": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "fixtureRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case", "shape", "condition", "operation", "path", "sha256", "expected_result", "platform_result"],
+      "properties": {
+        "case": {
+          "enum": ["fresh", "brownfield", "nested-instructions", "docs-only", "monorepo", "spaces-unicode", "lf", "crlf", "custom-update", "bridge"]
+        },
+        "shape": {"type": "string", "minLength": 1},
+        "condition": {"type": "string", "minLength": 1},
+        "operation": {"type": "string", "minLength": 1},
+        "path": {"$ref": "#/$defs/relativePath"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "expected_result": {"type": "string", "minLength": 1},
+        "platform_result": {"const": "not-run"}
+      }
+    },
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relativePath"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "resultState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "evidence"],
+      "properties": {
+        "state": {"enum": ["pending", "passed", "failed"]},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/relativePath"}}
+      }
+    },
+    "authenticationState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "production_signing", "evidence"],
+      "properties": {
+        "state": {"enum": ["pending", "authenticated", "failed"]},
+        "production_signing": {"const": false},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/relativePath"}}
+      }
+    },
+    "artifactRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform", "target", "runner", "artifact", "checksum", "artifact_sha256",
+        "checksum_sha256", "authentication", "build_result", "direct_binary_result",
+        "installer_result", "candidate"
+      ],
+      "properties": {
+        "platform": {"enum": ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64"]},
+        "target": {"type": "string", "minLength": 1},
+        "runner": {"type": "string", "minLength": 1},
+        "artifact": {"$ref": "#/$defs/relativePath"},
+        "checksum": {"$ref": "#/$defs/relativePath"},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "checksum_sha256": {"$ref": "#/$defs/sha256"},
+        "authentication": {"$ref": "#/$defs/authenticationState"},
+        "build_result": {"$ref": "#/$defs/resultState"},
+        "direct_binary_result": {"$ref": "#/$defs/resultState"},
+        "installer_result": {"$ref": "#/$defs/resultState"},
+        "candidate": {"$ref": "#/$defs/candidateIdentity"}
+      }
+    },
+    "promotionState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase6_live_evidence", "phase7_results", "phase7_acceptance", "production",
+        "promotable", "tag_authorized", "publish_authorized", "promotion_authorized",
+        "production_signing_authorized", "phase8", "blockers"
+      ],
+      "properties": {
+        "phase6_live_evidence": {"const": "pending"},
+        "phase7_results": {"const": "pending"},
+        "phase7_acceptance": {"const": "blocked"},
+        "production": {"const": false},
+        "promotable": {"const": false},
+        "tag_authorized": {"const": false},
+        "publish_authorized": {"const": false},
+        "promotion_authorized": {"const": false},
+        "production_signing_authorized": {"const": false},
+        "phase8": {"const": "closed"},
+        "blockers": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {"const": "deferred-phase6-live-p0-p7-evidence-pending"},
+            {"const": "phase7-five-platform-results-pending"}
+          ],
+          "items": false
+        }
+      }
+    }
+  }
+}
