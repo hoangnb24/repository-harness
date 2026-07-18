@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-pilot-card/v1",
+  "card_id": "P3",
+  "card_revision": 1,
+  "scenario": "Interrupted complex task",
+  "prompt": "Begin the supplied complex task, stop at the fixed interruption point, then give a fresh agent only the locked repository and target-owned durable plan. Resume and pass the original target acceptance without evaluator reconstruction.",
+  "applicability": "Applicable when the pilot owner can authorize an isolated interruption and fresh-agent continuation.",
+  "acceptance_tests": ["The first agent records decisions, progress, remaining work, and validation in the target-owned plan.", "The fresh agent resumes without human reconstruction.", "The original acceptance check passes under the unchanged environment lock."],
+  "mandatory_failures": ["The evaluator reconstructs missing state.", "The durable plan omits a material decision or remaining check.", "Environment drift is accepted without rerun."],
+  "evidence_requirements": ["Fixed interruption point and both agent transcripts.", "Durable plan before and after resumption.", "Environment digest and final target-native proof."]
+}

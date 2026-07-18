@@ -1,6 +1,9 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Implementation in progress / Phases 1-3 accepted / Phase 4 candidate awaiting independent acceptance / Phases 5-8 not started**
+Status: **Implementation in progress / Phases 1-4 accepted / Phase 5 candidate awaiting external pilot evidence and independent acceptance / Phases 6-8 not started**
+
+Phase 6 remains not started: a repository-owned Phase 5 contract candidate is
+not a substitute for two authorized external pilot baselines.
 
 Decision 0014 supersedes this packet's former bridge conversion/journal matrix.
 The Phase 4 acceptance oracle is archive-only: exact capture/export,
@@ -34,19 +37,21 @@ atomic commit, conversion safety has failed. A later successful `resume`, pilot
 run, or Windows artifact cannot repair that proof; Phase 4 returns to work and
 all dependent evidence is rerun for the corrected candidate.
 
-Phase 2 core implementation proof and independent review pass; Phase 3
-implementation, validation, and independent review pass; Phase 4-8 product
-proof remains prospective. No production-promoted mutation/recovery
-adapter, five-platform artifact set, pilot result, bridge, or later phase
-acceptance exists. Decision
+Phase 2 core implementation proof and independent review pass; Phase 3 and
+Phase 4 implementation, validation, and independent review pass. US-110 adds
+the repository-owned Phase 5 candidate, but no external pilot baseline or
+Phase 5 acceptance exists. No production-promoted mutation/recovery adapter,
+five-platform artifact set, pilot result, or Phase 6-8 acceptance exists.
+Decision
 0012 is authorization evidence: Gate G0 is approved/open, the window is
 `2027-01-01T00:00:00Z` through `2027-12-31T23:59:59Z`, inclusive, local
 archives are retained indefinitely, bridge release assets are retained through
 `2028-06-30T23:59:59Z`, inclusive, and Phase 8 is eligible no earlier than
 `2028-01-01T00:00:00Z` after all closure conditions pass. Decision 0013 and
 US-106 implement and prove Phase 1; US-107 implements and proves Phase 2;
-US-108 implements, validates, and independently accepts Phase 3. Phases 4-8
-remain not-started dependencies. Only the Phase 1-3 matrix rows are passed.
+US-108 implements, validates, and independently accepts Phase 3; US-109 does
+the same for Phase 4. Phase 5 remains an unaccepted candidate and Phases 6-8
+remain not-started dependencies. Only the Phase 1-4 matrix rows are accepted.
 
 ## Test Plan
 
@@ -81,17 +86,17 @@ remain not-started dependencies. Only the Phase 1-3 matrix rows are passed.
 | `update` | Replace-if-base; supported manifest transition; explicit three-way review; idempotent rerun. | Edited base; target-owned asset; unsupported downgrade; interrupted write; payload/template/CLI range mismatch. | Policy matrix, conflict output, backups, unchanged target bytes, no false success, rerun equivalence. | **Phase 3 accepted:** managed-file conflict, managed-block interior replacement, target-owned preservation, archive-receipt retention, backups, atomic exchange, status probe, and recovery pass. |
 | `audit` | Ready exit 0; unresolved exit 2; deterministic repeated result. | Bad schema/path/digest/marker/link/forbidden field exit 3; malicious target-tool hook; V0-only repository. | Golden machine/human output, filesystem/process monitor showing no writes/spawns, no V0 database open, stable exits. | **Phase 2 accepted:** pinned Unix snapshot tests, deterministic structural exits, unchanged canary tree/sentinel, and no process/DB port. This is not universal event proof; safe non-Unix inspection and portable event evidence remain Phase 7. |
 | `scaffold` | Explicit selected neutral template at safe target path; repeated preview. | Stack inference; overwrite existing target content; lifecycle/task record creation; unsafe path. | Payload/template identity, exact preview/diff, collision rejection, manifest/provenance result, no operational fields. | **Phase 3 accepted:** exact authenticated creation, target-owned/never-auto-patch manifest state, and repeated exact idempotent no-op pass. |
-| `status` | Fresh-v1 or brownfield-v1, with or without an authenticated archive receipt; valid and unresolved exit 0. | Live V0 without explicit archive receipt, foreign custody, or corrupt manifest exit 3; attempt to repair state. | Mode/identity/readiness golden outputs, read-only filesystem/database/process proof, exact invalid reason. | **Phase 2 accepted; Phase 4 receipt case implemented locally:** structural states remain deterministic/read-only; non-Unix safe handles remain Phase 7. |
+| `status` | Fresh-v1 or brownfield-v1, with or without an authenticated archive receipt; valid and unresolved exit 0. | Live V0 without explicit archive receipt, foreign custody, or corrupt manifest exit 3; attempt to repair state. | Mode/identity/readiness golden outputs, read-only filesystem/database/process proof, exact invalid reason. | **Phases 2 and 4 accepted:** structural states remain deterministic/read-only; non-Unix safe handles remain Phase 7. |
 | `version` and `--version` | Same V1 version and accepted manifest/template ranges on every platform. | Alias to V0, mismatched output, unrecognized/downgrade range. | Byte-equivalent normalized output, binary identity/digest, grammar snapshot with only six commands. | **Phase 2 accepted:** native alias output and exact six-command grammar match. Five-platform promoted artifacts remain Phase 7. |
 
 ### V0 Bridge Commands
 
 | Requirement | Positive cases | Negative / boundary cases | Required acceptance proof | Status |
 | --- | --- | --- | --- | --- |
-| `inspect` | Recognized V0 schema 1..=13 and published changeset grammar; known provenance; companion layout. | Schema outside range; unreadable DB; arbitrary `.harness`; foreign metadata. | Read-only-open instrumentation, categorized inventory, before/after source hashes, unsupported/preserved output. | Implemented locally; independent Phase 4 acceptance pending. |
-| `export` | Neutral `repository-harness-v0-export/v1` for every supported category. | Unknown category, corrupt row, grammar outside range, partial output. | Schema validation, stable category/source/payload digests, no V0 task fields in V1 manifest, safe retry. | Implemented locally; independent Phase 4 acceptance pending. |
-| `archive` | Frozen supported input; encrypted default or explicit plaintext; unique final ID. | Source drift; tamper; foreign custody; abandoned staging; publication collision. | DB/WAL/SHM exact hashes, member/aggregate digests, no-replace retry, no V1 target mutation. | Implemented locally; independent Phase 4 acceptance pending. |
-| `version` | Bridge version, platform, schema 1..=13, exact changeset grammar range, compatibility statement. | Pretends to be V1 core/V0 CLI; range differs from release metadata; unsupported platform. | Binary/index identity match, cross-platform golden output, separate artifact/payload scan. | Implemented locally; promoted five-platform identity remains Phase 7. |
+| `inspect` | Recognized V0 schema 1..=13 and published changeset grammar; known provenance; companion layout. | Schema outside range; unreadable DB; arbitrary `.harness`; foreign metadata. | Read-only-open instrumentation, categorized inventory, before/after source hashes, unsupported/preserved output. | **Phase 4 accepted.** |
+| `export` | Neutral `repository-harness-v0-export/v1` for every supported category. | Unknown category, corrupt row, grammar outside range, partial output. | Schema validation, stable category/source/payload digests, no V0 task fields in V1 manifest, safe retry. | **Phase 4 accepted.** |
+| `archive` | Frozen supported input; encrypted default or explicit plaintext; unique final ID. | Source drift; tamper; foreign custody; abandoned staging; publication collision. | DB/WAL/SHM exact hashes, member/aggregate digests, no-replace retry, no V1 target mutation. | **Phase 4 accepted.** |
+| `version` | Bridge version, platform, schema 1..=13, exact changeset grammar range, compatibility statement. | Pretends to be V1 core/V0 CLI; range differs from release metadata; unsupported platform. | Binary/index identity match, cross-platform golden output, separate artifact/payload scan. | **Phase 4 accepted;** promoted five-platform identity remains Phase 7. |
 
 ### Supported Platforms
 
@@ -193,10 +198,9 @@ fabricated from this planning packet.
 
 ## Commands
 
-Future product/test command paths will be added only when their scripts and
-binaries exist. This packet must not present imaginary commands as runnable
-proof. The current planning change is verified with read-only shell checks and
-Git only:
+Product/test commands are listed only when their scripts and binaries exist.
+The Phase 5 candidate adds its focused executable proof without treating the
+empty external-pilot gate as success:
 
 ```bash
 set -e
@@ -205,7 +209,7 @@ story=docs/stories/US-105-harness-v1-implementation
 for file in overview.md design.md execplan.md validation.md
 do
   test -s "$story/$file"
-rg -q '^Status: \*\*Implementation in progress / Phases 1-3 accepted / Phases 4-8 not started\*\*$' "$story/$file"
+rg -q '^Status: \*\*Implementation in progress / Phases 1-4 accepted / Phase 5 .* / Phases 6-8 not started\*\*$' "$story/$file"
 done
 
 for heading in \
@@ -248,20 +252,22 @@ done
 rg -q 'Gate G0 is approved/open' "$story/design.md"
 rg -q 'Current state: approved/open by Decision 0012' "$story/execplan.md"
 rg -q 'Phase 1 contract' "$story/validation.md"
-rg -q 'Phases 4-8 remain' "$story/validation.md"
+rg -q 'Phases 6-8' "$story/validation.md"
 
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
+scripts/verify-v1-phase4-bridge.sh
+scripts/verify-v1-phase5-evidence.sh
 git diff --check
 git status --short
 ```
 
 ## Acceptance Evidence
 
-Current product evidence: **Phases 1-3 accepted; Phase 4 implemented and
-locally validated with independent acceptance pending; Phases 5-8 not
-started**.
+Current product evidence: **Phases 1-4 accepted; repository-owned Phase 5
+candidate implemented with external pilot evidence and independent acceptance
+pending; Phases 6-8 not started**.
 Decision 0012 is G0
 authorization evidence; Decision 0013 is the accepted security/data-integrity
 decision; US-106 supplies versioned contracts, frozen V0 inputs, complete
@@ -280,8 +286,8 @@ asset sets, and non-reproducible generated fixtures.
 | 1 | Contracts, schemas, disposition ledger, fixtures, G0 reference, CI negatives. | **Passed.** Nine focused proof groups and full premerge passed; Decision 0013 and US-106 are durable evidence. |
 | 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | **Accepted.** Forty-six Rust tests (24 unit, 22 integration), eleven mechanical proof groups, 72 deterministic fixtures, 138 workspace Rust tests, evolved nine-group Phase 1 proof, workspace check/test/clippy, and full premerge passed. Independent security and behavior review accepted exact candidate `1b1add5`, integrated as `e77e028` with the identical Git tree. The canary/tree/architecture proof is not claimed as universal syscall evidence; US-107 records the boundary. |
 | 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | **Accepted.** Forty-three focused tests (eighteen recovery unit, twenty-five signed integration), all 18 install, 15 update, and 13 committed-update rollback checkpoints, 89 total `harness-core` tests, 181 workspace Rust tests, and 11/11 mechanical proof groups pass. Exact emitted-preview/private-write binding, commit/resume payload reauthentication, root-bound recovery ownership, damaged-evidence probe refusal, crash-resumable reverse rollback, manifest-last durability, safe conflict/race handling, read-only status, idempotency, and monotonic mode/receipt preservation are covered. Independent security and behavior review accepted exact candidate `1f957ce`, integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. |
-| 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | **Candidate passes locally; independent acceptance pending.** Thirteen focused tests and ten mechanical proof groups pass; Phase 5 remains closed. |
-| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | Not started; depends on Phase 4 acceptance. |
+| 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | **Accepted.** Thirteen focused tests and ten mechanical proof groups pass; independent review accepted exact candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. |
+| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | **Repository-owned candidate implemented by US-110; not accepted.** In-place map, fixed P0-P7 schemas/cards, zero-core-command ordinary-task proof, and positive/negative verifier exist. Two authorized external enrollments, signatures, environment locks, and baseline results remain absent. |
 | 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | Not started; depends on Phase 5 acceptance. |
 | 7 | Fixture matrix, five-platform exact artifacts, authentication, identity, and release proof. | Not started; depends on Phase 6 acceptance. |
 | 8 | G8 closure/policy evidence, removal ledger, fresh-install/core-grammar/platform regressions. | Not started; depends on Phase 7, G8, and separate removal authorization/validation. |

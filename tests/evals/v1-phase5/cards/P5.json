@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-pilot-card/v1",
+  "card_id": "P5",
+  "card_revision": 1,
+  "scenario": "Direct feedback repair",
+  "prompt": "From the locked clean worktree, diagnose and repair the seeded failure using the named target feedback surfaces, then run the target's acceptance proof.",
+  "applicability": "Applicable when at least one target-owned feedback surface is available and owner-authorized; unavailable surfaces are recorded, not invented.",
+  "acceptance_tests": ["The transcript shows use of applicable tests/compiler, CI/build, review, rendered docs/links, runtime/UI/observability, deployment, or recovery feedback.", "The named target acceptance passes from a clean starting revision.", "No candidate functional regression is introduced."],
+  "mandatory_failures": ["The evaluator supplies hidden evidence without an intervention event.", "The agent does not use a target feedback surface.", "The final target acceptance fails."],
+  "evidence_requirements": ["Clean revision and seed identity.", "Feedback commands or captured target-owned feedback with timestamps.", "Final acceptance output and intervention log."]
+}

@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-3 accepted / Phase 4 candidate awaiting independent acceptance / Phases 5-8 not started**
+Status: **Implementation in progress / Phases 1-4 accepted / Phase 5 candidate awaiting external pilot evidence and independent acceptance / Phases 6-8 not started**
 
 Decision 0014 supersedes every Phase 4 automatic-conversion step below. The
 authoritative replacement is US-109: four bridge commands, append-only archive
@@ -16,9 +16,10 @@ before its approved obligations end.
 Decision 0012 supplies the exact compatibility-window, retention, support, and
 retirement policy. Gate G0 is approved/open. Decision 0013 and US-106 implement
 and prove Phase 1; US-107 implements and proves Phase 2; US-108 implements,
-proves, and independently accepts Phase 3. US-109 implements and locally
-validates Phase 4; independent acceptance is pending. Phases 5-8 remain
-dependent on accepted evidence from their predecessors.
+proves, and independently accepts Phase 3. US-109 implements, validates, and
+independently accepts Phase 4. US-110 implements the repository-owned Phase 5
+candidate; external pilot baselines and independent acceptance remain pending.
+Phases 6-8 remain dependent on accepted evidence from their predecessors.
 
 ## Scope
 
@@ -119,13 +120,15 @@ No phase may borrow acceptance from a later phase. For example, a successful
 pilot cannot excuse an unauthenticated payload, and a passing platform build
 cannot excuse archive capture that mutates a target or overwrites foreign data.
 
-Current phase state: Phases 1-3 are implemented and accepted. Independent
+Current phase state: Phases 1-4 are implemented and accepted. Independent
 security and behavior review accepted exact Phase 2 candidate `1b1add5`, which
 was integrated as `e77e028` with the identical Git tree. Independent security
 and behavior review accepted exact Phase 3 candidate `1f957ce`, integrated as
-`8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 is implemented
-locally under Decision 0014 and awaits independent acceptance;
-Phases 5-8 remain closed and require their own evidence and gates.
+`8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 was accepted at exact
+candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. Phase 5 has a
+repository-owned US-110 candidate but remains unaccepted pending two external
+pilot baselines. Phases 6-8 remain closed and require their own evidence and
+gates.
 
 Anticipated paths below identify review surfaces, not permission to modify
 them in this planning change. New filenames remain subject to the Phase 1
@@ -243,7 +246,7 @@ committed-update rollback checkpoints, 89 total `harness-core` tests, 181
 workspace Rust tests, and 11/11 Phase 3 mechanical proof groups. Phase 1/2 gates
 remain unchanged. The evidence covers exact emitted-preview binding, root-bound
 recovery ownership, and read-only refusal of damaged staged/backup probe
-evidence. Phase 4 is unblocked but not started; Phase 7 remains closed pending
+evidence. Phase 4 is accepted; Phase 7 remains closed pending
 its production and platform evidence.
 
 ### Phase 4: Isolated V0 Bridge
@@ -251,8 +254,7 @@ its production and platform evidence.
 **Dependency:** Phase 3 provides a stable V1 manifest commit/recovery target;
 Phase 1 has frozen the bridge compatibility and archive contracts.
 
-**Status:** implemented and locally validated by US-109; independent
-acceptance pending.
+**Status:** implemented, validated, and independently accepted by US-109.
 
 **Implementation:**
 
@@ -278,7 +280,8 @@ custody preservation; Phase 3 receipt recovery; and core artifact scan proving
 bridge/V0 reader absence.
 
 **Current evidence:** 13 focused bridge tests and 10/10 Phase 4 mechanical
-proof groups pass. Phase 5 remains closed pending independent acceptance;
+proof groups pass. Independent review accepted exact candidate `880cb9b` with
+identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked;
 Windows safe capture/atomic commit and promoted five-platform artifacts remain
 Phase 7 evidence.
 
@@ -319,6 +322,12 @@ inapplicability findings; complete baseline intervention/time accounting.
 protocol/evidence references are reviewable separately from candidate outcomes.
 External pilot changes, if any, remain in their repositories and are never
 silently folded into this repository's commit.
+
+**Current candidate:** US-110 maps useful Repository Harness paths in place,
+freezes P0-P7 schemas and digests, records an executable zero-core-command
+ordinary task, and rejects incomplete or candidate-contaminated baselines.
+External pilot authorization and baseline evidence are absent, so Phase 5 is
+not accepted and Phase 6 remains closed.
 
 ### Phase 6: Capability Evaluation
 

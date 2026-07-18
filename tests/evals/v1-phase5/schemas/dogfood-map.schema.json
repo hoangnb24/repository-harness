@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/dogfood-map.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "repository", "source_revision", "mapping_policy", "roles"],
+  "properties": {
+    "schema": {"const": "repository-harness-dogfood-map/v1"}, "repository": {"const": "repository-harness"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "mapping_policy": {"const": "adopt-useful-paths-in-place"},
+    "roles": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["role", "path", "activation", "ownership", "origin", "required", "update_policy", "source_blob", "source_sha256"], "properties": {"role": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}, "path": {"type": "string", "minLength": 1}, "activation": {"const": "active"}, "ownership": {"const": "target-owned"}, "origin": {"const": "brownfield-mapped"}, "required": {"type": "boolean"}, "update_policy": {"const": "never-auto-patch"}, "source_blob": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}
+  }
+}

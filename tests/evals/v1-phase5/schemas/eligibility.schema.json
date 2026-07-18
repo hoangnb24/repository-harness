@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/eligibility.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "evaluated_at", "evaluator", "cards"],
+  "properties": {
+    "schema": {"const": "repository-harness-pilot-eligibility/v1"}, "pilot_id": {"type": "string", "minLength": 1},
+    "evaluated_at": {"type": "string", "minLength": 1}, "evaluator": {"type": "string", "minLength": 1},
+    "cards": {"type": "array", "minItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "disposition", "finding"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "disposition": {"enum": ["eligible", "inapplicable"]}, "finding": {"type": "string"}}}}
+  }
+}

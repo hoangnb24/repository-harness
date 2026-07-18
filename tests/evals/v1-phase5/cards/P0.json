@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-pilot-card/v1",
+  "card_id": "P0",
+  "card_revision": 1,
+  "scenario": "Install or brownfield adoption",
+  "prompt": "Using the supplied evaluation subject, adopt this repository without moving existing useful files. Report every selected role, mapped path, ownership, readiness state, and target-owned before/after digest.",
+  "applicability": "Applicable to every enrolled pilot.",
+  "acceptance_tests": ["Selected paths are valid and existing useful paths remain in place.", "Every target-owned before/after digest is identical.", "The reported ready or unresolved state matches the structural result."],
+  "mandatory_failures": ["A target-owned byte is overwritten.", "The evaluator guesses completion or reports the wrong readiness state.", "The installed subject identity is missing."],
+  "evidence_requirements": ["Exact subject identity and command transcript.", "Path mapping and target-owned before/after SHA-256 report.", "Manifest, status, and audit outputs with exit codes."]
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/baseline-result.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "run_kind", "starting_revision", "card_set_sha256", "environment_sha256", "cards", "intervention_log", "result_sha256"],
+  "properties": {
+    "schema": {"const": "repository-harness-baseline-result/v1"}, "pilot_id": {"type": "string", "minLength": 1},
+    "run_kind": {"const": "baseline"}, "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "card_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "environment_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cards": {"type": "array", "minItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "outcome", "evidence"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "outcome": {"enum": ["passed", "failed", "inapplicable"]}, "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}}},
+    "intervention_log": {"type": "string", "minLength": 1}, "result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

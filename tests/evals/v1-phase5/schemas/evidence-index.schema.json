@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/evidence-index.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "phase", "status", "card_catalog", "pilots", "blockers"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase5-evidence-index/v1"}, "phase": {"const": 5},
+    "status": {"enum": ["candidate-awaiting-pilot-authorization", "complete"]},
+    "card_catalog": {"type": "string", "minLength": 1}, "pilots": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "blockers": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

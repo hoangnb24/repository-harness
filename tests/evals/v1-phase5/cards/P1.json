@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-pilot-card/v1",
+  "card_id": "P1",
+  "card_revision": 1,
+  "scenario": "V0 archive-only cutover",
+  "prompt": "If this immutable pilot revision contains recognized supported V0 state, capture exact archive/export evidence, exercise the selected kill point, and initialize fresh V1 from the archive receipt without moving documents or mutating V0. Otherwise record a signed evaluator finding that names the inspected paths and why P1 is inapplicable.",
+  "applicability": "Eligible only when the locked starting revision contains supported V0 schema and recognized provenance; otherwise a written evaluator finding is mandatory.",
+  "acceptance_tests": ["Eligible runs preserve V0 source bytes and document paths while binding exact archive/export/receipt digests.", "The selected kill point recovers through the owning Phase 3 or Phase 4 contract.", "Inapplicable runs contain a concrete evaluator finding instead of an omitted card."],
+  "mandatory_failures": ["V0 data or a target document changes.", "An eligible run lacks an archive or receipt digest.", "P1 is omitted or called inapplicable without a finding."],
+  "evidence_requirements": ["Eligibility finding for P1.", "Source before/after digests and archive/export/receipt identities when eligible.", "Kill-point transcript or signed inapplicability finding."]
+}

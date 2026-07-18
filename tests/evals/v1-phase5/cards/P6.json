@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-pilot-card/v1",
+  "card_id": "P6",
+  "card_revision": 1,
+  "scenario": "Capability inheritance",
+  "prompt": "Turn the supplied repeated correction into the smallest durable target capability, then give a held-out comparable task to a fresh agent without the original discussion or evaluator pointers.",
+  "applicability": "Applicable when the owner supplies a repeated failure/correction and authorizes a held-out comparable task.",
+  "acceptance_tests": ["The correction becomes a target-owned document, test, script, lint, CI check, skill, or feedback surface.", "A held-out fresh agent discovers and uses it without the original discussion.", "The held-out task is comparable under the environment lock."],
+  "mandatory_failures": ["The capability exists only in chat.", "The evaluator points the held-out agent to it.", "The held-out task or environment is not comparable."],
+  "evidence_requirements": ["Repeated-correction evidence and durable capability diff.", "Held-out prompt and fresh-agent transcript.", "Discovery path, environment digest, and target acceptance output."]
+}

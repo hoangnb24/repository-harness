@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/card.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "card_id", "card_revision", "scenario", "prompt", "applicability", "acceptance_tests", "mandatory_failures", "evidence_requirements"],
+  "properties": {
+    "schema": {"const": "repository-harness-pilot-card/v1"},
+    "card_id": {"type": "string", "pattern": "^P[0-7]$"},
+    "card_revision": {"const": 1},
+    "scenario": {"type": "string", "minLength": 1},
+    "prompt": {"type": "string", "minLength": 1},
+    "applicability": {"type": "string", "minLength": 1},
+    "acceptance_tests": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "mandatory_failures": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "evidence_requirements": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  }
+}

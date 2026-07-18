@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-pilot-card/v1",
+  "card_id": "P7",
+  "card_revision": 1,
+  "scenario": "Gardening convergence",
+  "prompt": "Run the fixed bounded gardening task twice from the specified conditions. The first run may make only relevant repairs; the second must find no repeat drift and make no unrelated rewrite.",
+  "applicability": "Applicable when the owner defines a bounded recurring maintenance scope and authorizes two identical-condition runs.",
+  "acceptance_tests": ["The first run changes only the bounded relevant scope.", "The second identical-condition run reports no repeat drift.", "Both runs pass the named target validation."],
+  "mandatory_failures": ["The second run repeats churn.", "Either run expands scope or rewrites unrelated files.", "Evaluator cleanup is missing from the intervention log."],
+  "evidence_requirements": ["Bounded scope, trigger, and two run transcripts.", "Before/after path and digest inventories for both runs.", "Target validation and gardening-review interventions."]
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/pilot-enrollment.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "repository", "owner_authorization", "starting_revision", "evidence_custody", "unrelated_to", "card_set_sha256"],
+  "properties": {
+    "schema": {"const": "repository-harness-pilot-enrollment/v1"},
+    "pilot_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
+    "repository": {"type": "string", "minLength": 1},
+    "owner_authorization": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "owner", "authorized_at", "scope", "evidence_ref"],
+      "properties": {
+        "status": {"const": "authorized"}, "owner": {"type": "string", "minLength": 1},
+        "authorized_at": {"type": "string", "minLength": 1}, "scope": {"type": "string", "minLength": 1},
+        "evidence_ref": {"type": "string", "minLength": 1}
+      }
+    },
+    "starting_revision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "value", "immutable"],
+      "properties": {"kind": {"const": "git-commit"}, "value": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "immutable": {"const": true}}
+    },
+    "evidence_custody": {"type": "string", "minLength": 1},
+    "unrelated_to": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "card_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-pilot-card/v1",
+  "card_id": "P4",
+  "card_revision": 1,
+  "scenario": "Native invariant repair",
+  "prompt": "Run the named target invariant against the seeded violation, use its output to make the smallest relevant repair, then rerun the identical check.",
+  "applicability": "Applicable when the owner authorizes one deterministic seeded violation and names the target-native invariant command.",
+  "acceptance_tests": ["The locked seed makes the named invariant fail before repair.", "The agent uses the check output and the same check passes after repair.", "The diff is limited to the violation and its durable prevention when required."],
+  "mandatory_failures": ["The invariant is absent or not runnable.", "The evaluator relays the correction without an intervention event.", "The repair rewrites unrelated content."],
+  "evidence_requirements": ["Seed digest and failing output.", "Repair diff and passing output from the identical command.", "Intervention events including any correction relay."]
+}

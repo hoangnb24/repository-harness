@@ -2,11 +2,11 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-4 accepted; Phases 5-8 not started
+Status: Direction and Phases 1-4 accepted; Phase 5 repository-owned candidate in progress; Phases 6-8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
-implementation: US-109
+implementation: US-109; Phase 5 candidate: US-110
 
 Decision 0014 is the current Phase 4 authority. It supersedes the plan's former
 automatic conversion/journal design with freeze, archive/export, and normal
@@ -446,8 +446,9 @@ unique no-replace custody, and Phase 3 manifest/receipt-last core recovery.
 Focused bridge tests and the ten-group
 `scripts/verify-v1-phase4-bridge.sh` proof pass on macOS. An independent
 reviewer accepted exact candidate `880cb9b`, fast-forwarded to the primary
-branch with identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked but not
-started. Windows safe capture/atomic publication and promoted five-platform
+branch with identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked and its
+repository-owned US-110 candidate is in progress. Windows safe capture/atomic
+publication and promoted five-platform
 artifact equivalence remain Phase 7 work; Phase 4 proves the controlled
 unsupported exit 5.
 
@@ -459,6 +460,15 @@ eligibility, and run the fixed baseline scenario cards before capability
 evaluation. Acceptance: no required path move, no ordinary-task Harness call,
 and each enrolled pilot has a signed card set, environment lock, and baseline
 or documented inapplicability.
+
+**Repository-owned candidate implemented; Phase 5 not accepted:** US-110 maps
+Repository Harness's accepted Phase 4 paths in place, freezes concrete P0-P7
+cards and schema-validated evidence records, and adds deterministic checks for
+path stability, zero-core-command ordinary work, immutable identities,
+inapplicability, intervention totals, and baseline-only results. The live index
+has zero pilots because no external owner authorization exists. Two unrelated
+authorized enrollments with real signed card sets, locked environments, and
+baselines or written inapplicability remain required before acceptance.
 
 ### Phase 6: Capability Evaluation
 
@@ -584,8 +594,9 @@ accepted Phase 2 evidence for the live six-command core, authenticated payload
 boundary, deterministic structural audit, no-target-execution canary, and safe
 mutation refusal. US-108 supplies accepted Phase 3 mutation/recovery evidence
 and the exact evidence counts above. US-109 supplies accepted archive-only
-Phase 4 evidence. Phases 5-8 remain not started and depend on preceding
-accepted evidence. No bridge conversion write,
+Phase 4 evidence. US-110 supplies the repository-owned Phase 5 candidate, but
+no external pilot or Phase 5 acceptance. Phases 6-8 remain not started and
+depend on preceding accepted evidence. No bridge conversion write,
 production key, promoted release, pilot, tag, publish action, or V0 removal is
 created or authorized by Phase 3. Phase 8
 additionally requires Decision 0012's separate removal authorization and

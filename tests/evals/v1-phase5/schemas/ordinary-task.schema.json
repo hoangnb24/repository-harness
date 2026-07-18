@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/ordinary-task.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "starting_revision", "prompt", "commands", "core_command_count", "result", "cause_effect"],
+  "properties": {
+    "schema": {"const": "repository-harness-ordinary-task/v1"}, "task_id": {"type": "string", "minLength": 1},
+    "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "prompt": {"type": "string", "minLength": 1},
+    "commands": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["command", "exit_code", "observation"], "properties": {"command": {"type": "string", "minLength": 1}, "exit_code": {"const": 0}, "observation": {"type": "string", "minLength": 1}}}},
+    "core_command_count": {"const": 0}, "result": {"const": "passed"},
+    "cause_effect": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  }
+}

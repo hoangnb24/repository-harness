@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-phase5-evidence-index/v1",
+  "phase": 5,
+  "status": "candidate-awaiting-pilot-authorization",
+  "card_catalog": "cards/catalog.json",
+  "pilots": [],
+  "blockers": [
+    "No external pilot owner authorization has been supplied.",
+    "No immutable external pilot revision, environment lock, signed card set, eligibility finding, intervention log, or baseline result exists."
+  ]
+}

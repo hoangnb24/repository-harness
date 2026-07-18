@@ -19,6 +19,7 @@ scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
 scripts/verify-v1-phase4-bridge.sh
+scripts/verify-v1-phase5-evidence.sh
 
 cargo fmt --all -- --check
 cargo test --workspace --locked

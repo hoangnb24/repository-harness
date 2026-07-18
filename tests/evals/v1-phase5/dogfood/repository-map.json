@@ -1,0 +1,12 @@
+{
+  "schema": "repository-harness-dogfood-map/v1",
+  "repository": "repository-harness",
+  "source_revision": "04f953d0f4c8aa42689c1565178376143916c8b5",
+  "mapping_policy": "adopt-useful-paths-in-place",
+  "roles": [
+    {"role": "agent_map", "path": "AGENTS.md", "activation": "active", "ownership": "target-owned", "origin": "brownfield-mapped", "required": true, "update_policy": "never-auto-patch", "source_blob": "fcc580680cd0d0d520c02d784239913b5c523202", "source_sha256": "ccbb86f4165cf803a74f9a1c599c141959e3cffe39b5bff303dc0b99a6f33875"},
+    {"role": "knowledge_index", "path": "docs/README.md", "activation": "active", "ownership": "target-owned", "origin": "brownfield-mapped", "required": true, "update_policy": "never-auto-patch", "source_blob": "4333c5e7175a8514abbceddf00412ad97b9a5e57", "source_sha256": "d942d5103fe14312cf6b8ae011acef8bc305ab525abcf30ac199e4b832bb1525"},
+    {"role": "architecture", "path": "docs/ARCHITECTURE.md", "activation": "active", "ownership": "target-owned", "origin": "brownfield-mapped", "required": true, "update_policy": "never-auto-patch", "source_blob": "9dfc2c4c6aec3388a6c56fe5c0e54023e129611e", "source_sha256": "3e254d4832567ac341a379657270a8b420cde711a70d32cb2f3d7fbcfbef8120"},
+    {"role": "decisions", "path": "docs/decisions/README.md", "activation": "active", "ownership": "target-owned", "origin": "brownfield-mapped", "required": true, "update_policy": "never-auto-patch", "source_blob": "07677e4adb09abff6c8930bea148e78dd53f216b", "source_sha256": "4055e800dfb0101b07cce5ae2aec1831bd030b633c79030c1093b682a141f4ec"}
+  ]
+}

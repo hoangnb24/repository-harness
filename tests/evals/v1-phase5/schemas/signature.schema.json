@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/signature.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "subject", "subject_sha256", "signer", "algorithm", "signed_at", "signature"],
+  "properties": {
+    "schema": {"const": "repository-harness-owner-signature/v1"}, "subject": {"type": "string", "minLength": 1},
+    "subject_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signer": {"type": "object", "additionalProperties": false, "required": ["name", "role", "authority_ref"], "properties": {"name": {"type": "string", "minLength": 1}, "role": {"type": "string", "minLength": 1}, "authority_ref": {"type": "string", "minLength": 1}}},
+    "algorithm": {"type": "string", "minLength": 1}, "signed_at": {"type": "string", "minLength": 1},
+    "signature": {"type": "string", "minLength": 1}
+  }
+}

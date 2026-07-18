@@ -1,0 +1,11 @@
+{
+  "schema": "repository-harness-pilot-card/v1",
+  "card_id": "P2",
+  "card_revision": 1,
+  "scenario": "Ordinary small task",
+  "prompt": "Complete the supplied small repository-native task, follow the repository's own instructions, and run its named acceptance check. Do not create a durable plan merely for Harness and do not invoke a V1 core command.",
+  "applicability": "Applicable to every enrolled pilot and to Repository Harness dogfood.",
+  "acceptance_tests": ["The target-native acceptance check passes.", "The transcript contains zero V1 core commands.", "No durable plan is created solely to satisfy Harness."],
+  "mandatory_failures": ["Any install, update, audit, scaffold, status, or version V1 core invocation occurs.", "A Harness-only durable plan is created.", "Target behavior regresses."],
+  "evidence_requirements": ["Prompt and ordered command transcript with exit codes.", "Core-command count computed from the transcript.", "Target-native acceptance output and changed-path list."]
+}

@@ -78,7 +78,27 @@ Phase 3 receipt recovery, pinned custody-directory swap rejection across
 preview/recovery/audit, immutable fixture digests, and the structural core
 boundary. The bridge never mutates V1 and has exactly four commands. An
 independent reviewer accepted exact candidate `880cb9b`, fast-forwarded with
-identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked but not started.
+identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked.
 Five-platform promotion and Windows safe capture/atomic publication remain
 Phase 7 evidence; Phase 4 proves only coherent compilation/help and controlled
 unsupported exit 5 on Windows.
+
+US-110 supplies the repository-owned Phase 5 candidate: an in-place map pinned
+to the accepted Phase 4 tree, fixed P0-P7 card/schema contracts, a
+representative ordinary-task check with zero V1 core commands, and positive and
+negative evidence verification:
+
+```bash
+scripts/verify-v1-phase5-evidence.sh
+```
+
+The live gate remains intentionally blocked:
+
+```bash
+scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines
+```
+
+It exits 2 until two unrelated owners authorize immutable pilot revisions and
+supply signed card sets, environment locks, eligibility/inapplicability,
+complete intervention totals, and real baseline results. This is Phase 5
+candidate tracking, not acceptance, and Phase 6 has not started.
