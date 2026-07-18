@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase6/condition-lock.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "lane_id", "card_catalog_sha256", "starting_revision", "starting_tree", "warm_capture_sha256", "model", "reasoning", "operating_system", "architecture", "tools", "enabled_tools", "permissions", "evaluator_id", "prompts", "acceptance_commands", "time_limits", "condition_identity_sha256"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase6-condition-lock/v1"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "lane_id": {"type": "string", "minLength": 1},
+    "card_catalog_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "starting_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "warm_capture_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "model": {"type": "string", "minLength": 1},
+    "reasoning": {"type": "string", "minLength": 1},
+    "operating_system": {"type": "string", "minLength": 1},
+    "architecture": {"type": "string", "minLength": 1},
+    "tools": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["name", "version"], "properties": {"name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"}, "version": {"type": "string", "minLength": 1}}}},
+    "enabled_tools": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "permissions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "evaluator_id": {"type": "string", "minLength": 1},
+    "prompts": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "artifact", "sha256"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
+    "acceptance_commands": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "argv"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}}},
+    "time_limits": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "seconds"], "properties": {"card_id": {"enum": ["P3", "P6"]}, "seconds": {"const": 300}}}},
+    "condition_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase6/lane-assignment.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "owner_id", "canonical_repository", "lane_id", "lane", "starting_revision", "starting_tree", "baseline", "warm_capture", "cards", "assignment_sha256"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase6-lane-assignment/v1"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "owner_id": {"type": "string", "minLength": 1},
+    "canonical_repository": {"type": "string", "pattern": "^https://[A-Za-z0-9.-]+/[A-Za-z0-9._/-]+[.]git$"},
+    "lane_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,127}$"},
+    "lane": {"enum": ["cold-clone", "warm-v0-copy"]},
+    "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "starting_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "baseline": {"type": "object", "additionalProperties": false, "required": ["kind", "identity", "artifact", "sha256"], "properties": {"kind": {"enum": ["phase5-cold-baseline", "warm-v0-supplement"]}, "identity": {"type": "string", "minLength": 1}, "artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "warm_capture": {"type": ["object", "null"], "additionalProperties": false, "required": ["artifact", "sha256"], "properties": {"artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "cards": {"type": "array", "minItems": 2, "maxItems": 8, "items": {"type": "string", "pattern": "^P[0-7]$"}},
+    "assignment_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

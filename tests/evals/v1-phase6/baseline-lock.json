@@ -1,0 +1,45 @@
+{
+  "schema": "repository-harness-phase6-baseline-lock/v1",
+  "source_commit": "5d6e6bc516cd60e47c60ae3b516363cd99b433a5",
+  "protected_git_objects": [
+    {
+      "path": "tests/evals/v1-phase5",
+      "kind": "tree",
+      "git_oid": "efc9e2c76f9f5481b5bbb6b3945ebf92a542b760"
+    },
+    {
+      "path": "scripts/verify-v1-phase5-evidence.sh",
+      "kind": "blob",
+      "git_oid": "04bd2f17ed75328f1b090614c968bb7e3654c1e7"
+    },
+    {
+      "path": "scripts/verify_v1_phase5_evidence.py",
+      "kind": "blob",
+      "git_oid": "66bb8acdd8ff09cd2c401cc2bb35f11618bfe33d"
+    },
+    {
+      "path": "tests/evals/test-phase5-premerge-trust-forwarding.sh",
+      "kind": "blob",
+      "git_oid": "305641b164e105088148283b5770af4d7749c675"
+    }
+  ],
+  "card_catalog_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594",
+  "phase5_evidence_index_sha256": "13e5507390a2b7e0977e072a6e7ea48aaa7b889238bac9068d1715d8028d0b26",
+  "pilots": [
+    {
+      "pilot_id": "harness-benchmark-phase5-pilot",
+      "starting_revision": "090f6d1c33d9f006cc8e95491badc33a8053c89f",
+      "authentication_sha256": "cb5c85699e8507b05cc6a3deb100b86210dacfb60425af8a1430c483b4e0f058",
+      "packet_manifest_sha256": "e4aed2c8df0c28a23c62c52a92b74ff6c79c4353987ad4bb1bb5c3436cef1ec0",
+      "repository_bundle_sha256": "8bf677d9c40e50ea02da38322b4a21fe59bd94f55d77ab417b7ea31a73a090a3"
+    },
+    {
+      "pilot_id": "e-inna-brain-phase5-baseline",
+      "starting_revision": "9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+      "authentication_sha256": "0913e9a388a3839753fa4dc62b8de91ca950f5f08f80c459eeeab3a5a6b5e80d",
+      "packet_manifest_sha256": "5e44c2b00f83c1434d3a5e74328ec5fe88bb3d4ee6382b8cd50cf4367918caae",
+      "repository_bundle_sha256": "ee4833f28ad4a3d4394b36100ae56d76f90dc58dd92205ea017fb99f2a1f42a1"
+    }
+  ],
+  "lock_sha256": "a5586a31416df5a989e448e52d81cada2aaf5d4350cae37dd2776af45b77541c"
+}

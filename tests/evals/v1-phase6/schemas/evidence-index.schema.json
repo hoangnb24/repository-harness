@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase6/evidence-index.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "phase", "status", "baseline_lock", "pilots", "blockers"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase6-evidence-index/v1"},
+    "phase": {"const": 6},
+    "status": {"enum": ["candidate-results-pending", "complete"]},
+    "baseline_lock": {"const": "baseline-lock.json"},
+    "pilots": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["pilot_id", "lanes", "status", "packets"], "properties": {"pilot_id": {"type": "string", "minLength": 1}, "lanes": {"type": "array", "minItems": 1, "items": {"enum": ["cold-clone", "warm-v0-copy"]}}, "status": {"enum": ["candidate-results-pending", "warm-baseline-and-candidate-results-pending", "complete"]}, "packets": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}}}}},
+    "blockers": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase6/comparison-report.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "lane_id", "baseline_condition_identity_sha256", "candidate_condition_identity_sha256", "baseline_subject_identity_sha256", "candidate_subject_identity_sha256", "cards", "no_functional_regression", "improvement", "comparison_sha256"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase6-comparison/v1"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "lane_id": {"type": "string", "minLength": 1},
+    "baseline_condition_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate_condition_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "baseline_subject_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate_subject_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cards": {"type": "array", "minItems": 2, "maxItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "baseline_outcome", "candidate_outcome"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "baseline_outcome": {"enum": ["passed", "failed", "inapplicable"]}, "candidate_outcome": {"enum": ["passed", "failed", "inapplicable"]}}}},
+    "no_functional_regression": {"const": true},
+    "improvement": {"type": "object", "additionalProperties": false, "required": ["kind", "cards", "evidence"], "properties": {"kind": {"enum": ["outcome", "attention", "context-discovery", "validation-discovery"]}, "cards": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^P[0-7]$"}}, "evidence": {"type": "string", "minLength": 1}}},
+    "comparison_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

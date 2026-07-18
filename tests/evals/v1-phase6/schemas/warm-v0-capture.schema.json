@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase6/warm-v0-capture.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "capture_id", "pilot_id", "canonical_repository", "starting_revision", "starting_tree", "captured_at", "coordination", "artifacts", "standalone_backup", "source_unchanged", "capture_sha256"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase6-warm-v0-capture/v1"},
+    "capture_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,127}$"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "canonical_repository": {"type": "string", "pattern": "^https://[A-Za-z0-9.-]+/[A-Za-z0-9._/-]+[.]git$"},
+    "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "starting_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "captured_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "coordination": {"type": "object", "additionalProperties": false, "required": ["writers_quiesced", "copy_method", "recovery_method"], "properties": {"writers_quiesced": {"const": true}, "copy_method": {"const": "retained-read-handles-pre-copy-post"}, "recovery_method": {"const": "private-staged-db-wal-online-backup"}}},
+    "artifacts": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["category", "path", "bytes", "sha256"], "properties": {"category": {"enum": ["database", "wal", "shm", "v0-cli", "changeset", "provenance"]}, "path": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "bytes": {"type": "integer", "minimum": 0}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
+    "standalone_backup": {"type": "object", "additionalProperties": false, "required": ["path", "bytes", "sha256"], "properties": {"path": {"const": "standalone-backup.sqlite"}, "bytes": {"type": "integer", "minimum": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "source_unchanged": {"const": true},
+    "capture_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase6/intervention-log.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "lane_id", "run_kind", "events", "totals", "intervention_log_sha256"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase6-intervention-log/v1"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "lane_id": {"type": "string", "minLength": 1},
+    "run_kind": {"enum": ["warm-baseline", "candidate"]},
+    "events": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "actor", "timestamp", "taxonomy", "reason", "minutes", "changed_outcome"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "actor": {"type": "string", "minLength": 1}, "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}, "taxonomy": {"enum": ["environment/setup", "install", "conversion", "instantiation", "clarification", "evidence relay", "correction", "conflict review", "authorization/permission", "evaluator error", "gardening review"]}, "reason": {"type": "string", "minLength": 1}, "minutes": {"type": "integer", "minimum": 1}, "changed_outcome": {"type": "boolean"}}}},
+    "totals": {"type": "object", "additionalProperties": false, "required": ["event_count", "minutes", "by_card", "by_taxonomy"], "properties": {"event_count": {"type": "integer", "minimum": 0}, "minutes": {"type": "integer", "minimum": 0}, "by_card": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "event_count", "minutes"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "event_count": {"type": "integer", "minimum": 1}, "minutes": {"type": "integer", "minimum": 1}}}}, "by_taxonomy": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["taxonomy", "event_count", "minutes"], "properties": {"taxonomy": {"enum": ["environment/setup", "install", "conversion", "instantiation", "clarification", "evidence relay", "correction", "conflict review", "authorization/permission", "evaluator error", "gardening review"]}, "event_count": {"type": "integer", "minimum": 1}, "minutes": {"type": "integer", "minimum": 1}}}}}},
+    "intervention_log_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

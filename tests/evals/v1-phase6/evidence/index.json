@@ -1,0 +1,25 @@
+{
+  "schema": "repository-harness-phase6-evidence-index/v1",
+  "phase": 6,
+  "status": "candidate-results-pending",
+  "baseline_lock": "baseline-lock.json",
+  "pilots": [
+    {
+      "pilot_id": "harness-benchmark-phase5-pilot",
+      "lanes": ["cold-clone"],
+      "status": "candidate-results-pending",
+      "packets": []
+    },
+    {
+      "pilot_id": "e-inna-brain-phase5-baseline",
+      "lanes": ["cold-clone", "warm-v0-copy"],
+      "status": "warm-baseline-and-candidate-results-pending",
+      "packets": []
+    }
+  ],
+  "blockers": [
+    "Owner-authorized warm-V0 capture has not been supplied.",
+    "Fresh-agent P3 and P6 candidate runs have not been performed.",
+    "Candidate packets and external owner signatures have not been supplied."
+  ]
+}

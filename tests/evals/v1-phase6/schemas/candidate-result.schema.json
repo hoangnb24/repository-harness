@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase6/candidate-result.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "lane_id", "run_kind", "started_at", "completed_at", "condition_identity_sha256", "subject_identity_sha256", "cards", "negative_conditions", "intervention_log", "intervention_log_sha256", "result_sha256"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase6-result/v1"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "lane_id": {"type": "string", "minLength": 1},
+    "run_kind": {"enum": ["warm-baseline", "candidate"]},
+    "started_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "completed_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "condition_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "subject_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cards": {"type": "array", "minItems": 2, "maxItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "outcome", "acceptance_command", "evidence", "finding", "held_out"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "outcome": {"enum": ["passed", "failed", "inapplicable"]}, "acceptance_command": {"type": "string", "minLength": 1}, "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}}, "finding": {"type": "string"}, "held_out": {"type": ["object", "null"], "additionalProperties": false, "required": ["prompt_artifact", "visible_paths", "evaluator_only_paths", "discovery_path", "time_limit_seconds", "completed_seconds"], "properties": {"prompt_artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "visible_paths": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}}, "evaluator_only_paths": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}}, "discovery_path": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}, "time_limit_seconds": {"const": 300}, "completed_seconds": {"type": "integer", "minimum": 0, "maximum": 300}}}}}},
+    "negative_conditions": {"type": "array", "minItems": 12, "items": {"type": "object", "additionalProperties": false, "required": ["condition", "outcome", "evidence"], "properties": {"condition": {"type": "string", "minLength": 1}, "outcome": {"enum": ["clear", "failed"]}, "evidence": {"type": "string", "minLength": 1}}}},
+    "intervention_log": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"},
+    "intervention_log_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
