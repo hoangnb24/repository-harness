@@ -1,0 +1,150 @@
+{
+  "schema": "repository-harness-environment-lock/v2",
+  "pilot_id": "harness-benchmark-phase5-pilot",
+  "locked_at": "2026-07-18T07:10:41Z",
+  "model": "gpt-5.6-sol",
+  "reasoning": "high",
+  "operating_system": "macOS 26.4 (Darwin)",
+  "architecture": "arm64",
+  "tools": [
+    {
+      "name": "git",
+      "version": "2.54.0"
+    },
+    {
+      "name": "jq",
+      "version": "1.8.1"
+    },
+    {
+      "name": "node",
+      "version": "22.22.3"
+    },
+    {
+      "name": "npm",
+      "version": "10.9.8"
+    },
+    {
+      "name": "rg",
+      "version": "15.1.0"
+    },
+    {
+      "name": "shasum",
+      "version": "6.02"
+    },
+    {
+      "name": "sqlite3",
+      "version": "3.51.0"
+    },
+    {
+      "name": "tsc",
+      "version": "5.9.3"
+    },
+    {
+      "name": "vitest",
+      "version": "2.1.9"
+    },
+    {
+      "name": "zsh",
+      "version": "5.9"
+    }
+  ],
+  "enabled_tools": [
+    "git",
+    "jq",
+    "node",
+    "npm",
+    "rg",
+    "shasum",
+    "sqlite3",
+    "tsc",
+    "vitest",
+    "zsh"
+  ],
+  "permissions": [
+    "read and write only this isolated worktree",
+    "create reversible local seeds",
+    "run repository-native local validation",
+    "spawn context-free fresh agents with five-minute waits",
+    "create local commits",
+    "no push, deploy, remote mutation, key generation, or signing"
+  ],
+  "evaluator_id": "codex-phase5-pilot-operator",
+  "fixtures": [],
+  "acceptance_commands": [
+    {
+      "card_id": "P0",
+      "argv": [
+        "git",
+        "diff",
+        "--no-ext-diff",
+        "--check"
+      ]
+    },
+    {
+      "card_id": "P1",
+      "argv": [
+        "git",
+        "status",
+        "--porcelain=v1"
+      ]
+    },
+    {
+      "card_id": "P2",
+      "argv": [
+        "npm",
+        "run",
+        "build"
+      ]
+    },
+    {
+      "card_id": "P3",
+      "argv": [
+        "npm",
+        "test",
+        "--",
+        "--run",
+        "benchmark/orchestrator/test"
+      ]
+    },
+    {
+      "card_id": "P4",
+      "argv": [
+        "npm",
+        "test",
+        "--",
+        "--run",
+        "benchmark/orchestrator/test/task-manifest.test.ts"
+      ]
+    },
+    {
+      "card_id": "P5",
+      "argv": [
+        "npm",
+        "test",
+        "--",
+        "--run",
+        "benchmark/orchestrator/test/score-adherence.test.ts"
+      ]
+    },
+    {
+      "card_id": "P6",
+      "argv": [
+        "npm",
+        "test",
+        "--",
+        "--run",
+        "benchmark/orchestrator/test/phase5-capability-inheritance.test.ts"
+      ]
+    },
+    {
+      "card_id": "P7",
+      "argv": [
+        "git",
+        "diff",
+        "--no-ext-diff",
+        "--check"
+      ]
+    }
+  ],
+  "environment_sha256": "b3a3067d79803aa6631ae7cd9f3424e13b102073bd9eb64123407a9ae43ef2dc"
+}

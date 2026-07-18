@@ -1,0 +1,173 @@
+{
+  "schema": "repository-harness-baseline-result/v2",
+  "pilot_id": "harness-benchmark-phase5-pilot",
+  "run_kind": "baseline",
+  "evaluation_subject": {
+    "kind": "pre-candidate-baseline",
+    "identity": "harness-benchmark@090f6d1c33d9f006cc8e95491badc33a8053c89f",
+    "artifact": "repository.bundle",
+    "sha256": "8bf677d9c40e50ea02da38322b4a21fe59bd94f55d77ab417b7ea31a73a090a3"
+  },
+  "started_at": "2026-07-18T07:10:43Z",
+  "completed_at": "2026-07-18T07:34:03Z",
+  "starting_revision": "090f6d1c33d9f006cc8e95491badc33a8053c89f",
+  "card_set_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594",
+  "environment_sha256": "b3a3067d79803aa6631ae7cd9f3424e13b102073bd9eb64123407a9ae43ef2dc",
+  "cards": [
+    {
+      "card_id": "P0",
+      "outcome": "passed",
+      "acceptance_command": "{\"argv\":[\"git\",\"diff\",\"--no-ext-diff\",\"--check\"]}",
+      "evidence": [
+        {
+          "requirement": "Exact subject identity and command transcript.",
+          "artifact": "cards/P0/evidence.md"
+        },
+        {
+          "requirement": "Path mapping and target-owned before/after SHA-256 report.",
+          "artifact": "cards/P0/evidence.md"
+        },
+        {
+          "requirement": "Manifest, status, and audit outputs with exit codes.",
+          "artifact": "cards/P0/evidence.md"
+        }
+      ]
+    },
+    {
+      "card_id": "P1",
+      "outcome": "inapplicable",
+      "acceptance_command": "inapplicable",
+      "evidence": [
+        {
+          "requirement": "Eligibility finding for P1.",
+          "artifact": "cards/P1/eligibility-finding.md"
+        },
+        {
+          "requirement": "Source before/after digests and archive/export/receipt identities when eligible.",
+          "artifact": "cards/P1/eligibility-finding.md"
+        },
+        {
+          "requirement": "Kill-point transcript or signed inapplicability finding.",
+          "artifact": "cards/P1/eligibility-finding.md"
+        }
+      ]
+    },
+    {
+      "card_id": "P2",
+      "outcome": "passed",
+      "acceptance_command": "{\"argv\":[\"npm\",\"run\",\"build\"]}",
+      "evidence": [
+        {
+          "requirement": "Prompt and ordered command transcript with exit codes.",
+          "artifact": "cards/P2/evidence.md"
+        },
+        {
+          "requirement": "Core-command count computed from the transcript.",
+          "artifact": "cards/P2/evidence.md"
+        },
+        {
+          "requirement": "Target-native acceptance output and changed-path list.",
+          "artifact": "cards/P2/evidence.md"
+        }
+      ]
+    },
+    {
+      "card_id": "P3",
+      "outcome": "passed",
+      "acceptance_command": "{\"argv\":[\"npm\",\"test\",\"--\",\"--run\",\"benchmark/orchestrator/test\"]}",
+      "evidence": [
+        {
+          "requirement": "Fixed interruption point and both agent transcripts.",
+          "artifact": "cards/P3/durable-plan.md"
+        },
+        {
+          "requirement": "Durable plan before and after resumption.",
+          "artifact": "cards/P3/durable-plan.md"
+        },
+        {
+          "requirement": "Environment digest and final target-native proof.",
+          "artifact": "cards/P3/resume-transcript.md"
+        }
+      ]
+    },
+    {
+      "card_id": "P4",
+      "outcome": "passed",
+      "acceptance_command": "{\"argv\":[\"npm\",\"test\",\"--\",\"--run\",\"benchmark/orchestrator/test/task-manifest.test.ts\"]}",
+      "evidence": [
+        {
+          "requirement": "Seed digest and failing output.",
+          "artifact": "cards/P4/evidence.md"
+        },
+        {
+          "requirement": "Repair diff and passing output from the identical command.",
+          "artifact": "cards/P4/evidence.md"
+        },
+        {
+          "requirement": "Intervention events including any correction relay.",
+          "artifact": "cards/P4/evidence.md"
+        }
+      ]
+    },
+    {
+      "card_id": "P5",
+      "outcome": "passed",
+      "acceptance_command": "{\"argv\":[\"npm\",\"test\",\"--\",\"--run\",\"benchmark/orchestrator/test/score-adherence.test.ts\"]}",
+      "evidence": [
+        {
+          "requirement": "Clean revision and seed identity.",
+          "artifact": "cards/P5/evidence.md"
+        },
+        {
+          "requirement": "Feedback commands or captured target-owned feedback with timestamps.",
+          "artifact": "cards/P5/evidence.md"
+        },
+        {
+          "requirement": "Final acceptance output and intervention log.",
+          "artifact": "cards/P5/evidence.md"
+        }
+      ]
+    },
+    {
+      "card_id": "P6",
+      "outcome": "failed",
+      "acceptance_command": "{\"argv\":[\"npm\",\"test\",\"--\",\"--run\",\"benchmark/orchestrator/test/phase5-capability-inheritance.test.ts\"]}",
+      "evidence": [
+        {
+          "requirement": "Repeated-correction evidence and durable capability diff.",
+          "artifact": "cards/P6/durable-capability.diff"
+        },
+        {
+          "requirement": "Held-out prompt and fresh-agent transcript.",
+          "artifact": "cards/P6/held-out-prompt.md"
+        },
+        {
+          "requirement": "Discovery path, environment digest, and target acceptance output.",
+          "artifact": "cards/P6/held-out-transcript.md"
+        }
+      ]
+    },
+    {
+      "card_id": "P7",
+      "outcome": "passed",
+      "acceptance_command": "{\"argv\":[\"git\",\"diff\",\"--no-ext-diff\",\"--check\"]}",
+      "evidence": [
+        {
+          "requirement": "Bounded scope, trigger, and two run transcripts.",
+          "artifact": "cards/P7/evidence.md"
+        },
+        {
+          "requirement": "Before/after path and digest inventories for both runs.",
+          "artifact": "cards/P7/evidence.md"
+        },
+        {
+          "requirement": "Target validation and gardening-review interventions.",
+          "artifact": "cards/P7/evidence.md"
+        }
+      ]
+    }
+  ],
+  "intervention_log": "interventions.json",
+  "intervention_log_sha256": "29ddbdcf7445783101d5eff9ac477ad3e3cdeba75cb1741ae964cedb2f984661",
+  "result_sha256": "e085bac3a88c07f8eb97a09174f51bde64fe0024e70b4a22832d38100d773e8e"
+}

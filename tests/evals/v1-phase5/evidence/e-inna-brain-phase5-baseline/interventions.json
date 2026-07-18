@@ -1,0 +1,132 @@
+{
+  "schema": "repository-harness-intervention-log/v2",
+  "pilot_id": "e-inna-brain-phase5-baseline",
+  "run_kind": "baseline",
+  "events": [
+    {
+      "card_id": "P3",
+      "actor": "human/orchestrator",
+      "timestamp": "2026-07-18T06:42:48Z",
+      "taxonomy": "evaluator error",
+      "reason": "Applied the timing correction that external per-repository evaluation trust began at 2026-07-18T06:40:32Z; all earlier P0-P3 activity was reclassified as rehearsal and every final eligible acceptance path, including fresh-agent P3, had to be rerun after a new environment and eligibility lock.",
+      "minutes": 1,
+      "changed_outcome": true
+    },
+    {
+      "card_id": "P3",
+      "actor": "human/orchestrator",
+      "timestamp": "2026-07-18T06:57:17Z",
+      "taxonomy": "correction",
+      "reason": "Timeboxed the final fresh-agent P3 continuation after it exceeded five minutes; required immediate interruption, exact timeout evidence, no human reconstruction, and a failed rather than inferred passing outcome.",
+      "minutes": 1,
+      "changed_outcome": true
+    },
+    {
+      "card_id": "P4",
+      "actor": "human/orchestrator",
+      "timestamp": "2026-07-18T06:58:39Z",
+      "taxonomy": "authorization/permission",
+      "reason": "Applied the owner-authorized deterministic and reversible P4 architecture seed inside the isolated worktree; no correction content or hidden failure output was relayed to the agent.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P5",
+      "actor": "human/orchestrator",
+      "timestamp": "2026-07-18T07:00:34Z",
+      "taxonomy": "authorization/permission",
+      "reason": "Applied the owner-authorized reversible TypeScript seed from a clean worktree; the operator supplied no hidden compiler evidence or repair instruction after seeding.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P6",
+      "actor": "human/orchestrator",
+      "timestamp": "2026-07-18T07:02:04Z",
+      "taxonomy": "authorization/permission",
+      "reason": "Authorized two comparable reversible dynamic-import seeds, a smallest durable target-owned architecture capability, and a held-out comparable fresh-agent task without capability pointers.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P6",
+      "actor": "human/orchestrator",
+      "timestamp": "2026-07-18T07:13:06Z",
+      "taxonomy": "correction",
+      "reason": "Timeboxed the held-out P6 fresh-agent run at five minutes; required immediate interruption, preservation of missing transcript/acceptance as a negative inheritance result, no evaluator reconstruction, seed cleanup verification, and no pass inference.",
+      "minutes": 1,
+      "changed_outcome": true
+    },
+    {
+      "card_id": "P7",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:14:40Z",
+      "taxonomy": "gardening review",
+      "reason": "Reviewed Run 1 cleanup: Prettier changed only the single bounded fixture, the target check passed, and no unrelated file cleanup was performed.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P7",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:14:52Z",
+      "taxonomy": "gardening review",
+      "reason": "Reviewed Run 2 convergence: the identical trigger reported unchanged bytes, before/after digests matched Run 1 final state, and no evaluator cleanup or unrelated rewrite was needed.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P7",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:16:29Z",
+      "taxonomy": "evaluator error",
+      "reason": "An evidence assembly patch accidentally created an empty root-level file named none; the operator removed it immediately, confirmed the path absent, and did not stage or cite it.",
+      "minutes": 1,
+      "changed_outcome": false
+    }
+  ],
+  "totals": {
+    "event_count": 9,
+    "minutes": 9,
+    "by_card": {
+      "P3": {
+        "event_count": 2,
+        "minutes": 2
+      },
+      "P4": {
+        "event_count": 1,
+        "minutes": 1
+      },
+      "P5": {
+        "event_count": 1,
+        "minutes": 1
+      },
+      "P6": {
+        "event_count": 2,
+        "minutes": 2
+      },
+      "P7": {
+        "event_count": 3,
+        "minutes": 3
+      }
+    },
+    "by_taxonomy": {
+      "evaluator error": {
+        "event_count": 2,
+        "minutes": 2
+      },
+      "correction": {
+        "event_count": 2,
+        "minutes": 2
+      },
+      "authorization/permission": {
+        "event_count": 3,
+        "minutes": 3
+      },
+      "gardening review": {
+        "event_count": 2,
+        "minutes": 2
+      }
+    }
+  }
+}

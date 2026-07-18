@@ -1,0 +1,42 @@
+{
+  "schema": "repository-harness-environment-lock/v2",
+  "pilot_id": "e-inna-brain-phase5-baseline",
+  "locked_at": "2026-07-18T06:30:33Z",
+  "model": "GPT-5 Codex",
+  "reasoning": "Default Codex reasoning under the repository high-risk evaluation contract",
+  "operating_system": "macOS 26.4 build 25E246",
+  "architecture": "arm64",
+  "tools": [
+    {"name": "git", "version": "2.50.1 Apple Git-155"},
+    {"name": "node", "version": "22.22.3"},
+    {"name": "pnpm", "version": "10.30.1"}
+  ],
+  "enabled_tools": ["git", "node", "pnpm"],
+  "permissions": [
+    "read and write only inside the isolated pilot worktree",
+    "offline dependency reuse only",
+    "no push or deployment",
+    "no provider or live external service calls",
+    "no database mutation",
+    "no secret use",
+    "no owner key generation or signature claim"
+  ],
+  "evaluator_id": "codex-phase5-pilot-operator",
+  "fixtures": [
+    {
+      "path": "contracts/cards/catalog.json",
+      "sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594"
+    }
+  ],
+  "acceptance_commands": [
+    {"card_id": "P0", "argv": ["git", "diff", "--check"]},
+    {"card_id": "P1", "argv": ["git", "diff", "--check"]},
+    {"card_id": "P2", "argv": ["pnpm", "test:architecture"]},
+    {"card_id": "P3", "argv": ["pnpm", "exec", "vitest", "run", "test/operational-metadata-adapter.spec.ts", "test/chat-contract.spec.ts", "test/mock-integration.spec.ts"]},
+    {"card_id": "P4", "argv": ["pnpm", "test:architecture"]},
+    {"card_id": "P5", "argv": ["pnpm", "typecheck"]},
+    {"card_id": "P6", "argv": ["pnpm", "test:architecture"]},
+    {"card_id": "P7", "argv": ["pnpm", "exec", "prettier", "--check", "docs/evidence/phase5-pilot-einna/P7/garden-fixture.json"]}
+  ],
+  "environment_sha256": "aa2147d2628e1347381936565702b561f02030fb5a4d1a3a798495c677bf489c"
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "repository-harness-pilot-enrollment/v2",
+  "pilot_id": "e-inna-brain-phase5-baseline",
+  "canonical_repository": "https://github.com/hoangnb24/e-inna-brain.git",
+  "owner_id": "hoangnb24-e-inna-brain-phase5",
+  "authorization_scope": "phase5-baseline-evaluation-p0-p7-e-inna-brain",
+  "authorized_at": "2026-07-18T06:40:32Z",
+  "starting_revision": {
+    "kind": "git-commit",
+    "value": "9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+    "repository_bundle": "repository.bundle"
+  },
+  "card_set_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594"
+}

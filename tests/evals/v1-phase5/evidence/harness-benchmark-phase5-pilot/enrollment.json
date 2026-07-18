@@ -1,0 +1,14 @@
+{
+  "schema": "repository-harness-pilot-enrollment/v2",
+  "pilot_id": "harness-benchmark-phase5-pilot",
+  "canonical_repository": "https://github.com/hoangnb24/harness-benchmark.git",
+  "owner_id": "hoangnb24-harness-benchmark-phase5",
+  "authorization_scope": "phase5-baseline-evaluation-p0-p7-harness-benchmark",
+  "authorized_at": "2026-07-18T07:03:56Z",
+  "starting_revision": {
+    "kind": "git-commit",
+    "value": "090f6d1c33d9f006cc8e95491badc33a8053c89f",
+    "repository_bundle": "repository.bundle"
+  },
+  "card_set_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594"
+}

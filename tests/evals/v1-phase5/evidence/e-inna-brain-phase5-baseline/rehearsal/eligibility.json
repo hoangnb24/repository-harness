@@ -1,0 +1,16 @@
+{
+  "schema": "repository-harness-pilot-eligibility/v2",
+  "pilot_id": "e-inna-brain-phase5-baseline",
+  "evaluated_at": "2026-07-18T06:30:33Z",
+  "evaluator_id": "codex-phase5-pilot-operator",
+  "cards": [
+    {"card_id": "P0", "disposition": "eligible", "finding": "Applicable to every enrolled pilot; the installed subject and readiness state must be observed without overwriting target-owned paths.", "finding_artifacts": ["P0/role-map.json", "P0/transcript.md"]},
+    {"card_id": "P1", "disposition": "eligible", "finding": "The starting revision contains the V0 durable schema files scripts/schema/001-init.sql through 004-intervention.sql and documented backup provenance, so absence of the database and archive tool is a failure/blocker rather than grounds to omit the card.", "finding_artifacts": ["P1/eligibility-finding.md", "P1/source-digests.json"]},
+    {"card_id": "P2", "disposition": "eligible", "finding": "Applicable to every pilot; the selected small task is the target-native architecture invariant.", "finding_artifacts": ["P2/ordinary-task.json"]},
+    {"card_id": "P3", "disposition": "eligible", "finding": "The owner authorized an isolated interruption and fresh-agent continuation; the selected task validates CA-110 with credential-free local tests.", "finding_artifacts": ["P3/resume-plan.md"]},
+    {"card_id": "P4", "disposition": "eligible", "finding": "The owner authorized a deterministic reversible seed and the repository names pnpm test:architecture as the invariant.", "finding_artifacts": ["P4/transcript.md"]},
+    {"card_id": "P5", "disposition": "eligible", "finding": "The repository exposes target-owned compiler feedback through pnpm typecheck and the owner authorized a reversible seed.", "finding_artifacts": ["P5/transcript.md"]},
+    {"card_id": "P6", "disposition": "eligible", "finding": "The owner required reusable capability inheritance and a held-out fresh-agent task; dynamic-import boundary enforcement is comparable to the existing static-import invariant.", "finding_artifacts": ["P6/repeated-correction.md", "P6/held-out-transcript.md"]},
+    {"card_id": "P7", "disposition": "eligible", "finding": "The owner authorized gardening twice; scope is fixed to one evidence JSON fixture under an identical environment lock.", "finding_artifacts": ["P7/transcript.md", "P7/digests.json"]}
+  ]
+}

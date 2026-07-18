@@ -1,0 +1,13 @@
+{
+  "pilot_id": "harness-benchmark-phase5-pilot",
+  "model": "gpt-5.6-sol",
+  "reasoning": "high",
+  "starting_revision": "090f6d1c33d9f006cc8e95491badc33a8053c89f",
+  "baseline_started_at": "2026-07-18T07:10:43Z",
+  "baseline_completed_at": "2026-07-18T07:34:03Z",
+  "phase6_disclosure_performed": false,
+  "token_usage": null,
+  "token_usage_note": "The execution runtime did not expose authoritative token telemetry to the operator; no estimate was fabricated.",
+  "external_mutations": [],
+  "authentication_status": "blocked-orchestrator-owned"
+}

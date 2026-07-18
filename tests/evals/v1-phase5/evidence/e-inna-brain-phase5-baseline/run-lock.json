@@ -1,0 +1,9 @@
+{
+  "pilot_id": "e-inna-brain-phase5-baseline",
+  "trust_established_at": "2026-07-18T06:40:32Z",
+  "environment_locked_at": "2026-07-18T06:42:47Z",
+  "eligibility_evaluated_at": "2026-07-18T06:42:47Z",
+  "baseline_started_at": "2026-07-18T06:42:48Z",
+  "rehearsal_cutoff": "2026-07-18T06:40:32Z",
+  "rule": "Only card execution at or after baseline_started_at may be cited as final evidence."
+}

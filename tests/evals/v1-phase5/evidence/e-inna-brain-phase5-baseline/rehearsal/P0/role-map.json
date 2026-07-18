@@ -1,0 +1,21 @@
+{
+  "subject": {
+    "kind": "pre-candidate-baseline",
+    "identity": "e-inna-brain-repository-native-harness@9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+    "commit": "9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+    "tree": "710109132b01f503e6ad2c1664040004c87900ce"
+  },
+  "mapping_policy": "adopt-useful-paths-in-place",
+  "readiness": "unresolved",
+  "roles": [
+    {"role": "agent_entrypoint", "path": "AGENTS.md", "ownership": "target-owned", "activation": "active", "before_sha256": "03a9f59b66689ddebccf0ba94380c6fb5c4d160118be2741d29db3077aee44cf", "after_sha256": "03a9f59b66689ddebccf0ba94380c6fb5c4d160118be2741d29db3077aee44cf"},
+    {"role": "harness_policy", "path": "docs/HARNESS.md", "ownership": "target-owned", "activation": "active", "before_sha256": "fabbb90fa707667aa15f2d827db40672a97d90217c416798f4a0cce087364d41", "after_sha256": "fabbb90fa707667aa15f2d827db40672a97d90217c416798f4a0cce087364d41"},
+    {"role": "feature_intake", "path": "docs/FEATURE_INTAKE.md", "ownership": "target-owned", "activation": "active", "before_sha256": "7ac3edbe446f1373e0437bcc80d6b3de4debf4f144f687decd11a939362f8cda", "after_sha256": "7ac3edbe446f1373e0437bcc80d6b3de4debf4f144f687decd11a939362f8cda"},
+    {"role": "architecture", "path": "docs/ARCHITECTURE.md", "ownership": "target-owned", "activation": "active", "before_sha256": "21a2e682ca7b398179f3a4c4cd9007280cb7e564d4b92a7fcaebb64c46a021cd", "after_sha256": "21a2e682ca7b398179f3a4c4cd9007280cb7e564d4b92a7fcaebb64c46a021cd"},
+    {"role": "context_rules", "path": "docs/CONTEXT_RULES.md", "ownership": "target-owned", "activation": "active", "before_sha256": "315564242eb45c5e3a38b9823273204ca8fdf058c8b1fec084957f12004c1be8", "after_sha256": "315564242eb45c5e3a38b9823273204ca8fdf058c8b1fec084957f12004c1be8"},
+    {"role": "verification_matrix", "path": "docs/TEST_MATRIX.md", "ownership": "target-owned", "activation": "active", "before_sha256": "c19c30b1e295d53678bb7a18dbb94251c8c52d9ef4349673a99dd927a05fa4d4", "after_sha256": "c19c30b1e295d53678bb7a18dbb94251c8c52d9ef4349673a99dd927a05fa4d4"},
+    {"role": "trace_spec", "path": "docs/TRACE_SPEC.md", "ownership": "target-owned", "activation": "active", "before_sha256": "8adae6b814352fb1d4a53121db0b23643d99cee018ecb1281244e9b90bfc9018", "after_sha256": "8adae6b814352fb1d4a53121db0b23643d99cee018ecb1281244e9b90bfc9018"},
+    {"role": "durable_schema", "path": "scripts/schema/001-init.sql", "ownership": "target-owned", "activation": "active", "before_sha256": "c7d3f13ae6849aacdcee7538b5f6a159f237ff5676d0df261855a874dabb96b3", "after_sha256": "c7d3f13ae6849aacdcee7538b5f6a159f237ff5676d0df261855a874dabb96b3"},
+    {"role": "harness_cli", "path": "scripts/bin/harness-cli", "ownership": "subject-owned", "activation": "missing", "before_sha256": null, "after_sha256": null}
+  ]
+}

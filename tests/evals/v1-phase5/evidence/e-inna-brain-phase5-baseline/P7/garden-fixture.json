@@ -1,0 +1,5 @@
+{
+  "scope": "phase5-p7",
+  "values": [3, 2, 1],
+  "nested": { "enabled": true, "mode": "bounded" }
+}

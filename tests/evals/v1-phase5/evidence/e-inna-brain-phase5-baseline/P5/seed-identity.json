@@ -1,0 +1,9 @@
+{
+  "clean_revision": "840cd73dd92cf5646493f579448b0ce477200c64",
+  "clean_worktree": true,
+  "seed_path": "src/domain/phase5-pilot-typecheck-seed.ts",
+  "seed_sha256": "6379866a4d80849c1d30b94e7072e35545fb6e5ef22d9d806399b9e9dfe1994c",
+  "seeded_at": "2026-07-18T07:00:34Z",
+  "removed_at": "2026-07-18T07:00:49Z",
+  "path_present_after_repair": false
+}

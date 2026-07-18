@@ -1,0 +1,20 @@
+{
+  "scope": ["docs/evidence/phase5-pilot-einna/P7/garden-fixture.json"],
+  "trigger": "pnpm exec prettier --write followed by the locked pnpm exec prettier --check acceptance",
+  "run_1": {
+    "started_at": "2026-07-18T07:14:40Z",
+    "completed_at": "2026-07-18T07:14:40Z",
+    "before": [{"path": "docs/evidence/phase5-pilot-einna/P7/garden-fixture.json", "sha256": "dfd9f019739c631a1377ed361e0dc25b31f58e37d2814b312c563c7514f5c433"}],
+    "after": [{"path": "docs/evidence/phase5-pilot-einna/P7/garden-fixture.json", "sha256": "123977309df4c91d20865972b8b1f2c066503cce13a995241d01ff10f5e770f3"}],
+    "changed_paths": ["docs/evidence/phase5-pilot-einna/P7/garden-fixture.json"],
+    "validation_exit_code": 0
+  },
+  "run_2": {
+    "started_at": "2026-07-18T07:14:52Z",
+    "completed_at": "2026-07-18T07:14:52Z",
+    "before": [{"path": "docs/evidence/phase5-pilot-einna/P7/garden-fixture.json", "sha256": "123977309df4c91d20865972b8b1f2c066503cce13a995241d01ff10f5e770f3"}],
+    "after": [{"path": "docs/evidence/phase5-pilot-einna/P7/garden-fixture.json", "sha256": "123977309df4c91d20865972b8b1f2c066503cce13a995241d01ff10f5e770f3"}],
+    "changed_paths": [],
+    "validation_exit_code": 0
+  }
+}

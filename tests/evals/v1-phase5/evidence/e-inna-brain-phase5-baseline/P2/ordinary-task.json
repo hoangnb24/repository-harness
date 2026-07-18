@@ -1,0 +1,16 @@
+{
+  "schema": "repository-harness-ordinary-task/v2",
+  "task_id": "e-inna-brain-p2-final-architecture-check",
+  "starting_revision": "9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+  "prompt": "Run the repository-native Clean Architecture invariant after the final baseline lock, report its exact result, and make no product change when the tree already satisfies it.",
+  "commands": [
+    {"argv": ["pnpm", "test:architecture"], "exit_code": 0, "observation": "Architecture boundary check passed under locked Node 22.22.3 and pnpm 10.30.1; the engine mismatch warning was retained."}
+  ],
+  "core_command_count": 0,
+  "result": "passed",
+  "cause_effect": [
+    "The final task ran after baseline_started_at and used only the target package script.",
+    "No V1 core command or Harness-only durable plan occurred.",
+    "The invariant already passed, so the correct task-attributable changed-path list was empty."
+  ]
+}

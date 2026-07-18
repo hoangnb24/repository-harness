@@ -1,0 +1,169 @@
+{
+  "schema": "repository-harness-pilot-packet-manifest/v2",
+  "pilot_id": "harness-benchmark-phase5-pilot",
+  "custody_id": "harness-benchmark-phase5-pilot-custody-local-20260718",
+  "artifacts": [
+    {
+      "path": "README.md",
+      "sha256": "abc1caf2d25731319ed1d53dad2a4c6add04ab4570dc940d5f1adb6b01e5842c",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: README.md."
+    },
+    {
+      "path": "applicability-lock.md",
+      "sha256": "7361d0771339ac87d9a04740bee27a8e99236aa6300f48f37dfc3dc55b653817",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: applicability-lock.md."
+    },
+    {
+      "path": "baseline-result.json",
+      "sha256": "0912c60a425492757c72fca5a30d0a3a124a798a9f0244c0f3142aae456a1093",
+      "media_type": "application/json",
+      "purpose": "Normalized closed P0-P7 baseline result."
+    },
+    {
+      "path": "baseline-start.json",
+      "sha256": "582cf130cc12831ec864bd0675062c10636641078fd2155b1c368ebfc51e1d34",
+      "media_type": "application/json",
+      "purpose": "Committed source evidence artifact: baseline-start.json."
+    },
+    {
+      "path": "blockers.md",
+      "sha256": "52a4374ba01da111f5a9b1260f9279f6f06afbfffd7d1d48eeef5ec6c9879ef1",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: blockers.md."
+    },
+    {
+      "path": "cards/P0/evidence.md",
+      "sha256": "83a538249040c3e756c3e9a9053708a46c0c1f9ffba907121aa4ee57fde3f883",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P0/evidence.md."
+    },
+    {
+      "path": "cards/P1/eligibility-finding.md",
+      "sha256": "171a88f325b41b52bbc167515a36385c3c795715f4d5f1091462e29429735728",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P1/eligibility-finding.md."
+    },
+    {
+      "path": "cards/P2/evidence.md",
+      "sha256": "963540bb5c249c6f197793533026d3c53155c0a3fbd99bc097fece949088ecb6",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P2/evidence.md."
+    },
+    {
+      "path": "cards/P3/durable-plan.md",
+      "sha256": "22f09fd2bc1341cc9f9b745fa11e06f3cad8f01de15feb028f77842e3090445f",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P3/durable-plan.md."
+    },
+    {
+      "path": "cards/P3/resume-transcript.md",
+      "sha256": "c4c68c63f0c721e3891cb87a00cfda311d04e7b5ff54a9f9d86f46c7b33f6611",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P3/resume-transcript.md."
+    },
+    {
+      "path": "cards/P4/evidence.md",
+      "sha256": "baa5fbd5657351ba3c88123deaeda1aeffd1c2e1ada0b9a60050203537a01cf8",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P4/evidence.md."
+    },
+    {
+      "path": "cards/P5/evidence.md",
+      "sha256": "76060d24d5bceeeddcbc2fce98d1d9c4dfd8b8613533d3d05ee9e759fc6a7e14",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P5/evidence.md."
+    },
+    {
+      "path": "cards/P6/durable-capability.diff",
+      "sha256": "3cbb53f536a1cc3601ed80c266f6e821920d30ed46b8d55e19a824b2c1766d20",
+      "media_type": "text/x-diff",
+      "purpose": "Committed source evidence artifact: cards/P6/durable-capability.diff."
+    },
+    {
+      "path": "cards/P6/evidence.md",
+      "sha256": "6bbf96bad662eb371679a060fafbed807eed3798ab68edd58c0b4d7bf8155322",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P6/evidence.md."
+    },
+    {
+      "path": "cards/P6/held-out-prompt.md",
+      "sha256": "206922a3159403f5d248ca8a8a05663889bba7148b110b0df31ae52b86fef3ed",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P6/held-out-prompt.md."
+    },
+    {
+      "path": "cards/P6/held-out-transcript.md",
+      "sha256": "0a21ed7d7645faf7332cba711506ba2bc3704c58be564c5d42d7a782619902d4",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P6/held-out-transcript.md."
+    },
+    {
+      "path": "cards/P7/evidence.md",
+      "sha256": "6bac30968d5e2674ec4c1733a4aeae7889955f8ec7491797de990fdd4410bbb0",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: cards/P7/evidence.md."
+    },
+    {
+      "path": "eligibility.json",
+      "sha256": "f65cb078dbffa418c32cbe8a06b2ff4a03b62dd3b8c4487d8bba951c077353a5",
+      "media_type": "application/json",
+      "purpose": "Normalized closed P0-P7 eligibility record."
+    },
+    {
+      "path": "enrollment.json",
+      "sha256": "78fb59cf37f6dd0028095f78c33a54bc20219f371c2ab07c731de8679be8a37f",
+      "media_type": "application/json",
+      "purpose": "Repository-scoped pilot enrollment."
+    },
+    {
+      "path": "environment.json",
+      "sha256": "d4ea3b53bf662a82692f3a7c35383a42903695b0f980d56486deabb1d100d1dc",
+      "media_type": "application/json",
+      "purpose": "Canonical environment and acceptance-command lock."
+    },
+    {
+      "path": "evidence-requirements.md",
+      "sha256": "9bad00fdddc06424d8fc5b1c12957633405aac94821de82f31ba1e3b493d1d59",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: evidence-requirements.md."
+    },
+    {
+      "path": "interventions.json",
+      "sha256": "29ddbdcf7445783101d5eff9ac477ad3e3cdeba75cb1741ae964cedb2f984661",
+      "media_type": "application/json",
+      "purpose": "Recorded intervention events and exact totals."
+    },
+    {
+      "path": "native-harness-query.md",
+      "sha256": "e8bf085ece522801ecd185e8f1535d6f6a13ebb40af10a806a219eb9b420bf03",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: native-harness-query.md."
+    },
+    {
+      "path": "preflight-aborted.md",
+      "sha256": "07ccff8c60850820d6c262157a37fac63fa450b1ead130be53750aabeea44bfa",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: preflight-aborted.md."
+    },
+    {
+      "path": "repository.bundle",
+      "sha256": "8bf677d9c40e50ea02da38322b4a21fe59bd94f55d77ab417b7ea31a73a090a3",
+      "media_type": "application/x-git-bundle",
+      "purpose": "Bundle-backed immutable starting revision."
+    },
+    {
+      "path": "run-metadata.json",
+      "sha256": "966bb10bdace8213f20b4135cdeed8c4310a44ac78c25ef1930d0d8a5948e0e0",
+      "media_type": "application/json",
+      "purpose": "Committed source evidence artifact: run-metadata.json."
+    },
+    {
+      "path": "validation-report.md",
+      "sha256": "2c8d61c657ea0831afd1969ac5639ddf3aa1c55fe666eeaf10d6cf3d524aedf0",
+      "media_type": "text/markdown",
+      "purpose": "Committed source evidence artifact: validation-report.md."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "seed_path": "src/application/phase5-pilot-architecture-seed.ts",
+  "seed_sha256": "5608323d5a6ce80116dce67c82d934467f664c6958ff7d03de45a8986fbdc566",
+  "seeded_at": "2026-07-18T06:58:39Z",
+  "removed_at": "2026-07-18T06:58:53Z",
+  "baseline_path_present_before_seed": false,
+  "path_present_after_repair": false
+}

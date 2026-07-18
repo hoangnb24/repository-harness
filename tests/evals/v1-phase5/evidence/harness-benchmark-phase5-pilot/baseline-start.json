@@ -1,0 +1,11 @@
+{
+  "pilot_id": "harness-benchmark-phase5-pilot",
+  "run_kind": "baseline",
+  "started_at": "2026-07-18T07:10:43Z",
+  "starting_revision": "090f6d1c33d9f006cc8e95491badc33a8053c89f",
+  "trust_asserted_at": "2026-07-18T06:40:32Z",
+  "authorized_at": "2026-07-18T07:03:56Z",
+  "environment_locked_at": "2026-07-18T07:10:41Z",
+  "eligibility_locked_at": "2026-07-18T07:10:42Z",
+  "supersedes_provisional_start": "2026-07-18T07:06:48Z"
+}

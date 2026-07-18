@@ -1,0 +1,8 @@
+diff --git a/src/application/phase5-pilot-architecture-seed.ts b/src/application/phase5-pilot-architecture-seed.ts
+deleted file mode 100644
+--- a/src/application/phase5-pilot-architecture-seed.ts
++++ /dev/null
+@@ -1,3 +0,0 @@
+-import type { RuntimeConfig } from '../infrastructure/config/runtime-config';
+-
+-export type Phase5PilotArchitectureSeed = RuntimeConfig;

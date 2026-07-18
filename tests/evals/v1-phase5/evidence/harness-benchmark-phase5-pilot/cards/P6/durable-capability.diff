@@ -1,0 +1,35 @@
+diff --git a/benchmark/orchestrator/test/task-manifest.test.ts b/benchmark/orchestrator/test/task-manifest.test.ts
+--- a/benchmark/orchestrator/test/task-manifest.test.ts
++++ b/benchmark/orchestrator/test/task-manifest.test.ts
+@@
+-  it('loads the committed T1-T6 manifest in dependency-valid order', async () => {
++  it('loads the committed T1-T12 manifest in dependency-valid order', async () => {
+diff --git a/benchmark/orchestrator/test/phase5-capability-inheritance.test.ts b/benchmark/orchestrator/test/phase5-capability-inheritance.test.ts
+new file mode 100644
+--- /dev/null
++++ b/benchmark/orchestrator/test/phase5-capability-inheritance.test.ts
+@@
++import { readFile } from 'node:fs/promises';
++import { describe, expect, it } from 'vitest';
++
++const activeTaskRangeSurfaces = [
++  'README.md',
++  'src/index.ts',
++  'benchmark/orchestrator/test/task-manifest.test.ts',
++];
++
++describe('active task-range guidance', () => {
++  it('keeps active guidance aligned with the twelve-task manifest', async () => {
++    for (const filePath of activeTaskRangeSurfaces) {
++      const contents = await readFile(filePath, 'utf8');
++      expect(contents, `${filePath} still advertises the retired six-task range`).not.toMatch(/T1[-–]T6/);
++    }
++
++    const manifest = JSON.parse(await readFile('benchmark/tasks/manifest.json', 'utf8')) as {
++      tasks: Array<{ id: string }>;
++    };
++    expect(manifest.tasks).toHaveLength(12);
++    expect(manifest.tasks.at(0)?.id).toBe('T1-project-setup');
++    expect(manifest.tasks.at(-1)?.id).toBe('T12-cursor-pagination');
++  });
++});

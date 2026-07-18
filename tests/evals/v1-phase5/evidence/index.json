@@ -6,7 +6,7 @@
   "trusted_owners": "trusted-owners.json",
   "pilots": [],
   "blockers": [
-    "No external pilot-owner trust registry, independently pinned registry digest, or owner authorization has been supplied to live verification.",
-    "No canonical repository bundle, resolved immutable revision, authenticated packet manifest, environment lock, eligibility finding, intervention log, baseline publication, or custody identity exists."
+    "Both live evidence packets are assembled and structurally complete, but each authentication signature is ORCHESTRATOR_SIGNATURE_PENDING.",
+    "Phase 5 remains signature-blocked until the owner-held keys sign the canonical statements and the complete index is authorized for verification against the pinned external registry."
   ]
 }

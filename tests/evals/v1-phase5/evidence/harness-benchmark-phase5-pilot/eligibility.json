@@ -1,0 +1,58 @@
+{
+  "schema": "repository-harness-pilot-eligibility/v2",
+  "pilot_id": "harness-benchmark-phase5-pilot",
+  "evaluated_at": "2026-07-18T07:10:42Z",
+  "evaluator_id": "codex-phase5-pilot-operator",
+  "cards": [
+    {
+      "card_id": "P0",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P1",
+      "disposition": "inapplicable",
+      "finding": "The locked revision has no recognized supported V0 durable state or provenance to archive and cut over.",
+      "finding_artifacts": [
+        "cards/P1/eligibility-finding.md"
+      ]
+    },
+    {
+      "card_id": "P2",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P3",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P4",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P5",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P6",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P7",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    }
+  ]
+}

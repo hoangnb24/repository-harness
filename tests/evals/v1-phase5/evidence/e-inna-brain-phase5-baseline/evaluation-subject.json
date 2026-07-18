@@ -1,0 +1,8 @@
+{
+  "kind": "pre-candidate-baseline",
+  "identity": "e-inna-brain-repository-native-harness@9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+  "repository": "https://github.com/hoangnb24/e-inna-brain.git",
+  "starting_revision": "9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+  "starting_tree": "710109132b01f503e6ad2c1664040004c87900ce",
+  "subject_boundary": "Tracked repository-native Harness documents, schemas, and documented CLI path present or absent at the starting revision; no Phase 6 candidate was disclosed."
+}

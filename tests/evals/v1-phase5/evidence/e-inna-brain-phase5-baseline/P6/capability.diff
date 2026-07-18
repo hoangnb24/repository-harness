@@ -1,0 +1,40 @@
+diff --git a/scripts/check-architecture.mjs b/scripts/check-architecture.mjs
+--- a/scripts/check-architecture.mjs
++++ b/scripts/check-architecture.mjs
+@@
+-const importPattern = /from\s+['"]([^'"]+)['"]|import\s+['"]([^'"]+)['"]/g;
++const importPattern =
++  /from\s+['"]([^'"]+)['"]|import\s+['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+@@
+-      const specifier = match[1] ?? match[2];
++      const specifier = match[1] ?? match[2] ?? match[3];
+diff --git a/test/architecture-checker.spec.ts b/test/architecture-checker.spec.ts
+--- a/test/architecture-checker.spec.ts
++++ b/test/architecture-checker.spec.ts
+@@
++  it('rejects dynamic domain imports from application', async () => {
++    const projectRoot = await createProject({
++      'src/domain/index.ts':
++        "export const loadApp = () => import('../application');\n",
++      'src/application/index.ts': 'export type AppThing = string;\n'
++    });
++    const result = runChecker(projectRoot);
++    expect(result.status).toBe(1);
++    expect(result.stderr).toContain(
++      'domain layer imports forbidden project layer "src/application"'
++    );
++  });
+@@
++  it('rejects dynamic application imports from infrastructure', async () => {
++    const projectRoot = await createProject({
++      'src/domain/index.ts': 'export type DomainThing = string;\n',
++      'src/application/index.ts':
++        "export const loadInfra = () => import('../infrastructure');\n",
++      'src/infrastructure/index.ts': 'export type InfraThing = string;\n'
++    });
++    const result = runChecker(projectRoot);
++    expect(result.status).toBe(1);
++    expect(result.stderr).toContain(
++      'application layer imports forbidden project layer "src/infrastructure"'
++    );
++  });

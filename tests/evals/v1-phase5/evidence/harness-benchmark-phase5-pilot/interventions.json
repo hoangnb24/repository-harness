@@ -1,0 +1,132 @@
+{
+  "schema": "repository-harness-intervention-log/v2",
+  "pilot_id": "harness-benchmark-phase5-pilot",
+  "run_kind": "baseline",
+  "events": [
+    {
+      "card_id": "P3",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:12:48Z",
+      "taxonomy": "instantiation",
+      "reason": "Applied the reversible resume-plan dependency seed before the fixed interruption point.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P4",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:18:49Z",
+      "taxonomy": "instantiation",
+      "reason": "Applied the reversible T4 manifest-lane invariant seed.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P4",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:19:08Z",
+      "taxonomy": "evaluator error",
+      "reason": "An under-contextualized repair patch touched T2 instead of T4; diff inspection caught it before acceptance and a contextual repair restored both fields.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P5",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:20:12Z",
+      "taxonomy": "instantiation",
+      "reason": "Applied the reversible adherence-score return-value seed to the clean target path.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P6",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:23:15Z",
+      "taxonomy": "instantiation",
+      "reason": "Applied the comparable held-out stale task-range seed to README guidance.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P6",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:30:03Z",
+      "taxonomy": "conflict review",
+      "reason": "Applied the fixed five-minute rule to the late held-out completion and preserved P6 as a timeout-negative result despite late passing acceptance.",
+      "minutes": 1,
+      "changed_outcome": true
+    },
+    {
+      "card_id": "P7",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:31:45Z",
+      "taxonomy": "instantiation",
+      "reason": "Applied the bounded reversible trailing-whitespace gardening seed to src/index.ts.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P7",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:31:59Z",
+      "taxonomy": "gardening review",
+      "reason": "Reviewed run 1 scope, digest delta, and passing identical target validation after the relevant repair.",
+      "minutes": 1,
+      "changed_outcome": false
+    },
+    {
+      "card_id": "P7",
+      "actor": "codex-phase5-pilot-operator",
+      "timestamp": "2026-07-18T07:32:09Z",
+      "taxonomy": "gardening review",
+      "reason": "Reviewed run 2 and confirmed identical before/after digest, no repeat drift, and no unrelated rewrite.",
+      "minutes": 1,
+      "changed_outcome": false
+    }
+  ],
+  "totals": {
+    "event_count": 9,
+    "minutes": 9,
+    "by_card": {
+      "P3": {
+        "event_count": 1,
+        "minutes": 1
+      },
+      "P4": {
+        "event_count": 2,
+        "minutes": 2
+      },
+      "P5": {
+        "event_count": 1,
+        "minutes": 1
+      },
+      "P6": {
+        "event_count": 2,
+        "minutes": 2
+      },
+      "P7": {
+        "event_count": 3,
+        "minutes": 3
+      }
+    },
+    "by_taxonomy": {
+      "conflict review": {
+        "event_count": 1,
+        "minutes": 1
+      },
+      "evaluator error": {
+        "event_count": 1,
+        "minutes": 1
+      },
+      "gardening review": {
+        "event_count": 2,
+        "minutes": 2
+      },
+      "instantiation": {
+        "event_count": 5,
+        "minutes": 5
+      }
+    }
+  }
+}

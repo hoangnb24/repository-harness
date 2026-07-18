@@ -1,0 +1,14 @@
+{
+  "schema": "repository-harness-pilot-card-catalog/v1",
+  "catalog_revision": 1,
+  "cards": [
+    {"card_id": "P0", "path": "cards/P0.json", "sha256": "0168c852f55cea56210b99eb34da9087f35203703aac793846c8357857eeaf2f"},
+    {"card_id": "P1", "path": "cards/P1.json", "sha256": "50a86c47cebd75275db64dc5585c406354a95ff20518f952088edd737165db23"},
+    {"card_id": "P2", "path": "cards/P2.json", "sha256": "2d35751a48013aed346eb47ae5736d6596b9a09ad6af56355d7215e5ad002093"},
+    {"card_id": "P3", "path": "cards/P3.json", "sha256": "affce2016bfad2d18b31dc856ef69e9c632fcb2094a3a64f4dddecffde1f57f3"},
+    {"card_id": "P4", "path": "cards/P4.json", "sha256": "9e2fc0e52f8c59ac694810ccb09e1b1d16d14a7a94a1a2f9b92967f967798084"},
+    {"card_id": "P5", "path": "cards/P5.json", "sha256": "5927da79eaea323b225bb4af280390b8c3018bbad4b1198a4d303f8cd29d0c87"},
+    {"card_id": "P6", "path": "cards/P6.json", "sha256": "be2d38830cee606f568c36903a4e85e3c113da3efa606a296c3786d38f7d59aa"},
+    {"card_id": "P7", "path": "cards/P7.json", "sha256": "f09ef096d7d083b36091521b926db62b186ad408942d77c7e6afbca88c7407ac"}
+  ]
+}

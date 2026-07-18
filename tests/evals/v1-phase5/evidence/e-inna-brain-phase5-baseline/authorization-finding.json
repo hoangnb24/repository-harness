@@ -1,0 +1,9 @@
+{
+  "pilot_id": "e-inna-brain-phase5-baseline",
+  "authorization_kind": "external-per-repository-evaluation-trust",
+  "authorized_at": "2026-07-18T06:40:32Z",
+  "source": "human/orchestrator instruction in the pilot session",
+  "scope": "Local isolated-worktree execution of frozen Phase 5 cards P0-P7, reversible seeded defects, fresh-agent P3/P6 work, evidence commits, and no push/deploy/provider/database/secret action",
+  "owner_signature_present": false,
+  "note": "This finding records the supplied trust time; it is not owner enrollment, an owner signature, or a trusted-owner registry."
+}

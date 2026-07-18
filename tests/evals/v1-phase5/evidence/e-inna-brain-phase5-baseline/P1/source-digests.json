@@ -1,0 +1,16 @@
+{
+  "started_at": "2026-07-18T06:45:08Z",
+  "completed_at": "2026-07-18T06:45:08Z",
+  "starting_revision": "9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+  "harness_db": "absent",
+  "archive_receipt": "absent",
+  "v1_receipt": "absent",
+  "sources": [
+    {"path": "scripts/schema/001-init.sql", "git_blob": "5bc5e9db01585e7ed3870a68a897208754932b4f", "before_sha256": "c7d3f13ae6849aacdcee7538b5f6a159f237ff5676d0df261855a874dabb96b3", "after_sha256": "c7d3f13ae6849aacdcee7538b5f6a159f237ff5676d0df261855a874dabb96b3"},
+    {"path": "scripts/schema/002-story-verify.sql", "git_blob": "9254d007b844a4adbe8444cb217b9b5fc7de327e", "before_sha256": "6e788f0a712e1280b196843b7e4e49a71f649e0c989913dc1b9d28e098df54de", "after_sha256": "6e788f0a712e1280b196843b7e4e49a71f649e0c989913dc1b9d28e098df54de"},
+    {"path": "scripts/schema/003-tool-registry.sql", "git_blob": "8735bd3a2026378f485868c5b86ae2afb9cb3311", "before_sha256": "acf9fa39f056e9f41a9499e84139b4d44dbb921ea228c08a2eeaff66267e4caa", "after_sha256": "acf9fa39f056e9f41a9499e84139b4d44dbb921ea228c08a2eeaff66267e4caa"},
+    {"path": "scripts/schema/004-intervention.sql", "git_blob": "58cbd43a00b2a2eb3da8cd3099ac6e5c0f91013d", "before_sha256": "e5b8c6879976c87e4663eb4b5849d29b5c4caa8a1fe54b1f122b11e429090197", "after_sha256": "e5b8c6879976c87e4663eb4b5849d29b5c4caa8a1fe54b1f122b11e429090197"}
+  ],
+  "acceptance": {"argv": ["git", "diff", "--check"], "exit_code": 0},
+  "outcome": "failed"
+}

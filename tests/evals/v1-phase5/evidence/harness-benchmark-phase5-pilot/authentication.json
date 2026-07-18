@@ -1,0 +1,26 @@
+{
+  "schema": "repository-harness-packet-authentication/v2",
+  "owner_id": "hoangnb24-harness-benchmark-phase5",
+  "algorithm": "ssh-ed25519",
+  "namespace": "repository-harness-phase5",
+  "statement": {
+    "schema": "repository-harness-authenticated-baseline-publication/v2",
+    "pilot_id": "harness-benchmark-phase5-pilot",
+    "canonical_repository": "https://github.com/hoangnb24/harness-benchmark.git",
+    "starting_revision": "090f6d1c33d9f006cc8e95491badc33a8053c89f",
+    "repository_bundle_sha256": "8bf677d9c40e50ea02da38322b4a21fe59bd94f55d77ab417b7ea31a73a090a3",
+    "owner_id": "hoangnb24-harness-benchmark-phase5",
+    "authorization_scope": "phase5-baseline-evaluation-p0-p7-harness-benchmark",
+    "card_catalog_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594",
+    "packet_manifest_sha256": "30dcb1311edf92d06ff14af0eaa2d0641cab7e3d0af5e3594d7ac649d17808c0",
+    "publication_id": "harness-benchmark-phase5-pilot-baseline-20260718t075654z",
+    "custody_id": "harness-benchmark-phase5-pilot-custody-local-20260718",
+    "baseline_subject_identity": "harness-benchmark@090f6d1c33d9f006cc8e95491badc33a8053c89f",
+    "baseline_subject_sha256": "8bf677d9c40e50ea02da38322b4a21fe59bd94f55d77ab417b7ea31a73a090a3",
+    "baseline_started_at": "2026-07-18T07:10:43Z",
+    "baseline_completed_at": "2026-07-18T07:34:03Z",
+    "published_at": "2026-07-18T07:56:54Z",
+    "candidate_disclosure_not_before": "2026-07-18T07:56:55Z"
+  },
+  "signature": "ORCHESTRATOR_SIGNATURE_PENDING"
+}

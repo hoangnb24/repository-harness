@@ -1,0 +1,26 @@
+{
+  "schema": "repository-harness-packet-authentication/v2",
+  "owner_id": "hoangnb24-e-inna-brain-phase5",
+  "algorithm": "ssh-ed25519",
+  "namespace": "repository-harness-phase5",
+  "statement": {
+    "schema": "repository-harness-authenticated-baseline-publication/v2",
+    "pilot_id": "e-inna-brain-phase5-baseline",
+    "canonical_repository": "https://github.com/hoangnb24/e-inna-brain.git",
+    "starting_revision": "9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+    "repository_bundle_sha256": "ee4833f28ad4a3d4394b36100ae56d76f90dc58dd92205ea017fb99f2a1f42a1",
+    "owner_id": "hoangnb24-e-inna-brain-phase5",
+    "authorization_scope": "phase5-baseline-evaluation-p0-p7-e-inna-brain",
+    "card_catalog_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594",
+    "packet_manifest_sha256": "6972b801d9213cde27b2b6677bebefa2bdbce8ec74ca9d9a60a9d460baa3b705",
+    "publication_id": "e-inna-brain-phase5-baseline-baseline-20260718t075654z",
+    "custody_id": "e-inna-brain-phase5-baseline-custody-local-20260718",
+    "baseline_subject_identity": "e-inna-brain-repository-native-harness@9be2b9b624f29c2c4f93bb576485fd8de2085af4",
+    "baseline_subject_sha256": "16f6436496aa5c6cbe6e4d516275ec55dc8423e8b3a65c23be83c24d91b834b8",
+    "baseline_started_at": "2026-07-18T06:42:48Z",
+    "baseline_completed_at": "2026-07-18T07:17:47Z",
+    "published_at": "2026-07-18T07:56:54Z",
+    "candidate_disclosure_not_before": "2026-07-18T07:56:55Z"
+  },
+  "signature": "ORCHESTRATOR_SIGNATURE_PENDING"
+}

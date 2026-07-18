@@ -1,0 +1,56 @@
+{
+  "schema": "repository-harness-pilot-eligibility/v2",
+  "pilot_id": "e-inna-brain-phase5-baseline",
+  "evaluated_at": "2026-07-18T06:42:47Z",
+  "evaluator_id": "codex-phase5-pilot-operator",
+  "cards": [
+    {
+      "card_id": "P0",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P1",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P2",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P3",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P4",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P5",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P6",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    },
+    {
+      "card_id": "P7",
+      "disposition": "eligible",
+      "finding": "",
+      "finding_artifacts": []
+    }
+  ]
+}
