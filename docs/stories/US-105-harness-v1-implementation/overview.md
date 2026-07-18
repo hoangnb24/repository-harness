@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation in progress / Phases 1-4 accepted / Phase 5 candidate awaiting external pilot evidence and independent acceptance / Phases 6-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / final integration-premerge pending**
 
 This is the durable implementation initiative packet for the eight phases in
 `docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement
@@ -10,9 +10,11 @@ candidate `1b1add5`, integrated as `e77e028` with the identical Git tree.
 US-108 supplies accepted Phase 3 mutation/recovery evidence at exact candidate
 `1f957ce`, integrated as `8e67593` with identical Git tree `9cd22cdb24d2`.
 US-109 supplies accepted Phase 4 at exact candidate `880cb9b`, fast-forwarded
-with identical Git tree `0f81d3f0f4c8`. US-110 supplies the repository-owned
-Phase 5 dogfood/evidence-contract candidate. No external pilot authorization,
-baseline, Phase 5 acceptance, production release, or Phase 6-8 behavior exists.
+with identical Git tree `0f81d3f0f4c8`. US-110 supplies accepted Phase 5
+dogfood and authenticated pre-candidate baselines at exact `b2dd775`, which an
+independent reviewer explicitly approved with no remaining findings. No
+production release, Phase 6-8 behavior, or final integration/premerge result
+for this documentation update exists.
 Decision 0012 supplies authorization policy; Decision 0013 and US-106 supply
 accepted Phase 1. US-107 supplies validated Phase 2 implementation evidence,
 and US-108 supplies independently accepted Phase 3 evidence.
@@ -71,9 +73,10 @@ indefinitely, bridge release assets are retained through
 those values resolve Gate G0. Phase 1 froze the contract boundary and Phase 2
 implemented, validated, and accepted the pure core against it. Phase 3 is
 implemented, validated, and accepted by US-108. Phase 4 is implemented,
-validated, and accepted by US-109. US-110 implements the repository-owned
-Phase 5 candidate, but external baselines and independent acceptance remain
-absent; Phases 6-8 remain dependent on preceding acceptance.
+validated, and accepted by US-109. US-110 completes and accepts Phase 5 at the
+authenticated baseline gate with two real repository packets. Their failed or
+inapplicable cards are frozen measurements, not Phase 6 results; Phases 6-8
+remain not started and dependent on preceding acceptance.
 
 For example, the presence of `.harness/` cannot authorize ownership. It may
 contain V0 changesets, another tool's metadata, or unrelated files. The bridge
@@ -153,9 +156,10 @@ This packet maps those contracts into implementation and proof. Decision 0012
 authorizes the schedule/retention boundary; Decision 0013 plus US-106 provide
 Phase 1 acceptance, US-107 provides accepted Phase 2 implementation and
 validation, and US-108 provides accepted Phase 3 mutation/recovery evidence.
-US-109 implements the accepted isolated Phase 4 bridge. US-110 implements only
-the repository-owned Phase 5 candidate and preserves external-pilot ownership;
-it claims neither Phase 5 acceptance nor Phase 6 work.
+US-109 implements the accepted isolated Phase 4 bridge. US-110 preserves
+external-pilot ownership and supplies accepted Phase 5 authenticated baselines;
+it claims no Phase 6 work, candidate improvement, release, or final premerge
+result for the later documentation commit.
 
 ## Non-Goals
 

@@ -1,13 +1,14 @@
 # US-110 V1 Dogfood And Pilot Baselines Exec Plan
 
-Status: **Evidence-oracle correction implemented / external enrollment and baseline execution blocked**
+Status: **Authenticated Phase 5 baselines complete and accepted on exact `b2dd775` / Phases 6-8 not started / final integration-premerge pending**
 
 ## Goal
 
 Produce a stable, reviewable repository-owned Phase 5 candidate that dogfoods
 V1 without path churn, freezes deterministic pilot evidence contracts, and
 fails closed until two distinct repository scopes supply authorized real
-baseline evidence. One stable owner may authorize both scopes.
+baseline evidence. One stable owner may authorize both scopes. That gate is
+now complete; candidate improvement evaluation remains Phase 6 work.
 
 ## Scope
 
@@ -23,15 +24,15 @@ In scope:
   digest-bound repository bundles.
 - Add positive and negative executable verification and minimal premerge
   wiring.
-- Update US-105, the refactor plan, and test matrix from stale Phase 4 text to
-  Phase 5 candidate tracking.
+- Update US-105, the refactor plan, and test matrix with authenticated Phase 5
+  baseline acceptance and explicit Phase 6-8 not-started status.
 
 Out of scope:
 
 - Any external repository access or mutation without owner authorization.
 - Any invented pilot or evaluator evidence.
-- Phase 5 acceptance, Phase 6 work, candidate comparison, Phase 7 release
-  proof, or Phase 8 behavior.
+- Phase 6 work, candidate comparison, Phase 7 release proof, or Phase 8
+  behavior.
 - Phase 1-4 source changes, production keys, publishing, tags, remote branches,
   or changes to the six-command/four-command boundaries.
 - `harness.db`, ignored databases, and `.harness/changesets`.
@@ -44,9 +45,10 @@ Risk flags:
   pilot baseline.
 - Existing behavior: Phase 1-4 gates and ordinary-work optionality must remain
   unchanged.
-- Weak proof: no authorized external baseline evidence exists yet.
+- Weak proof: candidate improvements have not been evaluated yet.
 - Multi-domain: repository mapping, evaluation integrity, external ownership,
-  and premerge validation meet at this gate.
+  and premerge validation meet at this gate; final documentation integration
+  remains orchestrator work.
 
 Hard gates:
 
@@ -80,14 +82,14 @@ authorization, trust record, pilot packet, or architecture change.
 5. Execute only the three exact repository-native dogfood argv arrays with Git
    and ripgrep configuration/alias/exec bypasses disabled.
 6. Exercise an ephemeral cryptographic positive packet and adversarial
-   reproductions for every confirmed oracle failure. Confirm the awaiting live
-   index still returns exit 2 and a future complete index cannot skip packets,
+   reproductions for every confirmed oracle failure. Confirm the complete live
+   index cannot skip packets,
    reuse a repository/owner ID/bundle, claim one signing key for different
    stable identities, or rely on tracked self-authorized trust. Positively
    prove that the same stable owner and key can authenticate two distinct
    repository scopes with different bundles.
-7. Run affected Phase 1-4 verifiers, formatting/lint/tests, diff checks, and
-   commit the stable candidate in this worktree only.
+7. Run affected Phase 1-5 documentation/status checks, formatting/diff checks,
+   and commit the documentation update in this worktree only.
 
 ## Stop Conditions
 
@@ -106,5 +108,7 @@ Stop and request owner input if:
 - A dependency or lockfile becomes necessary; explain the need before adding
   it.
 
-Current stop result: repository-owned work can complete, but live enrollment
-and baseline work stops because no external pilot owner authorization exists.
+Current result: live enrollment and baseline verification completed. Phase 5 is
+accepted at the authenticated baseline gate; Phase 6 remains not started, and
+final integration/premerge of this documentation commit remains orchestrator
+work.

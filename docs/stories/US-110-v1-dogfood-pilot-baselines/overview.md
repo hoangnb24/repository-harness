@@ -1,15 +1,16 @@
 # US-110 V1 Dogfood And Pilot Baselines
 
-Status: **Corrected repository-owned Phase 5 candidate / external pilot evidence blocked / Phase 5 not accepted**
+Status: **Phase 5 authenticated baseline gate accepted on exact `b2dd775` / Phases 6-8 not started / final integration-premerge pending**
 
 ## Current Behavior
 
 Phases 1-4 are accepted at source tree `0f81d3f0f4c8`, represented by commit
 `04f953d0f4c8aa42689c1565178376143916c8b5` in this isolated checkout. V1 has
 the six-command core, four-command archive bridge, authenticated contracts,
-safe mutation/recovery, and deterministic Phase 1-4 proof. It does not yet have
-two authorized external pilots, signed owner card sets, environment locks, or
-baseline results.
+safe mutation/recovery, and deterministic Phase 1-4 proof. US-110 now has two
+authenticated real-repository baseline packets under one stable GitHub identity,
+with distinct repository-scoped owner IDs, canonical repositories, bundles, and
+external Ed25519 keys.
 
 Repository Harness already has useful paths such as `AGENTS.md`, `README.md`,
 `docs/ARCHITECTURE.md`, `docs/decisions/`, `docs/stories/`, and
@@ -36,9 +37,9 @@ The repository-owned Phase 5 candidate has three effects:
    tracked registry must stay empty and cannot self-authorize a candidate. A
    verified SSH Ed25519 statement binds canonical repository, resolved bundled
    commit and bundle digest, scope, catalog, complete packet-manifest digest,
-   custody/publication identity, and baseline-before-disclosure timeline.
-   Because no owner has authorized a pilot, the index stays empty and explicit
-   live proof exits 2.
+   custody/publication identity, and baseline-before-disclosure timeline. The
+   live gate passed six proof groups and rejected 42/42 adversarial cases; both
+   signatures and bundle-resolved revisions verified.
 
 Exact Phase 5 acceptance remains the authority in `docs/REFACTOR_PLAN.md`: no
 required path move; no ordinary-task Harness core call; and at least two
@@ -49,9 +50,11 @@ packet, environment lock, resolved repository revision, and a baseline result
 or written inapplicability for every card, including complete
 intervention/time totals. The stable owner identity may be the same for both
 repositories. One signing key may authorize both only when that stable identity
-matches; separate evaluation keys remain recommended. This candidate satisfies
-the repository-owned first two conditions and defines/verifies the evidence
-format; it does not satisfy external-pilot conditions.
+matches; separate evaluation keys remain recommended. The authenticated packets
+satisfy the Phase 5 evidence conditions and define/verify the evidence format.
+The gate accepts honest pre-candidate baseline custody; benchmark P1 is
+inapplicable and P6 failed, while e-inna P0/P1/P3/P6 failed. These measurements
+do not constitute Phase 6 acceptance.
 
 ## Affected Users
 
@@ -63,8 +66,8 @@ format; it does not satisfy external-pilot conditions.
   omitted time cannot be normalized away.
 - Agents doing ordinary work continue to use target-native paths and checks
   without a mandatory Harness command.
-- Release maintainers receive candidate-only evidence; they receive no Phase 5
-  acceptance, Phase 6 start, release, tag, or promotion authority.
+- Release maintainers receive accepted baseline evidence but no Phase 6 start,
+  release, tag, or promotion authority.
 
 ## Affected Product Docs
 
@@ -80,15 +83,14 @@ format; it does not satisfy external-pilot conditions.
   separate explicit authorization.
 - Inventing pilot owners, approvals, repository revisions, signatures,
   environments, runs, interventions, inapplicability findings, or results.
-- Marking Phase 5 accepted, starting Phase 6, promoting a release, creating
+- Starting Phase 6, promoting a release, creating
   production keys, publishing, tagging, pushing, or opening a pull request.
 - Moving useful paths, creating duplicate knowledge documents, or making a V1
   core command mandatory during ordinary work.
 - Changing Phase 1-4 implementation code, the six-command core, four-command
   bridge, production gates, compatibility dates, or archive custody policy.
 
-Pilot authorization is a hard boundary: an empty tracked trust placeholder and
-evidence index are correct until the repository-scoped authorizations exist and
-an invoking authority pins external trust bytes. The verifier generates an
-ephemeral SSH Ed25519 key and local Git bundles only inside temporary tests;
-none is trusted live pilot evidence.
+Pilot authorization remains a hard boundary: the tracked trust placeholder is
+empty, while the invoking authority pins the external registry bytes outside
+the repository. The verifier generates an ephemeral SSH Ed25519 key and local
+Git bundles only inside temporary tests; those fixtures are not live evidence.

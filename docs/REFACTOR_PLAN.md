@@ -2,11 +2,11 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-4 accepted; Phase 5 repository-owned candidate in progress; Phases 6-8 not started
+Status: Direction and Phases 1-5 accepted at the authenticated baseline gate; Phases 6-8 not started; final integration/premerge remains orchestrator work
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
-implementation: US-109; Phase 5 candidate: US-110
+implementation: US-109; Phase 5 baseline acceptance: US-110
 
 Decision 0014 is the current Phase 4 authority. It supersedes the plan's former
 automatic conversion/journal design with freeze, archive/export, and normal
@@ -446,8 +446,8 @@ unique no-replace custody, and Phase 3 manifest/receipt-last core recovery.
 Focused bridge tests and the ten-group
 `scripts/verify-v1-phase4-bridge.sh` proof pass on macOS. An independent
 reviewer accepted exact candidate `880cb9b`, fast-forwarded to the primary
-branch with identical Git tree `0f81d3f0f4c8`. Phase 5 is unblocked and its
-repository-owned US-110 candidate is in progress. Windows safe capture/atomic
+branch with identical Git tree `0f81d3f0f4c8`. Phase 5 subsequently passed its
+authenticated live baseline gate through US-110. Windows safe capture/atomic
 publication and promoted five-platform
 artifact equivalence remain Phase 7 work; Phase 4 proves the controlled
 unsupported exit 5.
@@ -463,34 +463,36 @@ authenticated bundle digest, signed card set, environment lock, and baseline
 or documented inapplicability. The same stable owner identity may authorize
 both repositories.
 
-**Corrected repository-owned candidate; Phase 5 not accepted:** US-110 maps
-accepted Phase 4 paths in place, freezes P0-P7, and verifies exact ordinary
-argv. Live packets require caller-pinned, out-of-repository owner SSH Ed25519
-material, distinct canonical repository identities, distinct
-repository-scoped owner IDs, distinct authenticated repository-bundle digests,
-a bundle-resolved commit, a complete
-digest-bound packet manifest, consistent environment/card evidence, direct
-intervention binding, and authenticated custody/publication before candidate
-disclosure. Default/premerge automatically loads packets when an index becomes
-complete; its only live-trust operator input is a paired absolute registry path
-and lowercase SHA-256 environment contract, forwarded without bypass flags.
-The same stable owner identity may authorize both repository scopes. One
-signing key may be shared only for that same stable identity across the distinct
-repository scopes; using separate per-repository evaluation keys remains
-recommended, not required. The tracked trust placeholder and live index remain
-empty; external repository-scoped authorization, two distinct real
-repositories and bundles, and independent acceptance are still required.
+**Accepted at the authenticated live baseline gate on exact commit `b2dd775`:**
+US-110 maps accepted Phase 4 paths in place, freezes P0-P7, and verifies exact
+ordinary argv. Its live command passed all six proof groups and rejected all
+42 adversarial cases. Both offline SSH Ed25519 signatures verified, both
+authenticated bundles resolved their named revisions, and the corrected packet
+manifests bind canonical digests while eight annotated P3/P6 artifacts preserve
+the earlier source-run legacy digest truth. The independent reviewer who found
+the prior digest-reference problem explicitly approved exact `b2dd775` with no
+remaining findings; shared-owner alias hardening at exact `c928986` was also
+independently approved.
 
-Concretely, `https://github.com/hoangnb24/harness-benchmark.git` and
-`https://github.com/hoangnb24/e-inna-brain.git` may use the same stable
-`owner_identity` (`hoangnb24`). They must still use different `owner_id` values
-because each ID authorizes one repository scope, and their authenticated bundle
-SHA-256 values must differ. They may use one signing key because the claimed
-stable identity matches, although separate evaluation keys are preferred. This
-example defines acceptable identity topology only; it is not pilot evidence,
-authorization, a trust record, or Phase 5 acceptance.
+The caller-pinned registry remains outside the candidate repository at SHA-256
+`f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d`,
+while tracked `tests/evals/v1-phase5/evidence/trusted-owners.json` remains empty.
+The two authenticated packets use the same stable GitHub identity but distinct
+repository-scoped owner IDs, canonical repositories, bundles, and external
+Ed25519 keys: `harness-benchmark-phase5-pilot` resolves
+`090f6d1c33d9f006cc8e95491badc33a8053c89f`, and
+`e-inna-brain-phase5-baseline` resolves
+`9be2b9b624f29c2c4f93bb576485fd8de2085af4`.
+
+The recorded outcomes are honest pre-candidate measurements, not Phase 6
+acceptance. Benchmark P1 is inapplicable and benchmark P6 failed; e-inna P0,
+P1, P3, and P6 failed. Those outcomes do not block Phase 5 because this phase
+freezes authenticated baselines before candidate evaluation. Phase 6 has not
+started and will evaluate candidate improvements against these measurements.
 
 ### Phase 6: Capability Evaluation
+
+**Status: not started.**
 
 Instantiate and evaluate the selected planning, invariant, feedback,
 capability-improvement, and gardening contracts using the already enrolled
@@ -616,9 +618,11 @@ accepted Phase 2 evidence for the live six-command core, authenticated payload
 boundary, deterministic structural audit, no-target-execution canary, and safe
 mutation refusal. US-108 supplies accepted Phase 3 mutation/recovery evidence
 and the exact evidence counts above. US-109 supplies accepted archive-only
-Phase 4 evidence. US-110 supplies the repository-owned Phase 5 candidate, but
-no external pilot or Phase 5 acceptance. Phases 6-8 remain not started and
-depend on preceding accepted evidence. No bridge conversion write,
+Phase 4 evidence. US-110 supplies accepted authenticated Phase 5 baseline
+evidence at exact `b2dd775`; this accepts honest baseline custody, not any
+candidate improvement. Phases 6-8 remain not started and depend on preceding
+accepted evidence. Final integration/premerge for the documentation commit
+remains orchestrator work and is not claimed here. No bridge conversion write,
 production key, promoted release, pilot, tag, publish action, or V0 removal is
 created or authorized by Phase 3. Phase 8
 additionally requires Decision 0012's separate removal authorization and

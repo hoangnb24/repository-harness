@@ -1,6 +1,6 @@
 # US-110 V1 Dogfood And Pilot Baselines Design
 
-Status: **Corrected repository-owned Phase 5 candidate / live gate blocked**
+Status: **Phase 5 authenticated baseline gate accepted on exact `b2dd775` / Phases 6-8 not started / final integration-premerge pending**
 
 ## Domain Model
 
@@ -109,8 +109,9 @@ Authorized pilot flow:
     may repeat. Signing-key fingerprints may repeat only for the same stable
     owner identity across the already-distinct repositories.
 
-Current candidate flow stops before step 3 because the index is awaiting owner
-authorization and has no pilots.
+The current live flow completed packet loading and verification for both
+authenticated packets. The external registry remains caller-pinned outside the
+repository, while the tracked registry stays empty.
 
 ## Interface Contract
 

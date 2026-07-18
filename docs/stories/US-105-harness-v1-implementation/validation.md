@@ -1,9 +1,9 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Implementation in progress / Phases 1-4 accepted / Phase 5 candidate awaiting external pilot evidence and independent acceptance / Phases 6-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / final integration-premerge pending**
 
-Phase 6 remains not started: a repository-owned Phase 5 contract candidate is
-not a substitute for two authorized external pilot baselines.
+Phase 6 remains not started: its candidate improvements must be evaluated
+against the two authenticated pre-candidate baselines recorded by US-110.
 
 Decision 0014 supersedes this packet's former bridge conversion/journal matrix.
 The Phase 4 acceptance oracle is archive-only: exact capture/export,
@@ -39,9 +39,9 @@ all dependent evidence is rerun for the corrected candidate.
 
 Phase 2 core implementation proof and independent review pass; Phase 3 and
 Phase 4 implementation, validation, and independent review pass. US-110 adds
-the repository-owned Phase 5 candidate, but no external pilot baseline or
-Phase 5 acceptance exists. No production-promoted mutation/recovery adapter,
-five-platform artifact set, pilot result, or Phase 6-8 acceptance exists.
+accepted authenticated Phase 5 baseline evidence at exact `b2dd775`; no
+production-promoted mutation/recovery adapter, five-platform artifact set,
+candidate improvement, or Phase 6-8 acceptance exists.
 Decision
 0012 is authorization evidence: Gate G0 is approved/open, the window is
 `2027-01-01T00:00:00Z` through `2027-12-31T23:59:59Z`, inclusive, local
@@ -50,8 +50,9 @@ archives are retained indefinitely, bridge release assets are retained through
 `2028-01-01T00:00:00Z` after all closure conditions pass. Decision 0013 and
 US-106 implement and prove Phase 1; US-107 implements and proves Phase 2;
 US-108 implements, validates, and independently accepts Phase 3; US-109 does
-the same for Phase 4. Phase 5 remains an unaccepted candidate and Phases 6-8
-remain not-started dependencies. Only the Phase 1-4 matrix rows are accepted.
+the same for Phase 4. US-110 accepts Phase 5 at the authenticated baseline gate;
+Phases 6-8 remain not-started dependencies. Final integration/premerge for
+this documentation commit is orchestrator work and is not claimed here.
 
 ## Test Plan
 
@@ -212,7 +213,7 @@ story=docs/stories/US-105-harness-v1-implementation
 for file in overview.md design.md execplan.md validation.md
 do
   test -s "$story/$file"
-rg -q '^Status: \*\*Implementation in progress / Phases 1-4 accepted / Phase 5 .* / Phases 6-8 not started\*\*$' "$story/$file"
+rg -q '^Status: \*\*Implementation in progress / Phases 1-5 accepted .* / Phases 6-8 not started .*\*\*$' "$story/$file"
 done
 
 for heading in \
@@ -268,9 +269,9 @@ git status --short
 
 ## Acceptance Evidence
 
-Current product evidence: **Phases 1-4 accepted; repository-owned Phase 5
-candidate implemented with external pilot evidence and independent acceptance
-pending; Phases 6-8 not started**.
+Current product evidence: **Phases 1-5 accepted at the authenticated baseline
+gate; Phases 6-8 not started; final integration/premerge for this documentation
+commit pending**.
 Decision 0012 is G0
 authorization evidence; Decision 0013 is the accepted security/data-integrity
 decision; US-106 supplies versioned contracts, frozen V0 inputs, complete
@@ -290,7 +291,7 @@ asset sets, and non-reproducible generated fixtures.
 | 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | **Accepted.** Forty-six Rust tests (24 unit, 22 integration), eleven mechanical proof groups, 72 deterministic fixtures, 138 workspace Rust tests, evolved nine-group Phase 1 proof, workspace check/test/clippy, and full premerge passed. Independent security and behavior review accepted exact candidate `1b1add5`, integrated as `e77e028` with the identical Git tree. The canary/tree/architecture proof is not claimed as universal syscall evidence; US-107 records the boundary. |
 | 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | **Accepted.** Forty-three focused tests (eighteen recovery unit, twenty-five signed integration), all 18 install, 15 update, and 13 committed-update rollback checkpoints, 89 total `harness-core` tests, 181 workspace Rust tests, and 11/11 mechanical proof groups pass. Exact emitted-preview/private-write binding, commit/resume payload reauthentication, root-bound recovery ownership, damaged-evidence probe refusal, crash-resumable reverse rollback, manifest-last durability, safe conflict/race handling, read-only status, idempotency, and monotonic mode/receipt preservation are covered. Independent security and behavior review accepted exact candidate `1f957ce`, integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. |
 | 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | **Accepted.** Thirteen focused tests and ten mechanical proof groups pass; independent review accepted exact candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. |
-| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | **Corrected repository-owned candidate implemented by US-110; not accepted.** Exact dogfood argv, caller-pinned external SSH Ed25519 authentication, distinct canonical repositories/repository-scoped owner IDs/bundle identities, same-stable-owner-only key sharing, enabled versioned acceptance tools, bundle-resolved revisions, complete packet custody/digests, strict timeline, evidence binding, and adversarial negatives exist. External trust and two real distinct repository packets remain absent. |
+| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | **Accepted at the authenticated live baseline gate on exact `b2dd775`.** Six proof groups passed and 42/42 adversarial cases were rejected. Two packets under one stable GitHub identity use distinct repository-scoped owner IDs, canonical repositories, bundles, and external Ed25519 keys; signatures and bundle revisions verified. Benchmark P1 is inapplicable and P6 failed; e-inna P0/P1/P3/P6 failed. These are honest pre-candidate measurements, not Phase 6 acceptance. |
 | 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | Not started; depends on Phase 5 acceptance. |
 | 7 | Fixture matrix, five-platform exact artifacts, authentication, identity, and release proof. | Not started; depends on Phase 6 acceptance. |
 | 8 | G8 closure/policy evidence, removal ledger, fresh-install/core-grammar/platform regressions. | Not started; depends on Phase 7, G8, and separate removal authorization/validation. |

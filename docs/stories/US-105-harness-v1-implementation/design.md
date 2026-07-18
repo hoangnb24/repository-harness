@@ -5,7 +5,7 @@
 > authoritative: no bridge target writes, conversion journal, row mapping,
 > `apply`/`resume`/`rollback`, or converted repository mode.
 
-Status: **Implementation in progress / Phases 1-4 accepted / Phase 5 repository-owned candidate in progress / Phases 6-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / final integration-premerge pending**
 
 ## Domain Model
 
@@ -18,9 +18,11 @@ accepts the hardened pure Phase 2 core at exact candidate `1b1add5`, integrated
 as `e77e028` with the identical Git tree. US-108 implements, validates, and
 independently accepts Phase 3 at exact candidate `1f957ce`, integrated as
 `8e67593` with identical Git tree `9cd22cdb24d2`. US-109 is accepted at exact
-candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. US-110 implements
-the repository-owned Phase 5 candidate, but external pilot evidence and Phase
-5 acceptance do not exist; Phases 6-8 remain not started.
+candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. US-110 accepts
+Phase 5 at the authenticated baseline gate on exact `b2dd775`: two distinct
+repository-scoped packets under one stable GitHub identity verify with separate
+external Ed25519 keys and bundle-resolved revisions. Phases 6-8 remain not
+started, and final integration/premerge remains orchestrator work.
 
 | Approved value | Current policy | Cause and effect |
 | --- | --- | --- |

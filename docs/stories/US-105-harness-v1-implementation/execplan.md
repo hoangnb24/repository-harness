@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-4 accepted / Phase 5 candidate awaiting external pilot evidence and independent acceptance / Phases 6-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / final integration-premerge pending**
 
 Decision 0014 supersedes every Phase 4 automatic-conversion step below. The
 authoritative replacement is US-109: four bridge commands, append-only archive
@@ -17,9 +17,11 @@ Decision 0012 supplies the exact compatibility-window, retention, support, and
 retirement policy. Gate G0 is approved/open. Decision 0013 and US-106 implement
 and prove Phase 1; US-107 implements and proves Phase 2; US-108 implements,
 proves, and independently accepts Phase 3. US-109 implements, validates, and
-independently accepts Phase 4. US-110 implements the repository-owned Phase 5
-candidate; external pilot baselines and independent acceptance remain pending.
-Phases 6-8 remain dependent on accepted evidence from their predecessors.
+independently accepts Phase 4. US-110 supplies accepted authenticated Phase 5
+pre-candidate baselines at exact `b2dd775`; final integration/premerge for this
+documentation commit remains orchestrator work. Phases 6-8 remain dependent on
+accepted evidence from their
+predecessors.
 
 ## Scope
 
@@ -120,15 +122,18 @@ No phase may borrow acceptance from a later phase. For example, a successful
 pilot cannot excuse an unauthenticated payload, and a passing platform build
 cannot excuse archive capture that mutates a target or overwrites foreign data.
 
-Current phase state: Phases 1-4 are implemented and accepted. Independent
+Current phase state: Phases 1-5 are implemented and accepted at their defined
+gates. Independent
 security and behavior review accepted exact Phase 2 candidate `1b1add5`, which
 was integrated as `e77e028` with the identical Git tree. Independent security
 and behavior review accepted exact Phase 3 candidate `1f957ce`, integrated as
 `8e67593` with identical Git tree `9cd22cdb24d2`. Phase 4 was accepted at exact
-candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. Phase 5 has a
-repository-owned US-110 candidate but remains unaccepted pending two external
-pilot baselines. Phases 6-8 remain closed and require their own evidence and
-gates.
+candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. US-110's live gate
+on exact `b2dd775` passed six proof groups and rejected 42/42 adversarial cases;
+the two authenticated packets resolve distinct bundle revisions under one
+stable owner identity with separate external Ed25519 keys. Their failures and
+inapplicability are honest baseline measurements, not Phase 6 acceptance.
+Phases 6-8 remain closed and require their own evidence and gates.
 
 Anticipated paths below identify review surfaces, not permission to modify
 them in this planning change. New filenames remain subject to the Phase 1
@@ -325,14 +330,15 @@ protocol/evidence references are reviewable separately from candidate outcomes.
 External pilot changes, if any, remain in their repositories and are never
 silently folded into this repository's commit.
 
-**Corrected current candidate:** US-110 maps useful paths in place, freezes
+**Accepted authenticated baseline gate:** US-110 maps useful paths in place, freezes
 P0-P7, closes ordinary execution to exact argv, verifies caller-pinned external
 SSH Ed25519 owner authentication, rejects reused repository/owner-ID/bundle
 identities and cross-stable-identity key reuse, resolves commits from
 manifest-bound bundles,
 and authenticates complete custody, environment, eligibility, interventions,
-baseline evidence, and pre-disclosure publication. External owner trust and
-live packets remain absent, so Phase 5 is not accepted and Phase 6 is closed.
+baseline evidence, and pre-disclosure publication. Phase 5 is accepted at this
+baseline gate; Phase 6 remains closed because candidate improvements have not
+started.
 
 ### Phase 6: Capability Evaluation
 

@@ -1,12 +1,12 @@
 # US-110 V1 Dogfood And Pilot Baselines Validation
 
-Status: **Corrected candidate proof defined / live pilot proof absent**
+Status: **Authenticated live baseline gate passed on exact `b2dd775` / Phase 5 accepted / Phases 6-8 not started / final integration-premerge pending**
 
 ## Proof Strategy
 
 The default verifier proves path-stable dogfood, closed schemas/cards, an
 ephemeral actually signed positive packet, and adversarial rejection. Candidate
-status may pass the framework with no pilots. If the index ever says
+framework status is separable from live packet acceptance. When the index says
 `complete`, the same default/premerge command automatically loads every packet,
 verifies owner trust/signature/repository/custody/timeline/evidence, and requires
 two packets for distinct canonical repositories. Explicit live mode exits 2
@@ -41,8 +41,8 @@ Exact Phase 5 acceptance still requires all of these together:
    independent acceptance.
 
 Conditions 1-2 and the verifier/framework portion of 3-8 are repository-owned.
-No external trusted owner, repository bundle, revision, signature, run, or
-result exists. Phase 5 is not accepted and Phase 6 remains closed.
+The live gate now verifies two complete authenticated packets; Phase 5 accepts
+their honest pre-candidate baseline custody. Phase 6 remains closed.
 
 ## Test Plan
 
@@ -85,7 +85,9 @@ result exists. Phase 5 is not accepted and Phase 6 remains closed.
 ```bash
 scripts/verify-v1-phase5-evidence.sh
 scripts/verify-v1-phase5-evidence.sh --dogfood-only
-scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines  # expected exit 2
+scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
+  --trusted-owner-registry /absolute/external/trusted-owners.json \
+  --trusted-owner-registry-sha256 f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d
 tests/evals/test-phase5-premerge-trust-forwarding.sh
 HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY=/absolute/external/trusted-owners.json \
 HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256=<lowercase-sha256> \
@@ -103,16 +105,30 @@ git diff --check
 
 ## Acceptance Evidence
 
-The corrected repository-owned candidate is enforced by
-`scripts/verify-v1-phase5-evidence.sh` and is wired into default premerge. Its
-positive signature/repository packet is temporary test evidence, not a pilot.
+The authenticated live gate on exact `b2dd775` was invoked with the
+caller-pinned registry outside the candidate repository at SHA-256
+`f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d`.
+Tracked `evidence/trusted-owners.json` remains empty. The command passed six
+proof groups, rejected 42/42 adversarial cases, verified both SSH Ed25519
+signatures and both bundle-resolved revisions, and accepted two packets with
+distinct owner IDs, canonical repositories, bundles, and external keys under
+one stable GitHub identity.
 
-Current live result remains blocked: `evidence/trusted-owners.json` is an
-enforced-empty placeholder and `evidence/index.json` contains no pilot. No
-external trust registry/hash has been supplied. Explicit live mode must exit 2.
-This is correct negative evidence, not Phase 5 acceptance.
+Packet IDs and source/revision identities are concrete: packet
+`harness-benchmark-phase5-pilot` was assembled from source commit
+`024a05a2a5e5a2993e79c50d395059cd754dfda1`, resolves starting revision
+`090f6d1c33d9f006cc8e95491badc33a8053c89f`, and publishes as
+`harness-benchmark-phase5-pilot-baseline-20260718t075654z`; packet
+`e-inna-brain-phase5-baseline` was assembled from source commit
+`975c7a2110774eab553feda018042ec04b1fa0cb`, resolves starting revision
+`9be2b9b624f29c2c4f93bb576485fd8de2085af4`, and publishes as
+`e-inna-brain-phase5-baseline-baseline-20260718t075654z`. The eight annotated artifacts
+preserve source-run legacy digest truth while binding canonical packet digests.
+Benchmark P1 is inapplicable and P6 failed; e-inna P0/P1/P3/P6 failed. These
+are measurements of the pre-candidate baselines, not Phase 6 acceptance.
 
-Correction-candidate results on 2026-07-18:
+Historical correction-candidate results on 2026-07-18 (before the live packet
+normalization and approval):
 
 - Corrected Phase 5 verifier: **5/5 proof groups passed**, including two
   ephemeral repository-scoped packets for one stable owner and key; both SSH
@@ -124,7 +140,7 @@ Correction-candidate results on 2026-07-18:
   acceptance-tool/environment/evidence,
   subprocess, Git-alias, missing-ripgrep, and legacy negative cases.
 - Dogfood-only: **1/1 passed** with exact closed argv and no path move.
-- Explicit live gate: **expected exit 2** with no owner trust or pilot packet.
+- Explicit live gate: **expected exit 2** (historical pre-packet state).
 - Premerge trust forwarding: **6/6 cases passed under macOS `/bin/bash`
   3.2.57** for literal zero-argument no-input invocation, exact pair
   forwarding (including a path containing spaces), both partial rejections,
@@ -140,7 +156,7 @@ Correction-candidate results on 2026-07-18:
   paths remain visible, and mandatory premerge requires its ending Git status
   to equal its starting Git status.
 
-Only two complete live packets for distinct canonical repositories,
-repository-scoped owner IDs, and authenticated bundle digests plus independent
-review can accept Phase 5. One stable owner may authorize both; Phase 6 remains
-closed.
+The same independent reviewer explicitly approved exact `b2dd775` with no
+remaining findings; shared-owner alias hardening exact `c928986` was separately
+approved. This final documentation commit does not claim full premerge.
+Phase 6 remains not started.
