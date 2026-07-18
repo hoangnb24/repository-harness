@@ -5,7 +5,9 @@ Date: 2026-07-18
 ## Status
 
 Accepted for the Phase 6 framework. Live candidate cards and Phase 6
-acceptance remain pending.
+efficacy acceptance remain pending. Decision 0016 supersedes only this
+decision's former rule that all Phase 7 engineering remain closed; every
+custody, identity, trust, and live-card requirement below remains normative.
 
 ## Context
 
@@ -185,12 +187,14 @@ This decision starts only the repository-owned Phase 6 framework. It does not
 accept any live card, pilot comparison, human-attention improvement, release
 candidate, or production workflow.
 
-Phase 6 can close only after every required live P0-P7 candidate card has
-admissible signed evidence, negative conditions fail closed, no functional
-regression exists, and the comparison contract passes. Phase 7 remains closed
-until that acceptance. Phase 8 remains closed until Phase 7 acceptance and all
-Decision 0012 time, support, recovery, security, archive-integrity,
-asset-retention, and separate authorization/validation conditions pass.
+Under Decision 0016, the repository owner accepts the implemented framework for
+sequencing and permits Phase 7 engineering to begin. Every required live P0-P7
+candidate card still needs admissible signed evidence, fail-closed negatives,
+no functional regression, and a passing comparison contract before Phase 7
+acceptance or release promotion. Phase 8 remains closed until Phase 7
+acceptance and all Decision 0012 time, support, recovery, security,
+archive-integrity, asset-retention, and separate authorization/validation
+conditions pass.
 
 ## Concrete Cause And Effect
 
@@ -234,7 +238,9 @@ asset-retention, and separate authorization/validation conditions pass.
 2. The invoking authority's external registry does not authorize that key for
    the repository scope.
 3. Signature verification fails even if the cryptography is valid.
-4. The result cannot count toward Phase 6 and cannot open Phase 7.
+4. The result cannot count toward live Phase 6 efficacy, Phase 7 acceptance, or
+   release promotion. Decision 0016 may still permit bounded Phase 7
+   engineering, but it cannot make invalid evidence admissible.
 
 ## Alternatives Considered
 
@@ -287,5 +293,7 @@ Tradeoffs:
   copies.
 - Produce live candidate subjects and externally signed P0-P7 evidence under
   US-111.
-- Keep Phase 7 release proof and Phase 8 removal in their separately gated
-  phases.
+- Apply Decision 0016 while Phase 7 engineering proceeds: no Phase 7 acceptance
+  or promotion until the deferred live-card evidence and release proof pass for
+  the same exact candidate.
+- Keep Phase 8 removal in its separately gated phase.

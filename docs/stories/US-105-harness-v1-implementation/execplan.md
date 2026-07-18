@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 authority/templates in progress with live cards pending / Phases 7-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 framework accepted with live efficacy deferred / Phase 7 engineering opened with acceptance and promotion blocked / Phase 8 not started**
 
 Decision 0014 supersedes every Phase 4 automatic-conversion step below. The
 authoritative replacement is US-109: four bridge commands, append-only archive
@@ -20,9 +20,11 @@ proves, and independently accepts Phase 3. US-109 implements, validates, and
 independently accepts Phase 4. US-110 supplies accepted authenticated Phase 5
 pre-candidate baselines at exact `b2dd775`. Primary fast-forward integration and
 trust-enabled full premerge passed on exact `b2dd775`; acceptance documentation
-was integrated at `3a65768`. US-111 starts only the Phase 6 authority/template
-framework; live-card acceptance remains a dependency for Phase 7, and Phase 8
-remains dependent on Phase 7 plus its separate closure gates.
+was integrated at `3a65768`. US-111 supplies the implemented Phase 6 framework.
+Decision 0016 accepts it for sequencing and opens US-112 Phase 7 engineering;
+deferred live-card evidence remains a dependency for Phase 7 acceptance and
+promotion, while Phase 8 remains dependent on accepted Phase 7 plus its
+separate closure gates.
 
 ## Scope
 
@@ -253,8 +255,9 @@ committed-update rollback checkpoints, 89 total `harness-core` tests, 181
 workspace Rust tests, and 11/11 Phase 3 mechanical proof groups. Phase 1/2 gates
 remain unchanged. The evidence covers exact emitted-preview binding, root-bound
 recovery ownership, and read-only refusal of damaged staged/backup probe
-evidence. Phase 4 is accepted; Phase 7 remains closed pending
-its production and platform evidence.
+evidence. Phase 4 is accepted; Decision 0016 now opens Phase 7 engineering,
+while acceptance and promotion remain closed pending deferred pilot plus
+production/platform evidence.
 
 ### Phase 4: Isolated V0 Bridge
 
@@ -339,8 +342,9 @@ identities and cross-stable-identity key reuse, resolves commits from
 manifest-bound bundles,
 and authenticates complete custody, environment, eligibility, interventions,
 baseline evidence, and pre-disclosure publication. Phase 5 is accepted at this
-baseline gate. Phase 6 authority/templates are now in progress under US-111;
-live candidate improvements and acceptance remain pending.
+baseline gate. US-111 implements the Phase 6 authority/templates; Decision 0016
+accepts that framework for sequencing, while live candidate improvements and
+efficacy acceptance remain deferred and pending.
 
 ### Phase 6: Capability Evaluation
 
@@ -380,8 +384,12 @@ evidence-only commit.
 
 ### Phase 7: Portability And Release Proof
 
-**Dependency:** Phase 6 cards pass with valid comparable evidence, and all
-earlier deterministic product proofs remain green for the exact candidate.
+**Engineering dependency:** Decision 0016 framework acceptance and all earlier
+deterministic product proofs remain green for the exact candidate.
+
+**Acceptance/promotion dependency:** deferred Phase 6 cards pass with valid
+comparable evidence, and the complete Phase 7 proof passes for that same exact
+candidate.
 
 **Implementation:**
 

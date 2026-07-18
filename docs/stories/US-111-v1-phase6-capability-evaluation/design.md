@@ -1,7 +1,7 @@
 # US-111 V1 Phase 6 Capability Evaluation Design
 
-Status: **Framework implemented / live candidate evaluation pending / no Phase
-6 acceptance**
+Status: **Framework accepted by owner for sequencing / live candidate efficacy
+pending / no Phase 7 acceptance or promotion**
 
 ## Domain Model
 
@@ -61,8 +61,10 @@ Framework flow in this slice:
 3. Add the agent map to the V0 installer manifest and record its explicitly
    selected `optional-v1` disposition; do not claim authenticated V1 core
    payload inclusion.
-4. Mark US-105 and phase summaries as Phase 6 in progress with framework
-   complete and live cards pending.
+4. At the original framework checkpoint, mark US-105 and the phase summaries as
+   Phase 6 in progress with framework complete and live cards pending. Decision
+   0016 later accepts that framework for sequencing without changing the live
+   evidence state.
 5. Validate structural completeness, JSON, neutrality, changed-file scope, and
    Phase 5/US-110 preservation.
 

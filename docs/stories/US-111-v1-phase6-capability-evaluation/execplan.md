@@ -1,12 +1,13 @@
 # US-111 V1 Phase 6 Capability Evaluation Exec Plan
 
-Status: **Documentation/capability framework in progress; live cards pending**
+Status: **Framework accepted by owner for sequencing; live efficacy deferred**
 
 ## Goal
 
-Start Phase 6 with a durable custody decision and portable target-owned
-capability templates while preserving the Phase 5 baselines and keeping live
-candidate evaluation, Phase 7, and Phase 8 closed.
+Provide Phase 6's durable custody decision and portable target-owned capability
+framework while preserving the Phase 5 baselines. Decision 0016 later accepts
+the framework for sequencing and opens Phase 7 engineering while keeping live
+efficacy, Phase 7 acceptance/promotion, and Phase 8 closed.
 
 ## Scope
 
@@ -17,8 +18,9 @@ In scope:
 - Neutral agent-map, story, validation-report, high-risk exec-plan, and
   high-risk validation templates.
 - Agent-map path disposition.
-- Phase 6 in-progress/framework-pending wording in the explicitly owned
-  initiative and status documents.
+- The original Phase 6 in-progress/framework-pending wording in the explicitly
+  owned initiative and status documents, followed by Decision 0016's separate
+  framework-accepted/live-efficacy-deferred status.
 - Intake #8 and US-111 replay changesets.
 
 Out of scope:
@@ -26,7 +28,8 @@ Out of scope:
 - Evaluator scripts/schemas, Rust, pilot repositories, private snapshots,
   keys, archives, raw databases, release workflows, tags, and publishing.
 - Modification of Phase 5 artifacts or any US-110 byte.
-- Live candidate results, Phase 6 acceptance, Phase 7 proof, or Phase 8 work.
+- Live candidate results, live efficacy claims, Phase 7 acceptance/promotion,
+  or Phase 8 work. US-112 separately owns opened Phase 7 engineering.
 
 ## Risk Classification
 

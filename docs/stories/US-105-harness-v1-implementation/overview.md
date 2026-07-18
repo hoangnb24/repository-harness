@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 authority/templates in progress with live cards pending / Phases 7-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 framework accepted with live efficacy deferred / Phase 7 engineering opened with acceptance and promotion blocked / Phase 8 not started**
 
 This is the durable implementation initiative packet for the eight phases in
 `docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement
@@ -13,8 +13,10 @@ US-109 supplies accepted Phase 4 at exact candidate `880cb9b`, fast-forwarded
 with identical Git tree `0f81d3f0f4c8`. US-110 supplies accepted Phase 5
 dogfood and authenticated pre-candidate baselines at exact `b2dd775`, which an
 independent reviewer explicitly approved with no remaining findings. US-111
-starts the Phase 6 authority/template framework; no live candidate result,
-Phase 6 acceptance, production release, or Phase 7-8 behavior exists. Primary fast-forward integration
+supplies the implemented Phase 6 framework. Decision 0016 records owner
+framework acceptance and opens US-112 Phase 7 engineering; no live candidate
+improvement, Phase 7 acceptance, production release, or Phase 8 behavior
+exists. Primary fast-forward integration
 and trust-enabled full premerge passed on exact `b2dd775`; acceptance
 documentation was integrated at `3a65768`.
 Decision 0012 supplies authorization policy; Decision 0013 and US-106 supply

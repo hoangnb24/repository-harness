@@ -5,7 +5,7 @@
 > authoritative: no bridge target writes, conversion journal, row mapping,
 > `apply`/`resume`/`rollback`, or converted repository mode.
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 authority/templates in progress with live cards pending / Phases 7-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 framework accepted with live efficacy deferred / Phase 7 engineering opened with acceptance and promotion blocked / Phase 8 not started**
 
 ## Domain Model
 
@@ -21,9 +21,11 @@ independently accepts Phase 3 at exact candidate `1f957ce`, integrated as
 candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. US-110 accepts
 Phase 5 at the authenticated baseline gate on exact `b2dd775`: two distinct
 repository-scoped packets under one stable GitHub identity verify with separate
-external Ed25519 keys and bundle-resolved revisions. US-111 starts Phase 6 with
-Decision 0015 and portable target-owned templates; live cards and acceptance
-remain pending, and Phases 7-8 are not started. Primary fast-forward integration and trust-enabled full premerge passed
+external Ed25519 keys and bundle-resolved revisions. US-111 supplies Phase 6's
+Decision 0015 framework and portable target-owned templates. Decision 0016
+accepts that framework for sequencing and opens US-112 Phase 7 engineering;
+live efficacy, Phase 7 acceptance/promotion, and Phase 8 remain pending or
+closed. Primary fast-forward integration and trust-enabled full premerge passed
 on exact `b2dd775`; acceptance documentation was integrated at `3a65768`.
 
 | Approved value | Current policy | Cause and effect |

@@ -18,11 +18,15 @@ scripts/bin/harness-cli decision add \
 Trace fields such as `--decisions` summarize task-level choices. They do not
 count as the Harness decision log.
 
-## Current V1 Decision
+## Current V1 Decisions
 
 - `docs/decisions/0015-phase6-cold-warm-evaluation-custody.md` fixes
   clean-clone versus isolated-V0-copy custody, evidence identities, external
-  trust, sensitive-byte exclusions, and later-phase gates.
+  trust, sensitive-byte exclusions, and deferred live-card evidence.
+- `docs/decisions/0016-phase6-framework-acceptance-and-phase7-opening.md`
+  accepts the Phase 6 framework for sequencing and opens Phase 7 engineering
+  while keeping efficacy claims, Phase 7 acceptance, and release promotion
+  blocked on the deferred experiments plus complete portability proof.
 
 Add a decision when:
 

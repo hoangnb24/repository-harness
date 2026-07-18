@@ -5,9 +5,10 @@ and validation work.
 
 ## Active V1 Story
 
-- `docs/stories/US-111-v1-phase6-capability-evaluation/overview.md` is in
-  progress at the authority/template framework slice. Live candidate cards and
-  Phase 6 acceptance remain pending; Phases 7-8 are not started.
+- `docs/stories/US-112-v1-phase7-portability-release-proof/overview.md` is in
+  progress after owner acceptance of the Phase 6 framework. Phase 7 engineering
+  is open, but the deferred live P0-P7 evidence, Phase 7 acceptance, release
+  promotion, and Phase 8 remain closed.
 
 ## Normal Story
 

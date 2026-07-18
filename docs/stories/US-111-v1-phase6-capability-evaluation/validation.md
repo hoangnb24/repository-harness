@@ -1,7 +1,11 @@
 # US-111 V1 Phase 6 Capability Evaluation Validation
 
 Status: **Framework implemented and verified; live P0-P7 validation pending;
-Phase 6 not accepted**
+Phase 6 not accepted under the original live-card completion criterion**
+
+Decision 0016 records repository-owner acceptance of this framework for
+sequencing and opens Phase 7 engineering. It does not change the pending
+evidence index or satisfy live efficacy, Phase 7 acceptance, or promotion.
 
 ## Proof Strategy
 
@@ -31,7 +35,7 @@ The proof ladder stops on the first failure:
 | --- | --- |
 | JSON | `path-dispositions.json` parses; each changeset line parses; headers and operations have expected versions. |
 | Documentation | Required headings/links exist; template tables are structurally complete; no trailing whitespace. |
-| Custody contract | Both lanes, pre-candidate capture, no live DB mutation, sealed raw-trio/standalone-master custody, fresh baseline/candidate derivatives from that same master, immediate pre-run identity verification, recovery-staging exclusion, digest binding, external signing, and Phase 7/8 closure are explicit. |
+| Custody contract | Both lanes, pre-candidate capture, no live DB mutation, sealed raw-trio/standalone-master custody, fresh baseline/candidate derivatives from that same master, immediate pre-run identity verification, recovery-staging exclusion, digest binding, external signing, and Phase 7 acceptance/promotion plus Phase 8 closure are explicit. |
 | Portability | Portable templates contain no pilot names, languages, package managers, or evaluator instructions; existing V0 Harness guidance is conditional and ordinary targets use target-owned proof/capability routes. |
 | Preservation | Phase 5 files and every US-110 file match the starting commit byte-for-byte. |
 | Durable replay | Intake UID `ink_e77c86ec00d11c619c8f9ffd282188b8` and US-111 replay into the isolated DB without touching live state. |
@@ -107,7 +111,9 @@ Initial framework checks passed on 2026-07-18:
   terms in the portable templates.
 - Decision 0015 contained both custody lanes, pre-candidate capture,
   `condition_identity`/`subject_identity`, live-database and sensitive-byte
-  prohibitions, external trust/signing, and Phase 7/8 closure.
+  prohibitions, external trust/signing, and the original later-phase closure;
+  Decision 0016 now opens Phase 7 engineering while retaining Phase 7
+  acceptance/promotion and Phase 8 closure.
 - `git diff --check`, forbidden-path scope, and exact Phase 5/US-110 comparison
   against `5d6e6bc` passed.
 
@@ -149,12 +155,15 @@ against the earlier trust and recovery stack:
   recovery verifier passed together; later Phase 4 and Phase 6 evidence checks
   also remained green.
 
-This correction still supplies no live candidate card or Phase 6 acceptance.
+This correction still supplies no live candidate card or efficacy acceptance.
+Decision 0016 accepts the framework only for sequencing.
 
 ## Gaps And Blockers
 
 - No candidate subject, signed condition/result packet, live card outcome,
   intervention total, or comparison report exists in this slice.
-- Phase 6 cannot be accepted until those external live records pass.
-- Phase 7 remains closed on Phase 6 acceptance; Phase 8 remains closed on
-  Phase 7 plus Decision 0012.
+- The original live-card completion criterion remains unsatisfied until those
+  external records pass.
+- Decision 0016 opens Phase 7 engineering, but Phase 7 acceptance and promotion
+  remain closed on the deferred live evidence plus complete Phase 7 proof.
+- Phase 8 remains closed on Phase 7 acceptance plus Decision 0012.

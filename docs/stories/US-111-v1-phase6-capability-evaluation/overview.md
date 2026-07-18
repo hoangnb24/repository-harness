@@ -1,7 +1,8 @@
 # US-111 V1 Phase 6 Capability Evaluation
 
-Status: **In progress: authority and portable framework implemented; live
-candidate cards and Phase 6 acceptance pending; Phases 7-8 not started**
+Status: **Framework accepted by owner for sequencing; live candidate efficacy
+deferred; Phase 7 engineering opened without acceptance/promotion; Phase 8 not
+started**
 
 ## Current Behavior
 
@@ -38,8 +39,8 @@ templates. The implemented framework and regression integration now provide:
 6. Rust test-only release expectations and the V0 installer manifest keep the
    framework aligned with the earlier release stack without changing runtime,
    CLI, or installer command semantics.
-7. Phase 6 stays in progress until the already fixed live cards are instantiated
-   and evaluated under signed comparable conditions.
+7. Decision 0016 accepts this framework for sequencing; the fixed live cards
+   remain mandatory efficacy evidence before Phase 7 acceptance or promotion.
 
 Cause and effect: an interrupted task no longer leaves the next agent with
 "continue implementation." The capsule instead names, for example, "run the
@@ -54,8 +55,8 @@ agent can act without reconstructing the prior conversation.
   repository files.
 - Evaluation custodians get an explicit clean-versus-warm custody choice and
   closed evidence identity rules.
-- Release maintainers get an honest in-progress Phase 6 signal, not acceptance
-  or promotion authority.
+- Release maintainers get an honest framework-accepted/deferred-efficacy
+  signal, not Phase 7 acceptance or promotion authority.
 
 ## Affected Product Docs
 
@@ -77,5 +78,6 @@ agent can act without reconstructing the prior conversation.
   production workflows.
 - Requiring a language, framework, package manager, repository layout, or
   Harness-only plan during ordinary work.
-- Claiming Phase 6 acceptance, opening Phase 7, promoting/publishing/tagging a
-  release, or advancing Phase 8.
+- Claiming live Phase 6 efficacy, Phase 7 acceptance, promoting/publishing/
+  tagging a release, or advancing Phase 8. Decision 0016 separately opens only
+  Phase 7 engineering.

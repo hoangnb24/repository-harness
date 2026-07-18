@@ -15,6 +15,11 @@ RECOVERY = CORE / "src" / "recovery.rs"
 APPLICATION = CORE / "src" / "application.rs"
 INTEGRATION = CORE / "tests" / "phase3_recovery.rs"
 STORY = ROOT / "docs" / "stories" / "US-108-v1-install-update-recovery"
+ALLOWED_LATER_CHANGESETS = {
+    ".harness/changesets/harness_v1_phase4_bridge.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_00_intake.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_01_story.changeset.jsonl",
+}
 
 
 class VerificationError(RuntimeError):
@@ -233,9 +238,15 @@ def proof_protected_paths_unchanged() -> None:
         capture_output=True,
         text=True,
     ).stdout.splitlines()
-    allowed_phase4_changeset = ".harness/changesets/harness_v1_phase4_bridge.changeset.jsonl"
     changed = "\n".join(
-        line for line in changed_lines if not line.endswith(allowed_phase4_changeset)
+        line
+        for line in changed_lines
+        if len(line) < 4 or line[3:] not in ALLOWED_LATER_CHANGESETS
+    )
+    check(
+        ".harness/changesets/unrelated.changeset.jsonl"
+        not in ALLOWED_LATER_CHANGESETS,
+        "later-phase changeset boundary admits an unrelated path",
     )
     for forbidden in [
         ".harness/changesets/",
@@ -278,7 +289,10 @@ def main() -> None:
     proof("signed install/update/scaffold ownership behaviors are covered", proof_signed_mutation_behaviors)
     proof("all install/update kill points and idempotent reruns are covered", proof_kill_points_and_idempotency)
     proof("six-command core has no database, changeset, or target execution dependency", proof_closed_dependency_and_execution_boundary)
-    proof("Phase 4 production and Phase 7 portability gates remain closed", proof_phase4_and_phase7_gates)
+    proof(
+        "Phase 4 production and Phase 7 acceptance/promotion gates remain closed",
+        proof_phase4_and_phase7_gates,
+    )
     proof("protected V0, changeset, database, and repomix paths are untouched", proof_protected_paths_unchanged)
     proof("US-108 implementation, design, execution, and validation packet exists", proof_story_packet)
     print(f"V1 Phase 3 recovery verification passed ({PASS_COUNT} proof groups)")

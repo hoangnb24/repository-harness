@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -58,11 +59,14 @@ PHASE5_VERIFIER_COMPATIBILITY_PATH = "scripts/verify_v1_phase5_evidence.py"
 ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase6_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase6_01_story.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_00_intake.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_01_story.changeset.jsonl",
     "crates/harness-core/tests/phase2_core.rs",
     "crates/harness-core/tests/phase3_recovery.rs",
     "docs/REFACTOR_PLAN.md",
     "docs/TEST_MATRIX.md",
     "docs/decisions/0015-phase6-cold-warm-evaluation-custody.md",
+    "docs/decisions/0016-phase6-framework-acceptance-and-phase7-opening.md",
     "docs/decisions/README.md",
     "docs/stories/README.md",
     "docs/stories/US-105-harness-v1-implementation/design.md",
@@ -73,6 +77,10 @@ ALLOWED_CHANGED_FILES = {
     "docs/stories/US-111-v1-phase6-capability-evaluation/execplan.md",
     "docs/stories/US-111-v1-phase6-capability-evaluation/overview.md",
     "docs/stories/US-111-v1-phase6-capability-evaluation/validation.md",
+    "docs/stories/US-112-v1-phase7-portability-release-proof/design.md",
+    "docs/stories/US-112-v1-phase7-portability-release-proof/execplan.md",
+    "docs/stories/US-112-v1-phase7-portability-release-proof/overview.md",
+    "docs/stories/US-112-v1-phase7-portability-release-proof/validation.md",
     "docs/templates/agent-map.md",
     "docs/templates/high-risk-story/execplan.md",
     "docs/templates/high-risk-story/validation.md",
@@ -85,6 +93,7 @@ ALLOWED_CHANGED_FILES = {
     PHASE5_VERIFIER_COMPATIBILITY_PATH,
     "scripts/verify_v1_phase1_contracts.py",
     "scripts/verify_v1_phase2_core.py",
+    "scripts/verify_v1_phase3_recovery.py",
     "scripts/verify_v1_phase6_evidence.py",
     "tests/evals/test-v1-phase6-evidence.sh",
     "tests/evals/v1-phase6/README.md",
@@ -115,6 +124,19 @@ FORBIDDEN_PHASE6_FILENAMES = {
     "archive.age",
     "archive.bin",
 }
+PHASE7_INTAKE_CHANGESET = (
+    ROOT / ".harness/changesets/harness_v1_phase7_00_intake.changeset.jsonl"
+)
+PHASE7_STORY_CHANGESET = (
+    ROOT / ".harness/changesets/harness_v1_phase7_01_story.changeset.jsonl"
+)
+PHASE7_DECISION_ID = "0016-phase6-framework-acceptance-and-phase7-opening"
+PHASE7_STORY_ID = "US-112"
+PHASE7_DECISION_VERIFY_COMMAND = "tests/docs/test-doc-contracts.sh"
+PHASE7_STORY_VERIFY_COMMAND = (
+    "tests/docs/test-doc-contracts.sh && "
+    "scripts/verify-v1-phase6-evidence.sh --framework-only"
+)
 
 
 class VerificationError(RuntimeError):
@@ -179,6 +201,26 @@ def load_json(path: Path) -> Any:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise VerificationError(f"cannot load closed JSON record: {path}") from error
+
+
+def load_jsonl(path: Path) -> list[dict[str, Any]]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as error:
+        raise VerificationError(f"cannot load closed JSONL record: {path}") from error
+    check(lines, f"closed JSONL record is empty: {path}")
+    records: list[dict[str, Any]] = []
+    for line_number, line in enumerate(lines, start=1):
+        check(line.strip() == line and line, f"blank or padded JSONL line: {path}:{line_number}")
+        try:
+            record = strict_json_loads(line)
+        except (VerificationError, json.JSONDecodeError) as error:
+            raise VerificationError(
+                f"cannot load closed JSONL record: {path}:{line_number}"
+            ) from error
+        check(isinstance(record, dict), f"JSONL operation is not an object: {path}:{line_number}")
+        records.append(record)
+    return records
 
 
 def sha256_bytes(payload: bytes) -> str:
@@ -427,6 +469,15 @@ def self_test_release_boundary() -> None:
         ),
     )
     expect_rejection(
+        "unrelated Phase 7 story path",
+        lambda: validate_release_boundary(
+            {
+                "docs/stories/US-112-v1-phase7-portability-release-proof/"
+                "unrelated.md"
+            }
+        ),
+    )
+    expect_rejection(
         "unrelated Phase 6 evaluation path",
         lambda: validate_release_boundary(
             {"tests/evals/v1-phase6/unrelated-core.bin"}
@@ -444,6 +495,357 @@ def self_test_release_boundary() -> None:
             {"tests/fixtures/v1-phase2/unrelated.json"}
         ),
     )
+
+
+def validate_phase7_opening_records(
+    intake_records: list[dict[str, Any]],
+    story_records: list[dict[str, Any]],
+) -> None:
+    check(
+        [record.get("op") for record in intake_records]
+        == ["changeset.header", "intake.add"],
+        "Phase 7 intake changeset operation sequence changed",
+    )
+    check(
+        intake_records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase7_00_intake",
+            "version": 1,
+        },
+        "Phase 7 intake changeset header changed",
+    )
+    intake = intake_records[1]
+    check(
+        set(intake) == {"op", "payload", "uid", "version"}
+        and intake["version"] == 2
+        and isinstance(intake["uid"], str)
+        and intake["uid"].startswith("ink_"),
+        "Phase 7 intake envelope changed",
+    )
+    intake_payload = intake.get("payload")
+    check(isinstance(intake_payload, dict), "Phase 7 intake payload is not an object")
+    check(
+        intake_payload.get("story_id") == PHASE7_STORY_ID
+        and intake_payload.get("risk_lane") == "high_risk"
+        and intake_payload.get("input_type") == "spec_slice",
+        "Phase 7 intake no longer opens the high-risk US-112 spec slice",
+    )
+    intake_notes = intake_payload.get("notes")
+    check(
+        isinstance(intake_notes, str)
+        and "live P0-P7 experiments" in intake_notes
+        and "remain blocked" in intake_notes,
+        "Phase 7 intake no longer preserves the deferred live-evidence gate",
+    )
+
+    expected_operations = [
+        "changeset.header",
+        "decision.add",
+        "story.add",
+        "story.hierarchy.add",
+        "story.update",
+        "decision.verify",
+        "story.verify",
+        "trace.add",
+        "story.verify",
+        "story.verify",
+    ]
+    check(
+        [record.get("op") for record in story_records] == expected_operations,
+        "Phase 7 story changeset operation sequence changed",
+    )
+    check(
+        story_records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase7_01_story",
+            "version": 1,
+        },
+        "Phase 7 story changeset header changed",
+    )
+
+    decision = story_records[1]
+    decision_payload = decision.get("payload")
+    check(
+        decision.get("id") == PHASE7_DECISION_ID
+        and decision.get("version") == 1
+        and isinstance(decision_payload, dict)
+        and decision_payload.get("status") == "accepted"
+        and decision_payload.get("doc_path")
+        == "docs/decisions/0016-phase6-framework-acceptance-and-phase7-opening.md",
+        "Phase 7 opening decision operation changed",
+    )
+    check(
+        decision_payload.get("verify_command") == PHASE7_DECISION_VERIFY_COMMAND,
+        "Phase 7 decision verification command changed",
+    )
+    decision_notes = decision_payload.get("notes")
+    check(
+        isinstance(decision_notes, str)
+        and "not its custody/trust/live-card requirements" in decision_notes,
+        "Phase 7 decision operation no longer preserves Decision 0015",
+    )
+
+    story_add = story_records[2]
+    story_add_payload = story_add.get("payload")
+    check(
+        story_add.get("id") == PHASE7_STORY_ID
+        and story_add.get("version") == 1
+        and isinstance(story_add_payload, dict)
+        and story_add_payload.get("risk_lane") == "high_risk"
+        and story_add_payload.get("contract_doc")
+        == "docs/stories/US-112-v1-phase7-portability-release-proof/overview.md",
+        "Phase 7 story creation operation changed",
+    )
+    check(
+        story_add_payload.get("verify_command") == PHASE7_STORY_VERIFY_COMMAND,
+        "Phase 7 story verification command changed",
+    )
+    story_notes = story_add_payload.get("notes")
+    check(
+        isinstance(story_notes, str)
+        and "acceptance, tag, publish, promotion, and Phase 8 remain closed"
+        in story_notes,
+        "Phase 7 story creation no longer preserves closed release gates",
+    )
+
+    hierarchy = story_records[3]
+    check(
+        hierarchy.get("id") == "US-105"
+        and hierarchy.get("payload") == {"child": PHASE7_STORY_ID}
+        and hierarchy.get("version") == 1,
+        "Phase 7 story hierarchy changed",
+    )
+
+    story_update = story_records[4]
+    story_update_payload = story_update.get("payload")
+    check(
+        story_update.get("id") == PHASE7_STORY_ID
+        and story_update.get("version") == 1
+        and isinstance(story_update_payload, dict),
+        "Phase 7 story update envelope changed",
+    )
+    check(
+        set(story_update_payload)
+        == {
+            "contract_doc",
+            "e2e_proof",
+            "evidence",
+            "integration_proof",
+            "platform_proof",
+            "status",
+            "unit_proof",
+            "verify_command",
+        },
+        "Phase 7 story update fields changed",
+    )
+    check(
+        story_update_payload["status"] == "in_progress"
+        and all(
+            story_update_payload[field] == 0
+            for field in ("unit_proof", "integration_proof", "e2e_proof", "platform_proof")
+        )
+        and story_update_payload["contract_doc"] is None
+        and story_update_payload["verify_command"] is None,
+        "Phase 7 story is no longer engineering-only with zero proof",
+    )
+    opening_evidence = story_update_payload.get("evidence")
+    check(
+        isinstance(opening_evidence, str)
+        and opening_evidence.startswith(
+            "Decision 0016 accepts the Phase 6 framework for sequencing"
+        )
+        and "No executable Phase 7 proof" in opening_evidence
+        and "promotion" in opening_evidence,
+        "Phase 7 story evidence makes an unsupported acceptance claim",
+    )
+
+    check(
+        story_records[5].get("id") == PHASE7_DECISION_ID
+        and story_records[5].get("payload") == {"result": "pass"},
+        "Phase 7 decision verification operation changed",
+    )
+    story_verify = story_records[6]
+    check(
+        story_verify.get("id") == PHASE7_STORY_ID
+        and isinstance(story_verify.get("payload"), dict)
+        and story_verify["payload"].get("result") == "pass",
+        "Phase 7 story verification operation changed",
+    )
+    trace = story_records[7]
+    trace_payload = trace.get("payload")
+    check(
+        trace.get("version") == 2
+        and isinstance(trace.get("uid"), str)
+        and trace["uid"].startswith("trc_")
+        and isinstance(trace_payload, dict)
+        and trace_payload.get("story_id") == PHASE7_STORY_ID
+        and trace_payload.get("intake_uid") == intake["uid"]
+        and trace_payload.get("outcome") == "completed",
+        "Phase 7 opening trace no longer binds Intake #9 and US-112",
+    )
+    trace_notes = trace_payload.get("notes")
+    check(
+        isinstance(trace_notes, str)
+        and "No live pilot, tag, push, publish, release, promotion, or Phase 8 action"
+        in trace_notes,
+        "Phase 7 opening trace makes an unauthorized external-action claim",
+    )
+    semantic_verify = story_records[8]
+    check(
+        semantic_verify.get("id") == PHASE7_STORY_ID
+        and isinstance(semantic_verify.get("payload"), dict)
+        and semantic_verify["payload"].get("result") == "pass",
+        "Phase 7 story was not reverified after the semantic gate was installed",
+    )
+    command_verify = story_records[9]
+    check(
+        command_verify.get("id") == PHASE7_STORY_ID
+        and isinstance(command_verify.get("payload"), dict)
+        and command_verify["payload"].get("result") == "pass",
+        "Phase 7 story was not reverified after command pinning was installed",
+    )
+
+
+def self_test_phase7_opening_records(
+    intake_records: list[dict[str, Any]],
+    story_records: list[dict[str, Any]],
+) -> None:
+    completed = deepcopy(story_records)
+    completed[4]["payload"]["status"] = "implemented"
+    expect_rejection(
+        "same-filename Phase 7 completion",
+        lambda: validate_phase7_opening_records(intake_records, completed),
+    )
+    proof_claim = deepcopy(story_records)
+    proof_claim[4]["payload"]["platform_proof"] = 1
+    expect_rejection(
+        "same-filename Phase 7 proof claim",
+        lambda: validate_phase7_opening_records(intake_records, proof_claim),
+    )
+    release_operation = deepcopy(story_records)
+    release_operation.insert(
+        7,
+        {
+            "id": PHASE7_STORY_ID,
+            "op": "story.complete",
+            "payload": {},
+            "version": 1,
+        },
+    )
+    expect_rejection(
+        "same-filename Phase 7 release operation",
+        lambda: validate_phase7_opening_records(intake_records, release_operation),
+    )
+    tag_command = deepcopy(story_records)
+    tag_command[2]["payload"]["verify_command"] = "git tag harness-v1-phase7-unauthorized"
+    expect_rejection(
+        "same-filename Phase 7 tag command",
+        lambda: validate_phase7_opening_records(intake_records, tag_command),
+    )
+    publish_command = deepcopy(story_records)
+    publish_command[1]["payload"]["verify_command"] = (
+        "gh release create harness-v1-phase7-unauthorized"
+    )
+    expect_rejection(
+        "same-filename Phase 7 publish command",
+        lambda: validate_phase7_opening_records(intake_records, publish_command),
+    )
+
+
+def verify_phase7_opening_gate() -> None:
+    intake_records = load_jsonl(PHASE7_INTAKE_CHANGESET)
+    story_records = load_jsonl(PHASE7_STORY_CHANGESET)
+    validate_phase7_opening_records(intake_records, story_records)
+    self_test_phase7_opening_records(intake_records, story_records)
+
+    with tempfile.TemporaryDirectory(prefix="phase7-opening-replay-") as temporary:
+        database = Path(temporary) / "replay.db"
+        environment = dict(os.environ)
+        for name in list(environment):
+            if name.startswith("HARNESS_"):
+                environment.pop(name, None)
+        environment.update(
+            {
+                "HARNESS_REPO_ROOT": str(ROOT),
+                "HARNESS_DB_PATH": str(database),
+                "LC_ALL": "C",
+            }
+        )
+        result = subprocess.run(
+            [
+                str(ROOT / "scripts/bin/harness-cli"),
+                "db",
+                "rebuild",
+                "--from",
+                str(ROOT / ".harness/changesets"),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            check=False,
+            env=environment,
+            text=True,
+        )
+        check(
+            result.returncode == 0,
+            "Phase 7 changesets do not rebuild into an isolated database",
+        )
+        check(database.is_file(), "Phase 7 isolated replay database is missing")
+        connection = sqlite3.connect(str(database))
+        try:
+            story = connection.execute(
+                """
+                SELECT status, unit_proof, integration_proof, e2e_proof,
+                       platform_proof, evidence, last_verified_result,
+                       verify_command
+                FROM story WHERE id = ?
+                """,
+                (PHASE7_STORY_ID,),
+            ).fetchall()
+            check(len(story) == 1, "isolated replay does not contain exactly one US-112")
+            check(
+                story[0][0] == "in_progress"
+                and story[0][1:5] == (0, 0, 0, 0)
+                and isinstance(story[0][5], str)
+                and "No executable Phase 7 proof" in story[0][5]
+                and story[0][6] == "pass"
+                and story[0][7] == PHASE7_STORY_VERIFY_COMMAND,
+                "isolated replay no longer keeps US-112 in progress with zero proof",
+            )
+            decision = connection.execute(
+                """
+                SELECT status, doc_path, last_verified_result, verify_command
+                FROM decision WHERE id = ?
+                """,
+                (PHASE7_DECISION_ID,),
+            ).fetchall()
+            check(
+                decision
+                == [
+                    (
+                        "accepted",
+                        "docs/decisions/0016-phase6-framework-acceptance-and-phase7-opening.md",
+                        "pass",
+                        PHASE7_DECISION_VERIFY_COMMAND,
+                    )
+                ],
+                "isolated replay no longer contains the accepted Decision 0016",
+            )
+            hierarchy = connection.execute(
+                """
+                SELECT parent_story_id, child_story_id FROM story_hierarchy
+                WHERE parent_story_id = 'US-105' AND child_story_id = 'US-112'
+                """
+            ).fetchall()
+            check(
+                hierarchy == [("US-105", "US-112")],
+                "isolated replay lost the US-105 to US-112 hierarchy",
+            )
+        finally:
+            connection.close()
 
 
 def self_test_phase5_compatibility_boundary(lock: dict[str, Any]) -> None:
@@ -1745,6 +2147,10 @@ def main() -> int:
         proof("cold/warm, identity, totals, regression, and raw-state negatives", self_test_contracts)
         proof("exact Phase 6 integration boundary negatives", self_test_release_boundary)
         proof("owned-file and release boundary", validate_release_boundary)
+        proof(
+            "semantic Phase 7 engineering-only opening and isolated replay",
+            verify_phase7_opening_gate,
+        )
         proof("no raw V0 database or archive in Phase 6 custody", scan_no_raw_state)
         registry = Path(arguments.trusted_owner_registry) if arguments.trusted_owner_registry else None
         proof(

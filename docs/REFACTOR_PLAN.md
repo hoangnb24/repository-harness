@@ -3,13 +3,14 @@
 Date: 2026-07-16
 
 Status: Direction and Phases 1-5 accepted at the authenticated baseline gate;
-Phase 6 in progress with authority/templates complete and live cards pending;
-Phases 7-8 not started
+Phase 6 framework accepted by owner with live efficacy experiments deferred;
+Phase 7 engineering in progress with acceptance/promotion blocked; Phase 8 not
+started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
 implementation: US-109; Phase 5 baseline acceptance: US-110; Phase 6
-capability evaluation: US-111
+capability evaluation: US-111; Phase 7 portability/release proof: US-112
 
 Decision 0014 is the current Phase 4 authority. It supersedes the plan's former
 automatic conversion/journal design with freeze, archive/export, and normal
@@ -19,6 +20,12 @@ Decision 0015 is the current Phase 6 custody authority. It separates
 `cold-clone` from isolated `warm-v0-copy`, fixes pre-candidate capture and
 condition-versus-subject identity, and keeps raw runtime/signing material out
 of Git.
+
+Decision 0016 accepts the implemented Phase 6 framework for sequencing and
+opens Phase 7 engineering. It does not mark the deferred live experiments as
+passing: Phase 7 acceptance, release comparison, tag, publish, and promotion
+remain blocked until the live P0-P7 obligation and complete Phase 7 proof pass
+for the same candidate.
 
 ## Executive Outcome
 
@@ -494,32 +501,38 @@ Ed25519 keys: `harness-benchmark-phase5-pilot` resolves
 `e-inna-brain-phase5-baseline` resolves
 `9be2b9b624f29c2c4f93bb576485fd8de2085af4`.
 
-The recorded outcomes are honest pre-candidate measurements, not Phase 6
-acceptance. Benchmark P1 is inapplicable and benchmark P6 failed; e-inna P0,
-P1, P3, and P6 failed. Those outcomes do not block Phase 5 because this phase
-freezes authenticated baselines before candidate evaluation. Phase 6 is in
-progress at the authority/template framework; live candidate cards and
-acceptance remain pending against these measurements.
+The recorded outcomes are honest pre-candidate measurements, not candidate
+improvement evidence. Benchmark P1 is inapplicable and benchmark P6 failed;
+e-inna P0, P1, P3, and P6 failed. Those outcomes do not block Phase 5 because
+this phase freezes authenticated baselines before candidate evaluation.
+Decision 0016 accepts the implemented Phase 6 framework for sequencing, while
+live candidate cards remain a deferred efficacy obligation before Phase 7
+acceptance or promotion.
 
 ### Phase 6: Capability Evaluation
 
-**Status: in progress. Authority and portable target-owned templates are
-implemented by US-111; live candidate cards and acceptance remain pending.**
+**Status: framework accepted by the repository owner under Decision 0016;
+live candidate cards and efficacy acceptance are deferred and still pending.**
 
 Instantiate and evaluate the selected planning, invariant, feedback,
 capability-improvement, and gardening contracts using the already enrolled
 pilots. Acceptance: the fixed release-only cards meet their acceptance tests;
 negative conditions fail the candidate rather than being explained away.
 
-The framework slice defines bounded agent-map routes, proportional planning,
+The accepted framework defines bounded agent-map routes, proportional planning,
 resume capsules with one exact next action and an ordered validation ladder,
 and target-owned invariant, feedback, repeated-correction, and gardening
 contracts. Decision 0015 requires externally authenticated pre-candidate
 custody: a clean clone for ordinary cards or an isolated V0 copy for applicable
 conversion cards. It forbids live database mutation and committing raw
-database/archive/key material. None of these documents is a live-card result.
+database/archive/key material. None of these documents is a live-card result,
+and owner framework acceptance does not convert it into one.
 
 ### Phase 7: Portability And Release Proof
+
+**Status: engineering in progress under US-112 and Decision 0016. Phase 7
+acceptance, tag, publish, and promotion remain blocked on both the deferred
+Phase 6 live evidence and complete Phase 7 proof for the same candidate.**
 
 Prove fresh, brownfield, nested instructions, docs-only, monorepo-shaped,
 spaces/Unicode, line-ending, platform, custom-update, and bridge fixtures.
@@ -640,8 +653,10 @@ mutation refusal. US-108 supplies accepted Phase 3 mutation/recovery evidence
 and the exact evidence counts above. US-109 supplies accepted archive-only
 Phase 4 evidence. US-110 supplies accepted authenticated Phase 5 baseline
 evidence at exact `b2dd775`; this accepts honest baseline custody, not any
-candidate improvement. US-111 starts the Phase 6 authority/template framework;
-live cards and acceptance remain pending, while Phases 7-8 remain not started.
+candidate improvement. US-111 supplies the implemented Phase 6 framework;
+Decision 0016 records owner framework acceptance, defers live efficacy, and
+opens US-112 Phase 7 engineering while keeping Phase 7 acceptance and promotion
+closed. Phase 8 remains not started.
 Primary fast-forward integration and trust-enabled full
 premerge passed on exact `b2dd775`; acceptance documentation was integrated at
 `3a65768`. No
