@@ -16,8 +16,12 @@ use harness_core::trust::{verify_release, VerifiedRelease};
 use sha2::{Digest, Sha256};
 
 const INDEX: &[u8] =
-    include_bytes!("../../../tests/fixtures/v1-phase1/positive/core-payload-index.json");
+    include_bytes!("../../../tests/fixtures/v1-phase2/current-core-payload-index.json");
 const SIGNATURES: &[u8] =
+    include_bytes!("../../../tests/fixtures/v1-phase2/current-core-payload-index.signatures.json");
+const PHASE1_INDEX: &[u8] =
+    include_bytes!("../../../tests/fixtures/v1-phase1/positive/core-payload-index.json");
+const PHASE1_SIGNATURES: &[u8] =
     include_bytes!("../../../tests/fixtures/v1-phase1/positive/core-payload-index.signatures.json");
 const TRUST: &[u8] =
     include_bytes!("../../../tests/fixtures/v1-phase1/positive/core-trust-bundle.json");
@@ -69,6 +73,8 @@ const POST_REVOCATION_SIGNATURES: &[u8] = include_bytes!(
 const LEDGER: &[u8] = include_bytes!("../../../release/contracts/v1/path-dispositions.json");
 const DECISION: &[u8] = include_bytes!("../../../docs/templates/decision.md");
 const STORY: &[u8] = include_bytes!("../../../docs/templates/story.md");
+const PHASE1_STORY: &[u8] =
+    include_bytes!("../../../tests/fixtures/v1-phase2/historical-phase1-story.md");
 
 #[derive(Clone, Default)]
 struct MemoryFileSystem {
@@ -154,15 +160,25 @@ fn core_material() -> ReleaseMaterial {
     }
 }
 
+fn phase1_core_material() -> ReleaseMaterial {
+    let mut material = core_material();
+    material.index = PHASE1_INDEX.to_vec();
+    material.signatures = PHASE1_SIGNATURES.to_vec();
+    material
+        .source_files
+        .insert("docs/templates/story.md".into(), PHASE1_STORY.to_vec());
+    material
+}
+
 fn core_trust() -> ReleaseTrustInput {
     ReleaseTrustInput {
         trusted_root: fixture_root("core"),
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "c8c5b7f4ec8a1e71fac3c2a7d8e3c36cbd39768eeb54603e17d95687bc68a625"
+        path_ledger_sha256: "b701a5c74ba3c65cd6a1f3e06b52c00823f0db315b72bb1d3ba78587903e53b0"
             .into(),
         freshness: ReleaseFreshness::Existing {
-            sequence: 42,
-            digest: "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7".into(),
+            sequence: 44,
+            digest: "0e2f88897e5c18ce8b1515a0c6de2f6bcfac97994fac3320965afd51ef1ddcdb".into(),
             rollback: None,
         },
     }
@@ -243,8 +259,8 @@ fn manifest(path: &str, bytes: &[u8], activation: &str, unresolved: &[&str]) -> 
         "payload": {
             "trust_domain": "repository-harness-core",
             "role": "core-release",
-            "sequence": 42,
-            "index_sha256": "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7"
+            "sequence": 44,
+            "index_sha256": "0e2f88897e5c18ce8b1515a0c6de2f6bcfac97994fac3320965afd51ef1ddcdb"
         },
         "roles": [{
             "role": "decision_template",
@@ -269,7 +285,7 @@ fn manifest(path: &str, bytes: &[u8], activation: &str, unresolved: &[&str]) -> 
 fn strict_release_verifier_accepts_only_signed_indexed_core_assets() {
     let verified = verify(core_material()).unwrap();
     assert_eq!(verified.identity().role, "core-release");
-    assert_eq!(verified.identity().sequence, 42);
+    assert_eq!(verified.identity().sequence, 44);
     assert_eq!(verified.assets().len(), 2);
 
     let mut unindexed = core_material();
@@ -305,7 +321,7 @@ fn strict_release_verifier_rejects_bridge_domain_and_rollback() {
     let bridge_trust = ReleaseTrustInput {
         trusted_root: fixture_root("bridge"),
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "c8c5b7f4ec8a1e71fac3c2a7d8e3c36cbd39768eeb54603e17d95687bc68a625"
+        path_ledger_sha256: "b701a5c74ba3c65cd6a1f3e06b52c00823f0db315b72bb1d3ba78587903e53b0"
             .into(),
         freshness: ReleaseFreshness::FirstInstallMinimumSequence(7),
     };
@@ -313,7 +329,7 @@ fn strict_release_verifier_rejects_bridge_domain_and_rollback() {
 
     let mut rollback_trust = core_trust();
     rollback_trust.freshness = ReleaseFreshness::Existing {
-        sequence: 43,
+        sequence: 45,
         digest: "a".repeat(64),
         rollback: None,
     };
@@ -411,7 +427,7 @@ fn trust_lifecycle_rejects_stale_revoked_and_incomplete_rotation_states() {
         .to_string()
         .contains("threshold"));
 
-    let mut authenticated_revocation = core_material();
+    let mut authenticated_revocation = phase1_core_material();
     authenticated_revocation.index = POST_REVOCATION_INDEX.to_vec();
     authenticated_revocation.signatures = POST_REVOCATION_SIGNATURES.to_vec();
     authenticated_revocation.trust_bundle = REVOCATION_TRUST.to_vec();
@@ -446,7 +462,7 @@ fn trust_lifecycle_rejects_stale_revoked_and_incomplete_rotation_states() {
         assert!(verify_with(material, rotation_trust).is_err());
     }
 
-    let mut valid_rotation = core_material();
+    let mut valid_rotation = phase1_core_material();
     valid_rotation.index = POST_REVOCATION_INDEX.to_vec();
     valid_rotation.signatures = POST_REVOCATION_SIGNATURES.to_vec();
     valid_rotation.trust_bundle = ROTATION_TRUST.to_vec();
@@ -457,7 +473,7 @@ fn trust_lifecycle_rejects_stale_revoked_and_incomplete_rotation_states() {
     let verified = verify_with(valid_rotation, valid_rotation_trust).unwrap();
     assert_eq!(verified.active_root_bundle().0, 3);
 
-    let mut idempotent_rotation = core_material();
+    let mut idempotent_rotation = phase1_core_material();
     idempotent_rotation.index = POST_REVOCATION_INDEX.to_vec();
     idempotent_rotation.signatures = POST_REVOCATION_SIGNATURES.to_vec();
     idempotent_rotation.trust_bundle = ROTATION_TRUST.to_vec();
@@ -476,12 +492,12 @@ fn trust_lifecycle_rejects_stale_revoked_and_incomplete_rotation_states() {
 
 #[test]
 fn rollback_requires_exact_active_root_authorization_and_retains_high_water() {
-    let mut unauthorized = core_material();
+    let mut unauthorized = phase1_core_material();
     unauthorized.index = FREEZE_INDEX.to_vec();
     unauthorized.signatures = FREEZE_SIGNATURES.to_vec();
     assert!(verify(unauthorized).is_err());
 
-    let mut authorized = core_material();
+    let mut authorized = phase1_core_material();
     authorized.index = FREEZE_INDEX.to_vec();
     authorized.signatures = FREEZE_SIGNATURES.to_vec();
     let mut authorized_trust = core_trust();
@@ -497,7 +513,7 @@ fn rollback_requires_exact_active_root_authorization_and_retains_high_water() {
     assert_eq!(verified.identity().sequence, 41);
     assert_eq!(verified.retained_release_high_water().0, 42);
 
-    let mut noncanonical_rollback = core_material();
+    let mut noncanonical_rollback = phase1_core_material();
     noncanonical_rollback.index = FREEZE_INDEX.to_vec();
     noncanonical_rollback.signatures = FREEZE_SIGNATURES.to_vec();
     let mut noncanonical_trust = core_trust();
@@ -516,7 +532,7 @@ fn rollback_requires_exact_active_root_authorization_and_retains_high_water() {
         .to_string()
         .contains("not canonical JCS"));
 
-    let mut wrong_root_sequence = core_material();
+    let mut wrong_root_sequence = phase1_core_material();
     wrong_root_sequence.index = FREEZE_INDEX.to_vec();
     wrong_root_sequence.signatures = FREEZE_SIGNATURES.to_vec();
     let mut wrong_root_trust = core_trust();
@@ -535,7 +551,7 @@ fn rollback_requires_exact_active_root_authorization_and_retains_high_water() {
 fn offline_first_install_pin_is_mandatory_and_fixture_trust_is_test_only() {
     let mut exact_trust = core_trust();
     exact_trust.freshness = ReleaseFreshness::FirstInstallExactDigest(
-        "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7".into(),
+        "0e2f88897e5c18ce8b1515a0c6de2f6bcfac97994fac3320965afd51ef1ddcdb".into(),
     );
     assert!(verify_with(core_material(), exact_trust).is_ok());
 
@@ -544,7 +560,7 @@ fn offline_first_install_pin_is_mandatory_and_fixture_trust_is_test_only() {
     assert!(verify_with(core_material(), wrong_exact_trust).is_err());
 
     let mut minimum_trust = core_trust();
-    minimum_trust.freshness = ReleaseFreshness::FirstInstallMinimumSequence(43);
+    minimum_trust.freshness = ReleaseFreshness::FirstInstallMinimumSequence(45);
     assert!(verify_with(core_material(), minimum_trust).is_err());
 
     let mut production_trust = core_trust();

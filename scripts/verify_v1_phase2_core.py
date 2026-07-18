@@ -183,8 +183,8 @@ def manifest(roles: list[dict[str, Any]]) -> bytes:
         "payload": {
             "trust_domain": "repository-harness-core",
             "role": "core-release",
-            "sequence": 42,
-            "index_sha256": "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7",
+            "sequence": 44,
+            "index_sha256": "0e2f88897e5c18ce8b1515a0c6de2f6bcfac97994fac3320965afd51ef1ddcdb",
         },
         "roles": roles,
     }, sort_keys=True, separators=(",", ":")) + "\n").encode()
@@ -412,7 +412,7 @@ def proof_schema_commonmark_and_human_parity() -> None:
         for field, label in projections.items():
             check(f"{label}: {envelope[field]}\n" in human.stdout, f"human output omits JSON field {field}")
         check("release-role: core-release\n" in human.stdout, "human output omits release role")
-        check("release-sequence: 42\n" in human.stdout, "human output omits release sequence")
+        check("release-sequence: 44\n" in human.stdout, "human output omits release sequence")
         check("details-readiness: ready\n" in human.stdout, "human output omits readiness")
 
         maximum = json.loads(json.dumps(valid))

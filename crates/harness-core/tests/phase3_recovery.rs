@@ -22,9 +22,9 @@ use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 
 const INDEX: &[u8] =
-    include_bytes!("../../../tests/fixtures/v1-phase1/positive/core-payload-index.json");
+    include_bytes!("../../../tests/fixtures/v1-phase2/current-core-payload-index.json");
 const SIGNATURES: &[u8] =
-    include_bytes!("../../../tests/fixtures/v1-phase1/positive/core-payload-index.signatures.json");
+    include_bytes!("../../../tests/fixtures/v1-phase2/current-core-payload-index.signatures.json");
 const TRUST: &[u8] =
     include_bytes!("../../../tests/fixtures/v1-phase1/positive/core-trust-bundle.json");
 const TRUST_SIGNATURES: &[u8] =
@@ -117,11 +117,11 @@ fn signed_release_trust() -> ReleaseTrustInput {
             revoked_key_ids: Vec::new(),
         },
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "c8c5b7f4ec8a1e71fac3c2a7d8e3c36cbd39768eeb54603e17d95687bc68a625"
+        path_ledger_sha256: "b701a5c74ba3c65cd6a1f3e06b52c00823f0db315b72bb1d3ba78587903e53b0"
             .into(),
         freshness: ReleaseFreshness::Existing {
-            sequence: 42,
-            digest: "dc70df55c0fbb3fcf548aa12cb13bcca0110e94a3b90300dfcc9522fd8de7bf7".into(),
+            sequence: 44,
+            digest: "0e2f88897e5c18ce8b1515a0c6de2f6bcfac97994fac3320965afd51ef1ddcdb".into(),
             rollback: None,
         },
     }
@@ -1689,7 +1689,7 @@ fn mixed_invalid_and_payload_downgrade_refuse_before_new_journal_or_mutation() {
     let manifest_path = downgrade.path().join(".harness/manifest.json");
     let mut manifest: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
-    manifest["payload"]["sequence"] = serde_json::json!(43);
+    manifest["payload"]["sequence"] = serde_json::json!(45);
     std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
     let before_downgrade = tree_snapshot(downgrade.path());
     let refused_downgrade = execute(

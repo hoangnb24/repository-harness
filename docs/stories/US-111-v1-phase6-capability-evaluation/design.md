@@ -58,8 +58,9 @@ Framework flow in this slice:
 2. Make existing V0 Harness instructions explicitly conditional on a target
    actually using that durable layer, and add neutral target-owned proof and
    capability routes for ordinary targets.
-3. Add the agent map and record its explicitly selected `optional-v1`
-   disposition; do not claim authenticated payload inclusion.
+3. Add the agent map to the V0 installer manifest and record its explicitly
+   selected `optional-v1` disposition; do not claim authenticated V1 core
+   payload inclusion.
 4. Mark US-105 and phase summaries as Phase 6 in progress with framework
    complete and live cards pending.
 5. Validate structural completeness, JSON, neutrality, changed-file scope, and
@@ -87,9 +88,12 @@ Future authorized live-card flow:
 
 ## Interface Contract
 
-This slice adds Markdown and one JSON ledger entry only. It creates no new CLI,
-command grammar, runtime service, schema, database field, installer behavior,
-or evaluation script.
+This slice adds Markdown and one JSON ledger entry. The combined-stack repair
+also places `docs/templates/agent-map.md` in the existing V0 installer manifest,
+so fresh V0 installs carry the neutral template. It creates no new CLI, command
+grammar, runtime service, schema, database field, installer command semantics,
+or evaluation script. Authenticated V1 core payload inclusion remains a later
+gate.
 
 Portable templates use angle-bracket completion markers. A target activates a
 template only after replacing required markers with its own paths, commands,

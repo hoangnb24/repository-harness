@@ -31,6 +31,9 @@ ACCEPTED_PHASE1_EVIDENCE_COUNT = 94
 ACCEPTED_PHASE1_EVIDENCE_TREE_SHA256 = "829d1bf7154057cef15f1090fcaac110b79fb268472d829db0546dde3810be09"
 PHASE1_AUTHORITY_FILES = {"README.md", "generate.py"}
 SUPPORTED_BRIDGE_RELEASE = "1.0.0"
+PHASE1_PAYLOAD_OVERRIDES = {
+    "docs/templates/story.md": ROOT / "tests" / "fixtures" / "v1-phase2" / "historical-phase1-story.md",
+}
 
 WINDOWS_DEVICES = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
 FORBIDDEN_FIELDS = {
@@ -472,7 +475,12 @@ def verify_envelope(payload: Any, envelope_value: dict[str, Any], domain_tag: st
     return valid
 
 
-def validate_payload_index(index: dict[str, Any], domain: str, role: str) -> None:
+def validate_payload_index(
+    index: dict[str, Any],
+    domain: str,
+    role: str,
+    source_overrides: dict[str, Path] | None = None,
+) -> None:
     validate_schema(index, load_json(SCHEMAS / "payload-index-v1.schema.json"))
     check(index["trust_domain"] == domain and index["role"] == role, "payload index role/domain mismatch")
     if domain.endswith("core"):
@@ -490,7 +498,9 @@ def validate_payload_index(index: dict[str, Any], domain: str, role: str) -> Non
         destination_collision = safe_path(asset["destination"])
         check(destination_collision not in collisions, "payload destination collision")
         collisions.add(destination_collision)
-        source = ROOT / PurePosixPath(asset["source"])
+        source = (source_overrides or {}).get(
+            asset["source"], ROOT / PurePosixPath(asset["source"])
+        )
         check(source.is_file(), f"indexed source missing: {asset['source']}")
         check(source_collision, "source collision key is empty")
         check(source.stat().st_size == asset["bytes"] and sha256_file(source) == asset["sha256"], "indexed source identity mismatch")
@@ -1099,7 +1109,12 @@ def proof_trust() -> None:
 
     core_index = load_json(POS / "core-payload-index.json")
     bridge_index = load_json(POS / "bridge-payload-index.json")
-    validate_payload_index(core_index, "repository-harness-core", "core-release")
+    validate_payload_index(
+        core_index,
+        "repository-harness-core",
+        "core-release",
+        PHASE1_PAYLOAD_OVERRIDES,
+    )
     validate_payload_index(bridge_index, "repository-harness-bridge", "bridge-release")
     verify_envelope(core_index, load_json(POS / "core-payload-index.signatures.json"), "repository-harness-payload-index-v1", core_release, 2, "repository-harness-core", "core-release", 42)
     verify_envelope(bridge_index, load_json(POS / "bridge-payload-index.signatures.json"), "repository-harness-bridge-payload-index-v1", bridge_release, 2, "repository-harness-bridge", "bridge-release", 7)
@@ -1109,7 +1124,15 @@ def proof_trust() -> None:
 
     expect_failure(lambda: load_json(NEG / "duplicate-key-index.json"), "duplicate JSON member")
     unicode_index = load_json(NEG / "unicode-reencoded-index.json")
-    expect_failure(lambda: validate_payload_index(unicode_index, "repository-harness-core", "core-release"), "Unicode non-NFC reencoding")
+    expect_failure(
+        lambda: validate_payload_index(
+            unicode_index,
+            "repository-harness-core",
+            "core-release",
+            PHASE1_PAYLOAD_OVERRIDES,
+        ),
+        "Unicode non-NFC reencoding",
+    )
     expect_failure(lambda: verify_envelope(core_index, load_json(NEG / "bad-threshold.signatures.json"), "repository-harness-payload-index-v1", core_release, 2, "repository-harness-core", "core-release", 42), "one signature threshold")
     expect_failure(lambda: verify_envelope(core_index, load_json(NEG / "bad-signature.signatures.json"), "repository-harness-payload-index-v1", core_release, 2, "repository-harness-core", "core-release", 42), "bad signature")
     expect_failure(lambda: verify_envelope(core_index, load_json(NEG / "key-crossover.signatures.json"), "repository-harness-payload-index-v1", core_release, 2, "repository-harness-core", "core-release", 42), "bridge keys on core index")

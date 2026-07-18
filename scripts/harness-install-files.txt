@@ -29,6 +29,7 @@ docs/contracts/harness-orchestration-v1.md
 docs/product/README.md
 docs/stories/README.md
 docs/stories/backlog.md
+docs/templates/agent-map.md
 docs/templates/decision.md
 docs/templates/spec-intake.md
 docs/templates/story.md

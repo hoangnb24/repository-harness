@@ -132,6 +132,20 @@ not explicitly conditional. The follow-up correction checks passed:
 - Documentation, JSON/JSONL, `git diff --check`, exact seven-file scope, and
   Phase 5/US-110 byte-preservation checks passed against the reviewed commit.
 
+The bounded combined-stack regression repair then verified the Phase 6 bytes
+against the earlier trust and recovery stack:
+
+- The V0 installer manifest now carries `docs/templates/agent-map.md`, matching
+  its `installer-manifest` ledger surface without adding it to the authenticated
+  V1 core payload index.
+- A new sequence-44 unsafe test-only release identity authenticates the current
+  `decision.md` and Phase 6-expanded `story.md` bytes. Frozen Phase 1 fixture
+  bytes remain unchanged, and historical lifecycle tests use a payload copy
+  outside the Phase 1 fixture directory.
+- The Phase 1 contract verifier, Phase 2 core suite/verifier, and Phase 3
+  recovery verifier passed together; later Phase 4 and Phase 6 evidence checks
+  also remained green.
+
 This correction still supplies no live candidate card or Phase 6 acceptance.
 
 ## Gaps And Blockers

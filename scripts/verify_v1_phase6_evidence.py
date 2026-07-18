@@ -57,6 +57,8 @@ MANDATORY_NEGATIVES = {
 ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase6_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase6_01_story.changeset.jsonl",
+    "crates/harness-core/tests/phase2_core.rs",
+    "crates/harness-core/tests/phase3_recovery.rs",
     "docs/REFACTOR_PLAN.md",
     "docs/TEST_MATRIX.md",
     "docs/decisions/0015-phase6-cold-warm-evaluation-custody.md",
@@ -77,9 +79,16 @@ ALLOWED_CHANGED_FILES = {
     "docs/templates/validation-report.md",
     "release/contracts/v1/path-dispositions.json",
     "scripts/capture-v1-phase6-warm-v0.py",
+    "scripts/harness-install-files.txt",
     "scripts/verify-v1-phase6-evidence.sh",
+    "scripts/verify_v1_phase1_contracts.py",
+    "scripts/verify_v1_phase2_core.py",
     "scripts/verify_v1_phase6_evidence.py",
     "tests/evals/test-v1-phase6-evidence.sh",
+    "tests/fixtures/v1-phase2/README.md",
+    "tests/fixtures/v1-phase2/current-core-payload-index.json",
+    "tests/fixtures/v1-phase2/current-core-payload-index.signatures.json",
+    "tests/fixtures/v1-phase2/historical-phase1-story.md",
 }
 ALLOWED_CHANGED_PREFIXES = ("tests/evals/v1-phase6/",)
 FORBIDDEN_PHASE6_FILENAMES = {
