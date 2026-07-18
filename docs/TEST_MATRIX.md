@@ -83,10 +83,11 @@ Five-platform promotion and Windows safe capture/atomic publication remain
 Phase 7 evidence; Phase 4 proves only coherent compilation/help and controlled
 unsupported exit 5 on Windows.
 
-US-110 supplies the repository-owned Phase 5 candidate: an in-place map pinned
-to the accepted Phase 4 tree, fixed P0-P7 card/schema contracts, a
-representative ordinary-task check with zero V1 core commands, and positive and
-negative evidence verification:
+US-110 supplies the corrected repository-owned Phase 5 candidate: an in-place
+map pinned to accepted Phase 4, fixed P0-P7 schemas, exact ordinary-task argv,
+offline SSH Ed25519 verification against independently trusted owner material,
+bundle-resolved commits, complete packet custody/digests, strict UTC ordering,
+and adversarial oracle verification:
 
 ```bash
 scripts/verify-v1-phase5-evidence.sh
@@ -98,7 +99,7 @@ The live gate remains intentionally blocked:
 scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines
 ```
 
-It exits 2 until two unrelated owners authorize immutable pilot revisions and
-supply signed card sets, environment locks, eligibility/inapplicability,
-complete intervention totals, and real baseline results. This is Phase 5
-candidate tracking, not acceptance, and Phase 6 has not started.
+It exits 2 until two distinct owners/repositories supply complete authenticated
+packets. If the index becomes `complete`, default/premerge automatically runs
+the same full live gate. This is candidate tracking, not acceptance, and Phase
+6 has not started.

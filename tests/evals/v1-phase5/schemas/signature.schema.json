@@ -3,12 +3,35 @@
   "$id": "https://repository-harness.dev/schemas/v1-phase5/signature.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "subject", "subject_sha256", "signer", "algorithm", "signed_at", "signature"],
+  "required": ["schema", "owner_id", "algorithm", "namespace", "statement", "signature"],
   "properties": {
-    "schema": {"const": "repository-harness-owner-signature/v1"}, "subject": {"type": "string", "minLength": 1},
-    "subject_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "signer": {"type": "object", "additionalProperties": false, "required": ["name", "role", "authority_ref"], "properties": {"name": {"type": "string", "minLength": 1}, "role": {"type": "string", "minLength": 1}, "authority_ref": {"type": "string", "minLength": 1}}},
-    "algorithm": {"type": "string", "minLength": 1}, "signed_at": {"type": "string", "minLength": 1},
+    "schema": {"const": "repository-harness-packet-authentication/v2"},
+    "owner_id": {"type": "string", "minLength": 1},
+    "algorithm": {"const": "ssh-ed25519"},
+    "namespace": {"const": "repository-harness-phase5"},
+    "statement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "pilot_id", "canonical_repository", "starting_revision", "owner_id", "authorization_scope", "card_catalog_sha256", "packet_manifest_sha256", "publication_id", "custody_id", "baseline_subject_identity", "baseline_subject_sha256", "baseline_started_at", "baseline_completed_at", "published_at", "candidate_disclosure_not_before"],
+      "properties": {
+        "schema": {"const": "repository-harness-authenticated-baseline-publication/v2"},
+        "pilot_id": {"type": "string", "minLength": 1},
+        "canonical_repository": {"type": "string", "minLength": 1},
+        "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "owner_id": {"type": "string", "minLength": 1},
+        "authorization_scope": {"type": "string", "minLength": 1},
+        "card_catalog_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "packet_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "publication_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,127}$"},
+        "custody_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,127}$"},
+        "baseline_subject_identity": {"type": "string", "minLength": 1},
+        "baseline_subject_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "baseline_started_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+        "baseline_completed_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+        "published_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+        "candidate_disclosure_not_before": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}
+      }
+    },
     "signature": {"type": "string", "minLength": 1}
   }
 }

@@ -3,12 +3,20 @@
   "$id": "https://repository-harness.dev/schemas/v1-phase5/baseline-result.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "pilot_id", "run_kind", "starting_revision", "card_set_sha256", "environment_sha256", "cards", "intervention_log", "result_sha256"],
+  "required": ["schema", "pilot_id", "run_kind", "evaluation_subject", "started_at", "completed_at", "starting_revision", "card_set_sha256", "environment_sha256", "cards", "intervention_log", "intervention_log_sha256", "result_sha256"],
   "properties": {
-    "schema": {"const": "repository-harness-baseline-result/v1"}, "pilot_id": {"type": "string", "minLength": 1},
-    "run_kind": {"const": "baseline"}, "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "card_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "environment_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "cards": {"type": "array", "minItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "outcome", "evidence"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "outcome": {"enum": ["passed", "failed", "inapplicable"]}, "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}}},
-    "intervention_log": {"type": "string", "minLength": 1}, "result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "schema": {"const": "repository-harness-baseline-result/v2"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "run_kind": {"const": "baseline"},
+    "evaluation_subject": {"type": "object", "additionalProperties": false, "required": ["kind", "identity", "artifact", "sha256"], "properties": {"kind": {"const": "pre-candidate-baseline"}, "identity": {"type": "string", "minLength": 1}, "artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "started_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "completed_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "card_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "environment_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cards": {"type": "array", "minItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "outcome", "acceptance_command", "evidence"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "outcome": {"enum": ["passed", "failed", "inapplicable"]}, "acceptance_command": {"type": "string", "minLength": 1}, "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["requirement", "artifact"], "properties": {"requirement": {"type": "string", "minLength": 1}, "artifact": {"type": "string", "minLength": 1}}}}}}},
+    "intervention_log": {"type": "string", "minLength": 1},
+    "intervention_log_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
   }
 }

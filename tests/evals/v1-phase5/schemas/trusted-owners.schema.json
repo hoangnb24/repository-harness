@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/trusted-owners.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "owners"],
+  "properties": {
+    "schema": {"const": "repository-harness-trusted-pilot-owners/v1"},
+    "owners": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["owner_id", "owner_identity", "canonical_repository", "authorization_scope", "public_key", "trust_source", "trusted_at"], "properties": {"owner_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"}, "owner_identity": {"type": "string", "minLength": 1}, "canonical_repository": {"type": "string", "minLength": 1}, "authorization_scope": {"type": "string", "minLength": 1}, "public_key": {"type": "string", "pattern": "^ssh-ed25519 [A-Za-z0-9+/=]+$"}, "trust_source": {"type": "string", "minLength": 1}, "trusted_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}}}}
+  }
+}

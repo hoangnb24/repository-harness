@@ -3,10 +3,12 @@
   "$id": "https://repository-harness.dev/schemas/v1-phase5/eligibility.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "pilot_id", "evaluated_at", "evaluator", "cards"],
+  "required": ["schema", "pilot_id", "evaluated_at", "evaluator_id", "cards"],
   "properties": {
-    "schema": {"const": "repository-harness-pilot-eligibility/v1"}, "pilot_id": {"type": "string", "minLength": 1},
-    "evaluated_at": {"type": "string", "minLength": 1}, "evaluator": {"type": "string", "minLength": 1},
-    "cards": {"type": "array", "minItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "disposition", "finding"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "disposition": {"enum": ["eligible", "inapplicable"]}, "finding": {"type": "string"}}}}
+    "schema": {"const": "repository-harness-pilot-eligibility/v2"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "evaluated_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "evaluator_id": {"type": "string", "minLength": 1},
+    "cards": {"type": "array", "minItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "disposition", "finding", "finding_artifacts"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "disposition": {"enum": ["eligible", "inapplicable"]}, "finding": {"type": "string"}, "finding_artifacts": {"type": "array", "items": {"type": "string", "minLength": 1}}}}}
   }
 }

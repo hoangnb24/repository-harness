@@ -1,11 +1,12 @@
 {
-  "schema": "repository-harness-phase5-evidence-index/v1",
+  "schema": "repository-harness-phase5-evidence-index/v2",
   "phase": 5,
   "status": "candidate-awaiting-pilot-authorization",
   "card_catalog": "cards/catalog.json",
+  "trusted_owners": "trusted-owners.json",
   "pilots": [],
   "blockers": [
-    "No external pilot owner authorization has been supplied.",
-    "No immutable external pilot revision, environment lock, signed card set, eligibility finding, intervention log, or baseline result exists."
+    "No independently trusted external pilot owner key or authorization has been supplied.",
+    "No canonical repository bundle, resolved immutable revision, authenticated packet manifest, environment lock, eligibility finding, intervention log, baseline publication, or custody identity exists."
   ]
 }

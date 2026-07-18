@@ -461,14 +461,15 @@ evaluation. Acceptance: no required path move, no ordinary-task Harness call,
 and each enrolled pilot has a signed card set, environment lock, and baseline
 or documented inapplicability.
 
-**Repository-owned candidate implemented; Phase 5 not accepted:** US-110 maps
-Repository Harness's accepted Phase 4 paths in place, freezes concrete P0-P7
-cards and schema-validated evidence records, and adds deterministic checks for
-path stability, zero-core-command ordinary work, immutable identities,
-inapplicability, intervention totals, and baseline-only results. The live index
-has zero pilots because no external owner authorization exists. Two unrelated
-authorized enrollments with real signed card sets, locked environments, and
-baselines or written inapplicability remain required before acceptance.
+**Corrected repository-owned candidate; Phase 5 not accepted:** US-110 maps
+accepted Phase 4 paths in place, freezes P0-P7, and verifies exact ordinary
+argv. Live packets require independently trusted owner SSH Ed25519 material,
+canonical repository identity, a bundle-resolved commit, a complete
+digest-bound packet manifest, consistent environment/card evidence, direct
+intervention binding, and authenticated custody/publication before candidate
+disclosure. Default/premerge automatically loads packets when an index becomes
+complete. The live trust registry and index remain empty; two distinct real
+owners/repositories and independent acceptance are still required.
 
 ### Phase 6: Capability Evaluation
 

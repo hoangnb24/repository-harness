@@ -3,11 +3,14 @@
   "$id": "https://repository-harness.dev/schemas/v1-phase5/evidence-index.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "phase", "status", "card_catalog", "pilots", "blockers"],
+  "required": ["schema", "phase", "status", "card_catalog", "trusted_owners", "pilots", "blockers"],
   "properties": {
-    "schema": {"const": "repository-harness-phase5-evidence-index/v1"}, "phase": {"const": 5},
+    "schema": {"const": "repository-harness-phase5-evidence-index/v2"},
+    "phase": {"const": 5},
     "status": {"enum": ["candidate-awaiting-pilot-authorization", "complete"]},
-    "card_catalog": {"type": "string", "minLength": 1}, "pilots": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "card_catalog": {"const": "cards/catalog.json"},
+    "trusted_owners": {"const": "trusted-owners.json"},
+    "pilots": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"}},
     "blockers": {"type": "array", "items": {"type": "string", "minLength": 1}}
   }
 }

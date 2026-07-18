@@ -1,6 +1,6 @@
 # US-110 V1 Dogfood And Pilot Baselines
 
-Status: **Repository-owned Phase 5 candidate implemented / external pilot evidence blocked on owner authorization / Phase 5 not accepted**
+Status: **Corrected repository-owned Phase 5 candidate / external pilot evidence blocked / Phase 5 not accepted**
 
 ## Current Behavior
 
@@ -30,19 +30,22 @@ The repository-owned Phase 5 candidate has three effects:
    representative documentation task using `rg` and Git only. Because the
    verifier rejects all six V1 core invocations, the ordinary path proves zero
    core commands rather than relying on prose.
-3. Fixed P0-P7 cards, JSON Schemas, and the verifier define the exact records
-   external owners must supply. Because no owner has authorized a pilot, the
-   live evidence index stays empty and `--require-pilot-baselines` exits 2 with
-   blockers. That failure prevents invented revisions, approvals, signatures,
-   runs, or results from looking like Phase 5 acceptance.
+3. Fixed P0-P7 cards, JSON Schemas, and the corrected verifier define the exact
+   records external owners must supply. Trust comes from an independently
+   populated owner registry outside each packet. A verified SSH Ed25519
+   statement binds canonical repository, resolved bundled commit, scope,
+   catalog, complete packet-manifest digest, custody/publication identity, and
+   baseline-before-disclosure timeline. Because no owner has authorized a
+   pilot, the registry/index stay empty and explicit live proof exits 2.
 
 Exact Phase 5 acceptance remains the authority in `docs/REFACTOR_PLAN.md`: no
 required path move; no ordinary-task Harness core call; and at least two
 unrelated, owner-authorized pilots, each with an immutable starting revision,
-complete P0-P7 eligibility, a signed fixed card set, environment lock, and a
-baseline result or written inapplicability for every card, including complete
-intervention/time totals. This candidate satisfies the repository-owned first
-two conditions and the evidence format; it does not satisfy the external-pilot
+complete P0-P7 eligibility, independently authenticated complete packet,
+environment lock, resolved repository revision, and a baseline result or
+written inapplicability for every card, including complete intervention/time
+totals. This candidate satisfies the repository-owned first two conditions and
+defines/verifies the evidence format; it does not satisfy external-pilot
 conditions.
 
 ## Affected Users
@@ -79,6 +82,7 @@ conditions.
 - Changing Phase 1-4 implementation code, the six-command core, four-command
   bridge, production gates, compatibility dates, or archive custody policy.
 
-Pilot authorization is a hard boundary: an empty evidence index is correct
-until two owners act. Repository maintainers may validate formats and
-test-only fixtures, but a synthetic test signature is never pilot evidence.
+Pilot authorization is a hard boundary: an empty trust registry and evidence
+index are correct until two owners act. The verifier generates an ephemeral
+SSH Ed25519 key and local Git bundle only inside temporary adversarial tests;
+neither is trusted live pilot evidence.

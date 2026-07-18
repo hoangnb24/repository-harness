@@ -1,93 +1,97 @@
 # US-110 V1 Dogfood And Pilot Baselines Design
 
-Status: **Repository-owned Phase 5 candidate implemented / live pilot gate intentionally blocked**
+Status: **Corrected repository-owned Phase 5 candidate / live gate blocked**
 
 ## Domain Model
 
-`DogfoodMap` binds one immutable Repository Harness source revision to useful
-existing paths. Each entry records role, path, activation, ownership, origin,
-required state, update policy, Git blob, and SHA-256. All mapped paths are
-`target-owned`, `brownfield-mapped`, and `never-auto-patch`.
+`DogfoodMap` binds the accepted Phase 4 revision to existing useful paths by
+Git blob and SHA-256. Every mapped path is already a Phase 1
+`target-owned-destination`, so dogfood neither moves a path nor reclassifies V0
+operational content as V1 payload.
 
-Cause and effect: `docs/decisions/README.md` is already the useful decision
-index. Mapping it as `decisions` tells an agent where decisions live. Target
-ownership then prevents an update from rewriting it, and its pinned source
-blob proves the map describes the accepted Phase 4 tree rather than a later
-guess.
+`PilotCard` fixes one P0-P7 prompt, applicability rule, acceptance tests,
+mandatory failures, and evidence requirements. `CardCatalog` contains exactly
+P0-P7 and exact file digests.
 
-`PilotCard` is one immutable P0-P7 revision-1 scenario. A card fixes the
-prompt, applicability rule, acceptance tests, mandatory failures, and required
-evidence. `CardCatalog` lists exactly eight cards and binds their file bytes by
-SHA-256. A catalog digest change invalidates every enrollment and owner
-signature that names the earlier catalog.
+`TrustedOwner` is repository-maintainer-supplied material outside a pilot
+packet: owner ID, stable independent owner identity, canonical HTTPS `.git`
+repository, exact authorization scope, `ssh-ed25519` public key, trust source,
+and strict RFC 3339 UTC trust time. The live registry is empty. A pilot packet
+cannot trust its own owner or key.
 
-`PilotEnrollment` belongs to an external repository owner. It contains an
-authorized scope and evidence reference, one full 40-character immutable Git
-commit, evidence custody, an unrelated-pilot declaration, and the exact card
-catalog digest. Repository Harness cannot create this record on an owner's
-behalf.
+`PilotEnrollment` repeats the trusted owner ID, canonical repository, exact
+scope, authorization time, card catalog digest, and full Git starting commit.
+It names an authenticated `repository.bundle`; the verifier imports that bundle
+into an isolated bare repository and requires the commit to resolve.
 
-`EnvironmentLock` fixes model, reasoning, operating system, architecture, tool
-names and versions, enabled tools, permissions, evaluator, fixture digests,
-and acceptance commands. Its digest is canonical JSON with
-`environment_sha256` omitted. If any condition changes, the digest changes and
-the baseline must rerun.
+`EnvironmentLock` fixes model, reasoning, OS/architecture, unique versioned
+tools, enabled-tool subset, permissions, evaluator, authenticated fixtures, and
+one exact acceptance argv per P0-P7. Its canonical digest omits only its digest
+field.
 
-`Eligibility` contains exactly P0-P7. Each card is `eligible` or
-`inapplicable`; inapplicability requires a non-empty evaluator finding. Thus a
-pilot without V0 records P1 as inapplicable with inspected-path evidence rather
-than deleting P1.
+`Eligibility` contains exactly P0-P7. An eligible card has no contradictory
+finding. An inapplicable card requires a non-empty evaluator finding and at
+least one manifest-authenticated finding artifact.
 
-`InterventionLog` records actor, timestamp, fixed taxonomy, reason, whole
-minutes, outcome effect, and card. Totals contain event count and minutes both
-globally and grouped by card and taxonomy. The verifier recomputes every total
-from events, so an evaluator cannot report only correction time while omitting
-setup or evidence relay.
+`InterventionLog` records card, actor, strict UTC time, fixed taxonomy, reason,
+positive whole minutes, and outcome effect. The verifier recomputes global,
+per-card, and per-taxonomy totals and requires every event to fall inside the
+baseline interval.
 
-`BaselineResult` is closed to `run_kind=baseline`. It repeats enrollment
-revision, card catalog digest, environment digest, exact P0-P7 outcomes,
-evidence references, intervention log, and its canonical digest. Unknown
-candidate fields fail schema validation, so a Phase 6 candidate run cannot be
-relabeled as a baseline.
+`BaselineResult` names a concrete `pre-candidate-baseline` subject identity and
+digest, strict start/completion times, revision, catalog and environment
+digests, exact P0-P7 outcomes, the locked acceptance command for each eligible
+card, all card-specific evidence requirements, and the exact intervention-log
+path/digest. Thus candidate absence is proven by a named baseline subject plus
+an authenticated publication-before-disclosure timeline, not by omitting a
+`candidate_identity` field.
 
-`OwnerSignature` names the card catalog, exact subject SHA-256, signer,
-authority reference, algorithm, time, and non-empty detached signature. The
-repository verifier proves structural presence and digest binding. The pilot
-owner retains cryptographic algorithm selection and verification evidence at
-the authority reference; Repository Harness does not fabricate a key or sign
-for the owner.
+`PacketManifest` lists exact digests for enrollment, environment, eligibility,
+interventions, baseline, repository bundle, and every referenced fixture,
+transcript, or evidence artifact. The directory may contain only those files,
+the manifest, and authentication envelope. Absolute/traversal paths, unlisted
+files, symlinks, or custody escapes fail.
+
+`PacketAuthentication` uses exactly algorithm `ssh-ed25519` and namespace
+`repository-harness-phase5`. `ssh-keygen -Y verify` checks the detached SSH
+signature offline against the independently supplied trusted-owner key. The
+signed canonical statement binds pilot/owner, repository, resolved commit,
+scope, catalog digest, complete manifest digest, immutable custody/publication
+IDs, manifest-backed baseline-subject identity/digest, baseline times,
+publication time, and candidate-disclosure-not-before.
 
 ## Application Flow
 
-Repository-owned flow:
+Repository-owned dogfood flow:
 
-1. Load the Phase 5 Draft 2020-12 schemas and fixed card catalog.
-2. Recompute every card digest and reject a missing, extra, duplicated, or
-   changed card.
-3. Resolve the dogfood source commit, Git blob, and SHA-256 for each mapped
-   path.
-4. Inspect the diff from that source and reject every rename or deletion of a
-   mapped path.
-5. Execute the allowlisted ordinary-task `rg` and Git checks and reject any
-   invocation of `harness install`, `update`, `audit`, `scaffold`, `status`,
-   `version`, or `--version`.
-6. Exercise one synthetic test-only positive packet and ten negative
-   mutations. Synthetic names and signatures are visibly non-evidence.
+1. Resolve the accepted Phase 4 commit/blob/digest for each mapped path.
+2. Reject any rename or mapped deletion.
+3. Require the ordinary transcript to equal three closed argv arrays: two
+   `rg --no-config` searches and
+   `git --no-optional-locks diff --no-ext-diff --check`.
+4. Remove Git config/alias/exec-path and ripgrep-config environment inputs.
+5. Convert missing executables into deterministic verification failures.
 
-Future authorized-pilot flow:
+Authorized pilot flow:
 
-1. The owner supplies authorization, immutable revision, and custody.
-2. The evaluator locks the complete environment before a baseline run.
-3. The owner signs the exact fixed catalog digest.
-4. Eligibility records P0-P7, including written inapplicability.
-5. The baseline runs every eligible card and records every intervention.
-6. The verifier recomputes digests/totals and compares all repeated identities.
-7. Only when two unrelated packets pass may the evidence index become
-   `complete`; independent review still decides Phase 5 acceptance.
+1. Load trusted owners outside packet custody and reject duplicate IDs.
+2. Load the evidence index. A `complete` index automatically enters full live
+   verification even under the default/premerge command.
+3. Resolve each relative pilot directory beneath the evidence root and reject
+   symlinks, traversal, or directory-name mismatch.
+4. Verify every packet-manifest member/digest and exact directory inventory.
+5. Validate enrollment, environment, eligibility, interventions, and baseline.
+6. Verify the SSH Ed25519 signature over the canonical publication statement.
+7. Match statement, trusted owner, enrollment, manifest, and baseline
+   repository/owner/scope/revision/catalog/environment/intervention identities.
+8. Import the authenticated bundle and resolve the exact starting commit.
+9. Enforce trust/authorization/run/publication/disclosure chronology.
+10. Require at least two pairwise-distinct canonical repositories and owners.
+
+Current candidate flow stops before step 3 because the index is awaiting owner
+authorization and has no pilots.
 
 ## Interface Contract
-
-The executable interface is:
 
 ```text
 scripts/verify-v1-phase5-evidence.sh
@@ -95,57 +99,58 @@ scripts/verify-v1-phase5-evidence.sh --dogfood-only
 scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines
 ```
 
-Default and dogfood-only success return 0. A malformed repository-owned
-contract returns 1. The live pilot gate returns 2 when authorization or
-evidence is incomplete and prints each blocker. It returns 0 only after at
-least two complete unrelated pilot packets validate.
+Default success returns 0 only for a valid candidate framework or a fully
+verified complete live index. Malformed contracts/evidence return 1. Explicit
+live proof returns 2 while the index is awaiting authorization. Dogfood-only
+validates the in-place map and exact ordinary argv.
 
-The machine-readable file schemas are under
-`tests/evals/v1-phase5/schemas/`. Pilot custody directories referenced by
-`evidence/index.json` contain exactly `enrollment.json`, `environment.json`,
-`eligibility.json`, `card-set.signature.json`, `interventions.json`, and
-`baseline-result.json`.
+The wrapper preflights `git`, `python3`, `rg`, and `ssh-keygen`. Schemas live
+under `tests/evals/v1-phase5/schemas/`; the full custody layout is documented in
+`tests/evals/v1-phase5/README.md`.
 
 ## Data Model
 
-All records are tracked UTF-8 JSON files. No SQLite database, migration,
-changeset, task row, telemetry record, or V1 manifest is created. Digests are
-lowercase SHA-256. Environment and result self-digests use sorted-key compact
-UTF-8 JSON with the digest field omitted; catalog/card digests bind exact file
-bytes.
+Records are closed UTF-8 JSON. Self-digests use sorted-key compact UTF-8 JSON
+with only the self-digest field omitted. Card, manifest-member, bundle, and
+packet-manifest identities bind exact file bytes with lowercase SHA-256.
 
-Pilot evidence is append/review data owned jointly by its repository owner and
-evaluator. Changing an immutable revision, signed catalog, locked environment,
-or result digest is rejection, not an update-in-place. A legitimate condition
-change creates a new reviewed run and does not overwrite the baseline used for
-comparison.
+Pilot paths are relative canonical POSIX paths beneath
+`tests/evals/v1-phase5/evidence/<pilot_id>/`. No SQLite database, migration,
+changeset, telemetry row, task state, V1 manifest, production key, or external
+repository write is created.
 
 ## UI / Platform Impact
 
-There is no browser, mobile, desktop, service, installer, core CLI, or bridge
-behavior change. The verifier uses Python 3, Git, `rg`, and repository files;
-its repository-owned proof is platform-neutral except for the existing shell
-wrapper. Five-platform artifact behavior remains Phase 7.
+There is no product UI, core CLI, bridge, installer, or release change. The
+verifier requires Python 3, Git, ripgrep, and OpenSSH `ssh-keygen`. Five-platform
+product equivalence remains Phase 7.
 
 ## Observability
 
-The verifier prints numbered proof groups and a final count. Negative fixtures
-are expected to fail inside the test group; accepting one fails the verifier.
-Live-evidence mode prints blockers to stderr and returns 2. It does not log raw
-pilot commands, secrets, or telemetry outside owner-approved evidence files.
+The verifier prints numbered proof groups. The positive packet uses an
+ephemeral generated test key and local synthetic Git bundle; neither is written
+to live evidence. Adversarial tests reproduce forged signatures, fake commits
+and repositories, timestamp reversal, unsigned rewrites, shallow complete
+indexes, same-owner/repository pilots, custody escapes, environment/evidence
+inconsistency, Git alias bypass, missing ripgrep, and subprocess OSError.
+
+The live gate prints blockers and exits 2 without logging owner secrets or
+inventing credentials. A future `complete` index cannot bypass packet loading
+because default/premerge automatically runs the live gate.
 
 ## Alternatives Considered
 
-1. Move Repository Harness documents to V1 default paths. Rejected because the
-   current paths are already useful and moves would damage history and links.
-2. Create a second V1-only documentation tree. Rejected because duplicate
-   sources would make ordinary discovery ambiguous.
-3. Require `harness audit` before ordinary tasks. Rejected because V1 is an
-   optional seed kit during normal work and audit is not a task gate.
-4. Add placeholder pilots with sample commits or signatures. Rejected because
-   a plausible placeholder could be mistaken for real owner evidence.
-5. Make the live evidence command pass with zero pilots. Rejected because it
-   would turn schema presence into Phase 5 behavioral proof.
-6. Add a JSON Schema dependency. Rejected because the closed schemas use a
-   small deterministic subset that the standard-library verifier can enforce;
-   dependency and lockfile churn adds no evidence value here.
+1. Accept a non-empty structural signature field. Rejected because `x` is not
+   authentication.
+2. Let packets provide their own owner key. Rejected because self-declared trust
+   does not prove owner authorization.
+3. Resolve a 40-hex string without repository evidence. Rejected because an
+   arbitrary value could pass.
+4. Sign only `catalog.json`. Rejected because enrollment, interventions, and
+   results could change unsigned.
+5. Trust missing candidate fields. Rejected in favor of named baseline subject
+   and authenticated pre-disclosure publication.
+6. Execute generic `git` or `rg` strings. Rejected because aliases, exec-path,
+   config, or preprocessors could invoke hidden commands.
+7. Add live placeholders. Rejected because no external owner has authorized a
+   repository, key, revision, or run.

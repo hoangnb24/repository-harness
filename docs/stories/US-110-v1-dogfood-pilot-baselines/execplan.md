@@ -1,6 +1,6 @@
 # US-110 V1 Dogfood And Pilot Baselines Exec Plan
 
-Status: **Repository-owned implementation complete / external enrollment and baseline execution blocked**
+Status: **Evidence-oracle correction implemented / external enrollment and baseline execution blocked**
 
 ## Goal
 
@@ -15,9 +15,11 @@ In scope:
 - Map Repository Harness's accepted Phase 4 paths in place with byte and Git
   provenance.
 - Freeze concrete P0-P7 card revision 1.
-- Define closed schemas for enrollment, environment, eligibility,
-  inapplicability, owner signature/digest binding, intervention totals, and
-  baseline results.
+- Define closed schemas for independently trusted owners, enrollment,
+  environment, eligibility/inapplicability, interventions, baseline results,
+  complete packet manifests, and authenticated publication.
+- Verify SSH Ed25519 signatures offline and resolve enrolled commits from
+  digest-bound repository bundles.
 - Add positive and negative executable verification and minimal premerge
   wiring.
 - Update US-105, the refactor plan, and test matrix from stale Phase 4 text to
@@ -64,13 +66,15 @@ changing its architecture, authorization, or acceptance rules.
    and existing verifier/premerge conventions.
 3. Pin the accepted Phase 4 source revision and map only current useful files;
    reject every rename or mapped deletion.
-4. Freeze P0-P7 and schemas, then implement semantic cross-record checks for
-   revisions, card signatures/digests, environments, eligibility, totals, and
-   baseline identity.
-5. Record and execute the repository-native ordinary documentation task with
-   zero V1 core commands.
-6. Exercise the test-only positive packet and negative mutations. Confirm that
-   the empty live evidence index returns blocker exit 2.
+4. Freeze P0-P7 and schemas, then bind independently trusted owner,
+   repository bundle/resolved commit, scope, complete packet manifest,
+   environment, eligibility, interventions, baseline, custody, publication,
+   and pre-disclosure timeline under verified SSH Ed25519 authentication.
+5. Execute only the three exact repository-native dogfood argv arrays with Git
+   and ripgrep configuration/alias/exec bypasses disabled.
+6. Exercise an ephemeral cryptographic positive packet and adversarial
+   reproductions for every confirmed oracle failure. Confirm the awaiting live
+   index still returns exit 2 and a future complete index cannot skip packets.
 7. Run affected Phase 1-4 verifiers, formatting/lint/tests, diff checks, and
    commit the stable candidate in this worktree only.
 

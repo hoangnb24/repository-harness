@@ -1,113 +1,111 @@
 # US-110 V1 Dogfood And Pilot Baselines Validation
 
-Status: **Repository-owned candidate proof defined / live pilot acceptance proof absent**
+Status: **Corrected candidate proof defined / live pilot proof absent**
 
 ## Proof Strategy
 
-The default verifier proves repository-owned contracts and dogfood behavior.
-It must pass only when all current paths still exist in place, source bytes
-match the accepted Phase 4 revision, P0-P7 are exact and digest-bound, schemas
-validate, the ordinary-task checks execute with zero V1 core calls, and every
-required negative mutation is rejected.
+The default verifier proves path-stable dogfood, closed schemas/cards, an
+ephemeral actually signed positive packet, and adversarial rejection. Candidate
+status may pass the framework with no pilots. If the index ever says
+`complete`, the same default/premerge command automatically loads every packet,
+verifies owner trust/signature/repository/custody/timeline/evidence, and requires
+two independent pilots. Explicit live mode exits 2 now.
 
-The live evidence gate is deliberately separate. It must exit 2 until two
-unrelated owner-authorized pilots have complete packets. This cause/effect
-prevents a green contract test from being reported as a pilot baseline.
-
-Exact Phase 5 acceptance requires all of these conditions together:
+Exact Phase 5 acceptance still requires all of these together:
 
 1. No required Repository Harness path move or duplicate knowledge path.
-2. A representative ordinary task completes with zero V1 core commands and no
-   Harness-only durable plan.
-3. At least two unrelated external pilot owners authorize evaluation and pin
-   immutable starting commits and evidence custody.
-4. Each pilot signs the exact P0-P7 catalog digest and locks model, reasoning,
-   tools/versions, enabled tools, permissions, evaluator, OS/architecture,
-   fixtures, and acceptance commands before baseline execution.
-5. Every pilot records P0-P7 as eligible or supplies a written evaluator
-   finding for inapplicability; no card is omitted.
-6. Every eligible baseline result binds the same revision, catalog, and
-   environment, and records complete intervention count/minutes by card and
-   taxonomy.
-7. The focused verifier and affected Phase 1-4 proof remain green for the exact
-   candidate, followed by independent acceptance.
+2. The fixed ordinary task executes only its exact allowlisted argv with zero
+   V1 core commands and no Harness-only durable plan.
+3. At least two pairwise-distinct canonical repositories and independent owner
+   identities are authorized through trusted material outside pilot packets.
+4. Each digest-bound repository bundle resolves the named immutable commit.
+5. Each offline SSH Ed25519 signature authenticates repository/commit/scope,
+   card catalog, complete packet manifest, custody/publication identity,
+   manifest-backed baseline-subject identity/digest, and the
+   baseline-before-candidate-disclosure timeline.
+6. Each manifest covers enrollment, environment, eligibility, interventions,
+   baseline, repository bundle, fixtures, transcripts, and every result/finding
+   artifact without symlink or custody escape.
+7. Every environment is internally consistent; every P0-P7 result binds its
+   locked acceptance argv and card-specific evidence; inapplicability findings
+   and intervention totals are authenticated.
+8. Corrected Phase 5 and affected Phase 1-4 regressions pass, followed by
+   independent acceptance.
 
-Conditions 1-2 and the format/verifier portion of 4-7 are repository-owned and
-implemented here. Conditions 3-6 have no real external evidence. Therefore
-Phase 5 is not accepted and Phase 6 remains not started.
+Conditions 1-2 and the verifier/framework portion of 3-8 are repository-owned.
+No external trusted owner, repository bundle, revision, signature, run, or
+result exists. Phase 5 is not accepted and Phase 6 remains closed.
 
 ## Test Plan
 
 | Layer | Cases |
 | --- | --- |
-| Unit | Closed-schema types/required fields; exact P0-P7 set; canonical digests; complete intervention recomputation; core-command recognition. |
-| Integration | Card catalog/file digests; dogfood Git blob/SHA provenance; in-place diff; ordinary-task command execution; cross-record pilot revision/catalog/environment consistency. |
-| E2E | Default repository-owned candidate verifier passes; live pilot gate exits 2 with current authorization blockers. No browser E2E applies. |
-| Platform | Shell/Python syntax and repository-native checks on the current supported development platform. Five-platform product evidence remains Phase 7. |
-| Performance | Not a release criterion; the verifier reads a bounded card/schema/path set. |
-| Logs/Audit | Numbered proof groups, deterministic failure messages, and explicit live blocker output; no pilot telemetry or raw secrets. |
+| Unit | Closed schema fields/enums; strict UTC parsing/order; canonical HTTPS repository; safe relative custody paths; complete P0-P7; unique/subset tools; totals; exact ordinary argv. |
+| Integration | SSH Ed25519 sign/verify; complete manifest/digest inventory; isolated Git bundle import and commit resolution; environment/eligibility/intervention/baseline cross-binding. |
+| E2E | Default corrected verifier passes candidate framework; dogfood-only passes; explicit live gate exits 2; shallow `complete` index fails. |
+| Platform | Current macOS shell/Python/Git/ripgrep/OpenSSH execution. Five-platform product proof remains Phase 7. |
+| Performance | Bounded local files and temporary Git/SSH fixtures; no performance release claim. |
+| Logs/Audit | Numbered proof groups and deterministic failures; no owner secrets, live telemetry, or fabricated evidence. |
 
 ## Fixtures
 
-- Fixed repository-owned P0-P7 JSON files and digest catalog.
+- Fixed repository-owned P0-P7 catalog.
 - Accepted Phase 4 source commit
-  `04f953d0f4c8aa42689c1565178376143916c8b5` with pinned blobs/SHA-256 for
-  mapped useful paths.
-- One in-memory positive packet whose owner, repository, timestamps, algorithm,
-  signature, tools, and evidence URLs are all labeled `TEST-ONLY` or
-  `synthetic`.
-- Negative in-memory mutations for changed revision, empty signature, wrong
-  signed digest, test-only signature presented live, incomplete environment,
-  omitted card, incomplete totals, candidate-as-baseline, path rename, and
-  ordinary-task V1 core invocation.
-- Empty live evidence index with actual authorization blockers. It contains no
-  fabricated pilot identity or result.
+  `04f953d0f4c8aa42689c1565178376143916c8b5` and target-owned path blob/SHA
+  provenance.
+- One temporary synthetic Git repository/bundle and ephemeral SSH Ed25519 key,
+  independently supplied to the verifier's test trust map and deleted with its
+  temporary directory.
+- Twenty-five adversarial cases covering the confirmed forged packet,
+  one-character/unknown signatures, malformed and
+  post-disclosure times, fake repository/commit, unsigned intervention rewrite,
+  same-repository/same-owner pilots, absolute/traversal/symlink/mismatched
+  custody, shallow complete index, inconsistent tools/fake evidence, Git alias
+  core-call bypass, subprocess OSError, and missing ripgrep.
+- Empty live trusted-owner registry and pilot index with real blockers only.
 
 ## Commands
 
 ```bash
 scripts/verify-v1-phase5-evidence.sh
 scripts/verify-v1-phase5-evidence.sh --dogfood-only
-scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines  # expected exit 2 until authorized evidence exists
+scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines  # expected exit 2
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
 scripts/verify-v1-phase4-bridge.sh
+tests/docs/test-doc-contracts.sh
 python3 -m py_compile scripts/verify_v1_phase5_evidence.py
 bash -n scripts/verify-v1-phase5-evidence.sh scripts/validate-premerge.sh
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --locked --offline -- -D warnings
 git diff --check
 ```
 
 ## Acceptance Evidence
 
-Repository-owned candidate evidence lives under `tests/evals/v1-phase5/` and
-is enforced by `scripts/verify-v1-phase5-evidence.sh`. The accepted Phase 1-4
-artifacts remain unchanged and their focused verifiers are rerun for
-regression proof.
+The corrected repository-owned candidate is enforced by
+`scripts/verify-v1-phase5-evidence.sh` and is wired into default premerge. Its
+positive signature/repository packet is temporary test evidence, not a pilot.
 
-Current live-pilot evidence result: **blocked by absent owner authorization and
-baseline evidence**. `tests/evals/v1-phase5/evidence/index.json` names the
-blockers without inventing pilots. The expected exit 2 is a correct negative
-result, not a Phase 5 failure and not acceptance.
+Current live result remains blocked: `evidence/trusted-owners.json` contains no
+owner key and `evidence/index.json` contains no pilot. Explicit live mode must
+exit 2. This is correct negative evidence, not Phase 5 acceptance.
 
-Local candidate results on 2026-07-18:
+Correction-candidate results on 2026-07-18:
 
-- Phase 5 default verifier: **passed, 5/5 proof groups**. The group contains a
-  test-only positive packet and rejects all ten required negative mutations.
-- Dogfood-only verifier: **passed, 1/1 proof group** with the accepted Phase 4
-  commit/blob/SHA provenance, only Phase 1 `target-owned-destination` paths,
-  no rename/deletion, and three executed ordinary-task checks.
-- Live pilot gate: **expected exit 2** with exactly two blockers: no owner
-  authorization and no immutable revision/environment/signature/eligibility/
-  intervention/baseline packet. This is the remaining gate, not a pass.
-- Accepted Phase 1-4 regression verifiers: **10/10, 11/11, 11/11, and 10/10
-  proof groups passed**.
-- Rust workspace: **203 tests passed, 0 failed**; `cargo fmt --check` and
-  workspace clippy with `-D warnings` passed offline.
-- Documentation contract, Python compilation, shell syntax, JSON parsing,
-  `git diff --check`, and the complete premerge repository contract passed.
+- Corrected Phase 5 verifier: **5/5 proof groups passed**, including one
+  ephemeral packet whose SSH Ed25519 signature is actually verified and whose
+  named commit resolves from its authenticated Git bundle.
+- Adversarial suite: **25/25 rejected**, covering the confirmed oracle,
+  repository, manifest, timeline, independence, custody, environment/evidence,
+  subprocess, Git-alias, missing-ripgrep, and legacy negative cases.
+- Dogfood-only: **1/1 passed** with exact closed argv and no path move.
+- Explicit live gate: **expected exit 2** with no owner trust or pilot packet.
+- Phase 1-4 regressions: **10/10, 11/11, 11/11, and 10/10 proof groups
+  passed**.
+- Rust workspace within premerge: **203 tests passed, 0 failed**.
+- Documentation contract, JSON parsing, Python compilation, shell syntax,
+  formatting, `git diff --check`, and full premerge repository contract passed.
 
-Independent review may accept or reject the repository-owned candidate, but
-only two complete real pilot packets can unblock Phase 5 acceptance.
+Only two complete independently owned live packets and independent review can
+accept Phase 5; Phase 6 remains closed.

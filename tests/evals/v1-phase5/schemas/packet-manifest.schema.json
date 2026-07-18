@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase5/packet-manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pilot_id", "custody_id", "artifacts"],
+  "properties": {
+    "schema": {"const": "repository-harness-pilot-packet-manifest/v2"},
+    "pilot_id": {"type": "string", "minLength": 1},
+    "custody_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,127}$"},
+    "artifacts": {"type": "array", "minItems": 7, "items": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "media_type", "purpose"], "properties": {"path": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "media_type": {"type": "string", "minLength": 1}, "purpose": {"type": "string", "minLength": 1}}}}
+  }
+}

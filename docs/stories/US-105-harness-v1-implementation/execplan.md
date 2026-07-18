@@ -323,11 +323,12 @@ protocol/evidence references are reviewable separately from candidate outcomes.
 External pilot changes, if any, remain in their repositories and are never
 silently folded into this repository's commit.
 
-**Current candidate:** US-110 maps useful Repository Harness paths in place,
-freezes P0-P7 schemas and digests, records an executable zero-core-command
-ordinary task, and rejects incomplete or candidate-contaminated baselines.
-External pilot authorization and baseline evidence are absent, so Phase 5 is
-not accepted and Phase 6 remains closed.
+**Corrected current candidate:** US-110 maps useful paths in place, freezes
+P0-P7, closes ordinary execution to exact argv, verifies independently trusted
+SSH Ed25519 owner authentication, resolves commits from manifest-bound bundles,
+and authenticates complete custody, environment, eligibility, interventions,
+baseline evidence, and pre-disclosure publication. External owner trust and
+live packets remain absent, so Phase 5 is not accepted and Phase 6 is closed.
 
 ### Phase 6: Capability Evaluation
 

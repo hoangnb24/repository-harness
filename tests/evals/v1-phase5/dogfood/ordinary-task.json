@@ -1,17 +1,17 @@
 {
-  "schema": "repository-harness-ordinary-task/v1",
+  "schema": "repository-harness-ordinary-task/v2",
   "task_id": "repository-harness-phase-status-doc-check",
   "starting_revision": "04f953d0f4c8aa42689c1565178376143916c8b5",
   "prompt": "Update stale US-105 Phase 4 status text, keep Phase 5 candidate-only, and prove Phase 6 did not start.",
   "commands": [
-    {"command": "rg -q 'Phases 1-4 accepted / Phase 5 candidate' docs/stories/US-105-harness-v1-implementation/overview.md", "exit_code": 0, "observation": "The initiative overview identifies accepted Phases 1-4 and candidate-only Phase 5."},
-    {"command": "rg -q 'Phase 6 remains not started' docs/stories/US-105-harness-v1-implementation/validation.md", "exit_code": 0, "observation": "The validation packet keeps Phase 6 closed."},
-    {"command": "git diff --check", "exit_code": 0, "observation": "The ordinary documentation change is whitespace-clean."}
+    {"argv": ["rg", "--no-config", "-q", "Phases 1-4 accepted / Phase 5 candidate", "docs/stories/US-105-harness-v1-implementation/overview.md"], "exit_code": 0, "observation": "The initiative overview identifies accepted Phases 1-4 and candidate-only Phase 5."},
+    {"argv": ["rg", "--no-config", "-q", "Phase 6 remains not started", "docs/stories/US-105-harness-v1-implementation/validation.md"], "exit_code": 0, "observation": "The validation packet keeps Phase 6 closed."},
+    {"argv": ["git", "--no-optional-locks", "diff", "--no-ext-diff", "--check"], "exit_code": 0, "observation": "The ordinary documentation change is whitespace-clean without an external diff driver."}
   ],
   "core_command_count": 0,
   "result": "passed",
   "cause_effect": [
     "AGENTS.md routes the task to the existing story and test matrix, so no duplicate map or cosmetic path move is needed.",
-    "The target-native rg and Git checks prove the requested documentation state, so no install, update, audit, scaffold, status, or version core command enters ordinary work."
+    "The exact allowlisted argv and hardened subprocess environment admit only two no-config rg searches and one built-in Git diff check, so aliases, exec-path overrides, preprocessors, and V1 core commands cannot enter this transcript."
   ]
 }
