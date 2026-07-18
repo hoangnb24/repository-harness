@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 from collections import defaultdict
 import copy
 from datetime import datetime, timezone
@@ -27,6 +29,7 @@ CARDS = {f"P{number}" for number in range(8)}
 RFC3339_UTC = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 COMMIT = re.compile(r"^[0-9a-f]{40}$")
+EXECUTABLE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
 NAMESPACE = "repository-harness-phase5"
 CORE_PACKET_FILES = {
     "enrollment.json", "environment.json", "eligibility.json",
@@ -206,6 +209,18 @@ def canonical_repository(value: str) -> str:
     return normalized
 
 
+def signing_key_fingerprint(public_key: str) -> str:
+    parts = public_key.split(" ")
+    check(len(parts) == 2 and parts[0] == "ssh-ed25519", "trusted owner key is not canonical SSH Ed25519")
+    try:
+        key_blob = base64.b64decode(parts[1], validate=True)
+    except (ValueError, binascii.Error) as error:
+        raise VerificationError("trusted owner key is malformed") from error
+    check(base64.b64encode(key_blob).decode("ascii") == parts[1], "trusted owner key encoding is not canonical")
+    fingerprint = base64.b64encode(hashlib.sha256(key_blob).digest()).decode("ascii").rstrip("=")
+    return f"SHA256:{fingerprint}"
+
+
 def relative_name(value: str, field: str) -> PurePosixPath:
     check(value and "\\" not in value, f"{field}: path is empty or contains backslashes")
     candidate = PurePosixPath(value)
@@ -314,11 +329,25 @@ def validate_environment(document: dict[str, Any], artifact_digests: dict[str, s
     check(document["environment_sha256"] == canonical_digest(document, "environment_sha256"), "environment digest mismatch")
     tools = [tool["name"] for tool in document["tools"]]
     check(len(tools) == len(set(tools)), "environment tools are not uniquely versioned")
+    check(all(EXECUTABLE_TOKEN.fullmatch(name) is not None for name in tools), "versioned tool names must be canonical bare executable tokens")
     enabled = document["enabled_tools"]
     check(len(enabled) == len(set(enabled)) and set(enabled) <= set(tools), "enabled tools are duplicated or absent from versioned tools")
     exact_cards(document["acceptance_commands"], "environment acceptance commands")
     for fixture in document["fixtures"]:
         check(artifact_digests.get(fixture["path"]) == fixture["sha256"], f"fixture is outside authenticated custody or has wrong digest: {fixture['path']}")
+
+
+def validate_acceptance_tools(environment: dict[str, Any], eligibility: dict[str, Any]) -> None:
+    tools = [tool["name"] for tool in environment["tools"]]
+    enabled = set(environment["enabled_tools"])
+    applicable = {card["card_id"] for card in eligibility["cards"] if card["disposition"] == "eligible"}
+    for command in environment["acceptance_commands"]:
+        if command["card_id"] not in applicable:
+            continue
+        executable = command["argv"][0]
+        check(EXECUTABLE_TOKEN.fullmatch(executable) is not None, f"{command['card_id']} acceptance executable is not a canonical bare token")
+        check(tools.count(executable) == 1, f"{command['card_id']} acceptance executable does not resolve to exactly one versioned tool")
+        check(executable in enabled, f"{command['card_id']} acceptance executable is not enabled")
 
 
 def validate_eligibility(document: dict[str, Any], artifact_digests: dict[str, str]) -> None:
@@ -349,18 +378,49 @@ def validate_baseline(document: dict[str, Any], artifact_digests: dict[str, str]
     check(document["result_sha256"] == canonical_digest(document, "result_sha256"), "baseline result digest mismatch")
 
 
-def load_trusted_owners(evidence_root: Path) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-    path = contained_member(evidence_root, "trusted-owners.json", "trusted owners")
+def parse_trusted_owners(path: Path, location: str) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     document = load_json(path)
-    validate(document, schema("trusted-owners"), "trusted owners")
+    validate(document, schema("trusted-owners"), location)
     owners: dict[str, dict[str, Any]] = {}
+    fingerprints: set[str] = set()
     for owner in document["owners"]:
         check(owner["owner_id"] not in owners, f"trusted owner identity is duplicated: {owner['owner_id']}")
         canonical_repository(owner["canonical_repository"])
-        check(owner["public_key"].split()[0] == "ssh-ed25519", "trusted owner key is not Ed25519")
+        fingerprint = signing_key_fingerprint(owner["public_key"])
+        check(fingerprint not in fingerprints, f"trusted owner signing key is reused: {fingerprint}")
         parse_time(owner["trusted_at"], "trusted owner time")
-        owners[owner["owner_id"]] = owner
+        owners[owner["owner_id"]] = {**owner, "signing_key_fingerprint": fingerprint}
+        fingerprints.add(fingerprint)
     return document, owners
+
+
+def validate_tracked_trust_placeholder(evidence_root: Path) -> None:
+    path = contained_member(evidence_root, "trusted-owners.json", "tracked trust placeholder")
+    document, _ = parse_trusted_owners(path, "tracked trust placeholder")
+    check(not document["owners"], "tracked trusted-owners placeholder must remain empty and cannot authorize live pilots")
+
+
+def load_external_trusted_owners(path: Path | None, expected_sha256: str | None) -> tuple[dict[str, dict[str, Any]], str]:
+    check(path is not None and expected_sha256 is not None, "complete live evidence requires --trusted-owner-registry and --trusted-owner-registry-sha256")
+    check(SHA256.fullmatch(expected_sha256) is not None, "external trusted-owner registry digest is malformed")
+    check(path.is_absolute(), "external trusted-owner registry path must be absolute")
+    try:
+        path.lstat()
+        resolved = path.resolve(strict=True)
+    except OSError as error:
+        raise VerificationError(f"external trusted-owner registry is unavailable: {path}") from error
+    check(not path.is_symlink() and resolved.is_file(), "external trusted-owner registry must be a regular non-symlink file")
+    try:
+        resolved.relative_to(ROOT.resolve(strict=True))
+    except ValueError:
+        pass
+    else:
+        raise VerificationError("external trusted-owner registry must be supplied from outside the candidate repository")
+    digest = sha256_file(resolved)
+    check(digest == expected_sha256, "external trusted-owner registry digest mismatch")
+    _, owners = parse_trusted_owners(resolved, "external trusted-owner registry")
+    check(owners, "external trusted-owner registry contains no authorized owners")
+    return owners, digest
 
 
 def validate_manifest(packet_dir: Path, pilot_id: str) -> tuple[dict[str, Any], dict[str, str]]:
@@ -391,7 +451,7 @@ def validate_manifest(packet_dir: Path, pilot_id: str) -> tuple[dict[str, Any], 
 def verify_owner_authentication(authentication: dict[str, Any], trusted: dict[str, dict[str, Any]]) -> dict[str, Any]:
     validate(authentication, schema("signature"), "packet authentication")
     owner_id = authentication["owner_id"]
-    check(owner_id in trusted, "packet owner is not independently trusted")
+    check(owner_id in trusted, "packet owner is absent from the caller-supplied external trust registry")
     owner = trusted[owner_id]
     statement = authentication["statement"]
     check(statement["owner_id"] == owner_id, "authentication owner identity mismatch")
@@ -452,12 +512,13 @@ def validate_packet(
     validate(enrollment, schema("pilot-enrollment"), "pilot enrollment")
     validate_environment(environment, artifact_digests)
     validate_eligibility(eligibility, artifact_digests)
+    validate_acceptance_tools(environment, eligibility)
     validate_interventions(interventions)
     validate_baseline(baseline, artifact_digests)
     owner = verify_owner_authentication(authentication, trusted)
     statement = authentication["statement"]
     repository = canonical_repository(enrollment["canonical_repository"])
-    check(repository == canonical_repository(owner["canonical_repository"]) == statement["canonical_repository"], "repository identity is not independently bound")
+    check(repository == canonical_repository(owner["canonical_repository"]) == statement["canonical_repository"], "repository identity differs across external trust, enrollment, and authentication")
     check(enrollment["owner_id"] == owner["owner_id"] == statement["owner_id"], "owner identity mismatch")
     check(enrollment["authorization_scope"] == owner["authorization_scope"] == statement["authorization_scope"], "authorization scope mismatch")
     check(enrollment["card_set_sha256"] == baseline["card_set_sha256"] == statement["card_catalog_sha256"] == catalog_digest, "card catalog binding mismatch")
@@ -475,6 +536,8 @@ def validate_packet(
     )
     bundle_path = enrollment["starting_revision"]["repository_bundle"]
     check(bundle_path in artifact_digests, "repository bundle is outside authenticated packet manifest")
+    bundle_digest = artifact_digests[bundle_path]
+    check(statement["repository_bundle_sha256"] == bundle_digest, "authenticated repository-bundle digest mismatch")
     resolve_bundle_commit(contained_member(packet_dir, bundle_path, "repository bundle"), revision)
     for name, document in [("environment", environment), ("eligibility", eligibility), ("interventions", interventions), ("baseline", baseline)]:
         check(document["pilot_id"] == pilot_id, f"{name} belongs to another pilot")
@@ -498,32 +561,47 @@ def validate_packet(
         for item in result["evidence"]:
             check(item["artifact"] in artifact_digests, f"{card_id} evidence is outside authenticated custody: {item['artifact']}")
     validate_timeline(enrollment, environment, eligibility, interventions, baseline, statement, owner)
-    return {"pilot_id": pilot_id, "repository": repository, "owner_id": owner["owner_id"], "owner_identity": owner["owner_identity"]}
+    return {
+        "pilot_id": pilot_id,
+        "repository": repository,
+        "owner_id": owner["owner_id"],
+        "owner_identity": owner["owner_identity"],
+        "signing_key_fingerprint": owner["signing_key_fingerprint"],
+        "repository_bundle_sha256": bundle_digest,
+    }
 
 
 def validate_pilot_independence(packets: list[dict[str, Any]]) -> None:
     repositories = [packet["repository"] for packet in packets]
     owner_ids = [packet["owner_id"] for packet in packets]
     identities = [packet["owner_identity"] for packet in packets]
+    signing_keys = [packet["signing_key_fingerprint"] for packet in packets]
+    repository_bundles = [packet["repository_bundle_sha256"] for packet in packets]
     check(len(repositories) == len(set(repositories)), "pilots reuse the same canonical repository")
     check(len(owner_ids) == len(set(owner_ids)) and len(identities) == len(set(identities)), "pilots reuse the same owner identity")
+    check(len(signing_keys) == len(set(signing_keys)), "pilots reuse the same signing-key fingerprint")
+    check(len(repository_bundles) == len(set(repository_bundles)), "pilots reuse the same authenticated repository bundle")
 
 
-def load_evidence_index(evidence_root: Path) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+def load_evidence_index(evidence_root: Path) -> dict[str, Any]:
     index = load_json(contained_member(evidence_root, "index.json", "evidence index"))
     validate(index, schema("evidence-index"), "evidence index")
     check(len(index["pilots"]) == len(set(index["pilots"])), "evidence index duplicates a pilot")
-    _, owners = load_trusted_owners(evidence_root)
+    validate_tracked_trust_placeholder(evidence_root)
     if index["status"] == "candidate-awaiting-pilot-authorization":
         check(not index["pilots"] and index["blockers"], "candidate evidence index hides pilots or blockers")
     else:
         check(len(index["pilots"]) >= 2 and not index["blockers"], "complete evidence index is shallow or contradictory")
-    return index, owners
+    return index
 
 
-def require_live_evidence(evidence_root: Path, catalog_digest: str, cards: dict[str, dict[str, Any]]) -> None:
-    index, owners = load_evidence_index(evidence_root)
+def require_live_evidence(
+    evidence_root: Path, catalog_digest: str, cards: dict[str, dict[str, Any]],
+    trusted_owner_registry: Path | None, trusted_owner_registry_sha256: str | None,
+) -> None:
+    index = load_evidence_index(evidence_root)
     check(index["status"] == "complete", "Phase 5 evidence index is not complete")
+    owners, _ = load_external_trusted_owners(trusted_owner_registry, trusted_owner_registry_sha256)
     packets = []
     for pilot_id in index["pilots"]:
         relative_name(pilot_id, "pilot directory")
@@ -535,9 +613,14 @@ def require_live_evidence(evidence_root: Path, catalog_digest: str, cards: dict[
 def verify_index_mode(
     index: dict[str, Any], evidence_root: Path, catalog_digest: str,
     cards: dict[str, dict[str, Any]], *, require_live: bool,
+    trusted_owner_registry: Path | None = None,
+    trusted_owner_registry_sha256: str | None = None,
 ) -> bool:
     if index["status"] == "complete" or require_live:
-        require_live_evidence(evidence_root, catalog_digest, cards)
+        require_live_evidence(
+            evidence_root, catalog_digest, cards,
+            trusted_owner_registry, trusted_owner_registry_sha256,
+        )
         return True
     return False
 
@@ -648,6 +731,7 @@ def build_synthetic_packet(root: Path) -> tuple[Path, dict[str, dict[str, Any]],
     statement = {
         "schema": "repository-harness-authenticated-baseline-publication/v2", "pilot_id": pilot_id,
         "canonical_repository": enrollment["canonical_repository"], "starting_revision": revision,
+        "repository_bundle_sha256": sha256_file(packet / "repository.bundle"),
         "owner_id": enrollment["owner_id"], "authorization_scope": enrollment["authorization_scope"],
         "card_catalog_sha256": catalog_digest, "packet_manifest_sha256": sha256_file(packet / "packet-manifest.json"),
         "publication_id": "synthetic-pilot-a-baseline-publication-1", "custody_id": manifest["custody_id"],
@@ -663,9 +747,81 @@ def build_synthetic_packet(root: Path) -> tuple[Path, dict[str, dict[str, Any]],
             "owner_id": enrollment["owner_id"], "owner_identity": "synthetic-independent-owner-a",
             "canonical_repository": enrollment["canonical_repository"], "authorization_scope": enrollment["authorization_scope"],
             "public_key": public_key, "trust_source": "synthetic independent verifier fixture", "trusted_at": "2000-01-01T00:00:00Z",
+            "signing_key_fingerprint": signing_key_fingerprint(public_key),
         }
     }
     return packet, trusted, key, cards, catalog_digest
+
+
+def external_registry_document(trusted: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    owners = []
+    for owner in trusted.values():
+        owners.append({key: value for key, value in owner.items() if key != "signing_key_fingerprint"})
+    return {"schema": "repository-harness-trusted-pilot-owners/v1", "owners": owners}
+
+
+def build_aliased_packet(
+    source: Path, destination: Path, key: Path, source_owner: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the exact historical attack: new claims, same key and bundle."""
+    shutil.copytree(source, destination)
+    pilot_id = "synthetic-pilot-b"
+    owner_id = "synthetic-owner-b"
+    repository = "https://example.test/synthetic-b.git"
+    authorization_scope = "synthetic aliased verifier fixture"
+
+    enrollment = load_json(destination / "enrollment.json")
+    enrollment.update({
+        "pilot_id": pilot_id, "canonical_repository": repository,
+        "owner_id": owner_id, "authorization_scope": authorization_scope,
+    })
+    environment = load_json(destination / "environment.json")
+    environment["pilot_id"] = pilot_id
+    environment["environment_sha256"] = canonical_digest(environment, "environment_sha256")
+    eligibility = load_json(destination / "eligibility.json")
+    eligibility["pilot_id"] = pilot_id
+    interventions = load_json(destination / "interventions.json")
+    interventions["pilot_id"] = pilot_id
+    for name, document in [
+        ("enrollment.json", enrollment), ("environment.json", environment),
+        ("eligibility.json", eligibility), ("interventions.json", interventions),
+    ]:
+        write_json(destination / name, document)
+    baseline = load_json(destination / "baseline-result.json")
+    baseline["pilot_id"] = pilot_id
+    baseline["environment_sha256"] = environment["environment_sha256"]
+    baseline["intervention_log_sha256"] = sha256_file(destination / "interventions.json")
+    baseline["result_sha256"] = canonical_digest(baseline, "result_sha256")
+    write_json(destination / "baseline-result.json", baseline)
+
+    manifest = load_json(destination / "packet-manifest.json")
+    manifest["pilot_id"] = pilot_id
+    manifest["custody_id"] = "synthetic-pilot-b-custody-1"
+    for artifact in manifest["artifacts"]:
+        artifact["sha256"] = sha256_file(destination / artifact["path"])
+    write_json(destination / "packet-manifest.json", manifest)
+    authentication = load_json(destination / "authentication.json")
+    authentication["owner_id"] = owner_id
+    statement = authentication["statement"]
+    statement.update({
+        "pilot_id": pilot_id, "canonical_repository": repository,
+        "owner_id": owner_id, "authorization_scope": authorization_scope,
+        "packet_manifest_sha256": sha256_file(destination / "packet-manifest.json"),
+        "publication_id": "synthetic-pilot-b-baseline-publication-1",
+        "custody_id": manifest["custody_id"],
+    })
+    authentication["signature"] = sign_statement(key, statement)
+    write_json(destination / "authentication.json", authentication)
+    return {
+        "owner_id": owner_id,
+        "owner_identity": "synthetic-independent-owner-b",
+        "canonical_repository": repository,
+        "authorization_scope": authorization_scope,
+        "public_key": source_owner["public_key"],
+        "trust_source": "synthetic aliased verifier fixture",
+        "trusted_at": source_owner["trusted_at"],
+        "signing_key_fingerprint": source_owner["signing_key_fingerprint"],
+    }
 
 
 def expect_rejection(label: str, function: Callable[[], None]) -> None:
@@ -680,8 +836,12 @@ def expect_rejection(label: str, function: Callable[[], None]) -> None:
 
 def prove_positive_packet() -> None:
     with tempfile.TemporaryDirectory(prefix="phase5-positive-") as temporary:
-        packet, trusted, _, cards, catalog_digest = build_synthetic_packet(Path(temporary))
-        validate_packet(packet, packet.name, trusted, catalog_digest, cards)
+        root = Path(temporary)
+        packet, trusted, _, cards, catalog_digest = build_synthetic_packet(root / "evidence")
+        registry = root / "external-trusted-owners.json"
+        write_json(registry, external_registry_document(trusted))
+        loaded, _ = load_external_trusted_owners(registry, sha256_file(registry))
+        validate_packet(packet, packet.name, loaded, catalog_digest, cards)
 
 
 def prove_negative_contracts() -> None:
@@ -749,6 +909,12 @@ def prove_negative_contracts() -> None:
         environment = load_json(packet / "environment.json")
         environment["enabled_tools"].append("missing-tool")
         expect_rejection("inconsistent environment", lambda: validate_environment(environment, {}))
+        undeclared_command = load_json(packet / "environment.json")
+        undeclared_command["acceptance_commands"][0]["argv"][0] = "undeclared-tool"
+        expect_rejection(
+            "acceptance executable absent from versioned/enabled tools",
+            lambda: validate_acceptance_tools(undeclared_command, load_json(packet / "eligibility.json")),
+        )
         baseline_path = packet / "baseline-result.json"
         fake_evidence = load_json(baseline_path)
         fake_evidence["cards"][0]["evidence"][0]["artifact"] = "artifacts/not-real.txt"
@@ -774,18 +940,81 @@ def prove_negative_contracts() -> None:
             symlink.unlink(missing_ok=True)
         expect_rejection("mismatched pilot directory", lambda: validate_packet(packet, "another-pilot", trusted, catalog_digest, cards))
 
-        identity = {"pilot_id": "a", "repository": enrollment["canonical_repository"], "owner_id": "owner-a", "owner_identity": "person-a"}
-        same_repository = {"pilot_id": "b", "repository": identity["repository"], "owner_id": "owner-b", "owner_identity": "person-b"}
-        same_owner = {"pilot_id": "b", "repository": "https://example.test/synthetic-b.git", "owner_id": identity["owner_id"], "owner_identity": identity["owner_identity"]}
+        identity = {
+            "pilot_id": "a", "repository": enrollment["canonical_repository"],
+            "owner_id": "owner-a", "owner_identity": "person-a",
+            "signing_key_fingerprint": "SHA256:key-a", "repository_bundle_sha256": "a" * 64,
+        }
+        independent = {
+            "pilot_id": "b", "repository": "https://example.test/synthetic-b.git",
+            "owner_id": "owner-b", "owner_identity": "person-b",
+            "signing_key_fingerprint": "SHA256:key-b", "repository_bundle_sha256": "b" * 64,
+        }
+        same_repository = {**independent, "repository": identity["repository"]}
+        same_owner = {**independent, "owner_id": identity["owner_id"], "owner_identity": identity["owner_identity"]}
+        same_signing_key = {**independent, "signing_key_fingerprint": identity["signing_key_fingerprint"]}
+        same_bundle = {**independent, "repository_bundle_sha256": identity["repository_bundle_sha256"]}
         expect_rejection("same repository dual pilots", lambda: validate_pilot_independence([identity, same_repository]))
         expect_rejection("same owner dual pilots", lambda: validate_pilot_independence([identity, same_owner]))
+        expect_rejection("same signing key dual pilots", lambda: validate_pilot_independence([identity, same_signing_key]))
+        expect_rejection("same repository bundle dual pilots", lambda: validate_pilot_independence([identity, same_bundle]))
+
+        alias_root = root / "one-key-one-bundle-attack"
+        alias_evidence = alias_root / "evidence"
+        packet_a, alias_trusted, alias_key, alias_cards, alias_catalog = build_synthetic_packet(alias_evidence)
+        owner_a = alias_trusted[next(iter(alias_trusted))]
+        packet_b = alias_evidence / "synthetic-pilot-b"
+        owner_b = build_aliased_packet(packet_a, packet_b, alias_key, owner_a)
+        alias_trusted[owner_b["owner_id"]] = owner_b
+        aliased_packets = [
+            validate_packet(packet_a, packet_a.name, {owner_a["owner_id"]: owner_a}, alias_catalog, alias_cards),
+            validate_packet(packet_b, packet_b.name, {owner_b["owner_id"]: owner_b}, alias_catalog, alias_cards),
+        ]
+        expect_rejection(
+            "one-key one-bundle two-owner two-repository packet construction",
+            lambda: validate_pilot_independence(aliased_packets),
+        )
+        write_json(alias_evidence / "trusted-owners.json", {"schema": "repository-harness-trusted-pilot-owners/v1", "owners": []})
+        write_json(alias_evidence / "index.json", {
+            "schema": "repository-harness-phase5-evidence-index/v2", "phase": 5, "status": "complete",
+            "card_catalog": "cards/catalog.json", "trusted_owners": "trusted-owners.json",
+            "pilots": [packet_a.name, packet_b.name], "blockers": [],
+        })
+        alias_registry = alias_root / "external-trusted-owners.json"
+        write_json(alias_registry, external_registry_document(alias_trusted))
+        alias_index = load_json(alias_evidence / "index.json")
+        expect_rejection(
+            "duplicate signing key in external live trust registry",
+            lambda: verify_index_mode(
+                alias_index, alias_evidence, alias_catalog, alias_cards, require_live=False,
+                trusted_owner_registry=alias_registry,
+                trusted_owner_registry_sha256=sha256_file(alias_registry),
+            ),
+        )
 
         shallow = root / "shallow-evidence"
         shallow.mkdir()
         write_json(shallow / "trusted-owners.json", {"schema": "repository-harness-trusted-pilot-owners/v1", "owners": []})
         write_json(shallow / "index.json", {"schema": "repository-harness-phase5-evidence-index/v2", "phase": 5, "status": "complete", "card_catalog": "cards/catalog.json", "trusted_owners": "trusted-owners.json", "pilots": ["pilot-a", "pilot-b"], "blockers": []})
         shallow_index = load_json(shallow / "index.json")
-        expect_rejection("shallow complete index through default dispatch", lambda: verify_index_mode(shallow_index, shallow, catalog_digest, cards, require_live=False))
+        expect_rejection("complete index without external trust through default dispatch", lambda: verify_index_mode(shallow_index, shallow, catalog_digest, cards, require_live=False))
+
+        tracked_authority = root / "tracked-authority"
+        tracked_authority.mkdir()
+        write_json(tracked_authority / "trusted-owners.json", external_registry_document({owner_a["owner_id"]: owner_a}))
+        write_json(tracked_authority / "index.json", {
+            "schema": "repository-harness-phase5-evidence-index/v2", "phase": 5, "status": "complete",
+            "card_catalog": "cards/catalog.json", "trusted_owners": "trusted-owners.json",
+            "pilots": ["pilot-a", "pilot-b"], "blockers": [],
+        })
+        expect_rejection("tracked self-authorizing trust entry", lambda: load_evidence_index(tracked_authority))
+
+        mismatched_registry = root / "mismatched-external-trust.json"
+        write_json(mismatched_registry, external_registry_document(trusted))
+        expect_rejection(
+            "external trust registry digest mismatch",
+            lambda: load_external_trusted_owners(mismatched_registry, "0" * 64),
+        )
 
         alias = ["git", "-c", "alias.h=!scripts/bin/harness audit", "h"]
         expect_rejection("Git alias core-call bypass", lambda: check(alias in ORDINARY_ARGV, "argv outside closed grammar"))
@@ -801,7 +1030,7 @@ def prove_negative_contracts() -> None:
             completed = run(["/bin/bash", str(wrapper_path), "--dogfood-only"], expected=1, environment={"PATH": str(path_root)})
             check(b"requires: rg" in completed.stderr, "wrapper did not fail deterministically when rg was missing")
             NEGATIVE_COUNT += 1
-        check(NEGATIVE_COUNT == 25, f"adversarial suite count changed: {NEGATIVE_COUNT}")
+        check(NEGATIVE_COUNT == 32, f"adversarial suite count changed: {NEGATIVE_COUNT}")
 
 
 def validate_story_packet() -> None:
@@ -817,22 +1046,39 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--require-pilot-baselines", action="store_true")
     parser.add_argument("--dogfood-only", action="store_true")
+    parser.add_argument("--trusted-owner-registry", type=Path)
+    parser.add_argument("--trusted-owner-registry-sha256")
     arguments = parser.parse_args()
     proof("Repository Harness paths and exact ordinary-task argv remain path-stable and core-command-free", validate_dogfood)
     if arguments.dogfood_only:
         print("V1 Phase 5 Repository Harness dogfood verification passed (1 proof group)")
         return
+    check(
+        (arguments.trusted_owner_registry is None) == (arguments.trusted_owner_registry_sha256 is None),
+        "--trusted-owner-registry and --trusted-owner-registry-sha256 must be supplied together",
+    )
     catalog_digest, cards = validate_catalog()
-    index, _ = load_evidence_index(EVIDENCE)
-    proof("Draft 2020-12 contracts, fixed P0-P7 catalog, trusted-owner registry, and candidate index validate", lambda: None)
-    proof("ephemeral test owner authenticates a complete manifest and resolvable repository bundle with SSH Ed25519", prove_positive_packet)
-    proof("25 adversarial oracle, custody, timeline, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
+    index = load_evidence_index(EVIDENCE)
+    proof("Draft 2020-12 contracts, fixed P0-P7 catalog, empty tracked trust placeholder, and candidate index validate", lambda: None)
+    proof("caller-pinned external test trust authenticates a complete manifest and resolvable repository bundle with SSH Ed25519", prove_positive_packet)
+    proof("32 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
     proof("US-110 documents only corrected repository-owned candidate proof", validate_story_packet)
     if index["status"] == "complete":
-        proof("default verifier automatically loads two complete live pilot packets", lambda: verify_index_mode(index, EVIDENCE, catalog_digest, cards, require_live=False))
+        proof(
+            "default verifier automatically loads two complete live pilot packets",
+            lambda: verify_index_mode(
+                index, EVIDENCE, catalog_digest, cards, require_live=False,
+                trusted_owner_registry=arguments.trusted_owner_registry,
+                trusted_owner_registry_sha256=arguments.trusted_owner_registry_sha256,
+            ),
+        )
     elif arguments.require_pilot_baselines:
         try:
-            verify_index_mode(index, EVIDENCE, catalog_digest, cards, require_live=True)
+            verify_index_mode(
+                index, EVIDENCE, catalog_digest, cards, require_live=True,
+                trusted_owner_registry=arguments.trusted_owner_registry,
+                trusted_owner_registry_sha256=arguments.trusted_owner_registry_sha256,
+            )
         except VerificationError as error:
             print(f"V1 Phase 5 live pilot evidence blocked: {error}", file=sys.stderr)
             for blocker in index["blockers"]:

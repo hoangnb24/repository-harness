@@ -13,11 +13,13 @@ operational content as V1 payload.
 mandatory failures, and evidence requirements. `CardCatalog` contains exactly
 P0-P7 and exact file digests.
 
-`TrustedOwner` is repository-maintainer-supplied material outside a pilot
-packet: owner ID, stable independent owner identity, canonical HTTPS `.git`
+`TrustedOwner` is caller-supplied material outside both a pilot packet and the
+candidate repository: owner ID, stable owner identity, canonical HTTPS `.git`
 repository, exact authorization scope, `ssh-ed25519` public key, trust source,
-and strict RFC 3339 UTC trust time. The live registry is empty. A pilot packet
-cannot trust its own owner or key.
+and strict RFC 3339 UTC trust time. Its exact bytes are pinned by a required
+CLI SHA-256. The tracked registry is an enforced-empty placeholder and cannot
+authorize a packet. The verifier authenticates against caller-supplied bytes;
+the caller, not the machine, establishes their independent authorization.
 
 `PilotEnrollment` repeats the trusted owner ID, canonical repository, exact
 scope, authorization time, card catalog digest, and full Git starting commit.
@@ -26,8 +28,10 @@ into an isolated bare repository and requires the commit to resolve.
 
 `EnvironmentLock` fixes model, reasoning, OS/architecture, unique versioned
 tools, enabled-tool subset, permissions, evaluator, authenticated fixtures, and
-one exact acceptance argv per P0-P7. Its canonical digest omits only its digest
-field.
+one exact acceptance argv per P0-P7. Tool names and each eligible card's
+`argv[0]` are exact case-sensitive bare executable tokens. Each applicable
+command executable must match one versioned tool and that tool must be enabled.
+Its canonical digest omits only its digest field.
 
 `Eligibility` contains exactly P0-P7. An eligible card has no contradictory
 finding. An inapplicable card requires a non-empty evaluator finding and at
@@ -54,11 +58,12 @@ files, symlinks, or custody escapes fail.
 
 `PacketAuthentication` uses exactly algorithm `ssh-ed25519` and namespace
 `repository-harness-phase5`. `ssh-keygen -Y verify` checks the detached SSH
-signature offline against the independently supplied trusted-owner key. The
+signature offline against the caller-pinned external trusted-owner key. The
 signed canonical statement binds pilot/owner, repository, resolved commit,
-scope, catalog digest, complete manifest digest, immutable custody/publication
-IDs, manifest-backed baseline-subject identity/digest, baseline times,
-publication time, and candidate-disclosure-not-before.
+repository-bundle SHA-256, scope, catalog digest, complete manifest digest,
+immutable custody/publication IDs, manifest-backed baseline-subject
+identity/digest, baseline times, publication time, and
+candidate-disclosure-not-before.
 
 ## Application Flow
 
@@ -74,7 +79,9 @@ Repository-owned dogfood flow:
 
 Authorized pilot flow:
 
-1. Load trusted owners outside packet custody and reject duplicate IDs.
+1. Require the tracked trust placeholder to be empty. For a complete live gate,
+   hash and load the explicit external trust registry and reject duplicate IDs
+   or signing-key fingerprints.
 2. Load the evidence index. A `complete` index automatically enters full live
    verification even under the default/premerge command.
 3. Resolve each relative pilot directory beneath the evidence root and reject
@@ -86,7 +93,8 @@ Authorized pilot flow:
    repository/owner/scope/revision/catalog/environment/intervention identities.
 8. Import the authenticated bundle and resolve the exact starting commit.
 9. Enforce trust/authorization/run/publication/disclosure chronology.
-10. Require at least two pairwise-distinct canonical repositories and owners.
+10. Require pairwise-distinct canonical repositories, owners, signing-key
+    fingerprints, and authenticated repository-bundle digests.
 
 Current candidate flow stops before step 3 because the index is awaiting owner
 authorization and has no pilots.
@@ -97,11 +105,15 @@ authorization and has no pilots.
 scripts/verify-v1-phase5-evidence.sh
 scripts/verify-v1-phase5-evidence.sh --dogfood-only
 scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines
+scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
+  --trusted-owner-registry /absolute/external/trusted-owners.json \
+  --trusted-owner-registry-sha256 <sha256>
 ```
 
 Default success returns 0 only for a valid candidate framework or a fully
 verified complete live index. Malformed contracts/evidence return 1. Explicit
-live proof returns 2 while the index is awaiting authorization. Dogfood-only
+live proof returns 2 while the index is awaiting authorization. A complete
+index without both external trust arguments fails closed. Dogfood-only
 validates the in-place map and exact ordinary argv.
 
 The wrapper preflights `git`, `python3`, `rg`, and `ssh-keygen`. Schemas live
@@ -131,7 +143,8 @@ The verifier prints numbered proof groups. The positive packet uses an
 ephemeral generated test key and local synthetic Git bundle; neither is written
 to live evidence. Adversarial tests reproduce forged signatures, fake commits
 and repositories, timestamp reversal, unsigned rewrites, shallow complete
-indexes, same-owner/repository pilots, custody escapes, environment/evidence
+indexes, same-owner/repository/key/bundle pilots, tracked self-authorization,
+undeclared acceptance executables, custody escapes, environment/evidence
 inconsistency, Git alias bypass, missing ripgrep, and subprocess OSError.
 
 The live gate prints blockers and exits 2 without logging owner secrets or
@@ -154,3 +167,6 @@ because default/premerge automatically runs the live gate.
    config, or preprocessors could invoke hidden commands.
 7. Add live placeholders. Rejected because no external owner has authorized a
    repository, key, revision, or run.
+8. Treat a tracked trust entry as owner authorization. Rejected because a
+   submitter controls candidate bytes; live trust must be supplied and
+   digest-pinned by the invoking authority outside the repository.

@@ -31,12 +31,14 @@ The repository-owned Phase 5 candidate has three effects:
    verifier rejects all six V1 core invocations, the ordinary path proves zero
    core commands rather than relying on prose.
 3. Fixed P0-P7 cards, JSON Schemas, and the corrected verifier define the exact
-   records external owners must supply. Trust comes from an independently
-   populated owner registry outside each packet. A verified SSH Ed25519
-   statement binds canonical repository, resolved bundled commit, scope,
-   catalog, complete packet-manifest digest, custody/publication identity, and
-   baseline-before-disclosure timeline. Because no owner has authorized a
-   pilot, the registry/index stay empty and explicit live proof exits 2.
+   records external owners must supply. Live verification requires a caller to
+   supply an out-of-repository trust registry plus its pinned SHA-256; the
+   tracked registry must stay empty and cannot self-authorize a candidate. A
+   verified SSH Ed25519 statement binds canonical repository, resolved bundled
+   commit and bundle digest, scope, catalog, complete packet-manifest digest,
+   custody/publication identity, and baseline-before-disclosure timeline.
+   Because no owner has authorized a pilot, the index stays empty and explicit
+   live proof exits 2.
 
 Exact Phase 5 acceptance remains the authority in `docs/REFACTOR_PLAN.md`: no
 required path move; no ordinary-task Harness core call; and at least two
@@ -82,7 +84,8 @@ conditions.
 - Changing Phase 1-4 implementation code, the six-command core, four-command
   bridge, production gates, compatibility dates, or archive custody policy.
 
-Pilot authorization is a hard boundary: an empty trust registry and evidence
-index are correct until two owners act. The verifier generates an ephemeral
+Pilot authorization is a hard boundary: an empty tracked trust placeholder and
+evidence index are correct until two owners act and an invoking authority pins
+external trust bytes. The verifier generates an ephemeral
 SSH Ed25519 key and local Git bundle only inside temporary adversarial tests;
 neither is trusted live pilot evidence.

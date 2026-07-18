@@ -463,13 +463,15 @@ or documented inapplicability.
 
 **Corrected repository-owned candidate; Phase 5 not accepted:** US-110 maps
 accepted Phase 4 paths in place, freezes P0-P7, and verifies exact ordinary
-argv. Live packets require independently trusted owner SSH Ed25519 material,
-canonical repository identity, a bundle-resolved commit, a complete
+argv. Live packets require caller-pinned, out-of-repository owner SSH Ed25519
+material, distinct signing-key and repository-bundle identities, canonical
+repository identity, a bundle-resolved commit, a complete
 digest-bound packet manifest, consistent environment/card evidence, direct
 intervention binding, and authenticated custody/publication before candidate
 disclosure. Default/premerge automatically loads packets when an index becomes
-complete. The live trust registry and index remain empty; two distinct real
-owners/repositories and independent acceptance are still required.
+complete. The tracked trust placeholder and live index remain empty; external
+trust authorization, two distinct real owners/repositories/keys/bundles, and
+independent acceptance are still required.
 
 ### Phase 6: Capability Evaluation
 

@@ -12,12 +12,13 @@
     "statement": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "pilot_id", "canonical_repository", "starting_revision", "owner_id", "authorization_scope", "card_catalog_sha256", "packet_manifest_sha256", "publication_id", "custody_id", "baseline_subject_identity", "baseline_subject_sha256", "baseline_started_at", "baseline_completed_at", "published_at", "candidate_disclosure_not_before"],
+      "required": ["schema", "pilot_id", "canonical_repository", "starting_revision", "repository_bundle_sha256", "owner_id", "authorization_scope", "card_catalog_sha256", "packet_manifest_sha256", "publication_id", "custody_id", "baseline_subject_identity", "baseline_subject_sha256", "baseline_started_at", "baseline_completed_at", "published_at", "candidate_disclosure_not_before"],
       "properties": {
         "schema": {"const": "repository-harness-authenticated-baseline-publication/v2"},
         "pilot_id": {"type": "string", "minLength": 1},
         "canonical_repository": {"type": "string", "minLength": 1},
         "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "repository_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "owner_id": {"type": "string", "minLength": 1},
         "authorization_scope": {"type": "string", "minLength": 1},
         "card_catalog_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

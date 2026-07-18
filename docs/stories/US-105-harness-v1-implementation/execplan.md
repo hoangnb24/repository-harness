@@ -324,8 +324,9 @@ External pilot changes, if any, remain in their repositories and are never
 silently folded into this repository's commit.
 
 **Corrected current candidate:** US-110 maps useful paths in place, freezes
-P0-P7, closes ordinary execution to exact argv, verifies independently trusted
-SSH Ed25519 owner authentication, resolves commits from manifest-bound bundles,
+P0-P7, closes ordinary execution to exact argv, verifies caller-pinned external
+SSH Ed25519 owner authentication, rejects reused key/bundle identities, resolves
+commits from manifest-bound bundles,
 and authenticates complete custody, environment, eligibility, interventions,
 baseline evidence, and pre-disclosure publication. External owner trust and
 live packets remain absent, so Phase 5 is not accepted and Phase 6 is closed.

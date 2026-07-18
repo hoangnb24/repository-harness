@@ -6,7 +6,7 @@
   "trusted_owners": "trusted-owners.json",
   "pilots": [],
   "blockers": [
-    "No independently trusted external pilot owner key or authorization has been supplied.",
+    "No external pilot-owner trust registry, independently pinned registry digest, or owner authorization has been supplied to live verification.",
     "No canonical repository bundle, resolved immutable revision, authenticated packet manifest, environment lock, eligibility finding, intervention log, baseline publication, or custody identity exists."
   ]
 }
