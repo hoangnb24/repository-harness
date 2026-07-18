@@ -199,6 +199,44 @@ PHASE7_PROOF_RECORD_SHA256 = (
     "5c3e500371ab88e09f2fa8f1a9e238cc999eca8d035645ef82a8381ab230929e",
     "158b209edbc95f30701ac492eae03b173b547ea9651afed052cab41b5350ad5f",
 )
+PHASE7_PROOF_TRACE_ACTIONS = (
+    "implemented the closed fixture-only candidate and five-platform placeholder contract",
+    "bound V1 harness artifact identity and Cargo.lock build input",
+    "added focused digest identity promotion and schema-override adversaries",
+    "corrected platform-mode and semantic-identity bypasses after review",
+    "integrated the thirteenth schema and exact Phase 6 compatibility boundaries",
+    "integrated the durable changeset through the exact Phase 3 protected-path boundary",
+    "ran focused framework Rust documentation workflow and trust-enabled full-premerge validation",
+    "incorporated independent rereview findings",
+)
+PHASE7_PROOF_TRACE_DECISIONS = (
+    "keep this evidence fixture-only and every Phase 6 and Phase 7 live result pending",
+    "use the V1 harness and harness.exe artifact identity while retaining the V0 bridge as separate",
+    "bind the locked V1 build input to Cargo.lock",
+    "do not change production workflows or authorize tags publishing signing release or promotion",
+    "leave US-112 in_progress with unit integration e2e and platform proof flags all zero",
+    "use exact changeset path and canonical record pins rather than broadening historical boundaries",
+)
+PHASE7_PROOF_TRACE_NOTES = (
+    "Detailed trace for the bounded proof-contract slice only. The isolated CLI "
+    "row resolves the existing Phase 7 intake recorded as intake 9 in its "
+    "originating run to stable UID ink_b3b36388c90ab25b8d5f518a0306d0a6. "
+    "US-112 remains in_progress with every proof flag zero; real Phase 6 P0-P7 "
+    "and Phase 7 five-platform evidence remains pending. Exact duration and "
+    "token values are unavailable because this session does not expose stable "
+    "end-to-end measurements."
+)
+PHASE7_PROOF_TRACE_FRICTION = (
+    "The default Harness state could not be used because it contained "
+    "Symphony-owned records; durable evidence required an isolated replay "
+    "database. Review also exposed fail-open Phase 7 mode and identity "
+    "relabeling paths, the protected forwarding fixture required an exact OID "
+    "pin rather than a broad allowance, and CLI compare-and-set mode cannot "
+    "combine proof or evidence updates. Rebuild row numbers differ from the "
+    "originating database, so semantic validation must pin the stable intake "
+    "UID. Full integration also required one exact Phase 3 changeset-path "
+    "allowance."
+)
 
 
 class VerificationError(RuntimeError):
@@ -830,7 +868,17 @@ def self_test_phase7_opening_records(
     )
 
 
-def validate_phase7_proof_contract_records(
+def authenticate_phase7_proof_contract_records(
+    proof_records: list[dict[str, Any]],
+) -> None:
+    check(
+        tuple(sha256_bytes(canonical_bytes(record)) for record in proof_records)
+        == PHASE7_PROOF_RECORD_SHA256,
+        "Phase 7 proof-contract changeset record bytes changed",
+    )
+
+
+def validate_phase7_proof_contract_semantics(
     intake_records: list[dict[str, Any]],
     proof_records: list[dict[str, Any]],
 ) -> None:
@@ -838,11 +886,6 @@ def validate_phase7_proof_contract_records(
         [record.get("op") for record in proof_records]
         == ["changeset.header", "story.update", "trace.add"],
         "Phase 7 proof-contract changeset operation sequence changed",
-    )
-    check(
-        tuple(sha256_bytes(canonical_bytes(record)) for record in proof_records)
-        == PHASE7_PROOF_RECORD_SHA256,
-        "Phase 7 proof-contract changeset record bytes changed",
     )
     check(
         proof_records[0]
@@ -958,14 +1001,14 @@ def validate_phase7_proof_contract_records(
         )
         trace_lists[field] = parsed
     check(
-        len(trace_lists["actions_taken"]) >= 7
-        and len(trace_lists["decisions_made"]) >= 5
+        trace_lists["actions_taken"] == list(PHASE7_PROOF_TRACE_ACTIONS)
+        and trace_lists["decisions_made"] == list(PHASE7_PROOF_TRACE_DECISIONS)
         and len(trace_lists["errors"]) >= 3
         and "scripts/verify_v1_phase7_release_proof.py" in trace_lists["files_read"]
         and "scripts/verify_v1_phase3_recovery.py" in trace_lists["files_changed"]
         and ".harness/changesets/harness_v1_phase7_02_proof_contract.changeset.jsonl"
         in trace_lists["files_changed"],
-        "Phase 7 proof-contract trace no longer meets Detailed quality",
+        "Phase 7 proof-contract trace changed its closed actions/decisions policy or Detailed quality",
     )
     decisions = "\n".join(trace_lists["decisions_made"])
     check(
@@ -987,27 +1030,36 @@ def validate_phase7_proof_contract_records(
     notes = trace_payload.get("notes")
     friction = trace_payload.get("harness_friction")
     check(
-        isinstance(notes, str)
-        and "US-112 remains in_progress with every proof flag zero" in notes
-        and "real Phase 6 P0-P7 and Phase 7 five-platform evidence remains pending"
-        in notes
-        and "Exact duration and token values are unavailable" in notes
-        and isinstance(friction, str)
-        and "semantic validation must pin the stable intake UID" in friction,
-        "Phase 7 proof-contract trace no longer records residual gates and friction",
+        notes == PHASE7_PROOF_TRACE_NOTES
+        and friction == PHASE7_PROOF_TRACE_FRICTION,
+        "Phase 7 proof-contract trace changed its closed notes/friction authority policy",
     )
+
+
+def validate_phase7_proof_contract_records(
+    intake_records: list[dict[str, Any]],
+    proof_records: list[dict[str, Any]],
+) -> None:
+    authenticate_phase7_proof_contract_records(proof_records)
+    validate_phase7_proof_contract_semantics(intake_records, proof_records)
 
 
 def self_test_phase7_proof_contract_records(
     intake_records: list[dict[str, Any]],
     proof_records: list[dict[str, Any]],
 ) -> None:
+    digest_drift = deepcopy(proof_records)
+    digest_drift[2]["payload"]["created_at"] = "2026-07-18 17:05:15"
+    expect_rejection(
+        "same-filename Phase 7 proof-contract digest drift",
+        lambda: authenticate_phase7_proof_contract_records(digest_drift),
+    )
     for status in ("implemented", "completed"):
         completed = deepcopy(proof_records)
         completed[1]["payload"]["status"] = status
         expect_rejection(
             f"same-filename Phase 7 proof-contract {status} status",
-            lambda completed=completed: validate_phase7_proof_contract_records(
+            lambda completed=completed: validate_phase7_proof_contract_semantics(
                 intake_records, completed
             ),
         )
@@ -1021,7 +1073,7 @@ def self_test_phase7_proof_contract_records(
         asserted[1]["payload"][field] = 1
         expect_rejection(
             f"same-filename Phase 7 proof-contract {field}",
-            lambda asserted=asserted: validate_phase7_proof_contract_records(
+            lambda asserted=asserted: validate_phase7_proof_contract_semantics(
                 intake_records, asserted
             ),
         )
@@ -1029,18 +1081,64 @@ def self_test_phase7_proof_contract_records(
     changed_outcome[2]["payload"]["outcome"] = "partial"
     expect_rejection(
         "same-filename Phase 7 proof-contract trace outcome",
-        lambda: validate_phase7_proof_contract_records(
+        lambda: validate_phase7_proof_contract_semantics(
             intake_records, changed_outcome
         ),
     )
-    production_claim = deepcopy(proof_records)
-    production_claim[2]["payload"]["decisions_made"] = json.dumps(
-        ["production promotion authorized"], separators=(",", ":")
+    for label, claim in (
+        ("acceptance authority", "Phase 7 acceptance authorized"),
+        ("tag authority", "release tag authorized"),
+        ("publish authority", "publishing authorized"),
+        ("signing authority", "production signing authorized"),
+        ("production-promotion authority", "production promotion authorized"),
+        ("Phase 8 authority", "Phase 8 opened and authorized"),
+    ):
+        contradictory = deepcopy(proof_records)
+        decisions = strict_json_loads(
+            contradictory[2]["payload"]["decisions_made"]
+        )
+        check(
+            decisions == list(PHASE7_PROOF_TRACE_DECISIONS),
+            "Phase 7 authority adversary lost the approved safe decisions",
+        )
+        decisions.append(claim)
+        contradictory[2]["payload"]["decisions_made"] = json.dumps(
+            decisions, separators=(",", ":")
+        )
+        expect_rejection(
+            f"same-filename Phase 7 proof-contract {label}",
+            lambda contradictory=contradictory: validate_phase7_proof_contract_semantics(
+                intake_records, contradictory
+            ),
+        )
+    action_claim = deepcopy(proof_records)
+    actions = strict_json_loads(action_claim[2]["payload"]["actions_taken"])
+    actions.append("published and tagged the Phase 7 release")
+    action_claim[2]["payload"]["actions_taken"] = json.dumps(
+        actions, separators=(",", ":")
     )
     expect_rejection(
-        "same-filename Phase 7 proof-contract production claim",
-        lambda: validate_phase7_proof_contract_records(
-            intake_records, production_claim
+        "same-filename Phase 7 proof-contract action authority",
+        lambda: validate_phase7_proof_contract_semantics(
+            intake_records, action_claim
+        ),
+    )
+    notes_claim = deepcopy(proof_records)
+    notes_claim[2]["payload"]["notes"] += " Phase 8 promotion is authorized."
+    expect_rejection(
+        "same-filename Phase 7 proof-contract notes authority",
+        lambda: validate_phase7_proof_contract_semantics(
+            intake_records, notes_claim
+        ),
+    )
+    friction_claim = deepcopy(proof_records)
+    friction_claim[2]["payload"]["harness_friction"] += (
+        " Production signing is now authorized."
+    )
+    expect_rejection(
+        "same-filename Phase 7 proof-contract friction authority",
+        lambda: validate_phase7_proof_contract_semantics(
+            intake_records, friction_claim
         ),
     )
 
