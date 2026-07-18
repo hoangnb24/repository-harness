@@ -55,6 +55,27 @@ MANDATORY_NEGATIVES = {
     "live-v0-source-mutation",
 }
 ALLOWED_CHANGED_FILES = {
+    ".harness/changesets/harness_v1_phase6_00_intake.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase6_01_story.changeset.jsonl",
+    "docs/REFACTOR_PLAN.md",
+    "docs/TEST_MATRIX.md",
+    "docs/decisions/0015-phase6-cold-warm-evaluation-custody.md",
+    "docs/decisions/README.md",
+    "docs/stories/README.md",
+    "docs/stories/US-105-harness-v1-implementation/design.md",
+    "docs/stories/US-105-harness-v1-implementation/execplan.md",
+    "docs/stories/US-105-harness-v1-implementation/overview.md",
+    "docs/stories/US-105-harness-v1-implementation/validation.md",
+    "docs/stories/US-111-v1-phase6-capability-evaluation/design.md",
+    "docs/stories/US-111-v1-phase6-capability-evaluation/execplan.md",
+    "docs/stories/US-111-v1-phase6-capability-evaluation/overview.md",
+    "docs/stories/US-111-v1-phase6-capability-evaluation/validation.md",
+    "docs/templates/agent-map.md",
+    "docs/templates/high-risk-story/execplan.md",
+    "docs/templates/high-risk-story/validation.md",
+    "docs/templates/story.md",
+    "docs/templates/validation-report.md",
+    "release/contracts/v1/path-dispositions.json",
     "scripts/capture-v1-phase6-warm-v0.py",
     "scripts/verify-v1-phase6-evidence.sh",
     "scripts/verify_v1_phase6_evidence.py",
@@ -351,10 +372,24 @@ def changed_paths() -> set[str]:
     return {path for path in tracked + untracked if path}
 
 
-def validate_release_boundary() -> None:
-    for path in changed_paths():
+def validate_release_boundary(paths: set[str] | None = None) -> None:
+    for path in changed_paths() if paths is None else paths:
         allowed = path in ALLOWED_CHANGED_FILES or path.startswith(ALLOWED_CHANGED_PREFIXES)
         check(allowed, f"Phase 6 framework crossed its owned-file boundary: {path}")
+
+
+def self_test_release_boundary() -> None:
+    validate_release_boundary(ALLOWED_CHANGED_FILES)
+    expect_rejection(
+        "unrelated documentation path",
+        lambda: validate_release_boundary({"docs/unrelated.md"}),
+    )
+    expect_rejection(
+        "unrelated Harness changeset path",
+        lambda: validate_release_boundary(
+            {".harness/changesets/unrelated.changeset.jsonl"}
+        ),
+    )
 
 
 def scan_no_raw_state(root: Path = EVAL) -> None:
@@ -1644,6 +1679,7 @@ def main() -> int:
         proof("authenticated pre-candidate prompt binding", self_test_pre_candidate_prompt_binding)
         proof("digest-bound candidate bundle and capability paths", self_test_candidate_bundle_binding)
         proof("cold/warm, identity, totals, regression, and raw-state negatives", self_test_contracts)
+        proof("exact Phase 6 integration boundary negatives", self_test_release_boundary)
         proof("owned-file and release boundary", validate_release_boundary)
         proof("no raw V0 database or archive in Phase 6 custody", scan_no_raw_state)
         registry = Path(arguments.trusted_owner_registry) if arguments.trusted_owner_registry else None
