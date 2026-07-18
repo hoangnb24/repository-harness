@@ -108,10 +108,17 @@ reject_document(
         checksum_sha256=document["artifacts"][0]["artifact_sha256"],
     ),
 )
+reject_document(
+    "v0-harness-cli-identity-crossover",
+    lambda document, _: document["artifacts"][0].update(
+        artifact="artifacts/harness-cli-macos-arm64",
+        checksum="artifacts/harness-cli-macos-arm64.sha256",
+    ),
+)
 
 
 def checksum_drift(_, case_root: Path) -> None:
-    path = case_root / "artifacts/harness-cli-linux-x64.sha256"
+    path = case_root / "artifacts/harness-linux-x64.sha256"
     path.write_bytes(path.read_bytes().replace(b"f75f", b"075f", 1))
 
 

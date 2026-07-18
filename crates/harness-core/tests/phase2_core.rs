@@ -174,7 +174,7 @@ fn core_trust() -> ReleaseTrustInput {
     ReleaseTrustInput {
         trusted_root: fixture_root("core"),
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "b701a5c74ba3c65cd6a1f3e06b52c00823f0db315b72bb1d3ba78587903e53b0"
+        path_ledger_sha256: "98336808d65dee5528e52f5ad128d47a3fe27d40a927d92e101ad6b79053448a"
             .into(),
         freshness: ReleaseFreshness::Existing {
             sequence: 44,
@@ -321,7 +321,7 @@ fn strict_release_verifier_rejects_bridge_domain_and_rollback() {
     let bridge_trust = ReleaseTrustInput {
         trusted_root: fixture_root("bridge"),
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "b701a5c74ba3c65cd6a1f3e06b52c00823f0db315b72bb1d3ba78587903e53b0"
+        path_ledger_sha256: "98336808d65dee5528e52f5ad128d47a3fe27d40a927d92e101ad6b79053448a"
             .into(),
         freshness: ReleaseFreshness::FirstInstallMinimumSequence(7),
     };

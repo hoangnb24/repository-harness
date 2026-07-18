@@ -104,6 +104,7 @@
     {"path": "release/contracts/v1/schemas/manifest-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Core implementation input, not installed payload"},
     {"path": "release/contracts/v1/schemas/output-envelope-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Core implementation input, not installed payload"},
     {"path": "release/contracts/v1/schemas/payload-index-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Release implementation input, not installed payload"},
+    {"path": "release/contracts/v1/schemas/phase7-release-proof-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Closed Phase 7 candidate and fixture evidence schema, not installed payload"},
     {"path": "release/contracts/v1/schemas/release-artifacts-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Closed release artifact inventory schema, not installed payload"},
     {"path": "release/contracts/v1/schemas/rollback-authorization-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Trust implementation input, not installed payload"},
     {"path": "release/contracts/v1/schemas/signature-envelope-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Trust implementation input, not installed payload"},

@@ -814,7 +814,11 @@ def parse_changeset_fixture(path: Path, matrix: dict[str, Any]) -> None:
 
 def proof_schemas_and_examples() -> None:
     schema_files = sorted(SCHEMAS.glob("*.schema.json"))
-    check(len(schema_files) == 12, "expected twelve versioned JSON schemas")
+    check(len(schema_files) == 13, "expected thirteen versioned JSON schemas")
+    check(
+        SCHEMAS / "phase7-release-proof-v1.schema.json" in schema_files,
+        "Phase 7 release proof schema is missing from the closed inventory",
+    )
     for path in schema_files:
         schema = load_json(path)
         check(schema.get("$schema") == "https://json-schema.org/draft/2020-12/schema", f"schema dialect missing: {path.name}")

@@ -25,11 +25,11 @@ DEFAULT_FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "v1-phase7"
 DEFAULT_EVIDENCE = DEFAULT_FIXTURE_ROOT / "phase7-release-proof.json"
 
 PLATFORMS = {
-    "macos-arm64": ("aarch64-apple-darwin", "macos-15"),
-    "macos-x64": ("x86_64-apple-darwin", "macos-15-intel"),
-    "linux-x64": ("x86_64-unknown-linux-gnu", "ubuntu-24.04"),
-    "linux-arm64": ("aarch64-unknown-linux-gnu", "ubuntu-24.04-arm"),
-    "windows-x64": ("x86_64-pc-windows-msvc", "windows-latest"),
+    "macos-arm64": ("aarch64-apple-darwin", "macos-15", "harness-macos-arm64"),
+    "macos-x64": ("x86_64-apple-darwin", "macos-15-intel", "harness-macos-x64"),
+    "linux-x64": ("x86_64-unknown-linux-gnu", "ubuntu-24.04", "harness-linux-x64"),
+    "linux-arm64": ("aarch64-unknown-linux-gnu", "ubuntu-24.04-arm", "harness-linux-arm64"),
+    "windows-x64": ("x86_64-pc-windows-msvc", "windows-latest", "harness-windows-x64.exe"),
 }
 FIXTURE_CASES = [
     "fresh",
@@ -48,7 +48,7 @@ FIXTURE_IDENTITY_BINDINGS = {
     "template_sha256": ROOT / "scripts/harness-install-files.txt",
     "payload_index_sha256": ROOT / "tests/fixtures/v1-phase2/current-core-payload-index.json",
     "bridge_sha256": ROOT / "release/contracts/v1/bridge-release-artifacts.json",
-    "build_input_sha256": ROOT / "release/contracts/v1/release-artifacts.json",
+    "build_input_sha256": ROOT / "Cargo.lock",
 }
 BLOCKERS = [
     "deferred-phase6-live-p0-p7-evidence-pending",
@@ -283,9 +283,14 @@ def validate_artifacts(document: dict[str, Any], fixture_root: Path) -> None:
     check(len(platforms) == len(set(platforms)), "artifact matrix contains duplicate platforms")
     named_paths: list[str] = []
     for record in artifacts:
-        expected_target, expected_runner = PLATFORMS[record["platform"]]
+        expected_target, expected_runner, expected_name = PLATFORMS[record["platform"]]
         check(record["target"] == expected_target, f"target drift: {record['platform']}")
         check(record["runner"] == expected_runner, f"runner drift: {record['platform']}")
+        check(
+            record["artifact"] == f"artifacts/{expected_name}"
+            and record["checksum"] == f"artifacts/{expected_name}.sha256",
+            f"V1 artifact identity drift: {record['platform']}",
+        )
         check(record["candidate"] == document["candidate"], f"candidate identity drift: {record['platform']}")
         named_paths.extend([record["artifact"], record["checksum"]])
         artifact = contained_file(fixture_root, record["artifact"], f"artifact {record['platform']}")

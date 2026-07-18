@@ -96,15 +96,15 @@ scripts/verify-v1-phase6-evidence.sh --framework-only
 ## Acceptance Evidence
 
 The schema, deterministic fixture inventory, verifier, and adversarial focused
-test are implemented. All five artifact authentication/build/direct-binary/
+test are implemented. V1 artifact fixtures use the `harness`/`harness.exe`
+identity, locked build input binds `Cargo.lock`, and the V0 bridge remains a
+separate identity. All five artifact authentication/build/direct-binary/
 installer results remain `pending`; fixtures say `not-run`; Phase 6 live P0-P7
 evidence remains pending; every story proof flag remains unasserted; Phase 7
 acceptance, tag, publish, production signing, and promotion remain blocked; and
 Phase 8 remains closed.
 
-Full `scripts/validate-premerge.sh` was attempted after the focused ladder and
-stopped at the accepted Phase 1 verifier's fixed twelve-schema inventory. Its
-one-to-one Phase 1 path ledger would also need an explicit cross-phase decision
-for the new contract file. This slice does not modify that excluded earlier-
-phase verifier or ledger, so full premerge remains a named integration gap
-rather than a passing claim.
+The correction integrates the thirteenth closed schema into the Phase 1 schema
+inventory and adds its one exact `source-only` path-ledger entry. This closes
+the earlier full-premerge integration gap without making the Phase 7 fixture
+evidence promotable or changing any platform result from `pending`.

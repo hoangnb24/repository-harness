@@ -52,6 +52,7 @@ for path in \
   tests/maintenance/test-render-changelog-files.sh \
   tests/docs/test-doc-contracts.sh \
   tests/evals/test-task-authority.sh \
+  tests/release/test-v1-phase7-release-proof.sh \
   tests/release/test-post-merge-release-recovery.sh; do
   make_success_stub "$path"
 done

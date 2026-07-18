@@ -56,6 +56,12 @@ MANDATORY_NEGATIVES = {
     "live-v0-source-mutation",
 }
 PHASE5_VERIFIER_COMPATIBILITY_PATH = "scripts/verify_v1_phase5_evidence.py"
+PHASE5_FORWARDING_COMPATIBILITY_PATH = (
+    "tests/evals/test-phase5-premerge-trust-forwarding.sh"
+)
+PHASE5_FORWARDING_COMPATIBILITY_GIT_OID = (
+    "0f6484bdd110f61f13e9b3c83298654a495de1d8"
+)
 ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase6_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase6_01_story.changeset.jsonl",
@@ -100,6 +106,7 @@ ALLOWED_CHANGED_FILES = {
     "scripts/verify_v1_phase6_evidence.py",
     "scripts/verify_v1_phase7_release_proof.py",
     "tests/evals/test-v1-phase6-evidence.sh",
+    PHASE5_FORWARDING_COMPATIBILITY_PATH,
     "tests/evals/v1-phase6/README.md",
     "tests/evals/v1-phase6/baseline-lock.json",
     "tests/evals/v1-phase6/evidence/index.json",
@@ -120,16 +127,16 @@ ALLOWED_CHANGED_FILES = {
     "tests/fixtures/v1-phase2/current-core-payload-index.signatures.json",
     "tests/fixtures/v1-phase2/historical-phase1-story.md",
     "tests/fixtures/v1-phase7/.gitattributes",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-linux-arm64",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-linux-arm64.sha256",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-linux-x64",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-linux-x64.sha256",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-macos-arm64",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-macos-arm64.sha256",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-macos-x64",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-macos-x64.sha256",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-windows-x64.exe",
-    "tests/fixtures/v1-phase7/artifacts/harness-cli-windows-x64.exe.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-linux-arm64",
+    "tests/fixtures/v1-phase7/artifacts/harness-linux-arm64.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-linux-x64",
+    "tests/fixtures/v1-phase7/artifacts/harness-linux-x64.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-macos-arm64",
+    "tests/fixtures/v1-phase7/artifacts/harness-macos-arm64.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-macos-x64",
+    "tests/fixtures/v1-phase7/artifacts/harness-macos-x64.sha256",
+    "tests/fixtures/v1-phase7/artifacts/harness-windows-x64.exe",
+    "tests/fixtures/v1-phase7/artifacts/harness-windows-x64.exe.sha256",
     "tests/fixtures/v1-phase7/phase7-release-proof.json",
     "tests/fixtures/v1-phase7/repositories/bridge/legacy/bridge-record.txt",
     "tests/fixtures/v1-phase7/repositories/brownfield/existing.txt",
@@ -443,6 +450,7 @@ def verify_tree_against_worktree(commit: str, root: str) -> None:
 
 def verify_phase5_immutability(lock: dict[str, Any]) -> None:
     compatibility_applied = False
+    forwarding_compatibility_applied = False
     for entry in lock["protected_git_objects"]:
         check(git_oid(lock["source_commit"], entry["path"]) == entry["git_oid"], f"frozen Git object mismatch: {entry['path']}")
         if entry["kind"] == "tree":
@@ -455,10 +463,17 @@ def verify_phase5_immutability(lock: dict[str, Any]) -> None:
             if entry["path"] == PHASE5_VERIFIER_COMPATIBILITY_PATH:
                 expected_oid = lock["phase5_verifier_compatibility_git_oid"]
                 compatibility_applied = True
+            elif entry["path"] == PHASE5_FORWARDING_COMPATIBILITY_PATH:
+                expected_oid = PHASE5_FORWARDING_COMPATIBILITY_GIT_OID
+                forwarding_compatibility_applied = True
             check(current_oid == expected_oid, f"protected Phase 5 file changed: {entry['path']}")
     check(
         compatibility_applied,
         "Phase 5 verifier compatibility path is outside the frozen protected surface",
+    )
+    check(
+        forwarding_compatibility_applied,
+        "Phase 5 forwarding compatibility path is outside the frozen protected surface",
     )
     check(sha256_file(ROOT / "tests/evals/v1-phase5/cards/catalog.json") == lock["card_catalog_sha256"], "Phase 5 card catalog digest changed")
     check(sha256_file(ROOT / "tests/evals/v1-phase5/evidence/index.json") == lock["phase5_evidence_index_sha256"], "Phase 5 evidence index digest changed")

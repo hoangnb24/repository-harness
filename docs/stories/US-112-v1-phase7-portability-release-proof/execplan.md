@@ -70,9 +70,8 @@ assert any Phase 7 proof flag.
   closed schema, fixture inventory, verifier, and focused adversarial test added.
 - Remaining: real platform runners/workflows, authenticated builds, direct-binary
   and installer execution, cross-platform equivalence, deferred Phase 6 live
-  evidence, separately scoped Phase 1 contract-inventory integration, review,
-  acceptance, and any separately authorized release action.
-- Exact next action: `inspect scripts/verify_v1_phase1_contracts.py proof_schemas_and_examples and proof_path_inventory before authorizing a cross-phase inventory slice`
+  evidence, review, acceptance, and any separately authorized release action.
+- Exact next action: `inspect .github/workflows/harness-v1-release.yml before a separately scoped five-platform evidence-population slice`
 - Validation ladder: documentation and JSON checks; focused fixture/proof
   tests; installer/direct-binary tests; five-platform workflow; full premerge;
   stop at the first failed boundary.
