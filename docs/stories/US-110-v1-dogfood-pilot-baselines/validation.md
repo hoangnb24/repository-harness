@@ -77,8 +77,10 @@ result exists. Phase 5 is not accepted and Phase 6 remains closed.
 scripts/verify-v1-phase5-evidence.sh
 scripts/verify-v1-phase5-evidence.sh --dogfood-only
 scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines  # expected exit 2
-# Future authorized live form also requires --trusted-owner-registry ABSOLUTE_PATH
-# and --trusted-owner-registry-sha256 LOWERCASE_SHA256.
+tests/evals/test-phase5-premerge-trust-forwarding.sh
+HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY=/absolute/external/trusted-owners.json \
+HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256=<lowercase-sha256> \
+  scripts/validate-premerge.sh  # future authorized full-premerge form
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
@@ -112,6 +114,8 @@ Correction-candidate results on 2026-07-18:
   subprocess, Git-alias, missing-ripgrep, and legacy negative cases.
 - Dogfood-only: **1/1 passed** with exact closed argv and no path move.
 - Explicit live gate: **expected exit 2** with no owner trust or pilot packet.
+- Premerge trust forwarding: **passed** for exact pair forwarding, both partial
+  rejections, CLI/environment bypass rejection, and no-input candidate mode.
 - Phase 1-4 regressions: **10/10, 11/11, 11/11, and 10/10 proof groups
   passed**.
 - Rust workspace within premerge: **203 tests passed, 0 failed**.

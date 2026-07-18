@@ -469,8 +469,10 @@ repository identity, a bundle-resolved commit, a complete
 digest-bound packet manifest, consistent environment/card evidence, direct
 intervention binding, and authenticated custody/publication before candidate
 disclosure. Default/premerge automatically loads packets when an index becomes
-complete. The tracked trust placeholder and live index remain empty; external
-trust authorization, two distinct real owners/repositories/keys/bundles, and
+complete; its only live-trust operator input is a paired absolute registry path
+and lowercase SHA-256 environment contract, forwarded without bypass flags.
+The tracked trust placeholder and live index remain empty; external trust
+authorization, two distinct real owners/repositories/keys/bundles, and
 independent acceptance are still required.
 
 ### Phase 6: Capability Evaluation

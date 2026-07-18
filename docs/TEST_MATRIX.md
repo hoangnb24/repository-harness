@@ -105,3 +105,8 @@ authenticated packets. If the index becomes `complete`, default/premerge
 automatically runs the same full live gate and fails without an explicitly
 supplied external trust registry and pinned digest. This is candidate tracking,
 not acceptance, and Phase 6 has not started.
+
+Authorized full premerge uses only the paired
+`HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
+`HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256` variables; the focused forwarding
+contract rejects partial, unknown, positional, and dogfood-only bypass inputs.

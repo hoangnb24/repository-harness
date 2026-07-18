@@ -108,6 +108,9 @@ scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines
 scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
   --trusted-owner-registry /absolute/external/trusted-owners.json \
   --trusted-owner-registry-sha256 <sha256>
+HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY=/absolute/external/trusted-owners.json \
+HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256=<sha256> \
+  scripts/validate-premerge.sh
 ```
 
 Default success returns 0 only for a valid candidate framework or a fully
@@ -115,6 +118,14 @@ verified complete live index. Malformed contracts/evidence return 1. Explicit
 live proof returns 2 while the index is awaiting authorization. A complete
 index without both external trust arguments fails closed. Dogfood-only
 validates the in-place map and exact ordinary argv.
+
+Premerge itself accepts no arguments. It recognizes only the paired
+`HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
+`HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256` variables, validates the
+absolute-path/lowercase-digest shape, rejects partial or unknown prefixed
+inputs, unsets them, and forwards the corresponding four arguments with a Bash
+array. Therefore an operator can supply live trust without creating a route to
+`--dogfood-only` or another Phase 5 bypass.
 
 The wrapper preflights `git`, `python3`, `rg`, and `ssh-keygen`. Schemas live
 under `tests/evals/v1-phase5/schemas/`; the full custody layout is documented in
@@ -146,6 +157,10 @@ and repositories, timestamp reversal, unsigned rewrites, shallow complete
 indexes, same-owner/repository/key/bundle pilots, tracked self-authorization,
 undeclared acceptance executables, custody escapes, environment/evidence
 inconsistency, Git alias bypass, missing ripgrep, and subprocess OSError.
+`tests/evals/test-phase5-premerge-trust-forwarding.sh` copies premerge into an
+isolated temporary harness and proves exact paired argv, both partial failures,
+CLI/environment bypass rejection, reserved-variable removal, and zero-argument
+current-candidate behavior without pilot evidence.
 
 The live gate prints blockers and exits 2 without logging owner secrets or
 inventing credentials. A future `complete` index cannot bypass packet loading

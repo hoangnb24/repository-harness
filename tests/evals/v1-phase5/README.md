@@ -118,3 +118,22 @@ scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
   --trusted-owner-registry /absolute/external/trusted-owners.json \
   --trusted-owner-registry-sha256 <lowercase-sha256>
 ```
+
+Mandatory full premerge receives the same pair through exactly two reserved
+environment variables and accepts no command-line options:
+
+```bash
+HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY=/absolute/external/trusted-owners.json \
+HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256=<lowercase-sha256> \
+  scripts/validate-premerge.sh
+```
+
+Both variables must be set and non-empty, the path must be absolute, and the
+digest must be exactly 64 lowercase hexadecimal characters. Premerge rejects
+partial pairs, every command-line argument (including `--dogfood-only`), and
+unknown `HARNESS_PHASE5_*` variables. It then unsets the reserved variables and
+forwards only the four validated Phase 5 argv elements via a shell array. With
+the current awaiting index, no-input premerge remains valid. Once the index is
+`complete`, no-input premerge reaches the mandatory live gate and fails closed
+for missing external trust; the paired invocation can reach normal full live
+verification.
