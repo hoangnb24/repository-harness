@@ -207,6 +207,14 @@ def validate(instance: Any, contract: dict[str, Any], location: str = "$") -> No
             check(len(instance) >= contract["minItems"], f"{location}: too few items")
         if "maxItems" in contract:
             check(len(instance) <= contract["maxItems"], f"{location}: too many items")
+        if contract.get("uniqueItems") is True:
+            check(
+                all(
+                    item not in instance[:index]
+                    for index, item in enumerate(instance)
+                ),
+                f"{location}: duplicate array items",
+            )
         if "items" in contract:
             for index, value in enumerate(instance):
                 validate(value, contract["items"], f"{location}[{index}]")
@@ -473,6 +481,11 @@ def validate_subject(
         if lane["lane"] == "warm-v0-copy":
             check("bridge-binary" in roles, "warm candidate subject lacks bridge identity")
         capability_artifacts = {artifact["path"] for artifact in document["artifacts"] if artifact["role"] == "capability-asset"}
+        check(
+            len(document["capability_paths"])
+            == len(set(document["capability_paths"])),
+            "candidate capability paths are not unique",
+        )
         check(set(document["capability_paths"]) == capability_artifacts, "candidate capability path set is incomplete")
         bundles = [
             artifact
@@ -1489,6 +1502,21 @@ def self_test_candidate_bundle_binding() -> None:
             subject, "subject_identity_sha256"
         )
         validate_subject(subject, lane, artifact_digests, packet)
+
+        duplicate_capability = deepcopy(subject)
+        duplicate_capability["capability_paths"] = [
+            "docs/capabilities/native-check.md",
+            "docs/capabilities/native-check.md",
+        ]
+        duplicate_capability["subject_identity_sha256"] = canonical_digest(
+            duplicate_capability, "subject_identity_sha256"
+        )
+        expect_rejection(
+            "duplicate candidate capability declaration",
+            lambda: validate_subject(
+                duplicate_capability, lane, artifact_digests, packet
+            ),
+        )
 
         wrong_base = deepcopy(subject)
         wrong_base["base_tree"] = "0" * 40
