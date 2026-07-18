@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / final integration-premerge pending**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / docs commit awaits integration**
 
 Decision 0014 supersedes every Phase 4 automatic-conversion step below. The
 authoritative replacement is US-109: four bridge commands, append-only archive
@@ -18,8 +18,9 @@ retirement policy. Gate G0 is approved/open. Decision 0013 and US-106 implement
 and prove Phase 1; US-107 implements and proves Phase 2; US-108 implements,
 proves, and independently accepts Phase 3. US-109 implements, validates, and
 independently accepts Phase 4. US-110 supplies accepted authenticated Phase 5
-pre-candidate baselines at exact `b2dd775`; final integration/premerge for this
-documentation commit remains orchestrator work. Phases 6-8 remain dependent on
+pre-candidate baselines at exact `b2dd775`. Primary fast-forward integration and
+trust-enabled full premerge passed on exact `b2dd775`; this docs commit awaits
+integration. Phases 6-8 remain dependent on
 accepted evidence from their
 predecessors.
 

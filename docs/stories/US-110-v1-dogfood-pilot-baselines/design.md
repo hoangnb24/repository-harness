@@ -1,6 +1,6 @@
 # US-110 V1 Dogfood And Pilot Baselines Design
 
-Status: **Phase 5 authenticated baseline gate accepted on exact `b2dd775` / Phases 6-8 not started / final integration-premerge pending**
+Status: **Phase 5 authenticated baseline gate accepted on exact `b2dd775` / Phases 6-8 not started / docs commit awaits integration**
 
 ## Domain Model
 
@@ -109,9 +109,10 @@ Authorized pilot flow:
     may repeat. Signing-key fingerprints may repeat only for the same stable
     owner identity across the already-distinct repositories.
 
-The current live flow completed packet loading and verification for both
-authenticated packets. The external registry remains caller-pinned outside the
-repository, while the tracked registry stays empty.
+The complete index live flow loaded and verified both authenticated packets.
+The caller-pinned external registry/hash supplied the trust root outside the
+repository, while the tracked registry stays empty. The live command passed
+six proof groups and rejected 42/42 adversarial cases.
 
 ## Interface Contract
 
@@ -128,10 +129,11 @@ HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256=<sha256> \
 ```
 
 Default success returns 0 only for a valid candidate framework or a fully
-verified complete live index. Malformed contracts/evidence return 1. Explicit
-live proof returns 2 while the index is awaiting authorization. A complete
-index without both external trust arguments fails closed. Dogfood-only
-validates the in-place map and exact ordinary argv.
+verified complete live index. Malformed contracts/evidence return 1. The
+complete index on exact `b2dd775` passed live verification with the caller-
+pinned registry/hash; a complete index without both external trust arguments
+fails closed. Dogfood-only validates only the in-place map and exact ordinary
+argv.
 
 Premerge itself accepts no arguments. It recognizes only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
@@ -186,9 +188,11 @@ current-candidate behavior without pilot evidence. It runs the copied premerge
 script with `/bin/bash` and records six ordered per-case completion markers, so
 an early exit cannot masquerade as coverage of later rejection cases.
 
-The live gate prints blockers and exits 2 without logging owner secrets or
-inventing credentials. A future `complete` index cannot bypass packet loading
-because default/premerge automatically runs the live gate.
+Historically, an incomplete index awaiting authorization returned exit 2. With
+the current complete index, missing external trust fails closed with exit 1;
+the live gate prints the blocker without logging owner secrets or inventing
+credentials. The complete index cannot bypass packet loading because
+default/premerge automatically runs the live gate.
 
 ## Alternatives Considered
 

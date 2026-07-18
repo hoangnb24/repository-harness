@@ -92,10 +92,13 @@ bundle-resolved commits, complete packet custody/digests, strict UTC ordering,
 and adversarial oracle verification:
 
 ```bash
-scripts/verify-v1-phase5-evidence.sh
+scripts/verify-v1-phase5-evidence.sh --dogfood-only  # partial gate only
+scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
+  --trusted-owner-registry /absolute/external/trusted-owners.json \
+  --trusted-owner-registry-sha256 f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d
 ```
 
-On exact `b2dd775`, the caller-pinned live invocation passed six proof groups
+On exact `b2dd775`, the full caller-pinned live invocation passed six proof groups
 and rejected 42/42 adversarial cases. It authenticated two complete packets for
 distinct canonical repositories, repository-scoped owner IDs, bundles, and
 external Ed25519 keys under one stable GitHub identity. Both signatures and
@@ -107,9 +110,8 @@ the tracked trusted-owner registry remains empty.
 Benchmark P1 is inapplicable and benchmark P6 failed; e-inna P0/P1/P3/P6
 failed. These are baseline measurements rather than Phase 6 acceptance tests,
 so they do not block Phase 5. Phase 6 has not started and will compare a future
-candidate against them. Exact `b2dd775` has independent approval with no
-remaining findings, but full premerge for the final documentation commit is
-not claimed.
+candidate against them. Primary fast-forward integration and trust-enabled full
+premerge passed on exact `b2dd775`; this docs commit awaits integration.
 
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and

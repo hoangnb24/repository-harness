@@ -1,6 +1,6 @@
 # US-110 V1 Dogfood And Pilot Baselines Validation
 
-Status: **Authenticated live baseline gate passed on exact `b2dd775` / Phase 5 accepted / Phases 6-8 not started / final integration-premerge pending**
+Status: **Authenticated live baseline gate passed on exact `b2dd775` / Phase 5 accepted / Phases 6-8 not started / docs commit awaits integration**
 
 ## Proof Strategy
 
@@ -9,8 +9,9 @@ ephemeral actually signed positive packet, and adversarial rejection. Candidate
 framework status is separable from live packet acceptance. When the index says
 `complete`, the same default/premerge command automatically loads every packet,
 verifies owner trust/signature/repository/custody/timeline/evidence, and requires
-two packets for distinct canonical repositories. Explicit live mode exits 2
-now.
+two packets for distinct canonical repositories. A complete index with the
+caller-pinned registry/hash passes the live gate; without those trust arguments
+the verifier fails closed.
 
 Exact Phase 5 acceptance still requires all of these together:
 
@@ -50,7 +51,7 @@ their honest pre-candidate baseline custody. Phase 6 remains closed.
 | --- | --- |
 | Unit | Closed schema fields/enums; strict UTC parsing/order; canonical HTTPS repository with raw path/hostname alias rejection; safe relative custody paths; complete P0-P7; unique/subset tools; totals; exact ordinary argv. |
 | Integration | SSH Ed25519 sign/verify; complete manifest/digest inventory; isolated Git bundle import and commit resolution; environment/eligibility/intervention/baseline cross-binding. |
-| E2E | Default corrected verifier passes candidate framework; dogfood-only passes; explicit live gate exits 2; shallow `complete` index fails. |
+| E2E | Bare verifier fails closed without external trust; `--dogfood-only` is partial; the full caller-pinned live invocation passes the complete index; shallow `complete` index fails. |
 | Platform | Current macOS shell/Python/Git/ripgrep/OpenSSH execution. Five-platform product proof remains Phase 7. |
 | Performance | Bounded local files and temporary Git/SSH fixtures; no performance release claim. |
 | Logs/Audit | Numbered proof groups and deterministic failures; no owner secrets, live telemetry, or fabricated evidence. |
@@ -66,7 +67,8 @@ their honest pre-candidate baseline custody. Phase 6 remains closed.
   one stable owner in an out-of-repository test registry with its exact digest
   and deleted with its temporary directory. This proves the allowed shared-owner
   topology and input binding, not external authorization provenance.
-- Forty adversarial cases covering the confirmed forged packet,
+- Forty-two adversarial cases covering the confirmed forged packet, including
+  both environment-digest attacks,
   one-character/unknown signatures, malformed and
   post-disclosure times, fake repository/commit, unsigned intervention rewrite,
   same-repository/same-owner-ID pilots, cross-identity key reuse, duplicate
@@ -78,20 +80,22 @@ their honest pre-candidate baseline custody. Phase 6 remains closed.
   pilots, tracked self-authorization, undeclared acceptance executables,
   inconsistent tools/fake evidence, Git alias core-call bypass, subprocess
   OSError, and missing ripgrep.
-- Empty tracked trust placeholder and pilot index with real blockers only.
+- Complete evidence index naming the two pilots with `"blockers": []`; tracked
+  trusted-owners remains empty and caller-pinned external trust is required.
 
 ## Commands
 
 ```bash
 scripts/verify-v1-phase5-evidence.sh
-scripts/verify-v1-phase5-evidence.sh --dogfood-only
+scripts/verify-v1-phase5-evidence.sh --dogfood-only  # partial dogfood only
+scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines  # fails closed without trust
 scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
   --trusted-owner-registry /absolute/external/trusted-owners.json \
   --trusted-owner-registry-sha256 f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d
 tests/evals/test-phase5-premerge-trust-forwarding.sh
 HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY=/absolute/external/trusted-owners.json \
 HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256=<lowercase-sha256> \
-  scripts/validate-premerge.sh  # future authorized full-premerge form
+  scripts/validate-premerge.sh  # current authorized full-premerge form
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
@@ -158,5 +162,7 @@ normalization and approval):
 
 The same independent reviewer explicitly approved exact `b2dd775` with no
 remaining findings; shared-owner alias hardening exact `c928986` was separately
-approved. This final documentation commit does not claim full premerge.
+approved by the earlier independent w1N rereviewer. Primary fast-forward
+integration and trust-enabled full premerge passed on exact `b2dd775`; this docs
+commit awaits integration and does not claim that premerge result for itself.
 Phase 6 remains not started.

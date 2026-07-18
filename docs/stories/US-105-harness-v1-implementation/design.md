@@ -5,7 +5,7 @@
 > authoritative: no bridge target writes, conversion journal, row mapping,
 > `apply`/`resume`/`rollback`, or converted repository mode.
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / final integration-premerge pending**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / docs commit awaits integration**
 
 ## Domain Model
 
@@ -22,7 +22,8 @@ candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. US-110 accepts
 Phase 5 at the authenticated baseline gate on exact `b2dd775`: two distinct
 repository-scoped packets under one stable GitHub identity verify with separate
 external Ed25519 keys and bundle-resolved revisions. Phases 6-8 remain not
-started, and final integration/premerge remains orchestrator work.
+started. Primary fast-forward integration and trust-enabled full premerge passed
+on exact `b2dd775`; this docs commit awaits integration.
 
 | Approved value | Current policy | Cause and effect |
 | --- | --- | --- |

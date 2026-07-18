@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / final integration-premerge pending**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / docs commit awaits integration**
 
 Phase 6 remains not started: its candidate improvements must be evaluated
 against the two authenticated pre-candidate baselines recorded by US-110.
@@ -51,8 +51,9 @@ archives are retained indefinitely, bridge release assets are retained through
 US-106 implement and prove Phase 1; US-107 implements and proves Phase 2;
 US-108 implements, validates, and independently accepts Phase 3; US-109 does
 the same for Phase 4. US-110 accepts Phase 5 at the authenticated baseline gate;
-Phases 6-8 remain not-started dependencies. Final integration/premerge for
-this documentation commit is orchestrator work and is not claimed here.
+Phases 6-8 remain not-started dependencies. Primary fast-forward integration and
+trust-enabled full premerge passed on exact `b2dd775`; this docs commit awaits
+integration.
 
 ## Test Plan
 
@@ -134,14 +135,14 @@ records actor, timestamp, taxonomy, minutes, and outcome effect.
 
 | Card | Requirement | Acceptance proof | Mandatory failure examples | Status |
 | --- | --- | --- | --- | --- |
-| P0 | Install or brownfield adoption. | Valid manifest/path report; target-owned before/after hashes; correct unresolved/ready status; install intervention total. | Overwrite, guessed completion, wrong readiness, missing identity. | Not started; depends on Phases 5-6. |
-| P1 | V0 conversion when eligible. | Export/archive/receipt digests; selected kill-point recovery; no V0 mutation or document move. Written inapplicability if no V0. | Data mutation/loss, hidden move, missing archive, unlogged recovery help. | Not started; depends on Phases 5-6. |
-| P2 | Ordinary small task. | Target-native acceptance passes with zero core Harness commands and no plan created merely for Harness. | Mandatory Harness call, artificial durable plan, functional regression. | Not started; depends on Phases 5-6. |
-| P3 | Interrupted complex task. | Fresh agent resumes from target durable plan and passes target acceptance without human reconstruction. | Human reconstructs state, missing decision/progress, changed environment without rerun. | Not started; depends on Phases 5-6. |
-| P4 | Native invariant repair. | Seeded representative violation fails a named check; agent uses output to repair; same check passes. | Check absent/non-runnable, correction relayed without logging, unrelated rewrite. | Not started; depends on Phases 5-6. |
-| P5 | Direct feedback repair. | From clean worktree, agent uses applicable target tests/compiler, CI/build, review, rendered docs/links, runtime/UI/observability, deployment, or recovery feedback and passes target proof. | Evaluator supplies hidden evidence, target feedback not used, candidate regression. | Not started; depends on Phases 5-6. |
-| P6 | Capability inheritance. | Repeated correction becomes a durable target capability; held-out agent discovers and uses it without original discussion. | Capability exists only in chat, evaluator points it out, held-out task is not comparable. | Not started; depends on Phases 5-6. |
-| P7 | Gardening convergence. | First run makes bounded relevant repair; second identical-condition run finds no repeat drift or unrelated rewrite. | Repeated churn, scope expansion, undocumented evaluator cleanup. | Not started; depends on Phases 5-6. |
+| P0 | Install or brownfield adoption. | Valid manifest/path report; target-owned before/after hashes; correct unresolved/ready status; install intervention total. | Overwrite, guessed completion, wrong readiness, missing identity. | Baseline: benchmark passed; e-inna failed. Phase 6 candidate evaluation not started. |
+| P1 | V0 conversion when eligible. | Export/archive/receipt digests; selected kill-point recovery; no V0 mutation or document move. Written inapplicability if no V0. | Data mutation/loss, hidden move, missing archive, unlogged recovery help. | Baseline: benchmark inapplicable; e-inna failed. Phase 6 candidate evaluation not started. |
+| P2 | Ordinary small task. | Target-native acceptance passes with zero core Harness commands and no plan created merely for Harness. | Mandatory Harness call, artificial durable plan, functional regression. | Baseline: benchmark passed; e-inna passed. Phase 6 candidate evaluation not started. |
+| P3 | Interrupted complex task. | Fresh agent resumes from target durable plan and passes target acceptance without human reconstruction. | Human reconstructs state, missing decision/progress, changed environment without rerun. | Baseline: benchmark passed; e-inna failed. Phase 6 candidate evaluation not started. |
+| P4 | Native invariant repair. | Seeded representative violation fails a named check; agent uses output to repair; same check passes. | Check absent/non-runnable, correction relayed without logging, unrelated rewrite. | Baseline: benchmark passed; e-inna passed. Phase 6 candidate evaluation not started. |
+| P5 | Direct feedback repair. | From clean worktree, agent uses applicable target tests/compiler, CI/build, review, rendered docs/links, runtime/UI/observability, deployment, or recovery feedback and passes target proof. | Evaluator supplies hidden evidence, target feedback not used, candidate regression. | Baseline: benchmark passed; e-inna passed. Phase 6 candidate evaluation not started. |
+| P6 | Capability inheritance. | Repeated correction becomes a durable target capability; held-out agent discovers and uses it without original discussion. | Capability exists only in chat, evaluator points it out, held-out task is not comparable. | Baseline: benchmark failed; e-inna failed. Phase 6 candidate evaluation not started. |
+| P7 | Gardening convergence. | First run makes bounded relevant repair; second identical-condition run finds no repeat drift or unrelated rewrite. | Repeated churn, scope expansion, undocumented evaluator cleanup. | Baseline: benchmark passed; e-inna passed. Phase 6 candidate evaluation not started. |
 
 Release comparison additionally requires at least two eligible pilots for
 distinct canonical repositories and authenticated repository-bundle digests,
@@ -203,8 +204,8 @@ fabricated from this planning packet.
 ## Commands
 
 Product/test commands are listed only when their scripts and binaries exist.
-The Phase 5 candidate adds its focused executable proof without treating the
-empty external-pilot gate as success:
+The accepted Phase 5 gate uses the caller-pinned external registry and complete
+packets; the partial dogfood check is not live acceptance:
 
 ```bash
 set -e
@@ -262,7 +263,9 @@ scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
 scripts/verify-v1-phase4-bridge.sh
-scripts/verify-v1-phase5-evidence.sh
+scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
+  --trusted-owner-registry /absolute/external/trusted-owners.json \
+  --trusted-owner-registry-sha256 f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d
 git diff --check
 git status --short
 ```
@@ -270,8 +273,7 @@ git status --short
 ## Acceptance Evidence
 
 Current product evidence: **Phases 1-5 accepted at the authenticated baseline
-gate; Phases 6-8 not started; final integration/premerge for this documentation
-commit pending**.
+gate; Phases 6-8 not started; this docs commit awaits integration**.
 Decision 0012 is G0
 authorization evidence; Decision 0013 is the accepted security/data-integrity
 decision; US-106 supplies versioned contracts, frozen V0 inputs, complete

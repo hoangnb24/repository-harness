@@ -1,6 +1,6 @@
 # US-110 V1 Dogfood And Pilot Baselines
 
-Status: **Phase 5 authenticated baseline gate accepted on exact `b2dd775` / Phases 6-8 not started / final integration-premerge pending**
+Status: **Phase 5 authenticated baseline gate accepted on exact `b2dd775` / Phases 6-8 not started / docs commit awaits integration**
 
 ## Current Behavior
 
