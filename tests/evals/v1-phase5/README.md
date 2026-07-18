@@ -37,7 +37,10 @@ SHA-256 with `--trusted-owner-registry` and
 `--trusted-owner-registry-sha256`. The registry records each `ssh-ed25519`
 public key, stable owner identity, canonical HTTPS `.git` repository identity,
 exact repository-scoped authorization ID and scope, trust source, and trust
-time. Repository scopes and authorization IDs are unique. The same stable
+time. Canonical repository parsing rejects literal raw `.` or `..` segments,
+empty internal path segments, percent/backslash aliases, and trailing-dot or
+empty-label hostnames before POSIX path normalization. Repository scopes and
+authorization IDs are unique. The same stable
 `owner_identity` may appear in records for multiple repositories. One key may
 also appear in those records only when the stable owner identity is identical
 and every canonical repository scope is different. Reusing a key for two

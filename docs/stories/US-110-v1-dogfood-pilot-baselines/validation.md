@@ -48,7 +48,7 @@ result exists. Phase 5 is not accepted and Phase 6 remains closed.
 
 | Layer | Cases |
 | --- | --- |
-| Unit | Closed schema fields/enums; strict UTC parsing/order; canonical HTTPS repository; safe relative custody paths; complete P0-P7; unique/subset tools; totals; exact ordinary argv. |
+| Unit | Closed schema fields/enums; strict UTC parsing/order; canonical HTTPS repository with raw path/hostname alias rejection; safe relative custody paths; complete P0-P7; unique/subset tools; totals; exact ordinary argv. |
 | Integration | SSH Ed25519 sign/verify; complete manifest/digest inventory; isolated Git bundle import and commit resolution; environment/eligibility/intervention/baseline cross-binding. |
 | E2E | Default corrected verifier passes candidate framework; dogfood-only passes; explicit live gate exits 2; shallow `complete` index fails. |
 | Platform | Current macOS shell/Python/Git/ripgrep/OpenSSH execution. Five-platform product proof remains Phase 7. |
@@ -66,11 +66,14 @@ result exists. Phase 5 is not accepted and Phase 6 remains closed.
   one stable owner in an out-of-repository test registry with its exact digest
   and deleted with its temporary directory. This proves the allowed shared-owner
   topology and input binding, not external authorization provenance.
-- Thirty-four adversarial cases covering the confirmed forged packet,
+- Forty adversarial cases covering the confirmed forged packet,
   one-character/unknown signatures, malformed and
   post-disclosure times, fake repository/commit, unsigned intervention rewrite,
   same-repository/same-owner-ID pilots, cross-identity key reuse, duplicate
-  trust-registry repository scope, absolute/traversal/symlink/mismatched
+  trust-registry repository scope, raw dot-segment and trailing-host-dot aliases
+  in both registry and complete signed live-index validation, raw dot-dot and
+  empty internal repository path segments,
+  absolute/traversal/symlink/mismatched
   custody, shallow complete index, same-owner one-key/one-bundle aliased
   pilots, tracked self-authorization, undeclared acceptance executables,
   inconsistent tools/fake evidence, Git alias core-call bypass, subprocess
@@ -115,9 +118,10 @@ Correction-candidate results on 2026-07-18:
   ephemeral repository-scoped packets for one stable owner and key; both SSH
   Ed25519 signatures are verified, both named commits resolve, and their
   repository and bundle identities differ.
-- Adversarial suite: **34/34 rejected**, covering the confirmed oracle,
+- Adversarial suite: **40/40 rejected**, covering the confirmed oracle,
   external/tracked trust boundary, repository/key/bundle identity, manifest,
-  timeline, independence, custody, acceptance-tool/environment/evidence,
+  raw repository aliases, timeline, independence, custody,
+  acceptance-tool/environment/evidence,
   subprocess, Git-alias, missing-ripgrep, and legacy negative cases.
 - Dogfood-only: **1/1 passed** with exact closed argv and no path move.
 - Explicit live gate: **expected exit 2** with no owner trust or pilot packet.

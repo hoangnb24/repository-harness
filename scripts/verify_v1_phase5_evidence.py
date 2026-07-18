@@ -30,6 +30,10 @@ RFC3339_UTC = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 COMMIT = re.compile(r"^[0-9a-f]{40}$")
 EXECUTABLE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
+HOSTNAME = re.compile(
+    r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+    r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$"
+)
 NAMESPACE = "repository-harness-phase5"
 CORE_PACKET_FILES = {
     "enrollment.json", "environment.json", "eligibility.json",
@@ -200,11 +204,21 @@ def canonical_repository(value: str) -> str:
     except ValueError as error:
         raise VerificationError("repository identity contains an invalid port") from error
     check(parsed.username is None and parsed.password is None and port is None, "repository identity contains authority aliases")
+    hostname = parsed.hostname
+    check(not hostname.endswith(".") and HOSTNAME.fullmatch(hostname) is not None, "repository identity contains an ambiguous hostname")
     check(not parsed.query and not parsed.fragment and not parsed.path.endswith("/"), "repository identity contains query, fragment, or trailing slash")
-    check("%" not in value and "\\" not in value and "//" not in parsed.path, "repository identity contains encoded or ambiguous path syntax")
+    check("%" not in value and "\\" not in value, "repository identity contains encoded or ambiguous syntax")
+    raw_segments = parsed.path.split("/")
+    check(
+        parsed.path.startswith("/")
+        and len(raw_segments) > 1
+        and raw_segments[0] == ""
+        and all(segment and segment not in {".", ".."} for segment in raw_segments[1:]),
+        "repository identity contains raw dot, dot-dot, or empty path segments",
+    )
     parts = PurePosixPath(parsed.path).parts
     check(parts and parts[-1].endswith(".git") and all(part not in {".", ".."} for part in parts), "repository identity must end in an unambiguous .git path")
-    normalized = f"https://{parsed.hostname.lower()}{parsed.path}"
+    normalized = f"https://{hostname.lower()}{parsed.path}"
     check(value == normalized, "repository identity is not canonical")
     return normalized
 
@@ -867,6 +881,23 @@ def build_repository_scoped_packet(
     }
 
 
+def rewrite_packet_repository(packet: Path, key: Path, repository: str) -> None:
+    """Re-sign a complete synthetic packet after changing its repository scope."""
+    enrollment = load_json(packet / "enrollment.json")
+    enrollment["canonical_repository"] = repository
+    write_json(packet / "enrollment.json", enrollment)
+
+    manifest = load_json(packet / "packet-manifest.json")
+    next(artifact for artifact in manifest["artifacts"] if artifact["path"] == "enrollment.json")["sha256"] = sha256_file(packet / "enrollment.json")
+    write_json(packet / "packet-manifest.json", manifest)
+
+    authentication = load_json(packet / "authentication.json")
+    authentication["statement"]["canonical_repository"] = repository
+    authentication["statement"]["packet_manifest_sha256"] = sha256_file(packet / "packet-manifest.json")
+    authentication["signature"] = sign_statement(key, authentication["statement"])
+    write_json(packet / "authentication.json", authentication)
+
+
 def expect_rejection(label: str, function: Callable[[], None]) -> None:
     global NEGATIVE_COUNT
     try:
@@ -1078,6 +1109,59 @@ def prove_negative_contracts() -> None:
             lambda: parse_trusted_owners(duplicate_scope_registry, "duplicate-scope trust fixture"),
         )
 
+        repository_alias_root = root / "repository-alias-attack"
+        repository_alias_evidence = repository_alias_root / "evidence"
+        alias_packet_a, repository_alias_trusted, repository_alias_key, repository_alias_cards, repository_alias_catalog = build_synthetic_packet(repository_alias_evidence)
+        repository_alias_owner_a = repository_alias_trusted[next(iter(repository_alias_trusted))]
+        alias_packet_b = repository_alias_evidence / "synthetic-pilot-b"
+        repository_alias_owner_b = build_repository_scoped_packet(
+            alias_packet_a, alias_packet_b, repository_alias_key, repository_alias_owner_a,
+            owner_identity=repository_alias_owner_a["owner_identity"], distinct_bundle=True,
+        )
+        write_json(repository_alias_evidence / "trusted-owners.json", {
+            "schema": "repository-harness-trusted-pilot-owners/v1", "owners": [],
+        })
+        write_json(repository_alias_evidence / "index.json", {
+            "schema": "repository-harness-phase5-evidence-index/v2", "phase": 5, "status": "complete",
+            "card_catalog": "cards/catalog.json", "trusted_owners": "trusted-owners.json",
+            "pilots": [alias_packet_a.name, alias_packet_b.name], "blockers": [],
+        })
+        repository_alias_index = load_json(repository_alias_evidence / "index.json")
+        repository_alias_registry = repository_alias_root / "external-trusted-owners.json"
+
+        def reject_repository_alias(repository: str, label: str) -> None:
+            aliased_owner_b = {**repository_alias_owner_b, "canonical_repository": repository}
+            aliased_trusted = {
+                repository_alias_owner_a["owner_id"]: repository_alias_owner_a,
+                aliased_owner_b["owner_id"]: aliased_owner_b,
+            }
+            write_json(repository_alias_registry, external_registry_document(aliased_trusted))
+            expect_rejection(
+                f"{label} in external trusted-owner registry",
+                lambda: parse_trusted_owners(repository_alias_registry, f"{label} trust fixture"),
+            )
+            rewrite_packet_repository(alias_packet_b, repository_alias_key, repository)
+            expect_rejection(
+                f"{label} in complete signed live index",
+                lambda: verify_index_mode(
+                    repository_alias_index, repository_alias_evidence,
+                    repository_alias_catalog, repository_alias_cards, require_live=False,
+                    trusted_owner_registry=repository_alias_registry,
+                    trusted_owner_registry_sha256=sha256_file(repository_alias_registry),
+                ),
+            )
+
+        reject_repository_alias("https://example.test/./synthetic-a.git", "raw dot-segment repository alias")
+        reject_repository_alias("https://example.test./synthetic-a.git", "trailing-host-dot repository alias")
+        expect_rejection(
+            "raw dot-dot repository path segment",
+            lambda: canonical_repository("https://example.test/scope/../synthetic-a.git"),
+        )
+        expect_rejection(
+            "empty internal repository path segment",
+            lambda: canonical_repository("https://example.test/scope//synthetic-a.git"),
+        )
+
         shallow = root / "shallow-evidence"
         shallow.mkdir()
         write_json(shallow / "trusted-owners.json", {"schema": "repository-harness-trusted-pilot-owners/v1", "owners": []})
@@ -1116,7 +1200,7 @@ def prove_negative_contracts() -> None:
             completed = run(["/bin/bash", str(wrapper_path), "--dogfood-only"], expected=1, environment={"PATH": str(path_root)})
             check(b"requires: rg" in completed.stderr, "wrapper did not fail deterministically when rg was missing")
             NEGATIVE_COUNT += 1
-        check(NEGATIVE_COUNT == 34, f"adversarial suite count changed: {NEGATIVE_COUNT}")
+        check(NEGATIVE_COUNT == 40, f"adversarial suite count changed: {NEGATIVE_COUNT}")
 
 
 def validate_story_packet() -> None:
@@ -1147,7 +1231,7 @@ def main() -> None:
     index = load_evidence_index(EVIDENCE)
     proof("Draft 2020-12 contracts, fixed P0-P7 catalog, empty tracked trust placeholder, and candidate index validate", lambda: None)
     proof("one stable owner and SSH Ed25519 key authenticate two repository-scoped packets with distinct repositories and bundles", prove_positive_packet)
-    proof("34 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
+    proof("40 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
     proof("US-110 documents only corrected repository-owned candidate proof", validate_story_packet)
     if index["status"] == "complete":
         proof(

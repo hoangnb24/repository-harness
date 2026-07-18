@@ -21,7 +21,10 @@ repository scopes are unique. The stable owner identity may repeat across
 distinct repositories. A key may repeat only for that same stable identity
 across distinct repository scopes; the same key claimed by different stable
 identities fails closed. Separate per-repository evaluation keys remain
-recommended, not mandatory. The registry's exact bytes are pinned by a
+recommended, not mandatory. Repository identities reject raw `.`/`..` path
+segments, empty internal path segments, encoded or backslash aliases, and
+trailing-dot or empty-label hostnames before POSIX path normalization. The
+registry's exact bytes are pinned by a
 required CLI SHA-256. The tracked registry is an enforced-empty placeholder
 and cannot authorize a packet. The verifier authenticates against
 caller-supplied bytes; the caller, not the machine, establishes their
@@ -169,6 +172,7 @@ to live evidence. Adversarial tests reproduce forged signatures, fake commits
 and repositories, timestamp reversal, unsigned rewrites, shallow complete
 indexes, duplicate repository-scoped owner IDs/repositories/bundles,
 cross-identity signing-key reuse, same-owner one-key/one-bundle aliasing,
+raw dot-segment and trailing-host-dot repository aliases,
 tracked self-authorization, undeclared acceptance executables, custody escapes,
 environment/evidence inconsistency, Git alias bypass, missing ripgrep, and
 subprocess OSError. The positive integration fixture uses one stable owner and
