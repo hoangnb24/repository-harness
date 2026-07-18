@@ -36,4 +36,22 @@ if HARNESS_COHERENCE_SKIP_RUNTIME=1 HARNESS_COHERENCE_SCHEMA_DIR="$temp/schema" 
 fi
 grep -Fq 'expected prefix 002-' "$temp/schema.out"
 
-echo "revision coherence positive and drift fixtures passed"
+for generated_binary in \
+  scripts/bin/harness-v0-migrate \
+  scripts/bin/harness-v0-migrate.exe; do
+  git -C "$root" check-ignore -q -- "$generated_binary" || {
+    echo "generated bridge binary is not ignored: $generated_binary" >&2
+    exit 1
+  }
+done
+
+for visible_path in \
+  crates/harness-v0-migrate/src/main.rs \
+  scripts/bin/unrelated-file; do
+  if git -C "$root" check-ignore -q -- "$visible_path"; then
+    echo "generated bridge ignore is too broad: $visible_path" >&2
+    exit 1
+  fi
+done
+
+echo "revision coherence, drift fixtures, and exact generated bridge ignores passed"

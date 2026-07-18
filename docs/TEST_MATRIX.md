@@ -113,3 +113,9 @@ contract runs the copied premerge under `/bin/bash`, requires six ordered case
 markers, and rejects partial, unknown, positional, and dogfood-only bypass
 inputs. The no-pair path uses a literal zero-argument verifier call, avoiding
 empty-array expansion under macOS Bash 3.2 with `set -u`.
+
+Mandatory premerge also snapshots `git status --short --untracked-files=all`
+before verification and requires the exact same status afterward. The two
+Phase 1/2 generated bridge executable names, `scripts/bin/harness-v0-migrate`
+and `scripts/bin/harness-v0-migrate.exe`, are ignored explicitly; the source
+crate and unrelated `scripts/bin` paths remain visible.

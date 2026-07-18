@@ -42,6 +42,8 @@ for command in cargo git jq rg sqlite3; do
   }
 done
 
+starting_git_status=$(git status --short --untracked-files=all)
+
 while IFS= read -r script; do
   bash -n "$script"
 done < <(find scripts tests -type f -name '*.sh' -print | LC_ALL=C sort)
@@ -76,5 +78,12 @@ tests/evals/test-task-authority.sh
 tests/release/test-post-merge-release-recovery.sh
 
 git diff --check
+
+ending_git_status=$(git status --short --untracked-files=all)
+if [[ "$ending_git_status" != "$starting_git_status" ]]; then
+  printf 'pre-merge validation changed repository status\n' >&2
+  printf 'before:\n%s\nafter:\n%s\n' "$starting_git_status" "$ending_git_status" >&2
+  fail "validation must preserve the starting repository status"
+fi
 
 echo "pre-merge repository contract passed"

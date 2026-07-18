@@ -124,6 +124,10 @@ Correction-candidate results on 2026-07-18:
 - Rust workspace within premerge: **203 tests passed, 0 failed**.
 - Documentation contract, JSON parsing, Python compilation, shell syntax,
   formatting, `git diff --check`, and full premerge repository contract passed.
+- Generated-artifact contract: both exact native/Windows
+  `harness-v0-migrate` install paths are ignored, source and unrelated binary
+  paths remain visible, and mandatory premerge requires its ending Git status
+  to equal its starting Git status.
 
 Only two complete independently owned live packets and independent review can
 accept Phase 5; Phase 6 remains closed.
