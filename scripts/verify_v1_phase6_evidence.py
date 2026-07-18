@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -67,6 +68,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase6_01_story.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_01_story.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_02_proof_contract.changeset.jsonl",
     "crates/harness-core/tests/phase2_core.rs",
     "crates/harness-core/tests/phase3_recovery.rs",
     "docs/REFACTOR_PLAN.md",
@@ -164,12 +166,38 @@ PHASE7_INTAKE_CHANGESET = (
 PHASE7_STORY_CHANGESET = (
     ROOT / ".harness/changesets/harness_v1_phase7_01_story.changeset.jsonl"
 )
+PHASE7_PROOF_CONTRACT_CHANGESET = (
+    ROOT
+    / ".harness/changesets/harness_v1_phase7_02_proof_contract.changeset.jsonl"
+)
 PHASE7_DECISION_ID = "0016-phase6-framework-acceptance-and-phase7-opening"
 PHASE7_STORY_ID = "US-112"
+PHASE7_INTAKE_UID = "ink_b3b36388c90ab25b8d5f518a0306d0a6"
 PHASE7_DECISION_VERIFY_COMMAND = "tests/docs/test-doc-contracts.sh"
 PHASE7_STORY_VERIFY_COMMAND = (
     "tests/docs/test-doc-contracts.sh && "
     "scripts/verify-v1-phase6-evidence.sh --framework-only"
+)
+PHASE7_PROOF_VERIFY_COMMAND = (
+    "tests/release/test-v1-phase7-release-proof.sh && "
+    "scripts/verify-v1-phase6-evidence.sh --framework-only"
+)
+PHASE7_PROOF_EVIDENCE = (
+    "Fixture-only Phase 7 proof-contract candidate 73d4ec7 passed focused and "
+    "adversarial verification, trust-enabled full premerge integration, and "
+    "independent rereview. No real Phase 6 P0-P7 or Phase 7 five-platform "
+    "evidence is recorded; all such evidence remains pending, and acceptance, "
+    "tag, publish, signing, and promotion remain blocked."
+)
+PHASE7_PROOF_TRACE_UID = "trc_84dd40dc582ff69a980492f2288b81b2"
+PHASE7_PROOF_TRACE_SUMMARY = (
+    "Completed the bounded Phase 7 fixture-only proof-contract slice and "
+    "integrated its fail-closed verification"
+)
+PHASE7_PROOF_RECORD_SHA256 = (
+    "c8eaf2ad197bd0b26afdefb4af1c1efafc05a5704ff3b5c16a16bc1303f1b883",
+    "5c3e500371ab88e09f2fa8f1a9e238cc999eca8d035645ef82a8381ab230929e",
+    "158b209edbc95f30701ac492eae03b173b547ea9651afed052cab41b5350ad5f",
 )
 
 
@@ -802,14 +830,237 @@ def self_test_phase7_opening_records(
     )
 
 
+def validate_phase7_proof_contract_records(
+    intake_records: list[dict[str, Any]],
+    proof_records: list[dict[str, Any]],
+) -> None:
+    check(
+        [record.get("op") for record in proof_records]
+        == ["changeset.header", "story.update", "trace.add"],
+        "Phase 7 proof-contract changeset operation sequence changed",
+    )
+    check(
+        tuple(sha256_bytes(canonical_bytes(record)) for record in proof_records)
+        == PHASE7_PROOF_RECORD_SHA256,
+        "Phase 7 proof-contract changeset record bytes changed",
+    )
+    check(
+        proof_records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase7_02_proof_contract",
+            "version": 1,
+        },
+        "Phase 7 proof-contract changeset header changed",
+    )
+    check(
+        len(intake_records) == 2
+        and intake_records[1].get("uid") == PHASE7_INTAKE_UID,
+        "Phase 7 proof trace no longer targets the existing Intake #9 identity",
+    )
+
+    story_update = proof_records[1]
+    story_payload = story_update.get("payload")
+    check(
+        story_update.get("id") == PHASE7_STORY_ID
+        and story_update.get("version") == 1
+        and isinstance(story_payload, dict),
+        "Phase 7 proof-contract story update envelope changed",
+    )
+    check(
+        set(story_payload)
+        == {
+            "contract_doc",
+            "e2e_proof",
+            "evidence",
+            "integration_proof",
+            "platform_proof",
+            "status",
+            "unit_proof",
+            "verify_command",
+        },
+        "Phase 7 proof-contract story update fields changed",
+    )
+    check(
+        story_payload["status"] == "in_progress"
+        and all(
+            story_payload[field] == 0
+            for field in (
+                "unit_proof",
+                "integration_proof",
+                "e2e_proof",
+                "platform_proof",
+            )
+        )
+        and story_payload["contract_doc"] is None
+        and story_payload["evidence"] == PHASE7_PROOF_EVIDENCE
+        and story_payload["verify_command"] == PHASE7_PROOF_VERIFY_COMMAND,
+        "Phase 7 proof-contract story no longer records bounded in-progress evidence",
+    )
+
+    trace = proof_records[2]
+    trace_payload = trace.get("payload")
+    check(
+        set(trace) == {"op", "payload", "uid", "version"}
+        and trace.get("op") == "trace.add"
+        and trace.get("uid") == PHASE7_PROOF_TRACE_UID
+        and trace.get("version") == 2
+        and isinstance(trace_payload, dict),
+        "Phase 7 proof-contract trace envelope changed",
+    )
+    check(
+        set(trace_payload)
+        == {
+            "actions_taken",
+            "agent",
+            "created_at",
+            "decisions_made",
+            "duration_seconds",
+            "errors",
+            "files_changed",
+            "files_read",
+            "harness_friction",
+            "intake_uid",
+            "notes",
+            "outcome",
+            "recorded_at_unix_ns",
+            "story_id",
+            "task_summary",
+            "token_estimate",
+        },
+        "Phase 7 proof-contract trace fields changed",
+    )
+    check(
+        trace_payload["task_summary"] == PHASE7_PROOF_TRACE_SUMMARY
+        and trace_payload["intake_uid"] == PHASE7_INTAKE_UID
+        and trace_payload["story_id"] == PHASE7_STORY_ID
+        and trace_payload["agent"] == "codex"
+        and trace_payload["outcome"] == "completed"
+        and trace_payload["duration_seconds"] is None
+        and trace_payload["token_estimate"] is None,
+        "Phase 7 proof-contract trace identity, outcome, or unavailable metrics changed",
+    )
+    trace_lists: dict[str, list[Any]] = {}
+    for field in (
+        "actions_taken",
+        "files_read",
+        "files_changed",
+        "decisions_made",
+        "errors",
+    ):
+        parsed = strict_json_loads(trace_payload[field])
+        check(
+            isinstance(parsed, list)
+            and parsed
+            and all(isinstance(item, str) and item for item in parsed),
+            f"Phase 7 proof-contract trace {field} is not a nonempty string list",
+        )
+        trace_lists[field] = parsed
+    check(
+        len(trace_lists["actions_taken"]) >= 7
+        and len(trace_lists["decisions_made"]) >= 5
+        and len(trace_lists["errors"]) >= 3
+        and "scripts/verify_v1_phase7_release_proof.py" in trace_lists["files_read"]
+        and "scripts/verify_v1_phase3_recovery.py" in trace_lists["files_changed"]
+        and ".harness/changesets/harness_v1_phase7_02_proof_contract.changeset.jsonl"
+        in trace_lists["files_changed"],
+        "Phase 7 proof-contract trace no longer meets Detailed quality",
+    )
+    decisions = "\n".join(trace_lists["decisions_made"])
+    check(
+        "keep this evidence fixture-only" in decisions
+        and "V1 harness and harness.exe artifact identity" in decisions
+        and "bind the locked V1 build input to Cargo.lock" in decisions
+        and "do not change production workflows" in decisions
+        and "proof flags all zero" in decisions,
+        "Phase 7 proof-contract trace lost a bounded implementation decision",
+    )
+    errors = "\n".join(trace_lists["errors"])
+    check(
+        "Symphony-owned records" in errors
+        and "platform-mode and semantic-identity bypasses" in errors
+        and "exact Git blob OID compatibility allowance" in errors
+        and "frozen Phase 3 boundary" in errors,
+        "Phase 7 proof-contract trace lost required errors and friction",
+    )
+    notes = trace_payload.get("notes")
+    friction = trace_payload.get("harness_friction")
+    check(
+        isinstance(notes, str)
+        and "US-112 remains in_progress with every proof flag zero" in notes
+        and "real Phase 6 P0-P7 and Phase 7 five-platform evidence remains pending"
+        in notes
+        and "Exact duration and token values are unavailable" in notes
+        and isinstance(friction, str)
+        and "semantic validation must pin the stable intake UID" in friction,
+        "Phase 7 proof-contract trace no longer records residual gates and friction",
+    )
+
+
+def self_test_phase7_proof_contract_records(
+    intake_records: list[dict[str, Any]],
+    proof_records: list[dict[str, Any]],
+) -> None:
+    for status in ("implemented", "completed"):
+        completed = deepcopy(proof_records)
+        completed[1]["payload"]["status"] = status
+        expect_rejection(
+            f"same-filename Phase 7 proof-contract {status} status",
+            lambda completed=completed: validate_phase7_proof_contract_records(
+                intake_records, completed
+            ),
+        )
+    for field in (
+        "unit_proof",
+        "integration_proof",
+        "e2e_proof",
+        "platform_proof",
+    ):
+        asserted = deepcopy(proof_records)
+        asserted[1]["payload"][field] = 1
+        expect_rejection(
+            f"same-filename Phase 7 proof-contract {field}",
+            lambda asserted=asserted: validate_phase7_proof_contract_records(
+                intake_records, asserted
+            ),
+        )
+    changed_outcome = deepcopy(proof_records)
+    changed_outcome[2]["payload"]["outcome"] = "partial"
+    expect_rejection(
+        "same-filename Phase 7 proof-contract trace outcome",
+        lambda: validate_phase7_proof_contract_records(
+            intake_records, changed_outcome
+        ),
+    )
+    production_claim = deepcopy(proof_records)
+    production_claim[2]["payload"]["decisions_made"] = json.dumps(
+        ["production promotion authorized"], separators=(",", ":")
+    )
+    expect_rejection(
+        "same-filename Phase 7 proof-contract production claim",
+        lambda: validate_phase7_proof_contract_records(
+            intake_records, production_claim
+        ),
+    )
+
+
 def verify_phase7_opening_gate() -> None:
     intake_records = load_jsonl(PHASE7_INTAKE_CHANGESET)
     story_records = load_jsonl(PHASE7_STORY_CHANGESET)
+    proof_records = load_jsonl(PHASE7_PROOF_CONTRACT_CHANGESET)
     validate_phase7_opening_records(intake_records, story_records)
     self_test_phase7_opening_records(intake_records, story_records)
+    validate_phase7_proof_contract_records(intake_records, proof_records)
+    self_test_phase7_proof_contract_records(intake_records, proof_records)
 
     with tempfile.TemporaryDirectory(prefix="phase7-opening-replay-") as temporary:
         database = Path(temporary) / "replay.db"
+        prior_changesets = Path(temporary) / "prior-changesets"
+        prior_changesets.mkdir()
+        for changeset in sorted((ROOT / ".harness/changesets").glob("*.jsonl")):
+            if changeset != PHASE7_PROOF_CONTRACT_CHANGESET:
+                shutil.copyfile(changeset, prior_changesets / changeset.name)
         environment = dict(os.environ)
         for name in list(environment):
             if name.startswith("HARNESS_"):
@@ -827,7 +1078,7 @@ def verify_phase7_opening_gate() -> None:
                 "db",
                 "rebuild",
                 "--from",
-                str(ROOT / ".harness/changesets"),
+                str(prior_changesets),
             ],
             cwd=ROOT,
             capture_output=True,
@@ -837,12 +1088,12 @@ def verify_phase7_opening_gate() -> None:
         )
         check(
             result.returncode == 0,
-            "Phase 7 changesets do not rebuild into an isolated database",
+            "Phase 7 prior changesets do not rebuild into an isolated database",
         )
         check(database.is_file(), "Phase 7 isolated replay database is missing")
         connection = sqlite3.connect(str(database))
         try:
-            story = connection.execute(
+            prior_story = connection.execute(
                 """
                 SELECT status, unit_proof, integration_proof, e2e_proof,
                        platform_proof, evidence, last_verified_result,
@@ -851,15 +1102,15 @@ def verify_phase7_opening_gate() -> None:
                 """,
                 (PHASE7_STORY_ID,),
             ).fetchall()
-            check(len(story) == 1, "isolated replay does not contain exactly one US-112")
             check(
-                story[0][0] == "in_progress"
-                and story[0][1:5] == (0, 0, 0, 0)
-                and isinstance(story[0][5], str)
-                and "No executable Phase 7 proof" in story[0][5]
-                and story[0][6] == "pass"
-                and story[0][7] == PHASE7_STORY_VERIFY_COMMAND,
-                "isolated replay no longer keeps US-112 in progress with zero proof",
+                len(prior_story) == 1
+                and prior_story[0][0] == "in_progress"
+                and prior_story[0][1:5] == (0, 0, 0, 0)
+                and isinstance(prior_story[0][5], str)
+                and "No executable Phase 7 proof" in prior_story[0][5]
+                and prior_story[0][6] == "pass"
+                and prior_story[0][7] == PHASE7_STORY_VERIFY_COMMAND,
+                "isolated replay did not start from the expected in-progress US-112",
             )
             decision = connection.execute(
                 """
@@ -889,6 +1140,77 @@ def verify_phase7_opening_gate() -> None:
             check(
                 hierarchy == [("US-105", "US-112")],
                 "isolated replay lost the US-105 to US-112 hierarchy",
+            )
+        finally:
+            connection.close()
+
+        apply_result = subprocess.run(
+            [
+                str(ROOT / "scripts/bin/harness-cli"),
+                "db",
+                "changeset",
+                "apply",
+                str(PHASE7_PROOF_CONTRACT_CHANGESET),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            check=False,
+            env=environment,
+            text=True,
+        )
+        check(
+            apply_result.returncode == 0,
+            "Phase 7 proof-contract changeset does not apply to isolated prior state",
+        )
+        connection = sqlite3.connect(str(database))
+        try:
+            story = connection.execute(
+                """
+                SELECT status, unit_proof, integration_proof, e2e_proof,
+                       platform_proof, evidence, last_verified_result,
+                       verify_command
+                FROM story WHERE id = ?
+                """,
+                (PHASE7_STORY_ID,),
+            ).fetchall()
+            check(
+                story
+                == [
+                    (
+                        "in_progress",
+                        0,
+                        0,
+                        0,
+                        0,
+                        PHASE7_PROOF_EVIDENCE,
+                        "pass",
+                        PHASE7_PROOF_VERIFY_COMMAND,
+                    )
+                ],
+                "isolated proof replay no longer keeps US-112 in progress with zero proof",
+            )
+            trace = connection.execute(
+                """
+                SELECT task_summary, intake_uid, story_id, agent, outcome,
+                       duration_seconds, token_estimate
+                FROM trace WHERE uid = ?
+                """,
+                (PHASE7_PROOF_TRACE_UID,),
+            ).fetchall()
+            check(
+                trace
+                == [
+                    (
+                        PHASE7_PROOF_TRACE_SUMMARY,
+                        PHASE7_INTAKE_UID,
+                        PHASE7_STORY_ID,
+                        "codex",
+                        "completed",
+                        None,
+                        None,
+                    )
+                ],
+                "isolated proof replay lost the Detailed Phase 7 trace identity",
             )
         finally:
             connection.close()

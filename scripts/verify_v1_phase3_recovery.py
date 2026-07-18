@@ -19,6 +19,7 @@ ALLOWED_LATER_CHANGESETS = {
     ".harness/changesets/harness_v1_phase4_bridge.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_01_story.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_02_proof_contract.changeset.jsonl",
 }
 
 
