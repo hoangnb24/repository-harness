@@ -9,6 +9,21 @@ closed records for cold-clone and warm-V0-copy lanes, comparable conditions,
 evaluation subjects, intervention totals, results, comparisons, packet
 custody, and external authentication.
 
+Complete packets reject duplicate JSON keys before any digest, schema, or
+signature decision. Candidate subjects bind the lane's exact base commit/tree
+and a manifest-digested Git bundle; verification imports that bundle into a
+new bare repository, resolves the declared candidate commit/tree, proves the
+base is its ancestor, and requires every declared capability path to be a
+committed blob. Comparison outcomes are copied mechanically from the
+authenticated Phase 5 or signed warm baseline and signed candidate result;
+failed-to-passed improvement cards are derived from those outcomes.
+
+Every P1 finding, negative-condition clearance, and improvement claim carries
+packet-manifest artifact and SHA-256 references. Every condition prompt has a
+separate owner signature asserting its exact digest before candidate execution,
+and the held-out P3/P6 record must name that same prompt, so a harmless dummy
+prompt cannot hide path or descriptive capability hints.
+
 The committed evidence index is deliberately
 `candidate-results-pending`. Framework verification succeeds in that state;
 `--require-candidate-results` returns the documented pending outcome until
@@ -25,7 +40,11 @@ external signatures exist.
 Raw databases, WAL/SHM files, standalone backups, V0 archive payloads, private
 keys, absolute owner paths, and unredacted V0 rows are prohibited from this
 tree. The capture utility writes raw material only beneath an external private
-destination and emits a closed, allowlist-redacted public manifest.
+destination and emits a closed, allowlist-redacted public manifest. Capture
+pins the source root, exact optional WAL/SHM namespace, recognized-member
+inventory, and directory change tokens before copying; it rescans after handle
+acquisition and at completion and rejects creation, removal, replacement, or
+even transient create/remove activity.
 
 ## Commands
 

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repository-harness.dev/schemas/v1-phase6/prompt-authentication.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "owner_id", "algorithm", "namespace", "statement", "signature"],
+  "properties": {
+    "schema": {"const": "repository-harness-phase6-prompt-authentication/v1"},
+    "owner_id": {"type": "string", "minLength": 1},
+    "algorithm": {"const": "ssh-ed25519"},
+    "namespace": {"const": "repository-harness-phase6-prompt"},
+    "statement": {"type": "object", "additionalProperties": false, "required": ["schema", "pilot_id", "lane_id", "card_id", "canonical_repository", "prompt_artifact", "prompt_sha256", "authenticated_at", "candidate_not_disclosed"], "properties": {"schema": {"const": "repository-harness-phase6-pre-candidate-prompt/v1"}, "pilot_id": {"type": "string", "minLength": 1}, "lane_id": {"type": "string", "minLength": 1}, "card_id": {"type": "string", "pattern": "^P[0-7]$"}, "canonical_repository": {"type": "string", "pattern": "^https://[A-Za-z0-9.-]+/[A-Za-z0-9._/-]+[.]git$"}, "prompt_artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "prompt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "authenticated_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}, "candidate_not_disclosed": {"const": true}}},
+    "signature": {"type": "string", "minLength": 1}
+  }
+}

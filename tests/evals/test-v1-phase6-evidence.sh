@@ -72,7 +72,7 @@ spec = importlib.util.spec_from_file_location("phase6_verifier", module_path)
 module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(module)
-manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+manifest = module.load_json(Path(sys.argv[1]))
 module.validate(manifest, module.schema("warm-v0-capture"), "synthetic warm capture")
 assert manifest["capture_sha256"] == module.canonical_digest(manifest, "capture_sha256")
 assert manifest["source_unchanged"] is True
@@ -107,6 +107,99 @@ uncoordinated_exit=$?
 set -e
 [[ "$uncoordinated_exit" -eq 1 ]] || fail "capture omitted writer-quiescence requirement"
 [[ "$uncoordinated_output" == *"--writers-quiesced is required"* ]] || fail "writer-quiescence rejection was not explicit"
+
+python3 - "$source_repository" "$temporary" "$revision" <<'PY'
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+source = Path(sys.argv[1])
+root = Path(sys.argv[2])
+revision = sys.argv[3]
+wal_bytes = (source / "harness.db-wal").read_bytes()
+shm_bytes = (source / "harness.db-shm").read_bytes()
+
+
+def run_case(name, prepare, mutate):
+    case_source = root / f"namespace-{name}"
+    destination = root / f"capture-{name}"
+    shutil.copytree(source, case_source, symlinks=True)
+    prepare(case_source)
+    ready_read, ready_write = os.pipe()
+    continue_read, continue_write = os.pipe()
+    environment = dict(os.environ)
+    environment["HARNESS_PHASE6_CAPTURE_TEST_READY_FD"] = str(ready_write)
+    environment["HARNESS_PHASE6_CAPTURE_TEST_CONTINUE_FD"] = str(continue_read)
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "scripts/capture-v1-phase6-warm-v0.py",
+            "--source-root", str(case_source),
+            "--destination-root", str(destination),
+            "--expected-revision", revision,
+            "--pilot-id", "synthetic-warm-pilot",
+            "--canonical-repository", "https://example.com/owner/synthetic.git",
+            "--capture-id", f"synthetic-{name}-capture",
+            "--captured-at", "2000-01-01T00:00:00Z",
+            "--writers-quiesced",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=environment,
+        pass_fds=(ready_write, continue_read),
+    )
+    os.close(ready_write)
+    os.close(continue_read)
+    try:
+        assert os.read(ready_read, 1) == b"1", f"{name}: capture hook was not reached"
+        mutate(case_source)
+        os.write(continue_write, b"1")
+    finally:
+        os.close(ready_read)
+        os.close(continue_write)
+    stdout, stderr = process.communicate(timeout=30)
+    assert process.returncode == 1, f"{name}: mutation accepted: {stdout} {stderr}"
+    assert "namespace changed" in stderr or "directory token changed" in stderr, (
+        f"{name}: rejection was not an anchored namespace failure: {stderr}"
+    )
+
+
+run_case(
+    "new-wal",
+    lambda case: (case / "harness.db-wal").unlink(),
+    lambda case: (case / "harness.db-wal").write_bytes(wal_bytes),
+)
+run_case(
+    "unlink-wal",
+    lambda case: None,
+    lambda case: (case / "harness.db-wal").unlink(),
+)
+
+
+def replace_wal(case):
+    replacement = case / "replacement-wal"
+    replacement.write_bytes(wal_bytes)
+    os.replace(replacement, case / "harness.db-wal")
+
+
+run_case("replace-wal", lambda case: None, replace_wal)
+
+
+def transient_shm(case):
+    path = case / "harness.db-shm"
+    path.write_bytes(shm_bytes)
+    path.unlink()
+
+
+run_case(
+    "transient-shm",
+    lambda case: (case / "harness.db-shm").unlink(),
+    transient_shm,
+)
+PY
 
 python3 - "$private_capture/standalone-backup.sqlite" <<'PY'
 import sqlite3

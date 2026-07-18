@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
+from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -31,6 +32,7 @@ SCHEMA_NAMES = (
     "intervention-log",
     "lane-assignment",
     "packet-manifest",
+    "prompt-authentication",
     "signature",
     "warm-v0-capture",
 )
@@ -111,9 +113,24 @@ def run(arguments: list[str], *, cwd: Path = ROOT, input_bytes: bytes | None = N
     return result.stdout
 
 
+def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    document: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in document:
+            raise VerificationError(f"duplicate JSON object key: {key}")
+        document[key] = value
+    return document
+
+
+def strict_json_loads(payload: str) -> Any:
+    return json.loads(payload, object_pairs_hook=reject_duplicate_keys)
+
+
 def load_json(path: Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return strict_json_loads(path.read_text(encoding="utf-8"))
+    except VerificationError:
+        raise
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise VerificationError(f"cannot load closed JSON record: {path}") from error
 
@@ -232,6 +249,29 @@ def contained_member(root: Path, value: str, field: str) -> Path:
 def exact_cards(records: list[Any], expected: list[str], location: str) -> None:
     identifiers = [record if isinstance(record, str) else record.get("card_id") for record in records]
     check(identifiers == expected, f"{location}: expected exact ordered cards {expected}, got {identifiers}")
+
+
+def validate_evidence_references(
+    references: list[dict[str, str]], artifact_digests: dict[str, str], location: str
+) -> None:
+    check(isinstance(references, list) and references, f"{location}: custody evidence must be a non-empty array")
+    check(
+        all(
+            isinstance(reference, dict)
+            and set(reference) == {"artifact", "sha256"}
+            and isinstance(reference["artifact"], str)
+            and isinstance(reference["sha256"], str)
+            for reference in references
+        ),
+        f"{location}: custody evidence must contain exact artifact/digest objects",
+    )
+    artifacts = [reference["artifact"] for reference in references]
+    check(len(artifacts) == len(set(artifacts)), f"{location}: duplicate custody artifact")
+    for reference in references:
+        check(
+            artifact_digests.get(reference["artifact"]) == reference["sha256"],
+            f"{location}: evidence is outside exact packet-manifest custody: {reference['artifact']}",
+        )
 
 
 def validate_baseline_lock() -> dict[str, Any]:
@@ -373,6 +413,11 @@ def validate_condition(document: dict[str, Any], lane: dict[str, Any], artifact_
     check(len(document["enabled_tools"]) == len(set(document["enabled_tools"])), "condition repeats enabled tool")
     for prompt in document["prompts"]:
         check(artifact_digests.get(prompt["artifact"]) == prompt["sha256"], f"prompt is outside authenticated packet: {prompt['artifact']}")
+        check(
+            artifact_digests.get(prompt["authentication_artifact"])
+            == prompt["authentication_sha256"],
+            f"prompt authentication is outside packet custody: {prompt['authentication_artifact']}",
+        )
     for command in document["acceptance_commands"]:
         check(command["argv"][0] in document["enabled_tools"], f"{command['card_id']} acceptance executable is not enabled")
     limits = {item["card_id"]: item["seconds"] for item in document["time_limits"]}
@@ -405,10 +450,18 @@ def validate_cold_condition_against_phase5(
         check(document[field] == environment[field], f"cold condition changed Phase 5 {field}")
 
 
-def validate_subject(document: dict[str, Any], lane: dict[str, Any], artifact_digests: dict[str, str]) -> None:
+def validate_subject(
+    document: dict[str, Any], lane: dict[str, Any], artifact_digests: dict[str, str],
+    packet: Path,
+) -> None:
     validate(document, schema("candidate-subject"), "evaluation subject")
     check(document["subject_identity_sha256"] == canonical_digest(document, "subject_identity_sha256"), "subject identity digest mismatch")
     check(document["pilot_id"] == lane["pilot_id"] and document["lane_id"] == lane["lane_id"], "subject/lane identity mismatch")
+    check(
+        document["base_revision"] == lane["starting_revision"]
+        and document["base_tree"] == lane["starting_tree"],
+        "subject does not bind the lane base revision/tree",
+    )
     roles = [artifact["role"] for artifact in document["artifacts"]]
     paths = [artifact["path"] for artifact in document["artifacts"]]
     check(len(paths) == len(set(paths)), "subject contains duplicate artifact paths")
@@ -421,6 +474,76 @@ def validate_subject(document: dict[str, Any], lane: dict[str, Any], artifact_di
             check("bridge-binary" in roles, "warm candidate subject lacks bridge identity")
         capability_artifacts = {artifact["path"] for artifact in document["artifacts"] if artifact["role"] == "capability-asset"}
         check(set(document["capability_paths"]) == capability_artifacts, "candidate capability path set is incomplete")
+        bundles = [
+            artifact
+            for artifact in document["artifacts"]
+            if artifact["role"] == "pilot-candidate-bundle"
+        ]
+        check(len(bundles) == 1, "candidate subject must bind exactly one Git bundle")
+        bundle = bundles[0]
+        bundle_path = contained_member(packet, bundle["path"], "candidate Git bundle")
+        check(
+            artifact_digests.get(bundle["path"]) == bundle["sha256"],
+            "candidate Git bundle is not digest-bound by the packet manifest",
+        )
+        with tempfile.TemporaryDirectory(prefix="phase6-candidate-git-") as temporary:
+            repository = Path(temporary) / "candidate.git"
+            run(["git", "init", "--bare", str(repository)])
+            run(["git", "-C", str(repository), "bundle", "verify", str(bundle_path)])
+            heads = run(["git", "bundle", "list-heads", str(bundle_path)]).decode("utf-8").splitlines()
+            matching_refs = [
+                line.split(" ", 1)[1]
+                for line in heads
+                if line.split(" ", 1)[0] == document["source_revision"] and " " in line
+            ]
+            check(matching_refs, "candidate commit is not advertised by the digest-bound bundle")
+            run(
+                [
+                    "git",
+                    "-C",
+                    str(repository),
+                    "fetch",
+                    "--no-tags",
+                    str(bundle_path),
+                    f"{matching_refs[0]}:refs/phase6/candidate",
+                ]
+            )
+            candidate_commit = run(
+                ["git", "-C", str(repository), "rev-parse", "refs/phase6/candidate^{commit}"]
+            ).decode("ascii").strip()
+            candidate_tree = run(
+                ["git", "-C", str(repository), "rev-parse", "refs/phase6/candidate^{tree}"]
+            ).decode("ascii").strip()
+            check(candidate_commit == document["source_revision"], "bundle resolved a different candidate commit")
+            check(candidate_tree == document["source_tree"], "bundle resolved a different candidate tree")
+            base_tree = run(
+                ["git", "-C", str(repository), "rev-parse", f"{document['base_revision']}^{{tree}}"]
+            ).decode("ascii").strip()
+            check(base_tree == document["base_tree"], "bundle lane base tree mismatch")
+            run(
+                [
+                    "git",
+                    "-C",
+                    str(repository),
+                    "merge-base",
+                    "--is-ancestor",
+                    document["base_revision"],
+                    document["source_revision"],
+                ]
+            )
+            for capability in document["capability_paths"]:
+                relative_name(capability, "candidate capability path")
+                kind = run(
+                    [
+                        "git",
+                        "-C",
+                        str(repository),
+                        "cat-file",
+                        "-t",
+                        f"{document['source_revision']}:{capability}",
+                    ]
+                ).decode("ascii").strip()
+                check(kind == "blob", f"candidate capability path is not a committed file: {capability}")
 
 
 def validate_interventions(document: dict[str, Any], lane: dict[str, Any]) -> None:
@@ -432,19 +555,36 @@ def validate_interventions(document: dict[str, Any], lane: dict[str, Any]) -> No
 
 
 def validate_hint_leakage(
-    result: dict[str, Any], subject: dict[str, Any], packet: Path, artifact_visibility: dict[str, str]
+    result: dict[str, Any], subject: dict[str, Any], condition: dict[str, Any],
+    packet: Path, artifact_visibility: dict[str, str]
 ) -> None:
     cards = {record["card_id"]: record for record in result["cards"]}
+    locked_prompts = {record["card_id"]: record for record in condition["prompts"]}
     for card_id in ("P3", "P6"):
         held_out = cards[card_id]["held_out"]
         check(held_out is not None, f"{card_id} candidate lacks fresh-agent visibility record")
         check(set(held_out["visible_paths"]).isdisjoint(held_out["evaluator_only_paths"]), f"{card_id} agent/evaluator visibility overlaps")
         check(all(not path.startswith("tests/evals/") and "/evidence/" not in path for path in held_out["visible_paths"]), f"{card_id} exposed evaluator evidence to fresh agent")
-        prompt_path = contained_member(packet, held_out["prompt_artifact"], f"{card_id} held-out prompt")
+        check(
+            held_out["prompt_artifact"] == locked_prompts[card_id]["artifact"],
+            f"{card_id} held-out run did not use the authenticated condition prompt",
+        )
+        prompt_path = contained_member(packet, locked_prompts[card_id]["artifact"], f"{card_id} held-out prompt")
         check(artifact_visibility.get(held_out["prompt_artifact"]) == "evaluator-only", f"{card_id} prompt custody is not evaluator-only")
         prompt = prompt_path.read_text(encoding="utf-8").casefold()
         for capability in subject["capability_paths"]:
             check(capability.casefold() not in prompt, f"{card_id} prompt leaks capability path")
+            descriptive = [
+                token
+                for token in re.split(r"[^a-z0-9]+", PurePosixPath(capability).stem.casefold())
+                if len(token) >= 3
+            ]
+            if descriptive:
+                normalized_prompt = " ".join(re.findall(r"[a-z0-9]+", prompt))
+                check(
+                    " ".join(descriptive) not in normalized_prompt,
+                    f"{card_id} prompt descriptively leaks capability identity",
+                )
         for path in held_out["evaluator_only_paths"]:
             check(path.casefold() not in prompt, f"{card_id} prompt leaks evaluator-only evidence path")
         check("original correction" not in prompt and "repair is" not in prompt, f"{card_id} prompt leaks correction content")
@@ -475,48 +615,148 @@ def validate_result(
             )
             for item in condition["acceptance_commands"]
         }
-        for evidence in card["evidence"]:
-            check(evidence in artifact_digests, f"{card['card_id']} evidence is outside packet custody")
+        validate_evidence_references(
+            card["evidence"], artifact_digests, f"{card['card_id']} result"
+        )
         if card["outcome"] == "inapplicable":
             check(card["card_id"] == "P1" and card["finding"].strip(), "only P1 may be inapplicable with a finding")
             check(card["acceptance_command"] == "inapplicable", "inapplicable P1 has executable acceptance command")
+            check(card["finding_evidence"], "P1 finding lacks custody evidence")
+            validate_evidence_references(
+                card["finding_evidence"], artifact_digests, "P1 finding"
+            )
         else:
             check(not card["finding"], f"{card['card_id']} contains contradictory finding")
+            check(not card["finding_evidence"], f"{card['card_id']} contains contradictory finding evidence")
             check(card["acceptance_command"] == commands[card["card_id"]], f"{card['card_id']} result changed locked acceptance argv")
         if document["run_kind"] == "candidate":
             check(card["outcome"] in {"passed", "inapplicable"}, f"candidate acceptance failed: {card['card_id']}")
-    validate_negative_conditions(document["negative_conditions"])
+    validate_negative_conditions(document["negative_conditions"], artifact_digests)
 
 
-def validate_negative_conditions(records: list[dict[str, Any]]) -> None:
+def validate_negative_conditions(
+    records: list[dict[str, Any]], artifact_digests: dict[str, str]
+) -> None:
     checks = {item["condition"]: item for item in records}
+    check(len(checks) == len(records), "negative-condition set contains duplicates")
     check(set(checks) == MANDATORY_NEGATIVES, "mandatory negative-condition set is incomplete")
     check(all(item["outcome"] == "clear" for item in checks.values()), "candidate has a failed mandatory negative condition")
+    for item in records:
+        validate_evidence_references(
+            item["evidence"], artifact_digests, f"negative condition {item['condition']}"
+        )
 
 
-def validate_comparison(document: dict[str, Any], lane: dict[str, Any], condition: dict[str, Any], subject: dict[str, Any]) -> None:
+def authenticated_phase5_result(lane: dict[str, Any]) -> dict[str, Any]:
+    packet = ROOT / "tests/evals/v1-phase5/evidence" / lane["pilot_id"]
+    manifest_path = packet / "packet-manifest.json"
+    authentication = load_json(packet / "authentication.json")
+    manifest = load_json(manifest_path)
+    artifacts = {item["path"]: item["sha256"] for item in manifest["artifacts"]}
+    check(len(artifacts) == len(manifest["artifacts"]), "Phase 5 manifest repeats artifact paths")
+    check(
+        authentication["statement"]["packet_manifest_sha256"]
+        == sha256_file(manifest_path),
+        "Phase 5 authentication does not bind its packet manifest",
+    )
+    check(
+        authentication["statement"]["starting_revision"] == lane["starting_revision"],
+        "Phase 5 authentication differs from lane base revision",
+    )
+    result_path = packet / "baseline-result.json"
+    check(
+        artifacts.get("baseline-result.json") == sha256_file(result_path),
+        "Phase 5 result is outside authenticated manifest custody",
+    )
+    result = load_json(result_path)
+    check(
+        result["result_sha256"] == canonical_digest(result, "result_sha256"),
+        "Phase 5 baseline result self-digest mismatch",
+    )
+    return result
+
+
+def validate_comparison_candidate_side(
+    document: dict[str, Any], lane: dict[str, Any], condition: dict[str, Any],
+    subject: dict[str, Any], candidate_result: dict[str, Any],
+) -> None:
     validate(document, schema("comparison-report"), "comparison report")
     check(document["comparison_sha256"] == canonical_digest(document, "comparison_sha256"), "comparison digest mismatch")
     check(document["pilot_id"] == lane["pilot_id"] and document["lane_id"] == lane["lane_id"], "comparison/lane identity mismatch")
     check(document["baseline_condition_identity_sha256"] == document["candidate_condition_identity_sha256"] == condition["condition_identity_sha256"], "baseline/candidate conditions are not identical")
     check(document["candidate_subject_identity_sha256"] == subject["subject_identity_sha256"], "comparison candidate subject mismatch")
-    if lane["lane"] == "cold-clone":
-        phase5 = load_json(
-            ROOT
-            / "tests/evals/v1-phase5/evidence"
-            / lane["pilot_id"]
-            / "baseline-result.json"
+    exact_cards(document["cards"], lane["cards"], "comparison report")
+    candidate_outcomes = {
+        card["card_id"]: card["outcome"] for card in candidate_result["cards"]
+    }
+    for card in document["cards"]:
+        check(
+            card["candidate_outcome"] == candidate_outcomes[card["card_id"]],
+            f"comparison candidate outcome differs from signed candidate result: {card['card_id']}",
         )
+
+
+def validate_comparison(
+    document: dict[str, Any], lane: dict[str, Any], condition: dict[str, Any],
+    subject: dict[str, Any], candidate_result: dict[str, Any],
+    baseline_result: dict[str, Any], artifact_digests: dict[str, str],
+) -> None:
+    validate_comparison_candidate_side(
+        document, lane, condition, subject, candidate_result
+    )
+    baseline_outcomes = {
+        card["card_id"]: card["outcome"] for card in baseline_result["cards"]
+    }
+    if lane["lane"] == "cold-clone":
         check(
             document["baseline_subject_identity_sha256"]
-            == phase5["evaluation_subject"]["sha256"],
+            == baseline_result["evaluation_subject"]["sha256"],
             "comparison baseline subject differs from authenticated Phase 5 subject",
         )
-    exact_cards(document["cards"], lane["cards"], "comparison report")
-    for card in document["cards"]:
-        check(not (card["baseline_outcome"] == "passed" and card["candidate_outcome"] != "passed"), f"functional regression on {card['card_id']}")
-        check(card["candidate_outcome"] in {"passed", "inapplicable"}, f"candidate comparison failed on {card['card_id']}")
-    check(set(document["improvement"]["cards"]) <= set(lane["cards"]), "comparison improvement cites card outside lane")
+    cards = document["cards"]
+    for card in cards:
+        check(
+            card["baseline_outcome"] == baseline_outcomes[card["card_id"]],
+            f"comparison baseline outcome differs from authenticated baseline result: {card['card_id']}",
+        )
+        check(
+            not (
+                card["baseline_outcome"] == "passed"
+                and card["candidate_outcome"] != "passed"
+            ),
+            f"functional regression on {card['card_id']}",
+        )
+        check(
+            card["candidate_outcome"] in {"passed", "inapplicable"},
+            f"candidate comparison failed on {card['card_id']}",
+        )
+    derived_no_regression = all(
+        not (
+            card["baseline_outcome"] == "passed"
+            and card["candidate_outcome"] != "passed"
+        )
+        for card in cards
+    )
+    check(
+        document["no_functional_regression"] is derived_no_regression,
+        "comparison regression claim is not derived from authenticated outcomes",
+    )
+    derived_improvement = [
+        card["card_id"]
+        for card in cards
+        if card["baseline_outcome"] == "failed"
+        and card["candidate_outcome"] == "passed"
+    ]
+    check(derived_improvement, "comparison lacks a derived failed-to-passed improvement")
+    check(
+        document["improvement"]["kind"] == "outcome"
+        and document["improvement"]["cards"] == derived_improvement,
+        "comparison improvement is asserted instead of derived from authenticated outcomes",
+    )
+    validate_evidence_references(
+        document["improvement"]["evidence"], artifact_digests,
+        "comparison improvement",
+    )
 
 
 def validate_manifest(packet: Path) -> tuple[dict[str, Any], dict[str, str], dict[str, str]]:
@@ -559,6 +799,90 @@ def load_external_trust(path: Path | None, expected_sha256: str | None) -> dict[
     return owners
 
 
+def verify_ssh_statement(
+    *, owner_id: str, public_key: str, namespace: str,
+    statement: dict[str, Any], signature_text: str,
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="phase6-signature-") as temporary:
+        root = Path(temporary)
+        allowed = root / "allowed_signers"
+        signature = root / "statement.sig"
+        allowed.write_text(f"{owner_id} {public_key}\n", encoding="utf-8")
+        signature.write_text(signature_text, encoding="utf-8")
+        run(
+            [
+                "ssh-keygen", "-Y", "verify", "-f", str(allowed), "-I",
+                owner_id, "-n", namespace, "-s", str(signature),
+            ],
+            input_bytes=canonical_bytes(statement),
+        )
+
+
+def validate_prompt_authentication_record(
+    authentication: dict[str, Any], prompt: dict[str, Any],
+    lane: dict[str, Any], result: dict[str, Any],
+) -> None:
+    validate(
+        authentication, schema("prompt-authentication"),
+        f"{prompt['card_id']} prompt authentication",
+    )
+    check(
+        authentication["owner_id"] == lane["owner_id"],
+        f"{prompt['card_id']} prompt authentication owner mismatch",
+    )
+    statement = authentication["statement"]
+    expected = {
+        "pilot_id": lane["pilot_id"],
+        "lane_id": lane["lane_id"],
+        "card_id": prompt["card_id"],
+        "canonical_repository": lane["canonical_repository"],
+        "prompt_artifact": prompt["artifact"],
+        "prompt_sha256": prompt["sha256"],
+    }
+    for field, value in expected.items():
+        check(
+            statement[field] == value,
+            f"{prompt['card_id']} pre-candidate prompt statement changed {field}",
+        )
+    check(
+        parse_time(statement["authenticated_at"], "prompt.authenticated_at")
+        <= parse_time(result["started_at"], "result.started_at"),
+        f"{prompt['card_id']} prompt was not authenticated before candidate execution",
+    )
+
+
+def verify_prompt_authentications(
+    condition: dict[str, Any], lane: dict[str, Any], result: dict[str, Any],
+    packet: Path, artifact_digests: dict[str, str],
+    owners: dict[str, dict[str, Any]],
+) -> None:
+    check(lane["owner_id"] in owners, "prompt owner is not externally trusted")
+    owner = owners[lane["owner_id"]]
+    check(
+        owner["canonical_repository"] == lane["canonical_repository"],
+        "prompt owner repository differs from lane",
+    )
+    for prompt in condition["prompts"]:
+        authentication_path = contained_member(
+            packet, prompt["authentication_artifact"],
+            f"{prompt['card_id']} prompt authentication",
+        )
+        check(
+            artifact_digests[prompt["authentication_artifact"]]
+            == prompt["authentication_sha256"]
+            == sha256_file(authentication_path),
+            f"{prompt['card_id']} prompt authentication digest mismatch",
+        )
+        authentication = load_json(authentication_path)
+        validate_prompt_authentication_record(authentication, prompt, lane, result)
+        statement = authentication["statement"]
+        verify_ssh_statement(
+            owner_id=lane["owner_id"], public_key=owner["public_key"],
+            namespace=authentication["namespace"], statement=statement,
+            signature_text=authentication["signature"],
+        )
+
+
 def verify_authentication(
     packet: Path, authentication: dict[str, Any], manifest: dict[str, Any],
     lane: dict[str, Any], condition: dict[str, Any], subject: dict[str, Any],
@@ -581,16 +905,10 @@ def verify_authentication(
     check(statement["comparison_sha256"] == expected_comparison, "authentication comparison mismatch")
     check(statement["completed_at"] == result["completed_at"], "authentication completion mismatch")
     check(parse_time(statement["completed_at"], "statement.completed_at") <= parse_time(statement["published_at"], "statement.published_at"), "authenticated result published before completion")
-    with tempfile.TemporaryDirectory(prefix="phase6-signature-") as temporary:
-        root = Path(temporary)
-        allowed = root / "allowed_signers"
-        signature = root / "statement.sig"
-        allowed.write_text(f"{owner_id} {owner['public_key']}\n", encoding="utf-8")
-        signature.write_text(authentication["signature"], encoding="utf-8")
-        run(
-            ["ssh-keygen", "-Y", "verify", "-f", str(allowed), "-I", owner_id, "-n", NAMESPACE, "-s", str(signature)],
-            input_bytes=canonical_bytes(statement),
-        )
+    verify_ssh_statement(
+        owner_id=owner_id, public_key=owner["public_key"], namespace=NAMESPACE,
+        statement=statement, signature_text=authentication["signature"],
+    )
 
 
 def validate_packet(packet: Path, owners: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -618,17 +936,26 @@ def validate_packet(packet: Path, owners: dict[str, dict[str, Any]]) -> dict[str
     validate_condition(condition, lane, digests)
     if lane["lane"] == "cold-clone":
         validate_cold_condition_against_phase5(condition, lane)
-    validate_subject(subject, lane, digests)
+    validate_subject(subject, lane, digests, packet)
     validate_interventions({key: value for key, value in interventions.items() if key != "_path"}, lane)
     validate_result(result, lane, condition, subject, interventions, digests)
+    verify_prompt_authentications(condition, lane, result, packet, digests, owners)
     if result["run_kind"] == "candidate":
         check(comparison is not None, "candidate packet lacks baseline comparison")
-        validate_comparison(comparison, lane, condition, subject)
+        if lane["lane"] == "cold-clone":
+            validate_comparison(
+                comparison, lane, condition, subject, result,
+                authenticated_phase5_result(lane), digests,
+            )
+        else:
+            validate_comparison_candidate_side(
+                comparison, lane, condition, subject, result
+            )
     else:
         check(lane["lane"] == "warm-v0-copy", "only warm lane may publish supplemental baseline")
         check(comparison is None, "pre-disclosure warm baseline cannot contain candidate comparison")
     if result["run_kind"] == "candidate" and lane["lane"] == "cold-clone":
-        validate_hint_leakage(result, subject, packet, visibility)
+        validate_hint_leakage(result, subject, condition, packet, visibility)
     authentication = load_json(contained_member(packet, "authentication.json", "authentication"))
     verify_authentication(packet, authentication, manifest, lane, condition, subject, result, comparison, owners)
     return {
@@ -644,6 +971,12 @@ def validate_packet(packet: Path, owners: dict[str, dict[str, Any]]) -> dict[str
             else comparison["baseline_subject_identity_sha256"]
         ),
         "improvement": None if comparison is None else comparison["improvement"],
+        "lane_document": lane,
+        "condition": condition,
+        "subject": subject,
+        "result": result,
+        "comparison": comparison,
+        "artifact_digests": digests,
     }
 
 
@@ -693,6 +1026,12 @@ def validate_index(
                 candidate = candidates[0]
                 check(baseline["condition_identity_sha256"] == candidate["condition_identity_sha256"], "warm baseline/candidate condition identity differs")
                 check(candidate["comparison_baseline_subject_identity_sha256"] == baseline["subject_identity_sha256"], "warm candidate comparison does not bind signed warm baseline subject")
+                validate_comparison(
+                    candidate["comparison"], candidate["lane_document"],
+                    candidate["condition"], candidate["subject"],
+                    candidate["result"], baseline["result"],
+                    candidate["artifact_digests"],
+                )
     check(any(packet["improvement"] and packet["improvement"]["cards"] for packet in packets if packet["run_kind"] == "candidate"), "complete Phase 6 evidence lacks concrete improvement")
 
 
@@ -774,25 +1113,37 @@ def self_test_contracts() -> None:
     }
     log["intervention_log_sha256"] = canonical_digest(log, "intervention_log_sha256")
     validate_interventions(log, cold)
-    bad_totals = json.loads(json.dumps(log))
+    bad_totals = deepcopy(log)
     bad_totals["totals"]["minutes"] = 1
     expect_rejection("incomplete intervention totals", lambda: validate_interventions(bad_totals, cold))
 
+    evidence_reference = [{"artifact": "proof.json", "sha256": digest64}]
+    artifact_digests = {"proof.json": digest64}
     negative_checks = [
-        {"condition": condition, "outcome": "clear", "evidence": "synthetic proof"}
+        {
+            "condition": condition,
+            "outcome": "clear",
+            "evidence": deepcopy(evidence_reference),
+        }
         for condition in sorted(MANDATORY_NEGATIVES)
     ]
-    validate_negative_conditions(negative_checks)
+    validate_negative_conditions(negative_checks, artifact_digests)
     missing_negative = negative_checks[:-1]
     expect_rejection(
         "missing mandatory negative condition",
-        lambda: validate_negative_conditions(missing_negative),
+        lambda: validate_negative_conditions(missing_negative, artifact_digests),
     )
-    failed_negative = json.loads(json.dumps(negative_checks))
+    failed_negative = deepcopy(negative_checks)
     failed_negative[0]["outcome"] = "failed"
     expect_rejection(
         "failed mandatory negative condition",
-        lambda: validate_negative_conditions(failed_negative),
+        lambda: validate_negative_conditions(failed_negative, artifact_digests),
+    )
+    prose_negative = deepcopy(negative_checks)
+    prose_negative[0]["evidence"] = "synthetic prose"
+    expect_rejection(
+        "prose-only negative clearance",
+        lambda: validate_negative_conditions(prose_negative, artifact_digests),
     )
 
     comparison_lane = dict(cold)
@@ -807,22 +1158,79 @@ def self_test_contracts() -> None:
         "candidate_subject_identity_sha256": "f" * 64,
         "cards": [{"card_id": card, "baseline_outcome": "failed" if card == "P6" else "passed", "candidate_outcome": "passed"} for card in ALL_CARDS],
         "no_functional_regression": True,
-        "improvement": {"kind": "outcome", "cards": ["P6"], "evidence": "synthetic failed-to-passed comparison"},
+        "improvement": {
+            "kind": "outcome",
+            "cards": ["P6"],
+            "evidence": deepcopy(evidence_reference),
+        },
         "comparison_sha256": "",
     }
     comparison["comparison_sha256"] = canonical_digest(comparison, "comparison_sha256")
     condition = {"condition_identity_sha256": digest64}
     subject = {"subject_identity_sha256": "f" * 64}
-    validate_comparison(comparison, comparison_lane, condition, subject)
-    drift = json.loads(json.dumps(comparison))
+    baseline_result = {
+        "evaluation_subject": {
+            "sha256": comparison["baseline_subject_identity_sha256"]
+        },
+        "cards": [
+            {
+                "card_id": card,
+                "outcome": "failed" if card == "P6" else "passed",
+            }
+            for card in ALL_CARDS
+        ],
+    }
+    candidate_result = {
+        "cards": [{"card_id": card, "outcome": "passed"} for card in ALL_CARDS]
+    }
+    validate_comparison(
+        comparison, comparison_lane, condition, subject, candidate_result,
+        baseline_result, artifact_digests,
+    )
+    drift = deepcopy(comparison)
     drift["candidate_condition_identity_sha256"] = "0" * 64
     drift["comparison_sha256"] = canonical_digest(drift, "comparison_sha256")
-    expect_rejection("condition drift", lambda: validate_comparison(drift, comparison_lane, condition, subject))
-    regression = json.loads(json.dumps(comparison))
-    regression["cards"][0]["baseline_outcome"] = "passed"
+    expect_rejection(
+        "condition drift",
+        lambda: validate_comparison(
+            drift, comparison_lane, condition, subject, candidate_result,
+            baseline_result, artifact_digests,
+        ),
+    )
+    regression = deepcopy(comparison)
     regression["cards"][0]["candidate_outcome"] = "failed"
     regression["comparison_sha256"] = canonical_digest(regression, "comparison_sha256")
-    expect_rejection("functional regression", lambda: validate_comparison(regression, comparison_lane, condition, subject))
+    expect_rejection(
+        "forged candidate comparison outcome",
+        lambda: validate_comparison(
+            regression, comparison_lane, condition, subject, candidate_result,
+            baseline_result, artifact_digests,
+        ),
+    )
+    forged_baseline = deepcopy(comparison)
+    forged_baseline["cards"][0]["baseline_outcome"] = "failed"
+    forged_baseline["comparison_sha256"] = canonical_digest(
+        forged_baseline, "comparison_sha256"
+    )
+    expect_rejection(
+        "forged baseline comparison outcome",
+        lambda: validate_comparison(
+            forged_baseline, comparison_lane, condition, subject,
+            candidate_result, baseline_result, artifact_digests,
+        ),
+    )
+    asserted_improvement = deepcopy(comparison)
+    asserted_improvement["improvement"]["cards"] = ["P0", "P6"]
+    asserted_improvement["comparison_sha256"] = canonical_digest(
+        asserted_improvement, "comparison_sha256"
+    )
+    expect_rejection(
+        "asserted non-derived improvement",
+        lambda: validate_comparison(
+            asserted_improvement, comparison_lane, condition, subject,
+            candidate_result, baseline_result, artifact_digests,
+        ),
+    )
 
     with tempfile.TemporaryDirectory(prefix="phase6-negative-") as temporary:
         root = Path(temporary)
@@ -852,7 +1260,15 @@ def self_test_contracts() -> None:
         }
         hint_subject = {"capability_paths": ["docs/capabilities/native-check.md"]}
         visibility = {"p6-prompt.md": "evaluator-only"}
-        validate_hint_leakage(hint_result, hint_subject, packet, visibility)
+        hint_condition = {
+            "prompts": [
+                {"card_id": "P3", "artifact": "p6-prompt.md"},
+                {"card_id": "P6", "artifact": "p6-prompt.md"},
+            ]
+        }
+        validate_hint_leakage(
+            hint_result, hint_subject, hint_condition, packet, visibility
+        )
         prompt.write_text(
             "Use docs/capabilities/native-check.md to make the repair.\n",
             encoding="utf-8",
@@ -860,7 +1276,214 @@ def self_test_contracts() -> None:
         expect_rejection(
             "held-out capability-path leakage",
             lambda: validate_hint_leakage(
-                hint_result, hint_subject, packet, visibility
+                hint_result, hint_subject, hint_condition, packet, visibility
+            ),
+        )
+        prompt.write_text(
+            "Use the native check capability to make the repair.\n",
+            encoding="utf-8",
+        )
+        expect_rejection(
+            "held-out descriptive capability leakage",
+            lambda: validate_hint_leakage(
+                hint_result, hint_subject, hint_condition, packet, visibility
+            ),
+        )
+        dummy_condition = deepcopy(hint_condition)
+        dummy_condition["prompts"][1]["artifact"] = "dummy.md"
+        (packet / "dummy.md").write_text("No hints here.\n", encoding="utf-8")
+        expect_rejection(
+            "held-out dummy prompt substitution",
+            lambda: validate_hint_leakage(
+                hint_result, hint_subject, dummy_condition, packet, visibility
+            ),
+        )
+
+
+def self_test_duplicate_json_keys() -> None:
+    cases = {
+        "top-level duplicate": '{"schema":"one","schema":"two"}',
+        "nested duplicate": '{"statement":{"pilot_id":"one","pilot_id":"two"}}',
+        "escaped-equivalent duplicate": '{"owner_id":"one","owner\\u005fid":"two"}',
+        "schema duplicate": '{"type":"object","type":"array"}',
+        "signature duplicate": '{"signature":"one","signature":"two"}',
+        "baseline-lock duplicate": '{"source_commit":"one","source_commit":"two"}',
+    }
+    with tempfile.TemporaryDirectory(prefix="phase6-duplicate-json-") as temporary:
+        root = Path(temporary)
+        for label, payload in cases.items():
+            path = root / f"{label.replace(' ', '-')}.json"
+            path.write_text(payload, encoding="utf-8")
+            expect_rejection(label, lambda path=path: load_json(path))
+
+
+def self_test_pre_candidate_prompt_binding() -> None:
+    digest = "a" * 64
+    lane = {
+        "pilot_id": "synthetic-pilot",
+        "lane_id": "synthetic-cold-lane",
+        "owner_id": "synthetic-owner",
+        "canonical_repository": "https://example.com/owner/repository.git",
+    }
+    prompt = {
+        "card_id": "P6",
+        "artifact": "prompts/P6.md",
+        "sha256": digest,
+    }
+    result = {"started_at": "2000-01-01T00:00:01Z"}
+    authentication = {
+        "schema": "repository-harness-phase6-prompt-authentication/v1",
+        "owner_id": lane["owner_id"],
+        "algorithm": "ssh-ed25519",
+        "namespace": "repository-harness-phase6-prompt",
+        "statement": {
+            "schema": "repository-harness-phase6-pre-candidate-prompt/v1",
+            "pilot_id": lane["pilot_id"],
+            "lane_id": lane["lane_id"],
+            "card_id": prompt["card_id"],
+            "canonical_repository": lane["canonical_repository"],
+            "prompt_artifact": prompt["artifact"],
+            "prompt_sha256": prompt["sha256"],
+            "authenticated_at": "2000-01-01T00:00:00Z",
+            "candidate_not_disclosed": True,
+        },
+        "signature": "synthetic-detached-signature",
+    }
+    validate_prompt_authentication_record(authentication, prompt, lane, result)
+    late = deepcopy(authentication)
+    late["statement"]["authenticated_at"] = "2000-01-01T00:00:02Z"
+    expect_rejection(
+        "post-candidate prompt authentication",
+        lambda: validate_prompt_authentication_record(late, prompt, lane, result),
+    )
+    substituted = deepcopy(authentication)
+    substituted["statement"]["prompt_sha256"] = "b" * 64
+    expect_rejection(
+        "authenticated prompt substitution",
+        lambda: validate_prompt_authentication_record(
+            substituted, prompt, lane, result
+        ),
+    )
+
+
+def self_test_candidate_bundle_binding() -> None:
+    with tempfile.TemporaryDirectory(prefix="phase6-candidate-subject-") as temporary:
+        root = Path(temporary)
+        source = root / "source"
+        packet = root / "packet"
+        source.mkdir()
+        packet.mkdir()
+        run(["git", "init", str(source)])
+        run(["git", "-C", str(source), "config", "user.name", "Phase 6 test"])
+        run(
+            [
+                "git", "-C", str(source), "config", "user.email",
+                "phase6@example.invalid",
+            ]
+        )
+        (source / "README.md").write_text("base\n", encoding="utf-8")
+        run(["git", "-C", str(source), "add", "README.md"])
+        run(["git", "-C", str(source), "commit", "-m", "base"])
+        base_revision = run(
+            ["git", "-C", str(source), "rev-parse", "HEAD^{commit}"]
+        ).decode("ascii").strip()
+        base_tree = run(
+            ["git", "-C", str(source), "rev-parse", "HEAD^{tree}"]
+        ).decode("ascii").strip()
+        capability = source / "docs/capabilities/native-check.md"
+        capability.parent.mkdir(parents=True)
+        capability.write_text("durable capability\n", encoding="utf-8")
+        run(["git", "-C", str(source), "add", capability.relative_to(source).as_posix()])
+        run(["git", "-C", str(source), "commit", "-m", "candidate"])
+        candidate_revision = run(
+            ["git", "-C", str(source), "rev-parse", "HEAD^{commit}"]
+        ).decode("ascii").strip()
+        candidate_tree = run(
+            ["git", "-C", str(source), "rev-parse", "HEAD^{tree}"]
+        ).decode("ascii").strip()
+        bundle = packet / "candidate.bundle"
+        run(["git", "-C", str(source), "bundle", "create", str(bundle), "HEAD"])
+
+        roles = {
+            "bin/core": "core-binary",
+            "payload/index.json": "evaluation-payload-index",
+            "templates/set.json": "template-set",
+            "candidate.bundle": "pilot-candidate-bundle",
+            "docs/capabilities/native-check.md": "capability-asset",
+        }
+        artifact_digests: dict[str, str] = {}
+        artifacts: list[dict[str, str]] = []
+        for path, role in roles.items():
+            member = packet.joinpath(*PurePosixPath(path).parts)
+            if path != "candidate.bundle":
+                member.parent.mkdir(parents=True, exist_ok=True)
+                member.write_text(f"synthetic {role}\n", encoding="utf-8")
+            digest = sha256_file(member)
+            artifact_digests[path] = digest
+            artifacts.append({"role": role, "path": path, "sha256": digest})
+        lane = {
+            "pilot_id": "synthetic-pilot",
+            "lane_id": "synthetic-cold-lane",
+            "lane": "cold-clone",
+            "starting_revision": base_revision,
+            "starting_tree": base_tree,
+        }
+        subject = {
+            "schema": "repository-harness-phase6-evaluation-subject/v1",
+            "pilot_id": lane["pilot_id"],
+            "lane_id": lane["lane_id"],
+            "kind": "candidate",
+            "base_revision": base_revision,
+            "base_tree": base_tree,
+            "source_revision": candidate_revision,
+            "source_tree": candidate_tree,
+            "artifacts": artifacts,
+            "capability_paths": ["docs/capabilities/native-check.md"],
+            "subject_identity_sha256": "",
+        }
+        subject["subject_identity_sha256"] = canonical_digest(
+            subject, "subject_identity_sha256"
+        )
+        validate_subject(subject, lane, artifact_digests, packet)
+
+        wrong_base = deepcopy(subject)
+        wrong_base["base_tree"] = "0" * 40
+        wrong_base["subject_identity_sha256"] = canonical_digest(
+            wrong_base, "subject_identity_sha256"
+        )
+        expect_rejection(
+            "candidate lane base-tree drift",
+            lambda: validate_subject(wrong_base, lane, artifact_digests, packet),
+        )
+        wrong_tree = deepcopy(subject)
+        wrong_tree["source_tree"] = base_tree
+        wrong_tree["subject_identity_sha256"] = canonical_digest(
+            wrong_tree, "subject_identity_sha256"
+        )
+        expect_rejection(
+            "candidate bundle tree mismatch",
+            lambda: validate_subject(wrong_tree, lane, artifact_digests, packet),
+        )
+        missing_capability = deepcopy(subject)
+        missing_path = "docs/capabilities/missing-check.md"
+        missing_member = packet / missing_path
+        missing_member.parent.mkdir(parents=True, exist_ok=True)
+        missing_member.write_text("packet-only claim\n", encoding="utf-8")
+        missing_digest = sha256_file(missing_member)
+        missing_digests = dict(artifact_digests)
+        missing_digests[missing_path] = missing_digest
+        for artifact in missing_capability["artifacts"]:
+            if artifact["role"] == "capability-asset":
+                artifact["path"] = missing_path
+                artifact["sha256"] = missing_digest
+        missing_capability["capability_paths"] = [missing_path]
+        missing_capability["subject_identity_sha256"] = canonical_digest(
+            missing_capability, "subject_identity_sha256"
+        )
+        expect_rejection(
+            "candidate capability absent from resolved tree",
+            lambda: validate_subject(
+                missing_capability, lane, missing_digests, packet
             ),
         )
 
@@ -881,6 +1504,9 @@ def main() -> int:
         lock: dict[str, Any] = {}
         proof("closed schemas and exact Phase 5 baseline lock", lambda: lock.update(validate_baseline_lock()))
         proof("Phase 5 worktree immutability", lambda: verify_phase5_immutability(lock))
+        proof("duplicate-key rejection for every JSON load", self_test_duplicate_json_keys)
+        proof("authenticated pre-candidate prompt binding", self_test_pre_candidate_prompt_binding)
+        proof("digest-bound candidate bundle and capability paths", self_test_candidate_bundle_binding)
         proof("cold/warm, identity, totals, regression, and raw-state negatives", self_test_contracts)
         proof("owned-file and release boundary", validate_release_boundary)
         proof("no raw V0 database or archive in Phase 6 custody", scan_no_raw_state)

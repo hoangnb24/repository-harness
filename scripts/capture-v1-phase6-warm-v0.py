@@ -29,6 +29,7 @@ UTC = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
 IDENTITY = re.compile(r"^[a-z][a-z0-9-]{2,127}$")
 REPOSITORY = re.compile(r"^https://[A-Za-z0-9.-]+/[A-Za-z0-9._/-]+[.]git$")
 ALLOWED_CLI_PATHS = {"scripts/bin/harness-cli", "scripts/bin/harness-cli.exe"}
+O_NOFOLLOW = getattr(os, "O_NOFOLLOW", None)
 
 
 class CaptureError(RuntimeError):
@@ -103,12 +104,14 @@ def git(source: Path, *arguments: str) -> str:
 
 
 def open_beneath(root_fd: int, value: str) -> int:
+    if O_NOFOLLOW is None:
+        fail("capture platform lacks mandatory O_NOFOLLOW support")
     path = relative_path(value)
     current = os.dup(root_fd)
     try:
         for index, component in enumerate(path.parts):
             final = index == len(path.parts) - 1
-            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            flags = os.O_RDONLY | O_NOFOLLOW
             if not final:
                 flags |= getattr(os, "O_DIRECTORY", 0)
             next_fd = os.open(component, flags, dir_fd=current)
@@ -121,6 +124,202 @@ def open_beneath(root_fd: int, value: str) -> int:
     except Exception:
         os.close(current)
         raise
+
+
+def directory_token(info: os.stat_result) -> tuple[int, int, int, int]:
+    return (info.st_dev, info.st_ino, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def member_token(info: os.stat_result) -> tuple[int, int, int, int, int, int]:
+    return (
+        info.st_dev,
+        info.st_ino,
+        info.st_mode,
+        info.st_size,
+        info.st_mtime_ns,
+        info.st_ctime_ns,
+    )
+
+
+def stat_at(parent_fd: int, name: str) -> os.stat_result | None:
+    try:
+        return os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return None
+
+
+def open_directory_at(parent_fd: int, name: str, label: str) -> int | None:
+    if O_NOFOLLOW is None:
+        fail("capture platform lacks mandatory O_NOFOLLOW support")
+    before = stat_at(parent_fd, name)
+    if before is None:
+        return None
+    if not stat.S_ISDIR(before.st_mode):
+        fail(f"{label} is not a real directory")
+    try:
+        descriptor = os.open(
+            name, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | O_NOFOLLOW,
+            dir_fd=parent_fd,
+        )
+    except OSError as error:
+        fail(f"{label} could not be opened safely: {error.strerror}")
+    after = os.fstat(descriptor)
+    if after.st_dev != before.st_dev or after.st_ino != before.st_ino:
+        os.close(descriptor)
+        fail(f"{label} changed while it was opened")
+    return descriptor
+
+
+def scan_changesets(
+    descriptor: int,
+    prefix: str,
+    records: list[tuple[str, str]],
+    members: dict[str, tuple[int, int, int, int, int, int]],
+    directories: dict[str, tuple[int, int, int, int]],
+) -> None:
+    try:
+        names = sorted(os.listdir(descriptor))
+    except OSError as error:
+        fail(f"recognized changeset root could not be listed: {error.strerror}")
+    for name in names:
+        if name in {"", ".", ".."} or "/" in name:
+            fail("recognized changeset root contains an unsupported member")
+        path = f"{prefix}/{name}"
+        info = stat_at(descriptor, name)
+        if info is None:
+            fail("recognized changeset root changed while it was scanned")
+        if stat.S_ISDIR(info.st_mode):
+            child = open_directory_at(
+                descriptor, name, "recognized changeset directory"
+            )
+            if child is None:
+                fail("recognized changeset directory disappeared")
+            try:
+                directories[path] = directory_token(os.fstat(child))
+                scan_changesets(child, path, records, members, directories)
+            finally:
+                os.close(child)
+            continue
+        if not stat.S_ISREG(info.st_mode) or not name.endswith(".jsonl"):
+            fail("recognized changeset root contains an unsupported member")
+        records.append(("changeset", path))
+        members[path] = member_token(info)
+
+
+def discover(
+    root_fd: int, cli_path: str
+) -> tuple[
+    list[tuple[str, str]],
+    dict[str, tuple[int, int, int, int, int, int]],
+    dict[str, tuple[int, int, int, int]],
+]:
+    records: list[tuple[str, str]] = []
+    members: dict[str, tuple[int, int, int, int, int, int]] = {}
+    directories = {"": directory_token(os.fstat(root_fd))}
+
+    for category, value, optional in [
+        ("database", "harness.db", False),
+        ("wal", "harness.db-wal", True),
+        ("shm", "harness.db-shm", True),
+        ("v0-cli", cli_path, False),
+    ]:
+        path = relative_path(value)
+        parent = os.dup(root_fd)
+        try:
+            for component in path.parts[:-1]:
+                child = open_directory_at(parent, component, f"capture parent {value}")
+                if child is None:
+                    if optional:
+                        parent = -1
+                        break
+                    fail(f"required capture parent is missing: {value}")
+                os.close(parent)
+                parent = child
+            if parent == -1:
+                continue
+            info = stat_at(parent, path.parts[-1])
+            if info is None:
+                if optional:
+                    continue
+                fail(f"required capture member is missing: {value}")
+            if not stat.S_ISREG(info.st_mode):
+                fail(f"capture input is not a regular file: {value}")
+            records.append((category, value))
+            members[value] = member_token(info)
+        finally:
+            if parent >= 0:
+                os.close(parent)
+
+    harness = open_directory_at(root_fd, ".harness", "recognized harness root")
+    if harness is not None:
+        try:
+            directories[".harness"] = directory_token(os.fstat(harness))
+            provenance = stat_at(harness, "v0-provenance.json")
+            if provenance is not None:
+                if not stat.S_ISREG(provenance.st_mode):
+                    fail("recognized provenance is not a regular file")
+                value = ".harness/v0-provenance.json"
+                records.append(("provenance", value))
+                members[value] = member_token(provenance)
+            changesets = open_directory_at(
+                harness, "changesets", "recognized changeset root"
+            )
+            if changesets is not None:
+                try:
+                    directories[".harness/changesets"] = directory_token(
+                        os.fstat(changesets)
+                    )
+                    scan_changesets(
+                        changesets,
+                        ".harness/changesets",
+                        records,
+                        members,
+                        directories,
+                    )
+                finally:
+                    os.close(changesets)
+        finally:
+            os.close(harness)
+    records.sort(key=lambda item: (item[0], item[1]))
+    return records, members, directories
+
+
+def require_same_namespace(
+    expected: tuple[
+        list[tuple[str, str]],
+        dict[str, tuple[int, int, int, int, int, int]],
+        dict[str, tuple[int, int, int, int]],
+    ],
+    actual: tuple[
+        list[tuple[str, str]],
+        dict[str, tuple[int, int, int, int, int, int]],
+        dict[str, tuple[int, int, int, int]],
+    ],
+    stage: str,
+) -> None:
+    if actual[0] != expected[0] or actual[1] != expected[1]:
+        fail(f"live source namespace changed {stage}")
+    if actual[2] != expected[2]:
+        fail(f"live source directory token changed {stage}")
+
+
+def deterministic_test_hook() -> None:
+    ready_value = os.environ.get("HARNESS_PHASE6_CAPTURE_TEST_READY_FD")
+    continue_value = os.environ.get("HARNESS_PHASE6_CAPTURE_TEST_CONTINUE_FD")
+    if ready_value is None and continue_value is None:
+        return
+    if ready_value is None or continue_value is None:
+        fail("capture test hook requires both inherited descriptors")
+    try:
+        ready_fd = int(ready_value)
+        continue_fd = int(continue_value)
+        if ready_fd < 3 or continue_fd < 3:
+            raise ValueError
+        os.write(ready_fd, b"1")
+        if os.read(continue_fd, 1) != b"1":
+            fail("capture test hook continuation was not acknowledged")
+    except (OSError, ValueError) as error:
+        raise CaptureError("capture test hook descriptors are invalid") from error
 
 
 def copy_from_fd(fd: int, destination: Path) -> None:
@@ -139,29 +338,6 @@ def copy_from_fd(fd: int, destination: Path) -> None:
         os.close(output)
 
 
-def discover(source: Path, cli_path: str) -> list[tuple[str, str]]:
-    records: list[tuple[str, str]] = [("database", "harness.db"), ("v0-cli", cli_path)]
-    for category, value in [("wal", "harness.db-wal"), ("shm", "harness.db-shm")]:
-        if (source / value).exists():
-            records.append((category, value))
-    changesets = source / ".harness" / "changesets"
-    if changesets.exists():
-        if changesets.is_symlink() or not changesets.is_dir():
-            fail("recognized changeset root is not a real directory")
-        for path in sorted(changesets.rglob("*")):
-            if path.is_symlink():
-                fail("recognized changeset root contains an unsupported member")
-            if path.is_dir():
-                continue
-            if path.suffix != ".jsonl":
-                fail("recognized changeset root contains an unsupported member")
-            records.append(("changeset", path.relative_to(source).as_posix()))
-    provenance = source / ".harness" / "v0-provenance.json"
-    if provenance.exists():
-        records.append(("provenance", ".harness/v0-provenance.json"))
-    return records
-
-
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
@@ -177,6 +353,8 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def capture(arguments: argparse.Namespace) -> dict[str, Any]:
+    if O_NOFOLLOW is None:
+        fail("capture platform lacks mandatory O_NOFOLLOW support")
     source_input = Path(arguments.source_root)
     destination = Path(arguments.destination_root)
     if not source_input.is_absolute() or not destination.is_absolute():
@@ -223,17 +401,30 @@ def capture(arguments: argparse.Namespace) -> dict[str, Any]:
         source,
         os.O_RDONLY
         | getattr(os, "O_DIRECTORY", 0)
-        | getattr(os, "O_NOFOLLOW", 0),
+        | O_NOFOLLOW,
     )
     root_identity = os.fstat(root_fd)
+    initial_namespace = discover(root_fd, arguments.cli_path)
     handles: list[tuple[str, str, int, os.stat_result, str]] = []
     artifacts: list[dict[str, Any]] = []
     try:
-        for category, value in discover(source, arguments.cli_path):
+        for category, value in initial_namespace[0]:
             fd = open_beneath(root_fd, value)
             before = os.fstat(fd)
+            expected_token = initial_namespace[1][value]
+            if member_token(before) != expected_token:
+                fail(f"live source changed while opening capture member: {value}")
             before_sha256 = sha256_fd(fd)
             handles.append((category, value, fd, before, before_sha256))
+
+        require_same_namespace(
+            initial_namespace,
+            discover(root_fd, arguments.cli_path),
+            "during descriptor acquisition",
+        )
+        deterministic_test_hook()
+
+        for category, value, fd, before, before_sha256 in handles:
             target = raw / value
             copy_from_fd(fd, target)
             if sha256_file(target) != before_sha256:
@@ -268,6 +459,11 @@ def capture(arguments: argparse.Namespace) -> dict[str, Any]:
             source_connection.close()
         os.chmod(standalone, 0o600)
 
+        require_same_namespace(
+            initial_namespace,
+            discover(root_fd, arguments.cli_path),
+            "during capture",
+        )
         for _, value, fd, before, before_sha256 in handles:
             after = os.fstat(fd)
             if (

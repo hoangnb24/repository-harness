@@ -20,7 +20,7 @@
     "enabled_tools": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
     "permissions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
     "evaluator_id": {"type": "string", "minLength": 1},
-    "prompts": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "artifact", "sha256"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
+    "prompts": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "artifact", "sha256", "authentication_artifact", "authentication_sha256"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "authentication_artifact": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}, "authentication_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
     "acceptance_commands": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "argv"], "properties": {"card_id": {"type": "string", "pattern": "^P[0-7]$"}, "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}}},
     "time_limits": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["card_id", "seconds"], "properties": {"card_id": {"enum": ["P3", "P6"]}, "seconds": {"const": 300}}}},
     "condition_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
