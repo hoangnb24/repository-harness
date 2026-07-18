@@ -36,7 +36,8 @@ that owns it. Do not require a plan solely for an external tool.
 3. Validation planning.
 4. Implementation.
 5. Verification.
-6. Harness update.
+6. Target-owned capability update; include a Harness update only when the
+   target actually uses Harness.
 
 ## Resume Capsule
 

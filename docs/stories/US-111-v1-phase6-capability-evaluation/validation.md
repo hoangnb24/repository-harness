@@ -1,7 +1,7 @@
 # US-111 V1 Phase 6 Capability Evaluation Validation
 
-Status: **Framework validation pending completion; live P0-P7 validation and
-Phase 6 acceptance not started**
+Status: **Framework correction validated; live P0-P7 validation and Phase 6
+acceptance not started**
 
 ## Proof Strategy
 
@@ -14,7 +14,9 @@ The proof ladder stops on the first failure:
 
 1. Parse every changed JSON and JSONL record.
 2. Run repository documentation and whitespace/diff checks.
-3. Confirm required Decision 0015 custody/trust/identity/phase boundaries.
+3. Confirm required Decision 0015 custody/trust/identity/phase boundaries,
+   including immutable warm masters, fresh paired derivatives, immediate
+   pre-run verification, and evidence digest binding.
 4. Confirm portable-template neutrality and target ownership.
 5. Compare Phase 5 and US-110 bytes with exact starting commit `5d6e6bc`.
 6. Confirm the changed-file set is a subset of the user-owned paths.
@@ -27,8 +29,8 @@ The proof ladder stops on the first failure:
 | --- | --- |
 | JSON | `path-dispositions.json` parses; each changeset line parses; headers and operations have expected versions. |
 | Documentation | Required headings/links exist; template tables are structurally complete; no trailing whitespace. |
-| Custody contract | Both lanes, pre-candidate capture, no live DB mutation, sensitive-byte exclusions, identity split, external signing, and Phase 7/8 closure are explicit. |
-| Portability | Portable templates contain no pilot names, languages, package managers, evaluator instructions, or mandatory Harness ordinary-work command. |
+| Custody contract | Both lanes, pre-candidate capture, no live DB mutation, sealed raw-trio/standalone-master custody, fresh baseline/candidate derivatives from that same master, immediate pre-run identity verification, recovery-staging exclusion, digest binding, external signing, and Phase 7/8 closure are explicit. |
+| Portability | Portable templates contain no pilot names, languages, package managers, or evaluator instructions; existing V0 Harness guidance is conditional and ordinary targets use target-owned proof/capability routes. |
 | Preservation | Phase 5 files and every US-110 file match the starting commit byte-for-byte. |
 | Durable replay | Intake UID `ink_e77c86ec00d11c619c8f9ffd282188b8` and US-111 replay into the isolated DB without touching live state. |
 | Scope | No evaluator scripts/schemas, Rust, pilot/private evidence, keys, workflows, releases, or tags change. |
@@ -40,6 +42,20 @@ intervention totals, negative-condition report, and comparable baseline/
 candidate report under Decision 0015. Each result must bind one externally
 authenticated condition identity and an exact subject identity. Required
 negative conditions fail the candidate; a prose explanation cannot waive them.
+
+For every applicable warm pair, acceptance also requires:
+
+1. The validated captured DB/WAL/SHM trio and standalone logical master are
+   sealed immutable before either run.
+2. Recovery-mutated staged files are excluded from condition-master and
+   derivative custody.
+3. Baseline and candidate use separate fresh derivatives created directly from
+   the same sealed standalone master, never from one another.
+4. Master and derivative identity/size/digests are verified immediately before
+   each run.
+5. Condition evidence binds the raw-trio/master/derivation digests, and subject
+   evidence binds the derivative identity/digest and pre-run verification
+   receipt.
 
 At minimum:
 
@@ -73,7 +89,7 @@ root `harness.db`.
 
 ## Acceptance Evidence
 
-Framework checks passed on 2026-07-18:
+Initial framework checks passed on 2026-07-18:
 
 - The live documentation truth/link/authority contract passed.
 - `path-dispositions.json` parsed, contained unique paths, and classified
@@ -96,6 +112,27 @@ Framework checks passed on 2026-07-18:
 These results accept only the documentation/capability framework. Live
 candidate evidence remains pending external authorization/custody and is not
 part of this slice.
+
+Independent review then found that the warm lane did not yet close
+condition-master derivation and that retained V0 Harness template guidance was
+not explicitly conditional. The follow-up correction checks passed:
+
+- Decision 0015 and US-111 now require the validated raw trio and standalone
+  master to be sealed immutable, exclude recovery-mutated staging from master
+  custody, create separate fresh baseline/candidate derivatives from the same
+  master, and verify master plus derivative identity immediately before each
+  run.
+- Condition evidence binds raw-trio/master/derivation digests; subject evidence
+  binds derivative identity/digest and the immediate pre-run verification
+  receipt.
+- `story.md` retains its headings, numeric example, and proof table while making
+  the V0 durable-layer command and Harness Delta conditional. The high-risk
+  exec plan retains its phases while routing the final phase to target-owned
+  capability updates and Harness only when the target uses it.
+- Documentation, JSON/JSONL, `git diff --check`, exact seven-file scope, and
+  Phase 5/US-110 byte-preservation checks passed against the reviewed commit.
+
+This correction still supplies no live candidate card or Phase 6 acceptance.
 
 ## Gaps And Blockers
 

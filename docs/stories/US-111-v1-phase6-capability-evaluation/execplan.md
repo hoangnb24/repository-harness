@@ -42,6 +42,9 @@ Risk flags:
 Hard gates:
 
 - Never mutate live V0 state or commit raw DB/archive/key material.
+- Never use recovery-mutated staging as the warm condition master; seal the
+  validated raw trio/standalone master and derive fresh baseline and candidate
+  copies from that same master.
 - Never let candidate-controlled bytes self-authorize evidence.
 - Never claim a live card or later phase from documentation proof.
 
@@ -50,8 +53,11 @@ Hard gates:
 1. Read authority, high-risk templates, Phase 5 evidence, and trust/capture
    decisions.
 2. Bootstrap/query only the approved isolated planning database.
-3. Freeze Decision 0015 and the US-111 framework contract.
-4. Make portable templates neutral and target-owned.
+3. Freeze Decision 0015 and the US-111 framework contract, including immutable
+   warm-master custody, fresh paired derivatives, immediate pre-run identity
+   verification, and condition/subject digest binding.
+4. Make portable templates neutral and target-owned while preserving existing
+   V0 Harness fields as conditional guidance only.
 5. Update only the approved phase-status surfaces and path ledger.
 6. Create/rebuild changesets when the isolated CLI supports it.
 7. Parse JSON, run docs/diff checks, scan neutrality, verify owned scope, and
@@ -60,23 +66,26 @@ Hard gates:
 
 ## Resume Capsule
 
-- Objective: complete the Phase 6 authority/docs/portable-capability slice.
-- Completed: authority read; isolated bootstrap/query complete; Intake #8 UID
-  supplied; template and story framework drafted.
-- Remaining: phase-status updates, changesets, validation, and commits.
-- Exact next action: update `docs/REFACTOR_PLAN.md` Phase 6 status to
-  in-progress/framework complete/live cards pending without changing its
-  acceptance rule.
+- Objective: correct the Phase 6 authority/docs framework after independent
+  review without rewriting reviewed commit `88a7a36`.
+- Completed: original framework committed; independent review identified warm-
+  master custody and legacy-template conditionality gaps.
+- Remaining: apply the bounded corrections, validate preservation, and create a
+  separate follow-up commit.
+- Exact next action: verify Decision 0015 requires a sealed validated raw trio
+  and standalone master, fresh baseline/candidate derivatives from that master,
+  and immediate pre-run master/derivative identity checks.
 - Validation ladder: parse owned JSON/JSONL; run documentation contract and
   `git diff --check`; scan template neutrality and required phrases; compare
   US-110 and Phase 5 hashes; inspect exact changed-file scope; rebuild/query the
   isolated changesets.
-- Decisions and assumptions: Decision 0015; user-supplied Intake #8 and owned
-  file list are authoritative.
+- Decisions and assumptions: corrected Decision 0015; Intake #8 and the
+  independent review findings are authoritative.
 - Blockers and owners: live candidate custody, trust, signatures, runs, and
   results remain with external repository owners/custodians.
-- Working state: exact starting commit `5d6e6bc516cd60e47c60ae3b516363cd99b433a5`;
-  no Phase 5 or US-110 edits permitted.
+- Working state: correction starts from reviewed commit
+  `88a7a364fc92c73ecfe9a76072e1df09c5bd9b82`; Phase 5 and US-110 must still
+  match `5d6e6bc516cd60e47c60ae3b516363cd99b433a5` byte-for-byte.
 
 ## Stop Conditions
 
@@ -84,6 +93,8 @@ Stop and request explicit authority if:
 
 - A live pilot, snapshot, raw database, archive, trust registry, or key must be
   accessed or changed.
+- A comparable warm run cannot create two fresh derivatives from one sealed,
+  reverified standalone master or cannot bind their identities into evidence.
 - A Phase 5 or US-110 byte would change.
 - A production workflow, release, tag, publish, or push becomes necessary.
 - A template would need a pilot, language, package manager, evaluator hint, or

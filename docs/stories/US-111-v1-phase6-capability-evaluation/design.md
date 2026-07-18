@@ -10,13 +10,28 @@ an authenticated repository bundle and selected candidate subject. The latter
 admits a pre-candidate private copy of required V0 runtime members under
 Decision 0015; it never admits a live database path.
 
+`WarmConditionMaster` binds the validated raw DB/WAL/SHM capture manifest and
+the standalone logical snapshot produced from a disposable recovery copy. The
+raw trio and standalone snapshot are sealed immutable after validation.
+Recovery-mutated staged files are construction intermediates and cannot become
+the master or a run input.
+
+`RunDerivative` is a fresh baseline or candidate copy created directly from the
+same sealed standalone master. Baseline and candidate derivatives have distinct
+custody IDs, cannot derive from one another, and must have the expected equal
+pre-subject content digest. Master and derivative identities are reverified
+immediately before each run.
+
 `ConditionIdentity` binds the fixed card, repository starting state, custody
-manifest, fixtures, environment, tools, permissions, checks, and external
-trust scope. It intentionally omits candidate bytes and results.
+manifest, sealed raw-trio and standalone-master digests when warm, derivation
+procedure and expected derivative digest, fixtures, environment, tools,
+permissions, checks, and external trust scope. It intentionally omits candidate
+bytes and results.
 
 `SubjectIdentity` binds the exact baseline or candidate tree/capability bytes
-evaluated under one condition. A comparable pair therefore has equal condition
-identity and unequal subject identity.
+evaluated under one condition plus its run-derivative custody ID/digest and
+immediate pre-run verification receipt. A comparable pair therefore has equal
+condition identity and unequal subject identity.
 
 `AgentMap` contains bounded routes for planning, architecture, validation,
 feedback, and maintenance. Each route has a first target-owned source, a
@@ -40,8 +55,9 @@ runner, allowed-change policy, validation, and second-run convergence.
 Framework flow in this slice:
 
 1. Freeze Decision 0015 before any Phase 6 candidate evidence is created.
-2. Replace operational V0 instructions in portable templates with neutral
-   target-owned prompts.
+2. Make existing V0 Harness instructions explicitly conditional on a target
+   actually using that durable layer, and add neutral target-owned proof and
+   capability routes for ordinary targets.
 3. Add the agent map and record its explicitly selected `optional-v1`
    disposition; do not claim authenticated payload inclusion.
 4. Mark US-105 and phase summaries as Phase 6 in progress with framework
@@ -53,12 +69,20 @@ Future authorized live-card flow:
 
 1. External custody selects the card's declared lane and authenticates the
    condition before candidate disclosure.
-2. The candidate subject is introduced into only that private root.
-3. The agent follows target-owned map routes and the fixed card; interventions
+2. For a warm lane, recovery uses a disposable staged pair to create the
+   standalone master; the validated raw trio and standalone master are sealed
+   immutable, and the staging pair is never promoted to master custody.
+3. The custodian creates separate fresh baseline and candidate derivatives from
+   the same sealed master, then reverifies master and derivative identity
+   immediately before each run.
+4. The baseline or candidate subject is introduced into only its own derivative.
+5. The agent follows target-owned map routes and the fixed card; interventions
    are recorded under the Phase 5 taxonomy.
-4. Target-owned acceptance and negative checks run under the validation ladder.
-5. External signing binds condition, subject, evidence, times, and custody.
-6. Comparison rejects condition drift, subject mismatch, hidden correction,
+6. Target-owned acceptance and negative checks run under the validation ladder.
+7. External signing binds condition, sealed-master and derivative digests,
+   subject, evidence, times, and custody.
+8. Comparison rejects master/derivative drift, condition drift, subject
+   mismatch, hidden correction,
    functional regression, or failed negative conditions.
 
 ## Interface Contract
@@ -79,16 +103,24 @@ fingerprints, signed envelopes, and external custody references. Raw databases,
 WAL/SHM, archives, decrypted members, private keys, recipient identities,
 credentials, and external trust registries remain untracked and external.
 
+Warm custody seals the raw trio and standalone logical master after validation.
+Separate fresh derivatives are created from that same master for baseline and
+candidate runs. Evidence binds raw-trio/master digests to the condition and
+binds derivative identity/digest plus the immediate pre-run verification
+receipt to the subject. Recovery-mutated staged DB/WAL files cannot serve as a
+condition master or derivative source.
+
 No live database mutation occurs. The isolated V0 planning database used to
 record this repository task is not a pilot input and is never copied into a
 portable template or candidate condition.
 
 ## Portability
 
-The templates name no pilot, language, package manager, model, evaluator,
-default architecture, or mandatory Harness command. They permit any
-target-native check or feedback surface and explicitly record unavailable
-surfaces instead of fabricating one.
+The templates name no pilot, language, package manager, model, evaluator, or
+default architecture. Existing V0 Harness guidance remains for compatible
+targets but is explicitly conditional and never mandatory for an ordinary
+target. Other targets use their own proof and capability routes, and explicitly
+record unavailable feedback surfaces instead of fabricating one.
 
 For example, one target may route validation to a single documentation link
 check, while another routes to several target-owned checks. Both use the same
@@ -105,8 +137,10 @@ evidence.
 
 1. Put capability routes only in `AGENTS.md`. Rejected because a reusable map
    needs a neutral scaffold and brownfield targets may map the role elsewhere.
-2. Keep the V0 CLI commands in portable stories. Rejected because V1 ordinary
-   work has no mandatory Harness operation or task database.
+2. Keep V0 CLI and Harness-delta guidance unconditional. Rejected because V1
+   ordinary work has no mandatory Harness operation or task database. The
+   existing fields remain backward-compatible but apply only when the target
+   actually uses that V0 durable layer or selects a Harness delta.
 3. Make repeated corrections evaluator-owned. Rejected because the capability
    must be discoverable and maintainable by the target after evaluation ends.
 4. Treat a filled template as Phase 6 proof. Rejected because template presence

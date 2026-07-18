@@ -42,8 +42,12 @@ Do not create a plan solely to satisfy an external tool.
 
 ## Validation
 
-When updating durable proof status, use numeric booleans:
+When the target actually uses the V0 Harness durable layer, update its durable
+proof status with numeric booleans:
 `scripts/bin/harness-cli story update --id <id> --unit 1 --integration 1 --e2e 0 --platform 0`.
+
+Otherwise, do not require that command or durable layer. Use the target's own
+proof route and record its evidence in the table below.
 
 | Layer | Expected proof |
 | --- | --- |
@@ -66,7 +70,12 @@ Run the smallest relevant target-owned check first and stop on failure.
 
 ## Harness Delta
 
-Document any harness updates made or proposed because of this story.
+This section is optional and conditional. Complete it only when the target uses
+Harness or explicitly selects a Harness change; otherwise write `Not
+applicable` and use the target-owned capability section below.
+
+When applicable, document any harness updates made or proposed because of this
+story.
 
 ## Target-Owned Capability Contracts
 

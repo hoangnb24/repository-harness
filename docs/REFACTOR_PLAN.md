@@ -497,8 +497,9 @@ Ed25519 keys: `harness-benchmark-phase5-pilot` resolves
 The recorded outcomes are honest pre-candidate measurements, not Phase 6
 acceptance. Benchmark P1 is inapplicable and benchmark P6 failed; e-inna P0,
 P1, P3, and P6 failed. Those outcomes do not block Phase 5 because this phase
-freezes authenticated baselines before candidate evaluation. Phase 6 has not
-started and will evaluate candidate improvements against these measurements.
+freezes authenticated baselines before candidate evaluation. Phase 6 is in
+progress at the authority/template framework; live candidate cards and
+acceptance remain pending against these measurements.
 
 ### Phase 6: Capability Evaluation
 

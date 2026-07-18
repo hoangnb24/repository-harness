@@ -52,14 +52,52 @@ runtime evidence:
    working state and required raw DB, WAL, SHM, recognized changesets, and
    provenance through pinned no-follow handles with equal pre/copy/post
    identity, size, and SHA-256.
-3. Raw runtime bytes move only into a new private, access-controlled evaluation
-   root. SQLite may open only the private staged DB+WAL; SHM stays forensic.
-4. The live source remains byte-for-byte unchanged. A source identity change,
+3. Raw runtime bytes move only into new private, access-controlled capture
+   custody. SQLite recovery opens only a disposable copy of the captured
+   DB+WAL; SHM stays forensic. Recovery produces and validates a standalone
+   logical snapshot.
+4. After validation, the captured raw DB/WAL/SHM trio and standalone logical
+   snapshot are sealed immutable with exact identities, sizes, and SHA-256.
+5. The live source remains byte-for-byte unchanged. A source identity change,
    active writer, missing required member, or mixed-time capture invalidates
    the condition before candidate execution.
 
 The lanes never merge. A cold clone cannot quietly inherit ignored V0 state,
 and a warm copy cannot be described as a clean clone.
+
+### Sealed warm master and fresh run derivatives
+
+The validated raw captured trio and standalone logical snapshot form the sealed
+warm condition-master custody. The raw trio remains forensic/recovery authority;
+the standalone snapshot is the only logical source from which run derivatives
+may be created. Both are made immutable after validation and before either
+baseline or candidate work begins.
+
+Recovery-mutated staged DB/WAL files are disposable construction intermediates.
+They must never become the condition master, a baseline derivative, or a
+candidate derivative. Cause and effect: SQLite may checkpoint or otherwise
+change a staged recovery pair, so reusing that pair would make its mutation
+history—not the authenticated capture—the starting condition.
+
+The custodian creates two separate, fresh derivatives from the same sealed
+standalone master: one for the baseline run and one for the candidate run.
+Neither derivative may be cloned from the other, reused across attempts, or
+promoted back into master custody. Immediately before each run (baseline and
+candidate), the custodian must:
+
+1. Reverify the sealed raw-trio manifest and standalone-master identity, size,
+   and SHA-256 against their authenticated seal receipt.
+2. Create a fresh derivative using the fixed derivation procedure.
+3. Verify the derivative's unique custody identity, parent-master digest, size,
+   and pre-subject SHA-256 immediately before introducing baseline or candidate
+   subject bytes.
+4. Fail closed on any master drift, derivative mismatch, missing member, prior
+   run residue, or inability to prove the derivative came directly from the
+   sealed standalone master.
+
+Baseline and candidate derivatives have distinct custody identities but the
+same expected pre-subject content digest. A retry creates new derivatives for
+both sides when comparability requires a rerun.
 
 ### Live-state and repository prohibitions
 
@@ -77,9 +115,11 @@ identity; it is not permission to publish the underlying sensitive bytes.
 ### Pre-candidate capture
 
 The condition manifest, target bundle/revision, fixtures, environment lock,
-custody lane, and—when warm—raw-member inventory/digests are captured and
-externally authenticated before candidate bytes or results are disclosed to
-the run custodian. Candidate authors cannot backfill or replace that capture.
+custody lane, and—when warm—raw-member inventory/digests, standalone-master
+digest, immutable seal receipt, derivation procedure, and expected derivative
+base digest are captured and externally authenticated before candidate bytes
+or results are disclosed to the run custodian. Candidate authors cannot
+backfill or replace that capture.
 
 If a condition must change after disclosure, the run is not repaired in place.
 The custodian creates a new condition identity, reruns the comparable baseline
@@ -95,6 +135,9 @@ baseline/candidate pair. It binds at least:
 - canonical repository and immutable starting revision or comparable-revision
   finding;
 - custody lane and pre-candidate capture manifest digest;
+- for `warm-v0-copy`, the sealed raw-trio manifest/digests, sealed standalone-
+  master identity/digest, derivation procedure, and expected pre-subject
+  derivative digest;
 - fixtures, locked acceptance checks, environment, tools, permissions, and
   intervention taxonomy;
 - external custodian/trust scope and publication-before-disclosure record.
@@ -105,8 +148,10 @@ bytes intentionally under test.
 `subject_identity` names the exact thing evaluated under those conditions. It
 binds the subject kind (`pre-candidate-baseline` or `phase6-candidate`), exact
 repository tree or capability-bundle digest, template/release identity when
-applicable, and subject publication identity. Baseline and candidate therefore
-have different subject identities while sharing one condition identity.
+applicable, run-derivative custody identity and pre-subject digest, immediate
+pre-run master/derivative verification receipt, and subject publication
+identity. Baseline and candidate therefore have different subject identities
+while sharing one condition identity.
 
 A result is admissible only when its condition identity matches the fixed card
 and its subject identity resolves to the exact bytes that produced the
@@ -123,8 +168,9 @@ Phase 5's external trust boundary continues:
 - The tracked repository cannot self-authorize a pilot, custodian, signer,
   subject, or result.
 - Offline signatures bind condition identity, subject identity, custody lane,
-  evidence manifest digest, canonical repository, starting revision,
-  completion time, and publication identity.
+  sealed master and raw-trio digests when warm, run-derivative identity/digest,
+  immediate pre-run verification receipt, evidence manifest digest, canonical
+  repository, starting revision, completion time, and publication identity.
 - Signing private keys and archive decryption identities remain external.
 - Test keys may be generated only in disposable fixtures and cannot authorize
   live evidence or appear in a production trust bundle.
@@ -161,10 +207,16 @@ asset-retention, and separate authorization/validation conditions pass.
 1. A committed row exists only in the live V0 WAL.
 2. The owner quiesces writers; the custodian captures DB+WAL+SHM before
    candidate disclosure and records equal pre/copy/post identities and hashes.
-3. Recovery opens only the private DB+WAL copy, so the committed row is visible
-   without writing the live database.
-4. The candidate operates on the private copy; Git receives only the signed
-   manifest and digests, never the raw database or archive.
+3. Recovery opens only a disposable private DB+WAL copy and produces a
+   standalone snapshot containing the row; the recovery-mutated pair is
+   discarded as a master candidate.
+4. The raw trio and standalone master are validated, digest-bound, and sealed
+   immutable.
+5. Separate fresh baseline and candidate derivatives are created directly from
+   that same master; master and derivative digests are reverified immediately
+   before each run.
+6. Git receives only signed manifests, seal/derivation receipts, and digests,
+   never the raw database, derivative, or archive.
 
 ### Identity split
 
@@ -190,13 +242,19 @@ asset-retention, and separate authorization/validation conditions pass.
    would lose ignored DB/WAL state and could falsely become inapplicable.
 2. Run warm cards in the live repository. Rejected because evaluation or
    SQLite recovery could mutate owner state and contaminate later runs.
-3. Store raw DB/archive bytes in Git for reproducibility. Rejected because
+3. Reuse the SQLite recovery staging pair as the condition master. Rejected
+   because recovery may mutate those files, making the two runs depend on
+   recovery history rather than one sealed authenticated master.
+4. Derive the candidate copy from the completed baseline copy. Rejected because
+   baseline residue would enter the candidate condition and destroy
+   independence.
+5. Store raw DB/archive bytes in Git for reproducibility. Rejected because
    recovery evidence can contain sensitive operational history and credentials;
    externally retained custody plus authenticated digests is sufficient.
-4. Use one run identity for conditions and candidate. Rejected because it
+6. Use one run identity for conditions and candidate. Rejected because it
    cannot express equal conditions with different subjects or force a rerun
    when conditions change.
-5. Let the candidate repository carry its trust registry or signer. Rejected
+7. Let the candidate repository carry its trust registry or signer. Rejected
    because candidate-controlled bytes cannot independently authorize
    themselves.
 
@@ -206,6 +264,8 @@ Positive:
 
 - Cold cards start clean, while eligible V0 cards retain exact pre-candidate
   runtime truth without live mutation.
+- Warm baseline and candidate runs begin from independent derivatives of one
+  sealed, reverified logical master rather than recovery-mutated staging.
 - Comparable conditions and evaluated subject bytes are independently
   auditable.
 - Sensitive runtime and signing material stay outside Git.
@@ -215,7 +275,8 @@ Positive:
 Tradeoffs:
 
 - Warm capture requires owner coordination, writer quiescence, private storage,
-  and external evidence retention.
+  immutable master custody, two fresh derivatives per comparable pair, and
+  external evidence retention.
 - A condition change requires rerunning the comparable pair instead of editing
   a result in place.
 - Live Phase 6 evidence requires an external custodian/trust/signing ceremony.
