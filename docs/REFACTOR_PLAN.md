@@ -466,7 +466,7 @@ both repositories.
 **Accepted at the authenticated live baseline gate on exact commit `b2dd775`:**
 US-110 maps accepted Phase 4 paths in place, freezes P0-P7, and verifies exact
 ordinary argv. Its live command passed all six proof groups and rejected all
-42 adversarial cases. Both offline SSH Ed25519 signatures verified, both
+44 adversarial cases. Both offline SSH Ed25519 signatures verified, both
 authenticated bundles resolved their named revisions, and the corrected packet
 manifests bind canonical digests while eight annotated P3/P6 artifacts preserve
 the earlier source-run legacy digest truth. The independent reviewer who found

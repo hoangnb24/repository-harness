@@ -38,7 +38,7 @@ The repository-owned Phase 5 candidate has three effects:
    verified SSH Ed25519 statement binds canonical repository, resolved bundled
    commit and bundle digest, scope, catalog, complete packet-manifest digest,
    custody/publication identity, and baseline-before-disclosure timeline. The
-   live gate passed six proof groups and rejected 42/42 adversarial cases; both
+   live gate passed six proof groups and rejected 44/44 adversarial cases; both
    signatures and bundle-resolved revisions verified.
 
 Exact Phase 5 acceptance remains the authority in `docs/REFACTOR_PLAN.md`: no

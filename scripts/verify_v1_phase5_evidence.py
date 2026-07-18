@@ -218,7 +218,9 @@ def canonical_repository(value: str) -> str:
     )
     parts = PurePosixPath(parsed.path).parts
     check(parts and parts[-1].endswith(".git") and all(part not in {".", ".."} for part in parts), "repository identity must end in an unambiguous .git path")
-    normalized = f"https://{hostname.lower()}{parsed.path}"
+    canonical_hostname = hostname.lower()
+    canonical_path = parsed.path.lower() if canonical_hostname == "github.com" else parsed.path
+    normalized = f"https://{canonical_hostname}{canonical_path}"
     check(value == normalized, "repository identity is not canonical")
     return normalized
 
@@ -1235,6 +1237,31 @@ def prove_negative_contracts() -> None:
 
         reject_repository_alias("https://example.test/./synthetic-a.git", "raw dot-segment repository alias")
         reject_repository_alias("https://example.test./synthetic-a.git", "trailing-host-dot repository alias")
+
+        github_repository = "https://github.com/synthetic-owner/synthetic-a.git"
+        github_alias = "https://github.com/SYNTHETIC-OWNER/SYNTHETIC-A.git"
+        rewrite_packet_repository(alias_packet_a, repository_alias_key, github_repository)
+        github_owner_a = {**repository_alias_owner_a, "canonical_repository": github_repository}
+        github_owner_b = {**repository_alias_owner_b, "canonical_repository": github_alias}
+        github_trusted = {
+            github_owner_a["owner_id"]: github_owner_a,
+            github_owner_b["owner_id"]: github_owner_b,
+        }
+        write_json(repository_alias_registry, external_registry_document(github_trusted))
+        expect_rejection(
+            "GitHub path-case repository alias in external trusted-owner registry",
+            lambda: parse_trusted_owners(repository_alias_registry, "GitHub path-case alias trust fixture"),
+        )
+        rewrite_packet_repository(alias_packet_b, repository_alias_key, github_alias)
+        expect_rejection(
+            "GitHub path-case repository alias in complete signed live index",
+            lambda: verify_index_mode(
+                repository_alias_index, repository_alias_evidence,
+                repository_alias_catalog, repository_alias_cards, require_live=False,
+                trusted_owner_registry=repository_alias_registry,
+                trusted_owner_registry_sha256=sha256_file(repository_alias_registry),
+            ),
+        )
         expect_rejection(
             "raw dot-dot repository path segment",
             lambda: canonical_repository("https://example.test/scope/../synthetic-a.git"),
@@ -1282,7 +1309,7 @@ def prove_negative_contracts() -> None:
             completed = run(["/bin/bash", str(wrapper_path), "--dogfood-only"], expected=1, environment={"PATH": str(path_root)})
             check(b"requires: rg" in completed.stderr, "wrapper did not fail deterministically when rg was missing")
             NEGATIVE_COUNT += 1
-        check(NEGATIVE_COUNT == 42, f"adversarial suite count changed: {NEGATIVE_COUNT}")
+        check(NEGATIVE_COUNT == 44, f"adversarial suite count changed: {NEGATIVE_COUNT}")
 
 
 def validate_story_packet() -> None:
@@ -1291,12 +1318,21 @@ def validate_story_packet() -> None:
         check((story / name).is_file() and (story / name).stat().st_size > 0, f"US-110 packet file missing: {name}")
     content = "\n".join((story / name).read_text(encoding="utf-8") for name in ["overview.md", "design.md", "execplan.md", "validation.md"])
     normalized_content = " ".join(content.split())
+    initiative = " ".join(
+        " ".join(
+            (ROOT / "docs" / "stories" / "US-105-harness-v1-implementation" / name)
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        for name in ["overview.md", "design.md", "execplan.md", "validation.md"]
+    )
     check("ssh-ed25519" in content and "packet manifest" in content.lower(), "US-110 does not describe corrected authentication/custody proof")
     check(
         "Phase 5 is accepted at the authenticated baseline gate" in normalized_content
         and "Phase 6 remains not started" in normalized_content,
         "US-110 does not preserve the accepted Phase 5 gate or opened a later phase",
     )
+    check("docs commit awaits integration" not in initiative, "US-105 retains stale Phase 5 integration status")
 
 
 def main() -> None:
@@ -1318,7 +1354,7 @@ def main() -> None:
     index = load_evidence_index(EVIDENCE)
     proof("Draft 2020-12 contracts, fixed P0-P7 catalog, empty tracked trust placeholder, and candidate index validate", lambda: None)
     proof("one stable owner and SSH Ed25519 key authenticate two repository-scoped packets with distinct repositories and bundles", prove_positive_packet)
-    proof("42 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
+    proof("44 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
     proof("US-110 records accepted authenticated baselines and leaves Phase 6 closed", validate_story_packet)
     if index["status"] == "complete":
         proof(

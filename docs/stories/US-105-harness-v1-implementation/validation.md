@@ -52,8 +52,8 @@ US-106 implement and prove Phase 1; US-107 implements and proves Phase 2;
 US-108 implements, validates, and independently accepts Phase 3; US-109 does
 the same for Phase 4. US-110 accepts Phase 5 at the authenticated baseline gate;
 Phases 6-8 remain not-started dependencies. Primary fast-forward integration and
-trust-enabled full premerge passed on exact `b2dd775`; this docs commit awaits
-integration.
+trust-enabled full premerge passed on exact `b2dd775`; acceptance documentation
+was integrated at `3a65768`.
 
 ## Test Plan
 
@@ -293,7 +293,7 @@ asset sets, and non-reproducible generated fixtures.
 | 2 | Core unit/integration, grammar, dependency, mutation, and no-target-execution reports. | **Accepted.** Forty-six Rust tests (24 unit, 22 integration), eleven mechanical proof groups, 72 deterministic fixtures, 138 workspace Rust tests, evolved nine-group Phase 1 proof, workspace check/test/clippy, and full premerge passed. Independent security and behavior review accepted exact candidate `1b1add5`, integrated as `e77e028` with the identical Git tree. The canary/tree/architecture proof is not claimed as universal syscall evidence; US-107 records the boundary. |
 | 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | **Accepted.** Forty-three focused tests (eighteen recovery unit, twenty-five signed integration), all 18 install, 15 update, and 13 committed-update rollback checkpoints, 89 total `harness-core` tests, 181 workspace Rust tests, and 11/11 mechanical proof groups pass. Exact emitted-preview/private-write binding, commit/resume payload reauthentication, root-bound recovery ownership, damaged-evidence probe refusal, crash-resumable reverse rollback, manifest-last durability, safe conflict/race handling, read-only status, idempotency, and monotonic mode/receipt preservation are covered. Independent security and behavior review accepted exact candidate `1f957ce`, integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. |
 | 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | **Accepted.** Thirteen focused tests and ten mechanical proof groups pass; independent review accepted exact candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. |
-| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | **Accepted at the authenticated live baseline gate on exact `b2dd775`.** Six proof groups passed and 42/42 adversarial cases were rejected. Two packets under one stable GitHub identity use distinct repository-scoped owner IDs, canonical repositories, bundles, and external Ed25519 keys; signatures and bundle revisions verified. Benchmark P1 is inapplicable and P6 failed; e-inna P0/P1/P3/P6 failed. These are honest pre-candidate measurements, not Phase 6 acceptance. |
+| 5 | Dogfood, enrollment, signed card, environment, and baseline records. | **Accepted at the authenticated live baseline gate on exact `b2dd775`.** Six proof groups passed and 44/44 adversarial cases were rejected. Two packets under one stable GitHub identity use distinct repository-scoped owner IDs, canonical repositories, bundles, and external Ed25519 keys; signatures and bundle revisions verified. Benchmark P1 is inapplicable and P6 failed; e-inna P0/P1/P3/P6 failed. These are honest pre-candidate measurements, not Phase 6 acceptance. |
 | 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | Not started; depends on Phase 5 acceptance. |
 | 7 | Fixture matrix, five-platform exact artifacts, authentication, identity, and release proof. | Not started; depends on Phase 6 acceptance. |
 | 8 | G8 closure/policy evidence, removal ledger, fresh-install/core-grammar/platform regressions. | Not started; depends on Phase 7, G8, and separate removal authorization/validation. |
