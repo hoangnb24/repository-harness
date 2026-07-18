@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 authority/templates in progress with live cards pending / Phases 7-8 not started**
 
 This is the durable implementation initiative packet for the eight phases in
 `docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement
@@ -12,8 +12,9 @@ US-108 supplies accepted Phase 3 mutation/recovery evidence at exact candidate
 US-109 supplies accepted Phase 4 at exact candidate `880cb9b`, fast-forwarded
 with identical Git tree `0f81d3f0f4c8`. US-110 supplies accepted Phase 5
 dogfood and authenticated pre-candidate baselines at exact `b2dd775`, which an
-independent reviewer explicitly approved with no remaining findings. No
-production release or Phase 6-8 behavior exists. Primary fast-forward integration
+independent reviewer explicitly approved with no remaining findings. US-111
+starts the Phase 6 authority/template framework; no live candidate result,
+Phase 6 acceptance, production release, or Phase 7-8 behavior exists. Primary fast-forward integration
 and trust-enabled full premerge passed on exact `b2dd775`; acceptance
 documentation was integrated at `3a65768`.
 Decision 0012 supplies authorization policy; Decision 0013 and US-106 supply
@@ -76,7 +77,8 @@ implemented, validated, and accepted the pure core against it. Phase 3 is
 implemented, validated, and accepted by US-108. Phase 4 is implemented,
 validated, and accepted by US-109. US-110 completes and accepts Phase 5 at the
 authenticated baseline gate with two real repository packets. Their failed or
-inapplicable cards are frozen measurements, not Phase 6 results; Phases 6-8
+inapplicable cards are frozen measurements, not Phase 6 results. US-111 starts
+the Phase 6 authority/template framework with live cards pending; Phases 7-8
 remain not started and dependent on preceding acceptance.
 
 For example, the presence of `.harness/` cannot authorize ownership. It may
@@ -159,8 +161,9 @@ Phase 1 acceptance, US-107 provides accepted Phase 2 implementation and
 validation, and US-108 provides accepted Phase 3 mutation/recovery evidence.
 US-109 implements the accepted isolated Phase 4 bridge. US-110 preserves
 external-pilot ownership and supplies accepted Phase 5 authenticated baselines;
-it claims no Phase 6 work, candidate improvement, or release. The Phase 5
-acceptance documentation is integrated.
+US-111 adds only the Phase 6 custody authority and portable target-owned
+capability framework. It claims no live candidate improvement, Phase 6
+acceptance, or release. The Phase 5 acceptance documentation is integrated.
 
 ## Non-Goals
 

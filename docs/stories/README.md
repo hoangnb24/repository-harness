@@ -3,7 +3,11 @@
 Stories are work packets. They turn product intent into bounded implementation
 and validation work.
 
-No story packets are active yet.
+## Active V1 Story
+
+- `docs/stories/US-111-v1-phase6-capability-evaluation/overview.md` is in
+  progress at the authority/template framework slice. Live candidate cards and
+  Phase 6 acceptance remain pending; Phases 7-8 are not started.
 
 ## Normal Story
 

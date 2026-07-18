@@ -18,6 +18,12 @@ scripts/bin/harness-cli decision add \
 Trace fields such as `--decisions` summarize task-level choices. They do not
 count as the Harness decision log.
 
+## Current V1 Decision
+
+- `docs/decisions/0015-phase6-cold-warm-evaluation-custody.md` fixes
+  clean-clone versus isolated-V0-copy custody, evidence identities, external
+  trust, sensitive-byte exclusions, and later-phase gates.
+
 Add a decision when:
 
 - A locked technical choice changes.

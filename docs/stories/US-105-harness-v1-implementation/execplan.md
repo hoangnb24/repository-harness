@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 authority/templates in progress with live cards pending / Phases 7-8 not started**
 
 Decision 0014 supersedes every Phase 4 automatic-conversion step below. The
 authoritative replacement is US-109: four bridge commands, append-only archive
@@ -20,9 +20,9 @@ proves, and independently accepts Phase 3. US-109 implements, validates, and
 independently accepts Phase 4. US-110 supplies accepted authenticated Phase 5
 pre-candidate baselines at exact `b2dd775`. Primary fast-forward integration and
 trust-enabled full premerge passed on exact `b2dd775`; acceptance documentation
-was integrated at `3a65768`. Phases 6-8 remain dependent on
-accepted evidence from their
-predecessors.
+was integrated at `3a65768`. US-111 starts only the Phase 6 authority/template
+framework; live-card acceptance remains a dependency for Phase 7, and Phase 8
+remains dependent on Phase 7 plus its separate closure gates.
 
 ## Scope
 
@@ -339,10 +339,14 @@ identities and cross-stable-identity key reuse, resolves commits from
 manifest-bound bundles,
 and authenticates complete custody, environment, eligibility, interventions,
 baseline evidence, and pre-disclosure publication. Phase 5 is accepted at this
-baseline gate; Phase 6 remains closed because candidate improvements have not
-started.
+baseline gate. Phase 6 authority/templates are now in progress under US-111;
+live candidate improvements and acceptance remain pending.
 
 ### Phase 6: Capability Evaluation
+
+**Current state:** US-111 implements Decision 0015 and the portable
+target-owned template framework. The live steps and acceptance evidence below
+remain pending.
 
 **Dependency:** Phase 5 enrollment, cards, environment locks, and baseline
 evidence are complete. A missing baseline cannot be reconstructed after seeing

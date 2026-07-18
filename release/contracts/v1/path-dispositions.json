@@ -30,6 +30,7 @@
     {"path": "docs/product/README.md", "surface": "installer-manifest", "disposition": "target-owned-destination", "reason": "Existing product path is target-owned and mapped in place"},
     {"path": "docs/stories/README.md", "surface": "installer-manifest", "disposition": "forbidden-v0-operational", "reason": "Current story lifecycle documentation depends on V0"},
     {"path": "docs/stories/backlog.md", "surface": "installer-manifest", "disposition": "forbidden-v0-operational", "reason": "Current operational backlog projection"},
+    {"path": "docs/templates/agent-map.md", "surface": "installer-manifest", "disposition": "optional-v1", "reason": "Neutral target-owned bounded route map when explicitly selected; authenticated payload inclusion remains a later gate"},
     {"path": "docs/templates/decision.md", "surface": "installer-manifest", "disposition": "managed-v1", "reason": "Portable neutral decision template"},
     {"path": "docs/templates/spec-intake.md", "surface": "installer-manifest", "disposition": "forbidden-v0-operational", "reason": "Current template instructs V0 intake workflow"},
     {"path": "docs/templates/story.md", "surface": "installer-manifest", "disposition": "optional-v1", "reason": "Neutral target-owned planning template when explicitly selected"},

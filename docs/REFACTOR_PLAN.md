@@ -2,15 +2,23 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-5 accepted at the authenticated baseline gate; Phases 6-8 not started
+Status: Direction and Phases 1-5 accepted at the authenticated baseline gate;
+Phase 6 in progress with authority/templates complete and live cards pending;
+Phases 7-8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
-implementation: US-109; Phase 5 baseline acceptance: US-110
+implementation: US-109; Phase 5 baseline acceptance: US-110; Phase 6
+capability evaluation: US-111
 
 Decision 0014 is the current Phase 4 authority. It supersedes the plan's former
 automatic conversion/journal design with freeze, archive/export, and normal
 fresh V1 install plus an authenticated receipt.
+
+Decision 0015 is the current Phase 6 custody authority. It separates
+`cold-clone` from isolated `warm-v0-copy`, fixes pre-candidate capture and
+condition-versus-subject identity, and keeps raw runtime/signing material out
+of Git.
 
 ## Executive Outcome
 
@@ -494,12 +502,21 @@ started and will evaluate candidate improvements against these measurements.
 
 ### Phase 6: Capability Evaluation
 
-**Status: not started.**
+**Status: in progress. Authority and portable target-owned templates are
+implemented by US-111; live candidate cards and acceptance remain pending.**
 
 Instantiate and evaluate the selected planning, invariant, feedback,
 capability-improvement, and gardening contracts using the already enrolled
 pilots. Acceptance: the fixed release-only cards meet their acceptance tests;
 negative conditions fail the candidate rather than being explained away.
+
+The framework slice defines bounded agent-map routes, proportional planning,
+resume capsules with one exact next action and an ordered validation ladder,
+and target-owned invariant, feedback, repeated-correction, and gardening
+contracts. Decision 0015 requires externally authenticated pre-candidate
+custody: a clean clone for ordinary cards or an isolated V0 copy for applicable
+conversion cards. It forbids live database mutation and committing raw
+database/archive/key material. None of these documents is a live-card result.
 
 ### Phase 7: Portability And Release Proof
 
@@ -622,8 +639,9 @@ mutation refusal. US-108 supplies accepted Phase 3 mutation/recovery evidence
 and the exact evidence counts above. US-109 supplies accepted archive-only
 Phase 4 evidence. US-110 supplies accepted authenticated Phase 5 baseline
 evidence at exact `b2dd775`; this accepts honest baseline custody, not any
-candidate improvement. Phases 6-8 remain not started and depend on preceding
-accepted evidence. Primary fast-forward integration and trust-enabled full
+candidate improvement. US-111 starts the Phase 6 authority/template framework;
+live cards and acceptance remain pending, while Phases 7-8 remain not started.
+Primary fast-forward integration and trust-enabled full
 premerge passed on exact `b2dd775`; acceptance documentation was integrated at
 `3a65768`. No
 bridge conversion write,

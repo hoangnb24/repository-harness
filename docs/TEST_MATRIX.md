@@ -110,10 +110,17 @@ the tracked trusted-owner registry remains empty.
 
 Benchmark P1 is inapplicable and benchmark P6 failed; e-inna P0/P1/P3/P6
 failed. These are baseline measurements rather than Phase 6 acceptance tests,
-so they do not block Phase 5. Phase 6 has not started and will compare a future
-candidate against them. Primary fast-forward integration and trust-enabled full
+so they do not block Phase 5. Phase 6 has started only at its Decision 0015 and
+portable-template framework slice; live candidate P0-P7 cards and acceptance
+remain pending. Primary fast-forward integration and trust-enabled full
 premerge passed on exact `b2dd775`; acceptance documentation was integrated at
 `3a65768`.
+
+US-111 framework validation covers only documentation/JSON structure, portable
+template neutrality, cold-versus-warm custody authority, changeset replay, and
+Phase 5/US-110 byte preservation. It must never be reported as a candidate
+card, comparison, pilot improvement, Phase 6 acceptance, Phase 7 opening, or
+Phase 8 progress.
 
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
