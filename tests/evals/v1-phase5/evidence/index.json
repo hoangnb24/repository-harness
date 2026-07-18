@@ -1,12 +1,12 @@
 {
   "schema": "repository-harness-phase5-evidence-index/v2",
   "phase": 5,
-  "status": "candidate-awaiting-pilot-authorization",
+  "status": "complete",
   "card_catalog": "cards/catalog.json",
   "trusted_owners": "trusted-owners.json",
-  "pilots": [],
-  "blockers": [
-    "Both live evidence packets are assembled and structurally complete, but each authentication signature is ORCHESTRATOR_SIGNATURE_PENDING.",
-    "Phase 5 remains signature-blocked until the owner-held keys sign the canonical statements and the complete index is authorized for verification against the pinned external registry."
-  ]
+  "pilots": [
+    "harness-benchmark-phase5-pilot",
+    "e-inna-brain-phase5-baseline"
+  ],
+  "blockers": []
 }

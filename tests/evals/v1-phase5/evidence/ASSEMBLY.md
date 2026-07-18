@@ -1,7 +1,7 @@
 # Phase 5 Live Evidence Packet Assembly
 
-The two unsigned live packets were assembled on 2026-07-18 from committed
-pilot evidence only:
+The two live packets were assembled and authenticated on 2026-07-18 from
+committed pilot evidence only:
 
 - `harness-benchmark-phase5-pilot` uses
   `docs/evidence/phase5-pilot-benchmark` at clean source commit
@@ -30,7 +30,5 @@ manifest digests were recomputed. Recorded timestamps, interventions, and all
 pass/fail/inapplicable outcomes were preserved.
 
 Both authentication envelopes bind their complete canonical statements and
-use the exact placeholder `ORCHESTRATOR_SIGNATURE_PENDING`. No signature was
-created. The evidence index therefore remains
-`candidate-awaiting-pilot-authorization`, with signature blockers, and does
-not claim Phase 5 acceptance.
+carry SSH Ed25519 signatures made with the two externally held pilot keys.
+The complete evidence index names both packets and has no remaining blocker.
