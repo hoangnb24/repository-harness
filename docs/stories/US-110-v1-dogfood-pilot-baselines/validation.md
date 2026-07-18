@@ -114,8 +114,11 @@ Correction-candidate results on 2026-07-18:
   subprocess, Git-alias, missing-ripgrep, and legacy negative cases.
 - Dogfood-only: **1/1 passed** with exact closed argv and no path move.
 - Explicit live gate: **expected exit 2** with no owner trust or pilot packet.
-- Premerge trust forwarding: **passed** for exact pair forwarding, both partial
-  rejections, CLI/environment bypass rejection, and no-input candidate mode.
+- Premerge trust forwarding: **6/6 cases passed under macOS `/bin/bash`
+  3.2.57** for literal zero-argument no-input invocation, exact pair
+  forwarding (including a path containing spaces), both partial rejections,
+  CLI bypass rejection, and unknown-environment rejection. Ordered per-case
+  markers prove every case completed.
 - Phase 1-4 regressions: **10/10, 11/11, 11/11, and 10/10 proof groups
   passed**.
 - Rust workspace within premerge: **203 tests passed, 0 failed**.

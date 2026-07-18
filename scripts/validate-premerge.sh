@@ -50,7 +50,11 @@ scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
 scripts/verify-v1-phase4-bridge.sh
-scripts/verify-v1-phase5-evidence.sh "${phase5_arguments[@]}"
+if [[ -n "$registry_is_set" ]]; then
+  scripts/verify-v1-phase5-evidence.sh "${phase5_arguments[@]}"
+else
+  scripts/verify-v1-phase5-evidence.sh
+fi
 tests/evals/test-phase5-premerge-trust-forwarding.sh
 
 cargo fmt --all -- --check

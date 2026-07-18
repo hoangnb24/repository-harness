@@ -124,7 +124,10 @@ Premerge itself accepts no arguments. It recognizes only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256` variables, validates the
 absolute-path/lowercase-digest shape, rejects partial or unknown prefixed
 inputs, unsets them, and forwards the corresponding four arguments with a Bash
-array. Therefore an operator can supply live trust without creating a route to
+array. The no-pair branch invokes the Phase 5 verifier with literally zero
+arguments; only the paired branch expands the four-element array. This keeps
+the fail-closed operator path compatible with macOS Bash 3.2 `set -u` behavior.
+Therefore an operator can supply live trust without creating a route to
 `--dogfood-only` or another Phase 5 bypass.
 
 The wrapper preflights `git`, `python3`, `rg`, and `ssh-keygen`. Schemas live
@@ -160,7 +163,9 @@ inconsistency, Git alias bypass, missing ripgrep, and subprocess OSError.
 `tests/evals/test-phase5-premerge-trust-forwarding.sh` copies premerge into an
 isolated temporary harness and proves exact paired argv, both partial failures,
 CLI/environment bypass rejection, reserved-variable removal, and zero-argument
-current-candidate behavior without pilot evidence.
+current-candidate behavior without pilot evidence. It runs the copied premerge
+script with `/bin/bash` and records six ordered per-case completion markers, so
+an early exit cannot masquerade as coverage of later rejection cases.
 
 The live gate prints blockers and exits 2 without logging owner secrets or
 inventing credentials. A future `complete` index cannot bypass packet loading

@@ -132,8 +132,11 @@ Both variables must be set and non-empty, the path must be absolute, and the
 digest must be exactly 64 lowercase hexadecimal characters. Premerge rejects
 partial pairs, every command-line argument (including `--dogfood-only`), and
 unknown `HARNESS_PHASE5_*` variables. It then unsets the reserved variables and
-forwards only the four validated Phase 5 argv elements via a shell array. With
-the current awaiting index, no-input premerge remains valid. Once the index is
-`complete`, no-input premerge reaches the mandatory live gate and fails closed
-for missing external trust; the paired invocation can reach normal full live
-verification.
+forwards only the four validated Phase 5 argv elements via a shell array. The
+array is expanded only in the paired branch; the no-pair branch calls the
+verifier with literally zero arguments so `set -u` is safe on macOS Bash 3.2.
+The forwarding contract test executes the copied premerge with `/bin/bash` and
+requires six ordered case markers. With the current awaiting index, no-input
+premerge remains valid. Once the index is `complete`, no-input premerge reaches
+the mandatory live gate and fails closed for missing external trust; the paired
+invocation can reach normal full live verification.

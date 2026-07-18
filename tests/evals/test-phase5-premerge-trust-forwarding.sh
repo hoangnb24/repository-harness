@@ -18,6 +18,14 @@ done < <(compgen -A variable HARNESS_PHASE5_ || true)
 mkdir -p "$temporary/scripts" "$temporary/tests" "$temporary/bin"
 cp "$source_premerge" "$temporary/scripts/validate-premerge.sh"
 chmod +x "$temporary/scripts/validate-premerge.sh"
+ln -s /bin/bash "$temporary/bin/bash"
+
+case_log="$temporary/cases-run"
+cases_run=0
+mark_case() {
+  cases_run=$((cases_run + 1))
+  printf '%s\n' "$1" >>"$case_log"
+}
 
 make_success_stub() {
   local path="$temporary/$1"
@@ -74,7 +82,7 @@ run_premerge() {
   PATH="$test_path" \
     PHASE5_PREMERGE_CALL_LOG="$call_log" \
     PHASE5_PREMERGE_ARGV_LOG="$argv_log" \
-    "$temporary/scripts/validate-premerge.sh" "$@"
+    /bin/bash "$temporary/scripts/validate-premerge.sh" "$@"
 }
 
 assert_not_called() {
@@ -85,6 +93,7 @@ rm -f "$call_log" "$argv_log"
 run_premerge >/dev/null
 [[ -e "$call_log" ]] || fail "no-input candidate path did not invoke Phase 5"
 [[ ! -s "$argv_log" ]] || fail "no-input candidate path forwarded arguments"
+mark_case no-input-zero-argv
 
 registry="/external trust/owners.json"
 registry_sha="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -98,29 +107,45 @@ HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256="$registry_sha" \
   run_premerge >/dev/null
 [[ -e "$call_log" ]] || fail "paired trust input did not invoke Phase 5"
 cmp -s "$expected" "$argv_log" || fail "paired trust input did not preserve exact argv boundaries"
+mark_case paired-input-exact-argv
 
 rm -f "$call_log" "$argv_log"
 if HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY="$registry" run_premerge >/dev/null 2>&1; then
   fail "registry-only input was accepted"
 fi
 assert_not_called
+mark_case registry-only-rejected
 
 rm -f "$call_log" "$argv_log"
 if HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256="$registry_sha" run_premerge >/dev/null 2>&1; then
   fail "SHA-only input was accepted"
 fi
 assert_not_called
+mark_case sha-only-rejected
 
 rm -f "$call_log" "$argv_log"
 if run_premerge --dogfood-only >/dev/null 2>&1; then
   fail "dogfood-only bypass argument was accepted"
 fi
 assert_not_called
+mark_case cli-bypass-rejected
 
 rm -f "$call_log" "$argv_log"
 if HARNESS_PHASE5_OPTIONS=--dogfood-only run_premerge >/dev/null 2>&1; then
   fail "unknown Phase 5 environment option was accepted"
 fi
 assert_not_called
+mark_case unknown-environment-rejected
 
-printf 'Phase 5 premerge paired forwarding, partial, bypass, unknown-option, and no-input contracts passed\n'
+expected_cases="$temporary/expected-cases"
+printf '%s\n' \
+  no-input-zero-argv \
+  paired-input-exact-argv \
+  registry-only-rejected \
+  sha-only-rejected \
+  cli-bypass-rejected \
+  unknown-environment-rejected >"$expected_cases"
+[[ "$cases_run" -eq 6 ]] || fail "expected 6 completed cases, got $cases_run"
+cmp -s "$expected_cases" "$case_log" || fail "case completion markers were missing or out of order"
+
+printf 'Phase 5 premerge forwarding contracts passed (6/6 cases under /bin/bash)\n'

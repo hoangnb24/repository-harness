@@ -109,4 +109,7 @@ not acceptance, and Phase 6 has not started.
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256` variables; the focused forwarding
-contract rejects partial, unknown, positional, and dogfood-only bypass inputs.
+contract runs the copied premerge under `/bin/bash`, requires six ordered case
+markers, and rejects partial, unknown, positional, and dogfood-only bypass
+inputs. The no-pair path uses a literal zero-argument verifier call, avoiding
+empty-array expansion under macOS Bash 3.2 with `set -u`.
