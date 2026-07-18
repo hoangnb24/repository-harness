@@ -29,6 +29,17 @@ trap finish EXIT
 scripts/verify-v1-phase7-release-proof.sh
 
 set +e
+schema_override_output=$(
+  scripts/verify-v1-phase7-release-proof.sh \
+    --schema release/contracts/v1/schemas/phase7-release-proof-v1.schema.json 2>&1
+)
+schema_override_exit=$?
+set -e
+[[ "$schema_override_exit" -eq 2 ]] || fail "production wrapper accepted or mishandled --schema"
+[[ "$schema_override_output" == *"unrecognized arguments: --schema"* ]] || \
+  fail "production wrapper did not reject --schema at the argument boundary"
+
+set +e
 pending_output=$(scripts/verify-v1-phase7-release-proof.sh --require-promotable 2>&1)
 pending_exit=$?
 set -e
@@ -133,6 +144,38 @@ reject_document(
         source_revision="0" * 40
     ),
 )
+
+
+def replace_candidate_identity(document: dict, field: str, value: str) -> None:
+    document["candidate"][field] = value
+    for artifact in document["artifacts"]:
+        artifact["candidate"][field] = value
+
+
+for field, value in (
+    ("v1_cli_identity", "harness-cli-v0/legacy-crossover"),
+    ("template_release", "repository-harness-template/relabeled"),
+    ("bridge_identity", "harness-cli/relabeled-bridge"),
+):
+    reject_document(
+        f"semantic-identity-{field}",
+        lambda document, _, field=field, value=value: replace_candidate_identity(
+            document, field, value
+        ),
+    )
+
+
+def platform_evidence_pass_claim(document: dict, _: Path) -> None:
+    document["evidence_kind"] = "platform-evidence-non-production"
+    artifact = document["artifacts"][0]
+    artifact["authentication"].update(
+        state="authenticated", evidence=["nonexistent/authentication.json"]
+    )
+    for field in ("build_result", "direct_binary_result", "installer_result"):
+        artifact[field].update(state="passed", evidence=[f"nonexistent/{field}.json"])
+
+
+reject_document("platform-evidence-pass-claims", platform_evidence_pass_claim)
 
 
 def missing_fixture(_, case_root: Path) -> None:

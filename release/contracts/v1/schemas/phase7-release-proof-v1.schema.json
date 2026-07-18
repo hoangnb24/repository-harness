@@ -7,7 +7,7 @@
   "required": ["schema", "evidence_kind", "candidate", "fixtures", "fixture_support", "artifacts", "promotion"],
   "properties": {
     "schema": {"const": "repository-harness-v1-phase7-release-proof/v1"},
-    "evidence_kind": {"enum": ["fixture-only-non-production", "platform-evidence-non-production"]},
+    "evidence_kind": {"const": "fixture-only-non-production"},
     "candidate": {"$ref": "#/$defs/candidateIdentity"},
     "fixtures": {
       "type": "array",
@@ -55,12 +55,12 @@
       ],
       "properties": {
         "source_revision": {"$ref": "#/$defs/gitRevision"},
-        "v1_cli_identity": {"type": "string", "minLength": 1},
+        "v1_cli_identity": {"const": "harness-v1-core/unpromoted-fixture"},
         "v1_cli_sha256": {"$ref": "#/$defs/sha256"},
-        "template_release": {"type": "string", "minLength": 1},
+        "template_release": {"const": "repository-harness-template/v1-fixture-only"},
         "template_sha256": {"$ref": "#/$defs/sha256"},
         "payload_index_sha256": {"$ref": "#/$defs/sha256"},
-        "bridge_identity": {"type": "string", "minLength": 1},
+        "bridge_identity": {"const": "harness-v0-migrate/unpromoted-fixture"},
         "bridge_sha256": {"$ref": "#/$defs/sha256"},
         "build_input_sha256": {"$ref": "#/$defs/sha256"},
         "workflow_revision": {"$ref": "#/$defs/gitRevision"},
@@ -98,8 +98,8 @@
       "additionalProperties": false,
       "required": ["state", "evidence"],
       "properties": {
-        "state": {"enum": ["pending", "passed", "failed"]},
-        "evidence": {"type": "array", "items": {"$ref": "#/$defs/relativePath"}}
+        "state": {"const": "pending"},
+        "evidence": {"type": "array", "maxItems": 0, "items": {"$ref": "#/$defs/relativePath"}}
       }
     },
     "authenticationState": {
@@ -107,9 +107,9 @@
       "additionalProperties": false,
       "required": ["state", "production_signing", "evidence"],
       "properties": {
-        "state": {"enum": ["pending", "authenticated", "failed"]},
+        "state": {"const": "pending"},
         "production_signing": {"const": false},
-        "evidence": {"type": "array", "items": {"$ref": "#/$defs/relativePath"}}
+        "evidence": {"type": "array", "maxItems": 0, "items": {"$ref": "#/$defs/relativePath"}}
       }
     },
     "artifactRecord": {

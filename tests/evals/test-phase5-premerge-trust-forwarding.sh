@@ -52,7 +52,6 @@ for path in \
   tests/maintenance/test-render-changelog-files.sh \
   tests/docs/test-doc-contracts.sh \
   tests/evals/test-task-authority.sh \
-  tests/release/test-v1-phase7-release-proof.sh \
   tests/release/test-post-merge-release-recovery.sh; do
   make_success_stub "$path"
 done
@@ -63,6 +62,14 @@ done
 
 argv_log="$temporary/phase5-argv"
 call_log="$temporary/phase5-called"
+phase7_call_log="$temporary/phase7-called"
+cat >"$temporary/tests/release/test-v1-phase7-release-proof.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'called\n' >>"$PHASE7_PREMERGE_CALL_LOG"
+STUB
+chmod +x "$temporary/tests/release/test-v1-phase7-release-proof.sh"
+
 cat >"$temporary/scripts/verify-v1-phase5-evidence.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -83,16 +90,19 @@ run_premerge() {
   PATH="$test_path" \
     PHASE5_PREMERGE_CALL_LOG="$call_log" \
     PHASE5_PREMERGE_ARGV_LOG="$argv_log" \
+    PHASE7_PREMERGE_CALL_LOG="$phase7_call_log" \
     /bin/bash "$temporary/scripts/validate-premerge.sh" "$@"
 }
 
 assert_not_called() {
   [[ ! -e "$call_log" ]] || fail "Phase 5 verifier ran after rejected operator input"
+  [[ ! -e "$phase7_call_log" ]] || fail "Phase 7 test ran after rejected operator input"
 }
 
-rm -f "$call_log" "$argv_log"
+rm -f "$call_log" "$argv_log" "$phase7_call_log"
 run_premerge >/dev/null
 [[ -e "$call_log" ]] || fail "no-input candidate path did not invoke Phase 5"
+[[ -e "$phase7_call_log" ]] || fail "no-input candidate path did not invoke Phase 7"
 [[ ! -s "$argv_log" ]] || fail "no-input candidate path forwarded arguments"
 mark_case no-input-zero-argv
 
@@ -102,36 +112,37 @@ expected="$temporary/expected-argv"
 printf '%s\n' \
   --trusted-owner-registry "$registry" \
   --trusted-owner-registry-sha256 "$registry_sha" >"$expected"
-rm -f "$call_log" "$argv_log"
+rm -f "$call_log" "$argv_log" "$phase7_call_log"
 HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY="$registry" \
 HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256="$registry_sha" \
   run_premerge >/dev/null
 [[ -e "$call_log" ]] || fail "paired trust input did not invoke Phase 5"
+[[ -e "$phase7_call_log" ]] || fail "paired trust input did not invoke Phase 7"
 cmp -s "$expected" "$argv_log" || fail "paired trust input did not preserve exact argv boundaries"
 mark_case paired-input-exact-argv
 
-rm -f "$call_log" "$argv_log"
+rm -f "$call_log" "$argv_log" "$phase7_call_log"
 if HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY="$registry" run_premerge >/dev/null 2>&1; then
   fail "registry-only input was accepted"
 fi
 assert_not_called
 mark_case registry-only-rejected
 
-rm -f "$call_log" "$argv_log"
+rm -f "$call_log" "$argv_log" "$phase7_call_log"
 if HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256="$registry_sha" run_premerge >/dev/null 2>&1; then
   fail "SHA-only input was accepted"
 fi
 assert_not_called
 mark_case sha-only-rejected
 
-rm -f "$call_log" "$argv_log"
+rm -f "$call_log" "$argv_log" "$phase7_call_log"
 if run_premerge --dogfood-only >/dev/null 2>&1; then
   fail "dogfood-only bypass argument was accepted"
 fi
 assert_not_called
 mark_case cli-bypass-rejected
 
-rm -f "$call_log" "$argv_log"
+rm -f "$call_log" "$argv_log" "$phase7_call_log"
 if HARNESS_PHASE5_OPTIONS=--dogfood-only run_premerge >/dev/null 2>&1; then
   fail "unknown Phase 5 environment option was accepted"
 fi

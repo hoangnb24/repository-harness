@@ -96,9 +96,11 @@ scripts/verify-v1-phase6-evidence.sh --framework-only
 ## Acceptance Evidence
 
 The schema, deterministic fixture inventory, verifier, and adversarial focused
-test are implemented. V1 artifact fixtures use the `harness`/`harness.exe`
-identity, locked build input binds `Cargo.lock`, and the V0 bridge remains a
-separate identity. All five artifact authentication/build/direct-binary/
+test are implemented. The schema accepts only `fixture-only-non-production`
+evidence and pins the readable V1 CLI, template-release, and bridge identities;
+it cannot be switched into a platform-evidence mode. V1 artifact fixtures use
+the `harness`/`harness.exe` identity, locked build input binds `Cargo.lock`, and
+the V0 bridge remains a separate identity. All five artifact authentication/build/direct-binary/
 installer results remain `pending`; fixtures say `not-run`; Phase 6 live P0-P7
 evidence remains pending; every story proof flag remains unasserted; Phase 7
 acceptance, tag, publish, production signing, and promotion remain blocked; and

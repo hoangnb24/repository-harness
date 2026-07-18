@@ -60,7 +60,7 @@ PHASE5_FORWARDING_COMPATIBILITY_PATH = (
     "tests/evals/test-phase5-premerge-trust-forwarding.sh"
 )
 PHASE5_FORWARDING_COMPATIBILITY_GIT_OID = (
-    "0f6484bdd110f61f13e9b3c83298654a495de1d8"
+    "91fcaf98580f824afc96e51825488bb690429f1c"
 )
 ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase6_00_intake.changeset.jsonl",

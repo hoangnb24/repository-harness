@@ -55,6 +55,11 @@ BLOCKERS = [
     "phase7-five-platform-results-pending",
 ]
 FIXTURE_SOURCE_REVISION = "9da1c49e497b0fedcbd87c877da1186c8a6a582f"
+FIXTURE_IDENTITY_VALUES = {
+    "v1_cli_identity": "harness-v1-core/unpromoted-fixture",
+    "template_release": "repository-harness-template/v1-fixture-only",
+    "bridge_identity": "harness-v0-migrate/unpromoted-fixture",
+}
 
 
 class VerificationError(RuntimeError):
@@ -324,8 +329,10 @@ def validate_artifacts(document: dict[str, Any], fixture_root: Path) -> None:
 
 
 def validate_fixture_only_state(document: dict[str, Any]) -> None:
-    if document["evidence_kind"] != "fixture-only-non-production":
-        return
+    check(
+        document["evidence_kind"] == "fixture-only-non-production",
+        "Phase 7 opening contract only accepts fixture-only non-production evidence",
+    )
     candidate = document["candidate"]
     check(
         candidate["source_revision"] == FIXTURE_SOURCE_REVISION,
@@ -335,6 +342,8 @@ def validate_fixture_only_state(document: dict[str, Any]) -> None:
         candidate["workflow_revision"] == FIXTURE_SOURCE_REVISION,
         "fixture workflow revision drift",
     )
+    for field, expected in FIXTURE_IDENTITY_VALUES.items():
+        check(candidate[field] == expected, f"fixture candidate semantic identity drift: {field}")
     for field, path in FIXTURE_IDENTITY_BINDINGS.items():
         check(sha256_file(path) == candidate[field], f"fixture candidate identity binding drift: {field}")
     for record in document["artifacts"]:
@@ -385,7 +394,6 @@ def verify(evidence_path: Path, schema_path: Path, fixture_root: Path, require_p
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
-    parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA)
     parser.add_argument("--fixture-root", type=Path, default=DEFAULT_FIXTURE_ROOT)
     parser.add_argument("--require-promotable", action="store_true")
     return parser.parse_args()
@@ -396,7 +404,7 @@ def main() -> int:
     try:
         verify(
             arguments.evidence,
-            arguments.schema,
+            DEFAULT_SCHEMA,
             arguments.fixture_root,
             arguments.require_promotable,
         )
