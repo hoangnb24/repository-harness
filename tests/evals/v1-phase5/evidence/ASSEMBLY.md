@@ -15,7 +15,7 @@ no-newline digests:
   maps to canonical
   `1a2c1145670897c3d85a0fb9509704f3b70174a38fd0a6ae69e38d0b9f3c1f15`.
 
-This unsigned correction adds explicit post-run annotations to the five legacy
+This correction adds explicit post-run annotations to the five legacy
 references and canonical bindings to all four exact P3/P6 requirement-mapped
 artifacts. Those annotated artifacts intentionally no longer byte-match their
 source Git blobs; their original values, prompts, transcripts, outcomes,
@@ -51,8 +51,6 @@ manifest digests were recomputed. Recorded timestamps, interventions, and all
 pass/fail/inapplicable outcomes were preserved.
 
 Only the affected packet-manifest artifact digests were updated. Each
-authentication statement was rebound to its corrected packet manifest, and
-both signatures were set exactly to `ORCHESTRATOR_SIGNATURE_PENDING`; no key
-was accessed and no signature was created. The evidence index therefore
-returned to `candidate-awaiting-pilot-authorization` and honestly records the
-signature blockers instead of claiming Phase 5 acceptance.
+authentication statement was rebound to its corrected packet manifest and
+authenticated with its externally held SSH Ed25519 pilot key. The evidence
+index names both corrected packets and has no remaining blocker.

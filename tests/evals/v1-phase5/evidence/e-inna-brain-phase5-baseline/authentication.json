@@ -22,5 +22,5 @@
     "published_at": "2026-07-18T07:56:54Z",
     "candidate_disclosure_not_before": "2026-07-18T07:56:55Z"
   },
-  "signature": "ORCHESTRATOR_SIGNATURE_PENDING"
+  "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgnUssRYfkVfJtvKgw0obMYFJary\nY3i3Omsx+/su/urBkAAAAZcmVwb3NpdG9yeS1oYXJuZXNzLXBoYXNlNQAAAAAAAAAGc2hh\nNTEyAAAAUwAAAAtzc2gtZWQyNTUxOQAAAEAWxqppb2l7X2wrebb/eyFSb/Hx9MFuZDMQVr\nwk+GGlXF6vgZUlP/NzHYklK7BNcmbS9+XjOPEmSNtbxh8mTl4L\n-----END SSH SIGNATURE-----\n"
 }
