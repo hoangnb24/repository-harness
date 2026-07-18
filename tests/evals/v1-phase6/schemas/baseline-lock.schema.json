@@ -3,11 +3,12 @@
   "$id": "https://repository-harness.dev/schemas/v1-phase6/baseline-lock.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "source_commit", "protected_git_objects", "card_catalog_sha256", "phase5_evidence_index_sha256", "pilots", "lock_sha256"],
+  "required": ["schema", "source_commit", "protected_git_objects", "phase5_verifier_compatibility_git_oid", "card_catalog_sha256", "phase5_evidence_index_sha256", "pilots", "lock_sha256"],
   "properties": {
     "schema": {"const": "repository-harness-phase6-baseline-lock/v1"},
     "source_commit": {"const": "5d6e6bc516cd60e47c60ae3b516363cd99b433a5"},
     "protected_git_objects": {"type": "array", "minItems": 4, "items": {"type": "object", "additionalProperties": false, "required": ["path", "kind", "git_oid"], "properties": {"path": {"type": "string", "minLength": 1}, "kind": {"enum": ["tree", "blob"]}, "git_oid": {"type": "string", "pattern": "^[0-9a-f]{40}$"}}}},
+    "phase5_verifier_compatibility_git_oid": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "card_catalog_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "phase5_evidence_index_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "pilots": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["pilot_id", "starting_revision", "authentication_sha256", "packet_manifest_sha256", "repository_bundle_sha256"], "properties": {"pilot_id": {"type": "string", "minLength": 1}, "starting_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "authentication_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "packet_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "repository_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},

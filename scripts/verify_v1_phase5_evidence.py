@@ -35,6 +35,7 @@ HOSTNAME = re.compile(
     r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$"
 )
 NAMESPACE = "repository-harness-phase5"
+PHASE5_ACCEPTED_COMMIT = "5d6e6bc516cd60e47c60ae3b516363cd99b433a5"
 CORE_PACKET_FILES = {
     "enrollment.json", "environment.json", "eligibility.json",
     "interventions.json", "baseline-result.json", "repository.bundle",
@@ -43,6 +44,10 @@ ORDINARY_ARGV = [
     ["rg", "--no-config", "-q", "Phases 1-5 accepted at the authenticated baseline gate", "docs/stories/US-105-harness-v1-implementation/overview.md"],
     ["rg", "--no-config", "-q", "Phase 6 remains not started", "docs/stories/US-105-harness-v1-implementation/validation.md"],
     ["git", "--no-optional-locks", "diff", "--no-ext-diff", "--check"],
+]
+CURRENT_PHASE_BOUNDARY_ARGV = [
+    ["rg", "--no-config", "-q", "Framework implemented and verified; live P0-P7 validation pending;", "docs/stories/US-111-v1-phase6-capability-evaluation/validation.md"],
+    ["rg", "--no-config", "-q", "Phase 6 not accepted", "docs/stories/US-111-v1-phase6-capability-evaluation/validation.md"],
 ]
 
 
@@ -306,8 +311,21 @@ def execute_ordinary_task(commands: list[dict[str, Any]]) -> None:
     actual = [entry.get("argv") for entry in commands]
     check(actual == ORDINARY_ARGV, f"ordinary task argv differs from the closed grammar: {actual}")
     for entry in commands:
-        completed = run(entry["argv"], expected=entry["exit_code"])
+        arguments = entry["argv"]
+        if arguments[0] == "rg":
+            historical = run(
+                ["git", "show", f"{PHASE5_ACCEPTED_COMMIT}:{arguments[-1]}"],
+            ).stdout
+            completed = run(
+                arguments[:-1] + ["-"],
+                input_bytes=historical,
+                expected=entry["exit_code"],
+            )
+        else:
+            completed = run(arguments, expected=entry["exit_code"])
         check(completed.returncode == 0, f"ordinary task check failed: {entry['argv']}")
+    for arguments in CURRENT_PHASE_BOUNDARY_ARGV:
+        run(arguments)
 
 
 def validate_dogfood() -> None:

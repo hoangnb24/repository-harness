@@ -54,6 +54,7 @@ MANDATORY_NEGATIVES = {
     "release-boundary-violation",
     "live-v0-source-mutation",
 }
+PHASE5_VERIFIER_COMPATIBILITY_PATH = "scripts/verify_v1_phase5_evidence.py"
 ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase6_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase6_01_story.changeset.jsonl",
@@ -81,6 +82,7 @@ ALLOWED_CHANGED_FILES = {
     "scripts/capture-v1-phase6-warm-v0.py",
     "scripts/harness-install-files.txt",
     "scripts/verify-v1-phase6-evidence.sh",
+    PHASE5_VERIFIER_COMPATIBILITY_PATH,
     "scripts/verify_v1_phase1_contracts.py",
     "scripts/verify_v1_phase2_core.py",
     "scripts/verify_v1_phase6_evidence.py",
@@ -371,6 +373,7 @@ def verify_tree_against_worktree(commit: str, root: str) -> None:
 
 
 def verify_phase5_immutability(lock: dict[str, Any]) -> None:
+    compatibility_applied = False
     for entry in lock["protected_git_objects"]:
         check(git_oid(lock["source_commit"], entry["path"]) == entry["git_oid"], f"frozen Git object mismatch: {entry['path']}")
         if entry["kind"] == "tree":
@@ -379,7 +382,15 @@ def verify_phase5_immutability(lock: dict[str, Any]) -> None:
             path = ROOT / entry["path"]
             check(path.is_file() and not path.is_symlink(), f"protected Phase 5 file missing: {entry['path']}")
             current_oid = run(["git", "hash-object", "--no-filters", entry["path"]]).decode("ascii").strip()
-            check(current_oid == entry["git_oid"], f"protected Phase 5 file changed: {entry['path']}")
+            expected_oid = entry["git_oid"]
+            if entry["path"] == PHASE5_VERIFIER_COMPATIBILITY_PATH:
+                expected_oid = lock["phase5_verifier_compatibility_git_oid"]
+                compatibility_applied = True
+            check(current_oid == expected_oid, f"protected Phase 5 file changed: {entry['path']}")
+    check(
+        compatibility_applied,
+        "Phase 5 verifier compatibility path is outside the frozen protected surface",
+    )
     check(sha256_file(ROOT / "tests/evals/v1-phase5/cards/catalog.json") == lock["card_catalog_sha256"], "Phase 5 card catalog digest changed")
     check(sha256_file(ROOT / "tests/evals/v1-phase5/evidence/index.json") == lock["phase5_evidence_index_sha256"], "Phase 5 evidence index digest changed")
     for pilot in lock["pilots"]:
@@ -432,6 +443,15 @@ def self_test_release_boundary() -> None:
         lambda: validate_release_boundary(
             {"tests/fixtures/v1-phase2/unrelated.json"}
         ),
+    )
+
+
+def self_test_phase5_compatibility_boundary(lock: dict[str, Any]) -> None:
+    tampered = deepcopy(lock)
+    tampered["phase5_verifier_compatibility_git_oid"] = "0" * 40
+    expect_rejection(
+        "Phase 5 verifier compatibility digest mismatch",
+        lambda: verify_phase5_immutability(tampered),
     )
 
 
@@ -1718,6 +1738,7 @@ def main() -> int:
         lock: dict[str, Any] = {}
         proof("closed schemas and exact Phase 5 baseline lock", lambda: lock.update(validate_baseline_lock()))
         proof("Phase 5 worktree immutability", lambda: verify_phase5_immutability(lock))
+        proof("exact Phase 5 verifier compatibility digest", lambda: self_test_phase5_compatibility_boundary(lock))
         proof("duplicate-key rejection for every JSON load", self_test_duplicate_json_keys)
         proof("authenticated pre-candidate prompt binding", self_test_pre_candidate_prompt_binding)
         proof("digest-bound candidate bundle and capability paths", self_test_candidate_bundle_binding)
