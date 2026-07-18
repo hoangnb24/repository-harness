@@ -2,9 +2,9 @@
   "schema": "repository-harness-ordinary-task/v2",
   "task_id": "repository-harness-phase-status-doc-check",
   "starting_revision": "04f953d0f4c8aa42689c1565178376143916c8b5",
-  "prompt": "Update stale US-105 Phase 4 status text, keep Phase 5 candidate-only, and prove Phase 6 did not start.",
+  "prompt": "Update stale US-105 Phase 5 status text, preserve authenticated baseline acceptance, and prove Phase 6 did not start.",
   "commands": [
-    {"argv": ["rg", "--no-config", "-q", "Phases 1-4 accepted / Phase 5 candidate", "docs/stories/US-105-harness-v1-implementation/overview.md"], "exit_code": 0, "observation": "The initiative overview identifies accepted Phases 1-4 and candidate-only Phase 5."},
+    {"argv": ["rg", "--no-config", "-q", "Phases 1-5 accepted at the authenticated baseline gate", "docs/stories/US-105-harness-v1-implementation/overview.md"], "exit_code": 0, "observation": "The initiative overview identifies accepted Phases 1-5 at the authenticated baseline gate."},
     {"argv": ["rg", "--no-config", "-q", "Phase 6 remains not started", "docs/stories/US-105-harness-v1-implementation/validation.md"], "exit_code": 0, "observation": "The validation packet keeps Phase 6 closed."},
     {"argv": ["git", "--no-optional-locks", "diff", "--no-ext-diff", "--check"], "exit_code": 0, "observation": "The ordinary documentation change is whitespace-clean without an external diff driver."}
   ],

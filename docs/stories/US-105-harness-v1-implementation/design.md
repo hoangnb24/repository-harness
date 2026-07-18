@@ -5,7 +5,7 @@
 > authoritative: no bridge target writes, conversion journal, row mapping,
 > `apply`/`resume`/`rollback`, or converted repository mode.
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / docs commit awaits integration**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started**
 
 ## Domain Model
 
@@ -23,7 +23,7 @@ Phase 5 at the authenticated baseline gate on exact `b2dd775`: two distinct
 repository-scoped packets under one stable GitHub identity verify with separate
 external Ed25519 keys and bundle-resolved revisions. Phases 6-8 remain not
 started. Primary fast-forward integration and trust-enabled full premerge passed
-on exact `b2dd775`; this docs commit awaits integration.
+on exact `b2dd775`; acceptance documentation was integrated at `3a65768`.
 
 | Approved value | Current policy | Cause and effect |
 | --- | --- | --- |

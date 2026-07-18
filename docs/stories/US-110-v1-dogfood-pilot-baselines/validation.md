@@ -1,6 +1,6 @@
 # US-110 V1 Dogfood And Pilot Baselines Validation
 
-Status: **Authenticated live baseline gate passed on exact `b2dd775` / Phase 5 accepted / Phases 6-8 not started / docs commit awaits integration**
+Status: **Authenticated live baseline gate passed on exact `b2dd775` / Phase 5 accepted / Phases 6-8 not started**
 
 ## Proof Strategy
 
@@ -163,6 +163,7 @@ normalization and approval):
 The same independent reviewer explicitly approved exact `b2dd775` with no
 remaining findings; shared-owner alias hardening exact `c928986` was separately
 approved by the earlier independent w1N rereviewer. Primary fast-forward
-integration and trust-enabled full premerge passed on exact `b2dd775`; this docs
-commit awaits integration and does not claim that premerge result for itself.
+integration and trust-enabled full premerge passed on exact `b2dd775`;
+acceptance documentation was integrated at `3a65768` and does not claim that
+premerge result for itself.
 Phase 6 remains not started.

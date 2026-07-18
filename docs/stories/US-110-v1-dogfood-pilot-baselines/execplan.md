@@ -1,6 +1,6 @@
 # US-110 V1 Dogfood And Pilot Baselines Exec Plan
 
-Status: **Authenticated Phase 5 baselines complete and accepted on exact `b2dd775` / Phases 6-8 not started / docs commit awaits integration**
+Status: **Authenticated Phase 5 baselines complete and accepted on exact `b2dd775` / Phases 6-8 not started**
 
 ## Goal
 
@@ -111,4 +111,4 @@ Stop and request owner input if:
 Current result: live enrollment and baseline verification completed. Phase 5 is
 accepted at the authenticated baseline gate; Phase 6 remains not started, and
 primary fast-forward integration and trust-enabled full premerge passed on exact
-`b2dd775`; this docs commit awaits integration.
+`b2dd775`; acceptance documentation was integrated at `3a65768`.

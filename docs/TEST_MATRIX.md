@@ -111,7 +111,8 @@ Benchmark P1 is inapplicable and benchmark P6 failed; e-inna P0/P1/P3/P6
 failed. These are baseline measurements rather than Phase 6 acceptance tests,
 so they do not block Phase 5. Phase 6 has not started and will compare a future
 candidate against them. Primary fast-forward integration and trust-enabled full
-premerge passed on exact `b2dd775`; this docs commit awaits integration.
+premerge passed on exact `b2dd775`; acceptance documentation was integrated at
+`3a65768`.
 
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and

@@ -40,7 +40,7 @@ CORE_PACKET_FILES = {
     "interventions.json", "baseline-result.json", "repository.bundle",
 }
 ORDINARY_ARGV = [
-    ["rg", "--no-config", "-q", "Phases 1-4 accepted / Phase 5 candidate", "docs/stories/US-105-harness-v1-implementation/overview.md"],
+    ["rg", "--no-config", "-q", "Phases 1-5 accepted at the authenticated baseline gate", "docs/stories/US-105-harness-v1-implementation/overview.md"],
     ["rg", "--no-config", "-q", "Phase 6 remains not started", "docs/stories/US-105-harness-v1-implementation/validation.md"],
     ["git", "--no-optional-locks", "diff", "--no-ext-diff", "--check"],
 ]
@@ -1290,8 +1290,13 @@ def validate_story_packet() -> None:
     for name in ["overview.md", "design.md", "execplan.md", "validation.md"]:
         check((story / name).is_file() and (story / name).stat().st_size > 0, f"US-110 packet file missing: {name}")
     content = "\n".join((story / name).read_text(encoding="utf-8") for name in ["overview.md", "design.md", "execplan.md", "validation.md"])
+    normalized_content = " ".join(content.split())
     check("ssh-ed25519" in content and "packet manifest" in content.lower(), "US-110 does not describe corrected authentication/custody proof")
-    check("Phase 5 is not accepted" in content and "Phase 6 remains" in content, "US-110 opened a later phase")
+    check(
+        "Phase 5 is accepted at the authenticated baseline gate" in normalized_content
+        and "Phase 6 remains not started" in normalized_content,
+        "US-110 does not preserve the accepted Phase 5 gate or opened a later phase",
+    )
 
 
 def main() -> None:
@@ -1314,7 +1319,7 @@ def main() -> None:
     proof("Draft 2020-12 contracts, fixed P0-P7 catalog, empty tracked trust placeholder, and candidate index validate", lambda: None)
     proof("one stable owner and SSH Ed25519 key authenticate two repository-scoped packets with distinct repositories and bundles", prove_positive_packet)
     proof("42 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
-    proof("US-110 documents only corrected repository-owned candidate proof", validate_story_packet)
+    proof("US-110 records accepted authenticated baselines and leaves Phase 6 closed", validate_story_packet)
     if index["status"] == "complete":
         proof(
             "default verifier automatically loads two complete live pilot packets",

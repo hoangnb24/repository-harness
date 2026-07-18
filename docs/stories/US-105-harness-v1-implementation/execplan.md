@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / docs commit awaits integration**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started**
 
 Decision 0014 supersedes every Phase 4 automatic-conversion step below. The
 authoritative replacement is US-109: four bridge commands, append-only archive

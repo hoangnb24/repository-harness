@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / docs commit awaits integration**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started**
 
 This is the durable implementation initiative packet for the eight phases in
 `docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement
@@ -14,8 +14,8 @@ with identical Git tree `0f81d3f0f4c8`. US-110 supplies accepted Phase 5
 dogfood and authenticated pre-candidate baselines at exact `b2dd775`, which an
 independent reviewer explicitly approved with no remaining findings. No
 production release or Phase 6-8 behavior exists. Primary fast-forward integration
-and trust-enabled full premerge passed on exact `b2dd775`; this docs commit
-awaits integration.
+and trust-enabled full premerge passed on exact `b2dd775`; acceptance
+documentation was integrated at `3a65768`.
 Decision 0012 supplies authorization policy; Decision 0013 and US-106 supply
 accepted Phase 1. US-107 supplies validated Phase 2 implementation evidence,
 and US-108 supplies independently accepted Phase 3 evidence.
@@ -159,8 +159,8 @@ Phase 1 acceptance, US-107 provides accepted Phase 2 implementation and
 validation, and US-108 provides accepted Phase 3 mutation/recovery evidence.
 US-109 implements the accepted isolated Phase 4 bridge. US-110 preserves
 external-pilot ownership and supplies accepted Phase 5 authenticated baselines;
-it claims no Phase 6 work, candidate improvement, or release. The later docs
-commit awaits integration.
+it claims no Phase 6 work, candidate improvement, or release. The Phase 5
+acceptance documentation is integrated.
 
 ## Non-Goals
 

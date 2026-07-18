@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started / docs commit awaits integration**
+Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phases 6-8 not started**
 
 Phase 6 remains not started: its candidate improvements must be evaluated
 against the two authenticated pre-candidate baselines recorded by US-110.
@@ -273,7 +273,7 @@ git status --short
 ## Acceptance Evidence
 
 Current product evidence: **Phases 1-5 accepted at the authenticated baseline
-gate; Phases 6-8 not started; this docs commit awaits integration**.
+gate; Phases 6-8 not started**.
 Decision 0012 is G0
 authorization evidence; Decision 0013 is the accepted security/data-integrity
 decision; US-106 supplies versioned contracts, frozen V0 inputs, complete

@@ -2,7 +2,7 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-5 accepted at the authenticated baseline gate; Phases 6-8 not started; this docs commit awaits integration
+Status: Direction and Phases 1-5 accepted at the authenticated baseline gate; Phases 6-8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
@@ -622,7 +622,8 @@ Phase 4 evidence. US-110 supplies accepted authenticated Phase 5 baseline
 evidence at exact `b2dd775`; this accepts honest baseline custody, not any
 candidate improvement. Phases 6-8 remain not started and depend on preceding
 accepted evidence. Primary fast-forward integration and trust-enabled full
-premerge passed on exact `b2dd775`; this docs commit awaits integration. No
+premerge passed on exact `b2dd775`; acceptance documentation was integrated at
+`3a65768`. No
 bridge conversion write,
 production key, promoted release, pilot, tag, publish action, or V0 removal is
 created or authorized by Phase 3. Phase 8
