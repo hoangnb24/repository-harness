@@ -5,6 +5,14 @@ Outcome: `passed`.
 Environment digest:
 `b69c81a8ec42c39d80b0b9f814675646c4f1e39f688aa5a72bab01265e480dde`.
 
+Packet-normalization annotation (added after the source run): the value above
+is the source-run legacy digest computed with a trailing newline. This
+authenticated requirement artifact is bound to the verifier-canonical packet
+environment digest
+`b3a3067d79803aa6631ae7cd9f3424e13b102073bd9eb64123407a9ae43ef2dc`,
+computed without that trailing newline. The original held-out transcript and
+timeout result are unchanged.
+
 Scope: tiny, documentation-only repair. The active README guidance was already
 dirty at task start and contradicted the manifest-driven task range. No product
 behavior, validation requirement, test, remote, key, or signature changed.

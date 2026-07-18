@@ -19,6 +19,12 @@ The fresh agent receives only the committed repository and this plan. Earlier
 
 - Final environment digest:
   `1808dd68477e80c0fdb5bb04b4f1e99b280886432046022deb85772494af8256`.
+- Packet-normalization annotation (added after the source run): the value above
+  is the source-run legacy digest computed with a trailing newline. The
+  verifier-canonical packet environment digest, computed without that trailing
+  newline, is
+  `1a2c1145670897c3d85a0fb9509704f3b70174a38fd0a6ae69e38d0b9f3c1f15`.
+  No original plan decision or outcome changed.
 - Exact original acceptance:
   `pnpm exec vitest run test/operational-metadata-adapter.spec.ts test/chat-contract.spec.ts test/mock-integration.spec.ts`.
 - Use locked Node `22.22.3` and pnpm `10.30.1`; retain the Node engine mismatch.

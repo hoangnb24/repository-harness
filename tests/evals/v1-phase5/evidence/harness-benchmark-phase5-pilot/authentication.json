@@ -12,7 +12,7 @@
     "owner_id": "hoangnb24-harness-benchmark-phase5",
     "authorization_scope": "phase5-baseline-evaluation-p0-p7-harness-benchmark",
     "card_catalog_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594",
-    "packet_manifest_sha256": "30dcb1311edf92d06ff14af0eaa2d0641cab7e3d0af5e3594d7ac649d17808c0",
+    "packet_manifest_sha256": "e4aed2c8df0c28a23c62c52a92b74ff6c79c4353987ad4bb1bb5c3436cef1ec0",
     "publication_id": "harness-benchmark-phase5-pilot-baseline-20260718t075654z",
     "custody_id": "harness-benchmark-phase5-pilot-custody-local-20260718",
     "baseline_subject_identity": "harness-benchmark@090f6d1c33d9f006cc8e95491badc33a8053c89f",
@@ -22,5 +22,5 @@
     "published_at": "2026-07-18T07:56:54Z",
     "candidate_disclosure_not_before": "2026-07-18T07:56:55Z"
   },
-  "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgZts0WqxKdf2RVGt7YIlCNMtgei\nYzgvuKHHfgdWITdSUAAAAZcmVwb3NpdG9yeS1oYXJuZXNzLXBoYXNlNQAAAAAAAAAGc2hh\nNTEyAAAAUwAAAAtzc2gtZWQyNTUxOQAAAECW3y2140uA4+d3xwnGulVf8qtYCynySfKoYk\nsDwFbYjyLgdIgjLpFoRVVey0EKc1JG1emFe/f5+sbJkKUku/0N\n-----END SSH SIGNATURE-----\n"
+  "signature": "ORCHESTRATOR_SIGNATURE_PENDING"
 }

@@ -12,7 +12,7 @@
     "owner_id": "hoangnb24-e-inna-brain-phase5",
     "authorization_scope": "phase5-baseline-evaluation-p0-p7-e-inna-brain",
     "card_catalog_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594",
-    "packet_manifest_sha256": "6972b801d9213cde27b2b6677bebefa2bdbce8ec74ca9d9a60a9d460baa3b705",
+    "packet_manifest_sha256": "5e44c2b00f83c1434d3a5e74328ec5fe88bb3d4ee6382b8cd50cf4367918caae",
     "publication_id": "e-inna-brain-phase5-baseline-baseline-20260718t075654z",
     "custody_id": "e-inna-brain-phase5-baseline-custody-local-20260718",
     "baseline_subject_identity": "e-inna-brain-repository-native-harness@9be2b9b624f29c2c4f93bb576485fd8de2085af4",
@@ -22,5 +22,5 @@
     "published_at": "2026-07-18T07:56:54Z",
     "candidate_disclosure_not_before": "2026-07-18T07:56:55Z"
   },
-  "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgnUssRYfkVfJtvKgw0obMYFJary\nY3i3Omsx+/su/urBkAAAAZcmVwb3NpdG9yeS1oYXJuZXNzLXBoYXNlNQAAAAAAAAAGc2hh\nNTEyAAAAUwAAAAtzc2gtZWQyNTUxOQAAAEALfKjF8gffpLe8R7twlPXpIkgXWEfgmPDLXF\nOawL24MDfr8oV5Z516zPGQFdRKKEGRzMrgWzSVV+q4yGq2wxsO\n-----END SSH SIGNATURE-----\n"
+  "signature": "ORCHESTRATOR_SIGNATURE_PENDING"
 }

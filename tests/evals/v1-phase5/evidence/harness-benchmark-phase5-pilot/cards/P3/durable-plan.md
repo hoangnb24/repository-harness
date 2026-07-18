@@ -8,6 +8,13 @@ diagnosing the seeded failure and before applying the repair.
 Environment lock digest:
 `b69c81a8ec42c39d80b0b9f814675646c4f1e39f688aa5a72bab01265e480dde`.
 
+Packet-normalization annotation (added after the source run): the value above
+is the source-run legacy digest computed with a trailing newline. The
+verifier-canonical packet environment digest, computed without that trailing
+newline, is
+`b3a3067d79803aa6631ae7cd9f3424e13b102073bd9eb64123407a9ae43ef2dc`.
+The original interruption facts and plan are unchanged.
+
 ## Goal
 
 Restore correct dependency handling for resumed task subsets. A task whose

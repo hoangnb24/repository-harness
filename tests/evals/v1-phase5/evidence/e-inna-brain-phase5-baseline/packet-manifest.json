@@ -53,7 +53,7 @@
     },
     {
       "path": "P3/resume-plan.md",
-      "sha256": "384c55541471af69e8b513eecb9f94ddf5e2f018b85693c6e4503a536a972acf",
+      "sha256": "c90f63492d88062894ab3d811b7b2992ad1076545eb9f58200cdc27e6d3ff799",
       "media_type": "text/markdown",
       "purpose": "Committed source evidence artifact: P3/resume-plan.md."
     },
@@ -65,7 +65,7 @@
     },
     {
       "path": "P3/validation-report.md",
-      "sha256": "476ca7be28809f45e93e64347126838b1f9c36610db86a22392c0ee00be2a7cc",
+      "sha256": "4133548fe14b8e76e7c0c740f1bf33f4b09b99a65fde5d405b2a5452461554c1",
       "media_type": "text/markdown",
       "purpose": "Committed source evidence artifact: P3/validation-report.md."
     },
@@ -113,7 +113,7 @@
     },
     {
       "path": "P6/held-out-transcript.md",
-      "sha256": "441c6713c7d265c3f400b9b91a9f2e8808c57ea729eb3a8a99251490fa97ead3",
+      "sha256": "1b2d3245a81febcb70873f0f4cc9153b5495874edba84c1bffebecaace434041",
       "media_type": "text/markdown",
       "purpose": "Committed source evidence artifact: P6/held-out-transcript.md."
     },

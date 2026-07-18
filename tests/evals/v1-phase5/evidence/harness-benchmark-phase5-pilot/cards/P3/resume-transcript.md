@@ -1,5 +1,13 @@
 # P3 Resume Transcript
 
+Packet-normalization annotation (added after the source run): this
+authenticated requirement artifact is bound to the verifier-canonical packet
+environment digest
+`b3a3067d79803aa6631ae7cd9f3424e13b102073bd9eb64123407a9ae43ef2dc`.
+The source run recorded the legacy trailing-newline digest
+`b69c81a8ec42c39d80b0b9f814675646c4f1e39f688aa5a72bab01265e480dde`;
+the ordered transcript below is unchanged.
+
 ## Ordered commands and actions
 
 1. `2026-07-18T07:14:16Z` — `sed -n '1,240p' AGENTS.md`

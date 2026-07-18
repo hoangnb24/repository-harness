@@ -53,13 +53,13 @@
     },
     {
       "path": "cards/P3/durable-plan.md",
-      "sha256": "22f09fd2bc1341cc9f9b745fa11e06f3cad8f01de15feb028f77842e3090445f",
+      "sha256": "a147bc01a4726eb376ff9a2997d0bacf19e5058fe74842f330e14fb70d56e4bb",
       "media_type": "text/markdown",
       "purpose": "Committed source evidence artifact: cards/P3/durable-plan.md."
     },
     {
       "path": "cards/P3/resume-transcript.md",
-      "sha256": "c4c68c63f0c721e3891cb87a00cfda311d04e7b5ff54a9f9d86f46c7b33f6611",
+      "sha256": "dc879d454eadf68ce1e01eb4f5b2b6685b9a02d8f609888f0fb44251e7e58a81",
       "media_type": "text/markdown",
       "purpose": "Committed source evidence artifact: cards/P3/resume-transcript.md."
     },
@@ -83,19 +83,19 @@
     },
     {
       "path": "cards/P6/evidence.md",
-      "sha256": "6bbf96bad662eb371679a060fafbed807eed3798ab68edd58c0b4d7bf8155322",
+      "sha256": "039b754c9b01c9e0042fd3482dc1a4bdd9ab0c68b14800526e6f2f5e15755a37",
       "media_type": "text/markdown",
       "purpose": "Committed source evidence artifact: cards/P6/evidence.md."
     },
     {
       "path": "cards/P6/held-out-prompt.md",
-      "sha256": "206922a3159403f5d248ca8a8a05663889bba7148b110b0df31ae52b86fef3ed",
+      "sha256": "7fb2a0dd83a9a331629a2e72fd4a461ead67d5ad999ceb83a79abbb6dfee2aa0",
       "media_type": "text/markdown",
       "purpose": "Committed source evidence artifact: cards/P6/held-out-prompt.md."
     },
     {
       "path": "cards/P6/held-out-transcript.md",
-      "sha256": "0a21ed7d7645faf7332cba711506ba2bc3704c58be564c5d42d7a782619902d4",
+      "sha256": "bdf339d18516b18b68a60c6ed21570bd497d6c39fdc6efb22ab54852497ebe99",
       "media_type": "text/markdown",
       "purpose": "Committed source evidence artifact: cards/P6/held-out-transcript.md."
     },

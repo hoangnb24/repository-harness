@@ -1,7 +1,28 @@
 # Phase 5 Live Evidence Packet Assembly
 
-The two live packets were assembled and authenticated on 2026-07-18 from
-committed pilot evidence only:
+The two live packets were assembled on 2026-07-18 from committed pilot
+evidence. A later independent review found that selected historical evidence
+artifacts still named source-run environment digests computed with a trailing
+newline even though packet assembly correctly used the verifier-canonical
+no-newline digests:
+
+- benchmark legacy
+  `b69c81a8ec42c39d80b0b9f814675646c4f1e39f688aa5a72bab01265e480dde`
+  maps to canonical
+  `b3a3067d79803aa6631ae7cd9f3424e13b102073bd9eb64123407a9ae43ef2dc`;
+- e-inna legacy
+  `1808dd68477e80c0fdb5bb04b4f1e99b280886432046022deb85772494af8256`
+  maps to canonical
+  `1a2c1145670897c3d85a0fb9509704f3b70174a38fd0a6ae69e38d0b9f3c1f15`.
+
+This unsigned correction adds explicit post-run annotations to the five legacy
+references and canonical bindings to all four exact P3/P6 requirement-mapped
+artifacts. Those annotated artifacts intentionally no longer byte-match their
+source Git blobs; their original values, prompts, transcripts, outcomes,
+timestamps, interventions, and other source facts remain visible and
+unchanged.
+
+Packet provenance remains:
 
 - `harness-benchmark-phase5-pilot` uses
   `docs/evidence/phase5-pilot-benchmark` at clean source commit
@@ -29,6 +50,9 @@ and environment, result, intervention-file, bundle-file, packet-artifact, and
 manifest digests were recomputed. Recorded timestamps, interventions, and all
 pass/fail/inapplicable outcomes were preserved.
 
-Both authentication envelopes bind their complete canonical statements and
-carry SSH Ed25519 signatures made with the two externally held pilot keys.
-The complete evidence index names both packets and has no remaining blocker.
+Only the affected packet-manifest artifact digests were updated. Each
+authentication statement was rebound to its corrected packet manifest, and
+both signatures were set exactly to `ORCHESTRATOR_SIGNATURE_PENDING`; no key
+was accessed and no signature was created. The evidence index therefore
+returned to `candidate-awaiting-pilot-authorization` and honestly records the
+signature blockers instead of claiming Phase 5 acceptance.

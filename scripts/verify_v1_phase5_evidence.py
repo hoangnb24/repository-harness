@@ -594,6 +594,16 @@ def validate_packet(
             check(requirements == cards[card_id]["evidence_requirements"], f"{card_id} does not back every card-specific evidence requirement")
         for item in result["evidence"]:
             check(item["artifact"] in artifact_digests, f"{card_id} evidence is outside authenticated custody: {item['artifact']}")
+            if disposition["disposition"] == "eligible" and "environment digest" in item["requirement"].casefold():
+                artifact = contained_member(packet_dir, item["artifact"], f"{card_id} environment-digest evidence")
+                try:
+                    payload = artifact.read_bytes()
+                except OSError as error:
+                    raise VerificationError(f"cannot read {card_id} environment-digest evidence: {item['artifact']}") from error
+                check(
+                    environment["environment_sha256"].encode("ascii") in payload,
+                    f"{card_id} environment-digest evidence does not contain the canonical packet environment digest: {item['artifact']}",
+                )
     validate_timeline(enrollment, environment, eligibility, interventions, baseline, statement, owner)
     return {
         "pilot_id": pilot_id,
@@ -749,7 +759,10 @@ def build_synthetic_packet(root: Path) -> tuple[Path, dict[str, dict[str, Any]],
         for index, requirement in enumerate(cards[card_id]["evidence_requirements"]):
             relative = f"artifacts/{card_id}-evidence-{index}.txt"
             path = packet / relative
-            path.write_text(f"synthetic evidence for {card_id}: {requirement}\n", encoding="utf-8")
+            content = f"synthetic evidence for {card_id}: {requirement}\n"
+            if "environment digest" in requirement.casefold():
+                content += f"canonical packet environment digest: {environment['environment_sha256']}\n"
+            path.write_text(content, encoding="utf-8")
             evidence.append({"requirement": requirement, "artifact": relative})
         command = canonical_bytes({"argv": commands[number]["argv"]}).decode("utf-8")
         results.append({"card_id": card_id, "outcome": "passed", "acceptance_command": command, "evidence": evidence})
@@ -829,6 +842,7 @@ def build_repository_scoped_packet(
     if revision is not None:
         enrollment["starting_revision"]["value"] = revision
     environment = load_json(destination / "environment.json")
+    prior_environment_digest = environment["environment_sha256"]
     environment["pilot_id"] = pilot_id
     environment["environment_sha256"] = canonical_digest(environment, "environment_sha256")
     eligibility = load_json(destination / "eligibility.json")
@@ -846,6 +860,17 @@ def build_repository_scoped_packet(
         baseline["starting_revision"] = revision
     baseline["environment_sha256"] = environment["environment_sha256"]
     baseline["intervention_log_sha256"] = sha256_file(destination / "interventions.json")
+    for result in baseline["cards"]:
+        for evidence in result["evidence"]:
+            if "environment digest" not in evidence["requirement"].casefold():
+                continue
+            artifact_path = destination / evidence["artifact"]
+            payload = artifact_path.read_bytes()
+            check(prior_environment_digest.encode("ascii") in payload, "synthetic environment-digest fixture lost its source binding")
+            artifact_path.write_bytes(payload.replace(
+                prior_environment_digest.encode("ascii"),
+                environment["environment_sha256"].encode("ascii"),
+            ))
     baseline["result_sha256"] = canonical_digest(baseline, "result_sha256")
     write_json(destination / "baseline-result.json", baseline)
 
@@ -896,6 +921,25 @@ def rewrite_packet_repository(packet: Path, key: Path, repository: str) -> None:
     authentication["statement"]["packet_manifest_sha256"] = sha256_file(packet / "packet-manifest.json")
     authentication["signature"] = sign_statement(key, authentication["statement"])
     write_json(packet / "authentication.json", authentication)
+
+
+def rebind_authenticated_artifact(packet: Path, key: Path, relative: str, payload: bytes) -> None:
+    """Rewrite one synthetic artifact and fully renew its manifest and signature."""
+    artifact_path = contained_member(packet, relative, "synthetic rebound artifact")
+    artifact_path.write_bytes(payload)
+
+    manifest_path = packet / "packet-manifest.json"
+    manifest = load_json(manifest_path)
+    entry = next((item for item in manifest["artifacts"] if item["path"] == relative), None)
+    check(entry is not None, "synthetic rebound artifact is absent from the packet manifest")
+    entry["sha256"] = sha256_file(artifact_path)
+    write_json(manifest_path, manifest)
+
+    authentication_path = packet / "authentication.json"
+    authentication = load_json(authentication_path)
+    authentication["statement"]["packet_manifest_sha256"] = sha256_file(manifest_path)
+    authentication["signature"] = sign_statement(key, authentication["statement"])
+    write_json(authentication_path, authentication)
 
 
 def expect_rejection(label: str, function: Callable[[], None]) -> None:
@@ -1015,6 +1059,44 @@ def prove_negative_contracts() -> None:
         renewed["signature"] = sign_statement(key, renewed["statement"])
         write_json(authentication_path, renewed)
         expect_rejection("fake evidence artifact", lambda: validate_packet(packet, packet.name, trusted, catalog_digest, cards))
+
+        stale_root = root / "stale-environment-digest"
+        stale_packet, stale_trusted, stale_key, stale_cards, stale_catalog = build_synthetic_packet(stale_root)
+        stale_baseline = load_json(stale_packet / "baseline-result.json")
+        stale_item = next(
+            item
+            for result in stale_baseline["cards"]
+            for item in result["evidence"]
+            if "environment digest" in item["requirement"].casefold()
+        )
+        stale_digest = sha256_bytes(b"synthetic legacy trailing-newline environment")
+        check(stale_digest != load_json(stale_packet / "environment.json")["environment_sha256"], "stale digest fixture collided with the current environment")
+        rebind_authenticated_artifact(
+            stale_packet, stale_key, stale_item["artifact"],
+            f"source-run legacy trailing-newline environment digest: {stale_digest}\n".encode("utf-8"),
+        )
+        expect_rejection(
+            "fully rebound and re-signed environment-digest evidence contains only a stale digest",
+            lambda: validate_packet(stale_packet, stale_packet.name, stale_trusted, stale_catalog, stale_cards),
+        )
+
+        omitted_root = root / "omitted-environment-digest"
+        omitted_packet, omitted_trusted, omitted_key, omitted_cards, omitted_catalog = build_synthetic_packet(omitted_root)
+        omitted_baseline = load_json(omitted_packet / "baseline-result.json")
+        omitted_item = next(
+            item
+            for result in omitted_baseline["cards"]
+            for item in result["evidence"]
+            if "environment digest" in item["requirement"].casefold()
+        )
+        rebind_authenticated_artifact(
+            omitted_packet, omitted_key, omitted_item["artifact"],
+            b"authenticated evidence intentionally omits the required binding\n",
+        )
+        expect_rejection(
+            "fully rebound and re-signed environment-digest evidence omits the digest",
+            lambda: validate_packet(omitted_packet, omitted_packet.name, omitted_trusted, omitted_catalog, omitted_cards),
+        )
 
         expect_rejection("absolute evidence path", lambda: relative_name("/tmp/evidence", "artifact"))
         expect_rejection("parent traversal", lambda: relative_name("../evidence", "artifact"))
@@ -1200,7 +1282,7 @@ def prove_negative_contracts() -> None:
             completed = run(["/bin/bash", str(wrapper_path), "--dogfood-only"], expected=1, environment={"PATH": str(path_root)})
             check(b"requires: rg" in completed.stderr, "wrapper did not fail deterministically when rg was missing")
             NEGATIVE_COUNT += 1
-        check(NEGATIVE_COUNT == 40, f"adversarial suite count changed: {NEGATIVE_COUNT}")
+        check(NEGATIVE_COUNT == 42, f"adversarial suite count changed: {NEGATIVE_COUNT}")
 
 
 def validate_story_packet() -> None:
@@ -1231,7 +1313,7 @@ def main() -> None:
     index = load_evidence_index(EVIDENCE)
     proof("Draft 2020-12 contracts, fixed P0-P7 catalog, empty tracked trust placeholder, and candidate index validate", lambda: None)
     proof("one stable owner and SSH Ed25519 key authenticate two repository-scoped packets with distinct repositories and bundles", prove_positive_packet)
-    proof("40 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
+    proof("42 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
     proof("US-110 documents only corrected repository-owned candidate proof", validate_story_packet)
     if index["status"] == "complete":
         proof(
