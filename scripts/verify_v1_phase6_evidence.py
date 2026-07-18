@@ -85,12 +85,26 @@ ALLOWED_CHANGED_FILES = {
     "scripts/verify_v1_phase2_core.py",
     "scripts/verify_v1_phase6_evidence.py",
     "tests/evals/test-v1-phase6-evidence.sh",
+    "tests/evals/v1-phase6/README.md",
+    "tests/evals/v1-phase6/baseline-lock.json",
+    "tests/evals/v1-phase6/evidence/index.json",
+    "tests/evals/v1-phase6/schemas/baseline-lock.schema.json",
+    "tests/evals/v1-phase6/schemas/candidate-result.schema.json",
+    "tests/evals/v1-phase6/schemas/candidate-subject.schema.json",
+    "tests/evals/v1-phase6/schemas/comparison-report.schema.json",
+    "tests/evals/v1-phase6/schemas/condition-lock.schema.json",
+    "tests/evals/v1-phase6/schemas/evidence-index.schema.json",
+    "tests/evals/v1-phase6/schemas/intervention-log.schema.json",
+    "tests/evals/v1-phase6/schemas/lane-assignment.schema.json",
+    "tests/evals/v1-phase6/schemas/packet-manifest.schema.json",
+    "tests/evals/v1-phase6/schemas/prompt-authentication.schema.json",
+    "tests/evals/v1-phase6/schemas/signature.schema.json",
+    "tests/evals/v1-phase6/schemas/warm-v0-capture.schema.json",
     "tests/fixtures/v1-phase2/README.md",
     "tests/fixtures/v1-phase2/current-core-payload-index.json",
     "tests/fixtures/v1-phase2/current-core-payload-index.signatures.json",
     "tests/fixtures/v1-phase2/historical-phase1-story.md",
 }
-ALLOWED_CHANGED_PREFIXES = ("tests/evals/v1-phase6/",)
 FORBIDDEN_PHASE6_FILENAMES = {
     "harness.db",
     "harness.db-wal",
@@ -383,8 +397,10 @@ def changed_paths() -> set[str]:
 
 def validate_release_boundary(paths: set[str] | None = None) -> None:
     for path in changed_paths() if paths is None else paths:
-        allowed = path in ALLOWED_CHANGED_FILES or path.startswith(ALLOWED_CHANGED_PREFIXES)
-        check(allowed, f"Phase 6 framework crossed its owned-file boundary: {path}")
+        check(
+            path in ALLOWED_CHANGED_FILES,
+            f"Phase 6 framework crossed its owned-file boundary: {path}",
+        )
 
 
 def self_test_release_boundary() -> None:
@@ -397,6 +413,24 @@ def self_test_release_boundary() -> None:
         "unrelated Harness changeset path",
         lambda: validate_release_boundary(
             {".harness/changesets/unrelated.changeset.jsonl"}
+        ),
+    )
+    expect_rejection(
+        "unrelated Phase 6 evaluation path",
+        lambda: validate_release_boundary(
+            {"tests/evals/v1-phase6/unrelated-core.bin"}
+        ),
+    )
+    expect_rejection(
+        "unrelated Rust path",
+        lambda: validate_release_boundary(
+            {"crates/harness-core/tests/unrelated.rs"}
+        ),
+    )
+    expect_rejection(
+        "unrelated fixture path",
+        lambda: validate_release_boundary(
+            {"tests/fixtures/v1-phase2/unrelated.json"}
         ),
     )
 

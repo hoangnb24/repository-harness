@@ -1,14 +1,16 @@
 # US-111 V1 Phase 6 Capability Evaluation Validation
 
-Status: **Framework correction validated; live P0-P7 validation and Phase 6
-acceptance not started**
+Status: **Framework implemented and verified; live P0-P7 validation pending;
+Phase 6 not accepted**
 
 ## Proof Strategy
 
-This slice can prove only that the authority, story packet, portable templates,
-indexes, path ledger, phase statuses, and replay changesets are coherent and
-preserve prior accepted bytes. It cannot prove that a capability improves an
-agent outcome.
+The initial docs-only slice proved that the authority, story packet, portable
+templates, indexes, path ledger, phase statuses, and replay changesets were
+coherent. The implemented framework additionally proves its closed schemas,
+custody and comparison rules, exact release boundary, synthetic warm capture,
+installer parity, and regression integration. It still cannot prove that a
+capability improves an agent outcome without live P0-P7 candidate evidence.
 
 The proof ladder stops on the first failure:
 
@@ -33,7 +35,7 @@ The proof ladder stops on the first failure:
 | Portability | Portable templates contain no pilot names, languages, package managers, or evaluator instructions; existing V0 Harness guidance is conditional and ordinary targets use target-owned proof/capability routes. |
 | Preservation | Phase 5 files and every US-110 file match the starting commit byte-for-byte. |
 | Durable replay | Intake UID `ink_e77c86ec00d11c619c8f9ffd282188b8` and US-111 replay into the isolated DB without touching live state. |
-| Scope | No evaluator scripts/schemas, Rust, pilot/private evidence, keys, workflows, releases, or tags change. |
+| Integration boundary | Evaluator/capture/verifier scripts and schemas, Rust test-only release expectations, and the V0 installer manifest are implemented; production runtime/CLI semantics, installer command semantics, pilot/private evidence, keys, workflows, releases, and tags remain unchanged. |
 
 ## Future Live-Card Acceptance
 
@@ -109,9 +111,10 @@ Initial framework checks passed on 2026-07-18:
 - `git diff --check`, forbidden-path scope, and exact Phase 5/US-110 comparison
   against `5d6e6bc` passed.
 
-These results accept only the documentation/capability framework. Live
-candidate evidence remains pending external authorization/custody and is not
-part of this slice.
+These initial results validated only the docs/capability slice. The executable
+framework and regression integration are recorded below. Live candidate
+evidence remains pending external authorization/custody and is not part of this
+work.
 
 Independent review then found that the warm lane did not yet close
 condition-master derivation and that retained V0 Harness template guidance was

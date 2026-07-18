@@ -88,12 +88,15 @@ Future authorized live-card flow:
 
 ## Interface Contract
 
-This slice adds Markdown and one JSON ledger entry. The combined-stack repair
-also places `docs/templates/agent-map.md` in the existing V0 installer manifest,
-so fresh V0 installs carry the neutral template. It creates no new CLI, command
-grammar, runtime service, schema, database field, installer command semantics,
-or evaluation script. Authenticated V1 core payload inclusion remains a later
-gate.
+The initial docs-only slice added Markdown and one JSON ledger entry. The
+implemented framework now adds evaluator, warm-capture, and evidence-verifier
+scripts; closed schemas, a baseline lock, and an evidence index. The
+combined-stack regression integration also updates Rust test-only release
+expectations and places `docs/templates/agent-map.md` in the existing V0
+installer manifest, so fresh V0 installs carry the neutral template. It creates
+no new production CLI command grammar, runtime service, database field,
+installer command semantics, or live candidate evidence. Authenticated V1 core
+payload inclusion remains a later gate.
 
 Portable templates use angle-bracket completion markers. A target activates a
 template only after replacing required markers with its own paths, commands,
@@ -132,10 +135,12 @@ ordered fields; neither template assumes how those checks are implemented.
 
 ## Observability
 
-This docs slice is observable through reviewable diffs, JSON parsing, template
-neutrality searches, preservation hashes, and replayable changesets. It does
-not generate live card results, intervention totals, signatures, or release
-evidence.
+The initial docs slice is observable through reviewable diffs, JSON parsing,
+template neutrality searches, preservation hashes, and replayable changesets.
+The implemented framework adds schema validation, executable custody and
+release-boundary negatives, synthetic warm-capture tests, and regression gates.
+It does not generate live card results, intervention totals, signatures, or
+release evidence.
 
 ## Alternatives Considered
 

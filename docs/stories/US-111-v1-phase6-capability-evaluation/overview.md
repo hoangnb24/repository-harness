@@ -10,15 +10,18 @@ enrolled repository scopes have fixed P0-P7 cards, immutable starting
 revisions, locked environments, authenticated custody, and honest baseline
 outcomes. Those records do not contain Phase 6 candidate subjects.
 
-The existing portable story and validation templates still contain V0 Harness
-lifecycle instructions and do not give a target a bounded agent map, an exact
-resume action, a validation ladder, or target-owned contracts for invariants,
-feedback, repeated corrections, and gardening.
+US-111 began with a docs-only authority and template slice. The combined stack
+now also contains evaluator, warm-capture, and evidence-verifier scripts; closed
+schemas, a baseline lock, and an evidence index; Rust test-only release
+expectations; and the V0 installer-manifest entry for the agent map. The updated
+portable templates provide bounded routes, exact resume actions, validation
+ladders, and target-owned contracts without changing production runtime or CLI
+semantics.
 
 ## Target Behavior
 
-This slice starts Phase 6 by establishing the authority and neutral capability
-framework:
+The initial docs-only slice established authority and neutral portable
+templates. The implemented framework and regression integration now provide:
 
 1. Decision 0015 defines clean `cold-clone` custody and isolated
    `warm-v0-copy` custody, pre-candidate capture, live-state immutability,
@@ -29,7 +32,13 @@ framework:
 3. Resume capsules name one exact next action and an ordered validation ladder.
 4. Invariant, feedback, repeated-correction, and gardening contracts name a
    target owner and repository-native durable home.
-5. Phase 6 stays in progress until the already fixed live cards are instantiated
+5. Evaluator, capture, and verifier scripts plus closed schemas enforce custody,
+   identity, comparison, and release-boundary rules without admitting live
+   evidence by directory prefix.
+6. Rust test-only release expectations and the V0 installer manifest keep the
+   framework aligned with the earlier release stack without changing runtime,
+   CLI, or installer command semantics.
+7. Phase 6 stays in progress until the already fixed live cards are instantiated
    and evaluated under signed comparable conditions.
 
 Cause and effect: an interrupted task no longer leaves the next agent with
@@ -64,7 +73,7 @@ agent can act without reconstructing the prior conversation.
 - Running, editing, or inventing live P0-P7 candidate evidence.
 - Accessing or changing a pilot repository, private snapshot, archive, raw
   database, external trust registry, or key.
-- Adding evaluator scripts, schemas, Rust code, installer behavior, or
+- Changing production runtime or CLI semantics, installer command semantics, or
   production workflows.
 - Requiring a language, framework, package manager, repository layout, or
   Harness-only plan during ordinary work.
