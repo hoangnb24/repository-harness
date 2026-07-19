@@ -21,7 +21,7 @@ from verify_v1_build_receipts import verify_artifact_identity_collection
 PLATFORMS = list(BUILD_PLATFORMS)
 CASES = ["fresh", "brownfield", "nested-instructions", "docs-only", "monorepo", "spaces-unicode", "lf", "crlf", "custom-update", "bridge"]
 COMMANDS = ["install", "update", "audit", "scaffold", "status", "version"]
-BLOCKERS = ["deferred-phase6-live-p0-p7-evidence-pending", "remote-five-platform-execution-pending", "safe-windows-repository-mutation-pending", "artifact-provenance-attestation-pending", "platform-acceptance-pending"]
+BLOCKERS = ["deferred-phase6-live-p0-p7-evidence-pending", "five-platform-semantic-equivalence-pending", "safe-windows-repository-mutation-pending", "platform-acceptance-pending", "phase7-acceptance-pending", "production-release-signing-and-promotion-blocked"]
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REVISION = re.compile(r"^[0-9a-f]{40}$")
 WORKFLOW_PATH = ".github/workflows/harness-v1-release.yml"
@@ -167,7 +167,7 @@ def verify(document: dict[str, object]) -> None:
     check(environment["behavior"] == expected_behavior, "platform behavior claim is wrong")
     artifact = document["artifact"]
     check(isinstance(artifact, dict), "artifact is missing")
-    keys(artifact, {"platform", "target", "runner", "name", "sha256", "authentication", "provenance"}, "artifact")
+    keys(artifact, {"platform", "target", "runner", "name", "sha256", "authentication", "provenance", "attestation_bundle_sha256", "provenance_verification_sha256"}, "artifact")
     platform_name = environment["platform"]
     target, runner, artifact_name = BUILD_PLATFORMS[platform_name]
     check(
@@ -186,8 +186,10 @@ def verify(document: dict[str, object]) -> None:
         "artifact platform/target/runner/name tuple is invalid",
     )
     check(SHA256.fullmatch(artifact["sha256"]) is not None, "artifact digest is invalid")
-    check(artifact["authentication"] == "checksum-verified-before-every-execution", "artifact did not authenticate before execution")
-    check(artifact["provenance"] == "unattested-not-authenticated", "proof overclaims provenance")
+    check(artifact["authentication"] == "checksum-and-github-sigstore-verified-before-every-execution", "artifact did not authenticate before execution")
+    check(artifact["provenance"] == "github-sigstore-attested", "proof lacks verified GitHub/Sigstore provenance")
+    check(SHA256.fullmatch(artifact["attestation_bundle_sha256"]) is not None, "attestation bundle digest is invalid")
+    check(SHA256.fullmatch(artifact["provenance_verification_sha256"]) is not None, "provenance verification digest is invalid")
     check(document["commands"] == COMMANDS, "six-command core changed")
     fixtures = document["fixtures"]
     check(isinstance(fixtures, list) and [item.get("case") for item in fixtures if isinstance(item, dict)] == CASES, "fixture matrix is incomplete or reordered")
@@ -236,7 +238,7 @@ def verify_collection(
             artifact = document["artifact"]
             bound_artifact = {
                 field: artifact[field]
-                for field in ("platform", "target", "runner", "name", "sha256")
+                for field in ("platform", "target", "runner", "name", "sha256", "attestation_bundle_sha256", "provenance_verification_sha256")
             }
             check(
                 bound_artifact == expected_artifacts[platform_name],

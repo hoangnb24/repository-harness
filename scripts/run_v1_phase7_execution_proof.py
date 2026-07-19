@@ -12,7 +12,15 @@ import platform as host_platform
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+
+SCRIPTS = Path(__file__).resolve().parent
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+from v1_build_receipt_common import ReceiptError, minimal_subprocess_environment
+from verify_v1_build_receipts import verify_artifact_identity_collection
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,10 +39,11 @@ PLATFORMS = {
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 BLOCKERS = [
     "deferred-phase6-live-p0-p7-evidence-pending",
-    "remote-five-platform-execution-pending",
+    "five-platform-semantic-equivalence-pending",
     "safe-windows-repository-mutation-pending",
-    "artifact-provenance-attestation-pending",
     "platform-acceptance-pending",
+    "phase7-acceptance-pending",
+    "production-release-signing-and-promotion-blocked",
 ]
 
 
@@ -115,12 +124,21 @@ def exact_checksum(artifact: Path, checksum: Path) -> str:
     return expected
 
 
-def invoke(arguments: list[str], cwd: Path, environment: dict[str, str]) -> subprocess.CompletedProcess[bytes]:
+def invoke(
+    arguments: list[str],
+    cwd: Path,
+    trusted_harness: dict[str, str],
+    *,
+    source_environment: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[bytes]:
     try:
         return subprocess.run(
             arguments,
             cwd=cwd,
-            env=environment,
+            env=minimal_subprocess_environment(
+                source_environment,
+                trusted_harness=trusted_harness,
+            ),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -137,7 +155,7 @@ def install_unix(artifact: Path, checksum: Path, platform_name: str, repository:
          "--artifact", str(artifact), "--checksum", str(checksum),
          "--platform", platform_name, "--directory", str(repository)],
         repository,
-        os.environ.copy(),
+        {},
     )
     installed = repository / "scripts/bin/harness"
     installer = "bash"
@@ -175,7 +193,7 @@ def windows_direct_after_installer_refusal(
          "-Artifact", str(artifact), "-Checksum", str(checksum),
          "-Platform", platform_name, "-Directory", str(repository)],
         repository,
-        os.environ.copy(),
+        {},
     )
     message = "Harness V1 installer refused: safe Windows destination publication is controlled-unsupported before mutation"
     check(result.returncode == 1, f"PowerShell installer did not return controlled unsupported: {result.stderr.decode(errors='replace')}")
@@ -301,13 +319,12 @@ def run_unsupported_windows_case(
     binary, installer = windows_direct_after_installer_refusal(
         artifact, checksum, platform_name, repository
     )
-    environment = os.environ.copy()
-    environment.update({
+    environment = {
         "HARNESS_V1_ARTIFACT_SHA256": artifact_sha,
         "HARNESS_V1_PLATFORM": platform_name,
         "HARNESS_V1_RELEASE_DIRECTORY": str(release_directory),
         "HARNESS_V1_TRUST_STATE": str(trust_state),
-    })
+    }
     install_result = run_human(binary, ["install", "--preview"], repository, environment, 74)
     update_result = run_human(binary, ["update", "--preview"], repository, environment, 74)
     audit_result = run_json(binary, ["audit", "--json"], repository, environment, 74)
@@ -372,13 +389,12 @@ def run_case(
     (repository / "Cargo.toml").write_bytes(b'[package]\nname = "must-not-interpret"\n')
     before = snapshot(repository)
     binary, installer = install_unix(artifact, checksum, platform_name, repository)
-    environment = os.environ.copy()
-    environment.update({
+    environment = {
         "HARNESS_V1_ARTIFACT_SHA256": artifact_sha,
         "HARNESS_V1_PLATFORM": platform_name,
         "HARNESS_V1_RELEASE_DIRECTORY": str(release_directory),
         "HARNESS_V1_TRUST_STATE": str(trust_state),
-    })
+    }
     scaffold_repository = workspace / f"{case}-scaffold"
     scaffold_repository.mkdir()
     scaffold_binary, scaffold_installer = install_unix(
@@ -430,11 +446,13 @@ def main() -> int:
     parser.add_argument("--trust-state", required=True)
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--workflow-revision", required=True)
+    parser.add_argument("--build-receipt-directory", required=True)
     parser.add_argument("--output", required=True)
     arguments = parser.parse_args()
     try:
         artifact = Path(arguments.artifact).resolve(strict=True)
         checksum = Path(arguments.checksum).resolve(strict=True)
+        build_receipt_directory = Path(arguments.build_receipt_directory).resolve(strict=True)
         release_directory = Path(arguments.release_directory).resolve(strict=True)
         trust_state = Path(arguments.trust_state).resolve(strict=True)
         output = Path(arguments.output)
@@ -445,7 +463,37 @@ def main() -> int:
         check(arguments.target == target, "requested target does not match platform")
         check(arguments.runner == runner, "requested runner does not match platform")
         check(artifact.name == artifact_name, "artifact filename does not match platform")
+        check(
+            build_receipt_directory.is_dir()
+            and not build_receipt_directory.is_symlink()
+            and artifact.parent == build_receipt_directory
+            and checksum.parent == build_receipt_directory,
+            "artifact and checksum must come from the exact build receipt directory",
+        )
+        # This repeats cryptographic bundle verification immediately before any
+        # installer or direct-binary operation and fails closed on substitution.
+        verified_artifacts = verify_artifact_identity_collection(
+            build_receipt_directory,
+            arguments.candidate,
+            arguments.workflow_revision,
+            False,
+        )
+        check(set(verified_artifacts) == {arguments.platform}, "verified build receipt platform mismatch")
+        verified_artifact = verified_artifacts[arguments.platform]
         artifact_sha = exact_checksum(artifact, checksum)
+        check(
+            {field: verified_artifact.get(field) for field in ("platform", "target", "runner", "name", "sha256")}
+            == {
+                "platform": arguments.platform,
+                "target": target,
+                "runner": runner,
+                "name": artifact_name,
+                "sha256": artifact_sha,
+            }
+            and SHA256.fullmatch(verified_artifact.get("attestation_bundle_sha256", "")) is not None
+            and SHA256.fullmatch(verified_artifact.get("provenance_verification_sha256", "")) is not None,
+            "verified provenance/build artifact tuple mismatch",
+        )
         candidate_identity, workflow_identity = immutable_identity(
             arguments.candidate, arguments.workflow_revision
         )
@@ -487,8 +535,10 @@ def main() -> int:
                 "runner": runner,
                 "name": artifact_name,
                 "sha256": artifact_sha,
-                "authentication": "checksum-verified-before-every-execution",
-                "provenance": "unattested-not-authenticated",
+                "authentication": "checksum-and-github-sigstore-verified-before-every-execution",
+                "provenance": "github-sigstore-attested",
+                "attestation_bundle_sha256": verified_artifact["attestation_bundle_sha256"],
+                "provenance_verification_sha256": verified_artifact["provenance_verification_sha256"],
             },
             "commands": COMMANDS,
             "fixtures": records,
@@ -509,7 +559,7 @@ def main() -> int:
             handle.write(canonical(document))
         print(output)
         return 0
-    except (OSError, ProofError) as error:
+    except (OSError, ProofError, ReceiptError) as error:
         print(f"Phase 7 execution proof failed: {error}", file=os.sys.stderr)
         return 1
 

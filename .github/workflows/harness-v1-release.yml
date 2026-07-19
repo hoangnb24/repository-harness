@@ -1,8 +1,8 @@
 name: Repository Harness V1 Proof (Unpromoted)
 
-# Phase 7 captures non-production native build and deterministic execution
-# receipts. Authenticated provenance, platform acceptance, release, and
-# production promotion remain blocked.
+# Phase 7 captures GitHub/Sigstore-attested non-production native build and
+# deterministic execution receipts. Platform acceptance, release, production
+# signing, and promotion remain blocked.
 on:
   push:
     branches:
@@ -69,9 +69,11 @@ jobs:
           test "$(git status --porcelain=v1 --untracked-files=all)" = ""
           echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
 
-  capture-native-proof:
-    name: Capture ${{ matrix.platform }} non-production build receipt
+  build-native-artifact:
+    name: Build ${{ matrix.platform }} non-production native artifact
     needs: [repository-identity, resolve-candidate]
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -129,24 +131,182 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install Python
+        id: python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Capture native artifact, checksum, help grammar, and receipt
+      - name: Finalize native artifact bytes and checksum without execution
         shell: bash
         env:
           CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           RECEIPT_OUTPUT: ${{ runner.temp }}/harness-v1-build-receipt-${{ matrix.platform }}
         run: |
-          scripts/capture-v1-build-receipt.sh \
+          "${{ steps.python.outputs.python-path }}" scripts/capture_v1_build_receipt.py \
             --candidate "$CANDIDATE_SHA" \
             --workflow-revision "$WORKFLOW_REVISION" \
             --platform "${{ matrix.platform }}" \
             --target "${{ matrix.target }}" \
             --runner "${{ matrix.runner }}" \
             --output "$RECEIPT_OUTPUT"
+
+      - name: Upload immutable unattested native artifact bytes
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-v1-native-artifact-${{ matrix.platform }}
+          path: ${{ runner.temp }}/harness-v1-build-receipt-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 5
+
+  attest-native-artifact:
+    name: Attest ${{ matrix.platform }} native artifact without execution
+    needs: [repository-identity, resolve-candidate, build-native-artifact]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            artifact: harness-macos-arm64
+          - platform: macos-x64
+            artifact: harness-macos-x64
+          - platform: linux-x64
+            artifact: harness-linux-x64
+          - platform: linux-arm64
+            artifact: harness-linux-arm64
+          - platform: windows-x64
+            artifact: harness-windows-x64.exe
+    steps:
+      - name: Download exact immutable native artifact bytes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: harness-v1-native-artifact-${{ matrix.platform }}
+          path: ${{ runner.temp }}/harness-v1-attestation-input-${{ matrix.platform }}
+
+      - name: Generate GitHub build provenance for the exact native artifact
+        id: attest-native-artifact
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-path: ${{ runner.temp }}/harness-v1-attestation-input-${{ matrix.platform }}/${{ matrix.artifact }}
+          show-summary: false
+
+      - name: Retain exact signed bundle under a canonical platform name
+        shell: bash
+        env:
+          ATTESTATION_BUNDLE: ${{ steps.attest-native-artifact.outputs.bundle-path }}
+          ATTESTATION_OUTPUT: ${{ runner.temp }}/harness-v1-attestation-${{ matrix.platform }}
+        run: |
+          mkdir "$ATTESTATION_OUTPUT"
+          cp -- "$ATTESTATION_BUNDLE" "$ATTESTATION_OUTPUT/${{ matrix.platform }}.sigstore.json"
+
+      - name: Upload retained signed bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: harness-v1-attestation-${{ matrix.platform }}
+          path: ${{ runner.temp }}/harness-v1-attestation-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 5
+
+  verify-execute-native-proof:
+    name: Verify provenance then execute ${{ matrix.platform }} diagnostics
+    needs: [repository-identity, resolve-candidate, attest-native-artifact]
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            target: aarch64-apple-darwin
+            runner: macos-15
+            artifact: harness-macos-arm64
+            behavior: full-native-test-fixture
+          - platform: macos-x64
+            target: x86_64-apple-darwin
+            runner: macos-15-intel
+            artifact: harness-macos-x64
+            behavior: full-native-test-fixture
+          - platform: linux-x64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            artifact: harness-linux-x64
+            behavior: full-native-test-fixture
+          - platform: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+            artifact: harness-linux-arm64
+            behavior: full-native-test-fixture
+          - platform: windows-x64
+            target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            artifact: harness-windows-x64.exe
+            behavior: controlled-unsupported-before-mutation
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-candidate.outputs.candidate_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch and verify exact diagnostic workflow revision
+        shell: bash
+        env:
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          [[ "$WORKFLOW_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test "$WORKFLOW_REF" = hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/refactor/harness-v1
+          git cat-file -e "${WORKFLOW_REVISION}^{commit}"
+          git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"
+          git fetch --no-tags origin refs/heads/refactor/harness-v1:refs/remotes/origin/workflow-execution
+          test "$(git rev-parse refs/remotes/origin/workflow-execution)" = "$WORKFLOW_REVISION"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Python
+        id: python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download exact immutable native artifact bytes
+        uses: actions/download-artifact@v4
+        with:
+          name: harness-v1-native-artifact-${{ matrix.platform }}
+          path: ${{ runner.temp }}/harness-v1-build-receipt-${{ matrix.platform }}
+
+      - name: Download exact retained signed bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: harness-v1-attestation-${{ matrix.platform }}
+          path: ${{ runner.temp }}/harness-v1-attestation-${{ matrix.platform }}
+
+      - name: Verify signed provenance before first execution and finalize receipt
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+          RECEIPT_OUTPUT: ${{ runner.temp }}/harness-v1-build-receipt-${{ matrix.platform }}
+          ATTESTATION_BUNDLE: ${{ runner.temp }}/harness-v1-attestation-${{ matrix.platform }}/${{ matrix.platform }}.sigstore.json
+        run: |
+          "${{ steps.python.outputs.python-path }}" scripts/finalize_v1_build_receipt.py \
+            --candidate "$CANDIDATE_SHA" \
+            --workflow-revision "$WORKFLOW_REVISION" \
+            --platform "${{ matrix.platform }}" \
+            --target "${{ matrix.target }}" \
+            --runner "${{ matrix.runner }}" \
+            --receipt-directory "$RECEIPT_OUTPUT" \
+            --bundle "$ATTESTATION_BUNDLE"
 
       - name: Execute checksum-first installer and six-command ten-fixture proof
         shell: bash
@@ -160,8 +320,8 @@ jobs:
           EXECUTION_PROOF: ${{ runner.temp }}/harness-v1-execution-proof-${{ matrix.platform }}.json
           EXTERNAL_INPUT: ${{ runner.temp }}/harness-v1-external-test-input-${{ matrix.platform }}
         run: |
-          scripts/prepare-v1-phase7-test-release.py --output "$EXTERNAL_INPUT"
-          scripts/run_v1_phase7_execution_proof.py \
+          "${{ steps.python.outputs.python-path }}" scripts/prepare-v1-phase7-test-release.py --output "$EXTERNAL_INPUT"
+          "${{ steps.python.outputs.python-path }}" scripts/run_v1_phase7_execution_proof.py \
             --artifact "$RECEIPT_OUTPUT/$ARTIFACT_NAME" \
             --checksum "$RECEIPT_OUTPUT/$ARTIFACT_NAME.sha256" \
             --platform "$PLATFORM" \
@@ -171,6 +331,7 @@ jobs:
             --trust-state "$EXTERNAL_INPUT/trust-state.json" \
             --candidate "$CANDIDATE_SHA" \
             --workflow-revision "$WORKFLOW_REVISION" \
+            --build-receipt-directory "$RECEIPT_OUTPUT" \
             --output "$EXECUTION_PROOF"
           jq -e --arg expected "$EXPECTED_BEHAVIOR" \
             '.environment.behavior == $expected and .authority.five_platform_equivalence == "pending"' \
@@ -179,7 +340,15 @@ jobs:
       - name: Verify Windows installer refusal before destination mutation
         if: matrix.platform == 'windows-x64'
         shell: powershell
+        env:
+          CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
         run: |
+          & "${{ steps.python.outputs.python-path }}" scripts/verify_v1_build_receipts.py `
+            --candidate "$env:CANDIDATE_SHA" `
+            --workflow-revision "$env:WORKFLOW_REVISION" `
+            "${{ runner.temp }}/harness-v1-build-receipt-windows-x64"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           tests/release/test-install-harness-v1-windows-unsupported.ps1 `
             -Artifact "${{ runner.temp }}/harness-v1-build-receipt-windows-x64/harness-windows-x64.exe" `
             -Checksum "${{ runner.temp }}/harness-v1-build-receipt-windows-x64/harness-windows-x64.exe.sha256" `
@@ -203,7 +372,9 @@ jobs:
 
   collect-receipts:
     name: Verify exact five-platform receipt collection
-    needs: [resolve-candidate, capture-native-proof]
+    needs: [resolve-candidate, verify-execute-native-proof]
+    permissions:
+      contents: read
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact candidate
@@ -226,6 +397,12 @@ jobs:
           git fetch --no-tags origin refs/heads/refactor/harness-v1:refs/remotes/origin/workflow-execution
           test "$(git rev-parse refs/remotes/origin/workflow-execution)" = "$WORKFLOW_REVISION"
 
+      - name: Install Python
+        id: python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Download all five receipt directories
         uses: actions/download-artifact@v4
         with:
@@ -240,7 +417,7 @@ jobs:
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           RECEIPT_ROOT: ${{ runner.temp }}/harness-v1-build-receipts
         run: |
-          scripts/verify-v1-build-receipts.sh \
+          "${{ steps.python.outputs.python-path }}" scripts/verify_v1_build_receipts.py \
             --candidate "$CANDIDATE_SHA" \
             --workflow-revision "$WORKFLOW_REVISION" \
             --require-five \
@@ -262,7 +439,7 @@ jobs:
           BUILD_RECEIPT_ROOT: ${{ runner.temp }}/harness-v1-build-receipts
           PROOF_ROOT: ${{ runner.temp }}/harness-v1-execution-proofs
         run: |
-          scripts/verify-v1-phase7-execution-proof.sh \
+          "${{ steps.python.outputs.python-path }}" scripts/verify_v1_phase7_execution_proof.py \
             --candidate "$CANDIDATE_SHA" \
             --workflow-revision "$WORKFLOW_REVISION" \
             --repository-root "$REPOSITORY_ROOT" \

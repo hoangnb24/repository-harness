@@ -29,13 +29,52 @@ Phase 6 comparison obligation all pass for the same candidate.
    interpretation.
 3. Build each platform artifact from the same candidate source and declared
    inputs.
-4. Authenticate checksums and payload/release identity before executing an
+4. Generate GitHub/Sigstore build provenance only after artifact bytes are
+   final, then verify the signed bundle and checksum before executing an
    installer or binary.
 5. Run direct-binary and installer cases, normalize only documented
    platform-specific fields, and compare semantic outcomes.
 6. Fail closed on missing artifacts, identity drift, unsupported mutation,
    path/line-ending loss, grammar divergence, or mutable release collisions.
-7. Keep promotion closed until the deferred Phase 6 evidence is complete.
+7. Retain the bounded signed bundle and closed verification record so a
+   collector can repeat verification without executing the artifact.
+8. Keep promotion closed until the deferred Phase 6 evidence is complete.
+
+The provenance sequence is deliberately causal. `capture_v1_build_receipt.py`
+builds and copies the artifact and checksum but does not execute the artifact.
+The read-only build job uploads those final bytes, and an isolated attestation
+job downloads and attests them with the exact-pinned v3.2.0 action commit. A
+download-artifact v8.0.1 commit and upload-artifact v7.0.1 commit are also
+exact-pinned in that privileged job; no moving action ref executes while OIDC
+or attestation-write authority is present. Read-only jobs retain their scoped
+moving-major artifact actions. The third read-only native job downloads the
+same artifact and retained bundle. Its
+finalizer calls `gh attestation verify` with one exact identity mode
+(`--cert-identity`) plus the expected repository, source ref/digest, signer
+digest, OIDC issuer, hosted-runner
+policy, and retained bundle. It also checks the signed statement subject name,
+SHA-256, push event, workflow path/ref, and transparency-log timestamp. A
+failure stops before the finalizer invokes `--help`. The execution runner and
+Windows installer guard repeat the same receipt/bundle verification before
+their own execution paths.
+
+Every workflow Python entry point uses the `python-path` output from
+`actions/setup-python`; Windows never relies on a `python3` alias or a shebang.
+Before the finalizer, installer, or native binary creates a subprocess, trusted
+code constructs a new environment rather than filtering the runner
+environment. It admits only `PATH`, temp variables, `LANG`/`LC_ALL`/`LC_CTYPE`,
+and the Windows `SYSTEMROOT`/`WINDIR`/`PATHEXT`/`COMSPEC` essentials. Exactly
+four trusted bindings may be added: artifact SHA-256, platform, release
+directory, and trust-state path. It does not pass GitHub command-file channels,
+Actions runtime/OIDC state, tokens, `PYTHONPATH`, `PYTHONHOME`, inherited home,
+or cache variables. Thus even an unexpected diagnostic child cannot write a
+later step's output/path/environment files or inherit ambient Python code or
+attestation authority.
+
+The trusted `gh` verifier is not candidate code: it receives an isolated
+temporary home/config/state/cache root solely to prevent its device/config
+bookkeeping from touching the checkout. That directory is removed when the
+verification subprocess exits and is never forwarded to the artifact.
 
 The direct executable enforces the first two runtime boundaries before parsing
 even `--help`: `HARNESS_V1_ARTIFACT_SHA256` must match two reads of the current
@@ -73,9 +112,11 @@ remain authoritative.
 ## Data Model
 
 Tracked proof may contain closed manifests, platform labels, artifact names,
-digests, public authentication material, normalized results, and redacted
-reports. Production private keys, credentials, raw V0 databases/archives, and
-decrypted recovery material remain external and untracked.
+digests, the public Sigstore bundle, a bounded verification record, public
+authentication material, normalized results, and redacted reports. The record
+contains no GitHub token or credential. Production private keys, credentials,
+raw V0 databases/archives, and decrypted recovery material remain external and
+untracked.
 
 ## UI / Platform Impact
 
@@ -84,12 +125,15 @@ PowerShell V1 surface only to authenticate the checksum, validate the native
 `.exe` identity, and refuse publication before mutation. The runner may then
 execute those same authenticated bytes directly for controlled-unsupported
 results; it records no Windows installation claim. Neither path claims
-provenance from a checksum.
+provenance from a checksum. Provenance becomes `github-sigstore-attested` only
+after the signed bundle passes exact identity and subject verification;
+production signing remains blocked.
 Platform equivalence compares normalized manifest, audit, recovery, and
 identity outcomes, not executable byte equality. Each receipt contains the
 closed normalized result payload as well as its recomputed digest. Exact-five
 verification also consumes the independently verified build-receipt root and
-cross-binds platform, target, runner, artifact name, and artifact SHA-256.
+cross-binds platform, target, runner, artifact name, artifact SHA-256,
+attestation-bundle SHA-256, and provenance-verification-record SHA-256.
 Windows controlled unsupported behavior is distinct and cannot satisfy
 equivalence.
 

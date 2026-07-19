@@ -700,11 +700,22 @@ def validate_bootstrap(value: dict[str, Any], repository_root: Path = ROOT) -> N
             for fragment in [
                 "Repository Harness V1 Proof (Unpromoted)",
                 'test "$REPOSITORY" = hoangnb24/repository-harness',
-                "capture-native-proof:",
+                "build-native-artifact:",
+                "attest-native-artifact:",
+                "verify-execute-native-proof:",
                 "collect-receipts:",
             ]:
                 check(fragment in text, f"core workflow source omits diagnostic identity/proof boundary: {fragment}")
-            check("contents: read" in text and "contents: write" not in text and "id-token: write" not in text, "unpromoted core workflow has production write permission")
+            check(
+                "contents: read" in text
+                and "contents: write" not in text
+                and text.count("id-token: write") == 1
+                and text.count("attestations: write") == 1
+                and "actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f" in text
+                and "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" in text
+                and "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" in text,
+                "unpromoted core workflow lost its bounded diagnostic attestation permission/action",
+            )
             for forbidden in [
                 "promotion-blocked:",
                 "request_promotion",
@@ -713,7 +724,6 @@ def validate_bootstrap(value: dict[str, Any], repository_root: Path = ROOT) -> N
                 "git push",
                 "cargo publish",
                 "npm publish",
-                "attest-build-provenance",
             ]:
                 check(forbidden not in text, f"unpromoted core workflow contains production action: {forbidden}")
         else:

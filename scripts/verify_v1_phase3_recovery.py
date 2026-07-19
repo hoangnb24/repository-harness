@@ -24,6 +24,7 @@ ALLOWED_LATER_CHANGESETS = {
     ".harness/changesets/harness_v1_phase7_04_execution_proof.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_05_review_corrections.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_06_cross_binding_corrections.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_07_github_attestation.changeset.jsonl",
 }
 
 
@@ -244,7 +245,8 @@ def proof_phase4_and_phase7_gates() -> None:
     check(
         "no remote five-platform" in phase7
         and "no acceptance or promotion" in phase7
-        and "unattested-not-authenticated" in phase7,
+        and "github-sigstore-attested" in phase7
+        and "production signing remains blocked" in phase7,
         "Phase 7 local execution work opened platform or promotion authority",
     )
 

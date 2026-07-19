@@ -18,7 +18,6 @@ from v1_build_receipt_common import (
     BLOCKERS,
     CARGO_LOCK_PATH,
     COMMAND_BINDING_PATH,
-    COMMAND_GRAMMAR_PATH,
     PLATFORMS,
     RECEIPT_NAME,
     ROOT,
@@ -26,9 +25,6 @@ from v1_build_receipt_common import (
     ReceiptError,
     canonical_json_bytes,
     check,
-    exact_core_help_bytes,
-    load_json,
-    parse_json_bytes,
     sha256_bytes,
     validate_contract,
 )
@@ -231,8 +227,19 @@ def build_receipt_document(
     checksum_bytes: bytes,
     help_name: str,
     help_bytes: bytes,
+    bundle_name: str,
+    bundle_bytes: bytes,
+    verification_name: str,
+    verification_bytes: bytes,
+    provenance_record: dict[str, object],
 ) -> dict[str, object]:
     artifact_sha = sha256_bytes(artifact_bytes)
+    identity = provenance_record["identity"]
+    provenance_artifact = provenance_record["artifact"]
+    check(isinstance(identity, dict) and isinstance(provenance_artifact, dict), "provenance record identity is missing")
+    check(identity["candidate_sha"] == candidate_identity["source_commit"], "provenance candidate does not bind build receipt")
+    check(identity["workflow_sha"] == execution_workflow_identity["revision"], "provenance workflow does not bind build receipt")
+    check(provenance_artifact["name"] == artifact_name and provenance_artifact["sha256"] == artifact_sha, "provenance subject does not bind build artifact")
     document: dict[str, object] = {
         "schema": "repository-harness-v1-build-receipt/v1",
         "evidence_kind": "native-build-receipt-non-production",
@@ -243,13 +250,28 @@ def build_receipt_document(
             "artifact": {"path": artifact_name, "bytes": len(artifact_bytes), "sha256": artifact_sha},
             "checksum": {"path": f"{artifact_name}.sha256", "bytes": len(checksum_bytes), "sha256": sha256_bytes(checksum_bytes)},
             "help_output": {"path": help_name, "bytes": len(help_bytes), "sha256": sha256_bytes(help_bytes)},
+            "attestation_bundle": {"path": bundle_name, "bytes": len(bundle_bytes), "sha256": sha256_bytes(bundle_bytes)},
+            "provenance_verification": {"path": verification_name, "bytes": len(verification_bytes), "sha256": sha256_bytes(verification_bytes)},
+        },
+        "provenance": {
+            "kind": "github-sigstore-build-provenance",
+            "verification": "passed-before-execution",
+            "repository": identity["repository"],
+            "event_name": identity["event_name"],
+            "source_ref": identity["source_ref"],
+            "candidate_sha": identity["candidate_sha"],
+            "workflow_path": identity["workflow_path"],
+            "workflow_ref": identity["workflow_ref"],
+            "workflow_sha": identity["workflow_sha"],
+            "artifact_name": provenance_artifact["name"],
+            "artifact_sha256": provenance_artifact["sha256"],
         },
         "results": {
             "build": "passed",
             "help_grammar_only": "passed",
             "installer": "pending",
             "full_direct_binary": "pending",
-            "provenance": "checksum-only-unattested",
+            "provenance": "github-sigstore-attested",
         },
         "authority": {
             "phase6_live_evidence": "pending",
@@ -263,8 +285,8 @@ def build_receipt_document(
             "release_authorized": False,
             "publish_authorized": False,
             "promotion_authorized": False,
-            "signing_authorized": False,
-            "attestation_authorized": False,
+            "production_signing_authorized": False,
+            "artifact_provenance": "github-sigstore-attested",
             "phase8": "closed",
             "blockers": BLOCKERS,
         },
@@ -305,37 +327,9 @@ def capture(arguments: argparse.Namespace) -> Path:
     check(artifact_bytes, "native release artifact is empty")
 
     artifact_sha = sha256_bytes(artifact_bytes)
-    execution_environment = os.environ.copy()
-    execution_environment.update(
-        {
-            "HARNESS_V1_ARTIFACT_SHA256": artifact_sha,
-            "HARNESS_V1_PLATFORM": arguments.platform,
-        }
-    )
-    help_result = run_fixed(
-        [str(built), "--help"], environment=execution_environment
-    )
-    check(help_result.returncode == 0, "native V1 harness --help failed")
-    check(help_result.stderr == b"", "native V1 harness --help wrote stderr")
-    help_document = parse_json_bytes(help_result.stdout, "native V1 harness --help")
-    grammar = load_json(ROOT / COMMAND_GRAMMAR_PATH)
-    expected_help = exact_core_help_bytes(grammar)
-    check(help_result.stdout == expected_help and help_document == grammar["core"], "native V1 harness --help is not the exact six-command JSON grammar")
-
     checksum_bytes = f"{artifact_sha}  {artifact_name}\n".encode("ascii")
-    help_name = f"{artifact_name}.help.json"
-    document = build_receipt_document(
-        candidate_identity=committed_candidate_identity(candidate, tree),
-        execution_workflow_identity=committed_execution_workflow_identity(arguments.workflow_revision),
-        platform_name=arguments.platform,
-        target=target,
-        runner=runner,
-        artifact_name=artifact_name,
-        artifact_bytes=artifact_bytes,
-        checksum_bytes=checksum_bytes,
-        help_name=help_name,
-        help_bytes=help_result.stdout,
-    )
+    committed_candidate_identity(candidate, tree)
+    committed_execution_workflow_identity(arguments.workflow_revision)
 
     created = False
     try:
@@ -343,8 +337,6 @@ def capture(arguments: argparse.Namespace) -> Path:
         created = True
         write_new_file(output / artifact_name, artifact_bytes, 0o755)
         write_new_file(output / f"{artifact_name}.sha256", checksum_bytes, 0o644)
-        write_new_file(output / help_name, help_result.stdout, 0o644)
-        write_new_file(output / RECEIPT_NAME, canonical_json_bytes(document), 0o644)
     except Exception:
         if created and output.is_dir() and not output.is_symlink():
             shutil.rmtree(output)
@@ -373,7 +365,7 @@ def main() -> int:
     except ReceiptError as error:
         print(f"V1 build receipt capture failed: {error}", file=sys.stderr)
         return 1
-    print(f"V1 non-production build receipt captured: {output}")
+    print(f"V1 non-production artifact bytes captured; attestation verification and receipt finalization required: {output}")
     return 0
 
 

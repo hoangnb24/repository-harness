@@ -144,24 +144,42 @@ publish/signing/promotion remain blocked, and Phase 8 remains closed.
 US-112's next bounded slice adds separate non-production build receipts without
 changing that fixture-only schema. A native capture requires a clean exact
 HEAD candidate and exact platform/target/runner tuple, builds the release V1
-`harness`, writes the exact checksum, captures the exact six-command JSON help,
-and binds those bytes to the source tree, `Cargo.lock`, command binding, and
-workflow bytes. A read-only collector verifies one or the exact five downloaded
-receipt directories and rejects drift, substitutions, command fields, unsafe
-claims, links/traversal, and extra files without executing artifacts:
+`harness`, and writes its checksum without execution. A read-only build job
+uploads those bytes, an isolated OIDC job uses the exact-pinned v3.2.0 action
+plus exact-pinned v8.0.1 download and v7.0.1 upload actions to attest them
+without candidate execution, and a separate read-only native
+job downloads both inputs. Only successful signed-bundle verification may
+capture six-command JSON help and finalize a receipt bound to
+the source tree, `Cargo.lock`, command binding, workflow bytes, artifact,
+bundle, and verification-record digests. A read-only collector repeats that
+verification for one or the exact five downloaded receipt directories:
 
 ```bash
 tests/release/test-v1-build-receipts.sh
 tests/release/test-v1-build-receipt-workflow.sh
+tests/release/test-v1-artifact-provenance.sh
+tests/release/test-v1-attestation-workflow.sh
 tests/release/test-release-workflow-contract.sh
 ```
 
+The workflow tests require the explicit setup-python `python-path` on every
+platform and reject `python3`/shebang fallbacks, OIDC permission outside the
+attestation job, candidate execution inside that job, broken artifact handoff,
+mutable or substituted privileged-job action refs, and runner variables
+reaching candidate subprocesses. The allowlist adversary includes GitHub
+command-file channels, Actions runtime/OIDC values, tokens, `PYTHONPATH`, and
+`PYTHONHOME`. The provenance
+test also exercises the installed `gh` parser so a fake runner cannot hide
+mutually exclusive verification flags.
+
 The existing five-runner workflow now uses this capture and collector, but it
 has not been dispatched for this slice. Therefore no platform is accepted:
-`build=passed` plus `help_grammar_only=passed` proves only compilation and
-machine-help identity. Installer, full direct-binary behavior, authenticated
-provenance, deferred Phase 6 P0-P7 evidence, platform equivalence, acceptance,
-and every release action remain pending or blocked.
+`build=passed`, `provenance=github-sigstore-attested`, and
+`help_grammar_only=passed` prove compilation, authenticated diagnostic build
+origin, and machine-help identity. Installer/full direct-binary results in the
+build receipt, deferred Phase 6 P0-P7 evidence, platform equivalence,
+acceptance, production signing, and every release action remain pending or
+blocked.
 
 US-112's local execution slice adds checksum/platform preflight to the real V1
 binary, a V1-only Bash installer and PowerShell controlled-unsupported installer
@@ -178,18 +196,20 @@ tests/release/test-v1-phase7-execution-proof.sh
 tests/release/test-v1-build-receipt-workflow.sh
 ```
 
-Cause and effect: matching a checksum permits platform validation; matching the
-platform permits command parsing; valid external test trust permits signed
-payload planning; exact preview acceptance permits mutation. Failure at any
-earlier step produces no later step or owner-file change. Local success remains
-`unattested-not-authenticated`, sets no platform proof flag, and cannot replace
-remote five-runner evidence, external provenance/attestation, deferred Phase 6
-P0-P7 evidence, acceptance, or promotion.
+Cause and effect: matching a checksum alone permits nothing to execute. The
+signed bundle must first bind the exact repository/workflow/ref/SHA and
+artifact name/digest; only then may platform validation and command parsing
+occur. Valid external test trust permits signed payload planning, and exact
+preview acceptance permits mutation. Failure at any earlier step produces no
+later step or owner-file change. Verified diagnostic provenance sets no
+platform proof flag and cannot replace remote five-runner evidence, deferred
+Phase 6 P0-P7 evidence, acceptance, production signing, or promotion.
 
 The reviewed corrections add Unix destination-escape adversaries for a linked
 target root, `scripts`, and `scripts/bin`; independently resolved candidate and
 workflow identity; cross-binding from every execution proof to an independently
-verified build receipt's platform/target/runner/artifact-name/SHA-256 tuple; and
+verified build receipt's platform/target/runner/artifact-name/artifact-SHA-256/
+bundle-SHA-256/verification-record-SHA-256 tuple; and
 normalized-payload digest recomputation. PowerShell authenticates and validates
 the native Windows artifact, then refuses before destination creation, copy, or
 move. Windows receipts must say

@@ -6,6 +6,7 @@ from __future__ import annotations
 from collections import OrderedDict
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 from typing import Any
@@ -31,11 +32,36 @@ PLATFORMS = OrderedDict(
 
 BLOCKERS = [
     "deferred-phase6-live-p0-p7-evidence-pending",
-    "five-platform-acceptance-pending",
-    "installer-proof-pending",
-    "full-direct-binary-proof-pending",
-    "authenticated-provenance-pending",
+    "five-platform-semantic-equivalence-pending",
+    "safe-windows-repository-mutation-pending",
+    "platform-acceptance-pending",
+    "phase7-acceptance-pending",
+    "production-release-signing-and-promotion-blocked",
 ]
+
+MINIMAL_SUBPROCESS_ENVIRONMENT_NAMES = frozenset(
+    {
+        "PATH",
+        "SYSTEMROOT",
+        "WINDIR",
+        "PATHEXT",
+        "COMSPEC",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+    }
+)
+TRUSTED_HARNESS_V1_ENVIRONMENT_NAMES = frozenset(
+    {
+        "HARNESS_V1_ARTIFACT_SHA256",
+        "HARNESS_V1_PLATFORM",
+        "HARNESS_V1_RELEASE_DIRECTORY",
+        "HARNESS_V1_TRUST_STATE",
+    }
+)
 
 
 class ReceiptError(RuntimeError):
@@ -45,6 +71,38 @@ class ReceiptError(RuntimeError):
 def check(condition: bool, message: str) -> None:
     if not condition:
         raise ReceiptError(message)
+
+
+def minimal_subprocess_environment(
+    source: dict[str, str] | None = None,
+    *,
+    trusted_harness: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Build a minimal process environment plus explicit trusted V1 bindings."""
+    source_environment = dict(os.environ if source is None else source)
+    environment: dict[str, str] = {}
+    for name in MINIMAL_SUBPROCESS_ENVIRONMENT_NAMES:
+        value = source_environment.get(name)
+        if value is None and os.name == "nt":
+            value = next(
+                (item for key, item in source_environment.items() if key.upper() == name),
+                None,
+            )
+        if value is not None:
+            check("\x00" not in value, f"subprocess environment contains NUL: {name}")
+            environment[name] = value
+    if trusted_harness is not None:
+        check(
+            set(trusted_harness) <= TRUSTED_HARNESS_V1_ENVIRONMENT_NAMES,
+            "unapproved trusted Harness V1 subprocess binding",
+        )
+        for name, value in trusted_harness.items():
+            check(
+                isinstance(value, str) and "\x00" not in value,
+                f"trusted Harness V1 subprocess binding is invalid: {name}",
+            )
+            environment[name] = value
+    return environment
 
 
 def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:

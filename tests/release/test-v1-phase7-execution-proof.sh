@@ -148,8 +148,10 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
             "runner": runner_name,
             "name": artifact_name,
             "sha256": artifact_sha,
-            "authentication": "checksum-verified-before-every-execution",
-            "provenance": "unattested-not-authenticated",
+            "authentication": "checksum-and-github-sigstore-verified-before-every-execution",
+            "provenance": "github-sigstore-attested",
+            "attestation_bundle_sha256": "7" * 64,
+            "provenance_verification_sha256": "8" * 64,
         },
         "commands": runner.COMMANDS,
         "fixtures": records,
@@ -226,6 +228,8 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
             "runner": platform_runner,
             "name": name,
             "sha256": hashlib.sha256(f"independent-build:{platform}".encode()).hexdigest(),
+            "attestation_bundle_sha256": hashlib.sha256(f"independent-bundle:{platform}".encode()).hexdigest(),
+            "provenance_verification_sha256": hashlib.sha256(f"independent-verification:{platform}".encode()).hexdigest(),
         }
         return {
             "schema": "repository-harness-v1-phase7-execution-proof/v1",
@@ -242,8 +246,8 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
             },
             "artifact": {
                 **artifact_identity,
-                "authentication": "checksum-verified-before-every-execution",
-                "provenance": "unattested-not-authenticated",
+                "authentication": "checksum-and-github-sigstore-verified-before-every-execution",
+                "provenance": "github-sigstore-attested",
             },
             "commands": list(runner.COMMANDS),
             "fixtures": fixture_records,
@@ -336,7 +340,7 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
     else:
         raise AssertionError("accepted cross-platform normalized drift")
     for name, mutate in (
-        ("provenance-overclaim", lambda value: value["artifact"].update(provenance="authenticated")),
+        ("provenance-substitution", lambda value: value["artifact"].update(provenance="checksum-only")),
         ("platform-overclaim", lambda value: value["authority"].update(platform_accepted=True)),
         ("normalized-drift", lambda value: value.update(normalized_contract_sha256="0" * 64)),
         ("normalized-payload-substitution", lambda value: value["fixtures"][0]["normalized_result"]["commands"][0].update(outcome="substituted")),

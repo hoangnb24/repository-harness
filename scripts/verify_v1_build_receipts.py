@@ -11,6 +11,19 @@ import subprocess
 import sys
 from typing import Any
 
+from v1_artifact_provenance import (
+    EXPECTED_EVENT,
+    EXPECTED_REPOSITORY,
+    EXPECTED_SOURCE_REF,
+    EXPECTED_WORKFLOW_PATH,
+    PROVENANCE_RECORD_NAME,
+    CommandRunner,
+    default_command_runner,
+    expected_workflow_ref,
+    validate_verification_record,
+    verify_signed_bundle,
+)
+
 from v1_build_receipt_common import (
     BLOCKERS,
     CARGO_LOCK_PATH,
@@ -56,6 +69,7 @@ def git_bytes(*arguments: str) -> bytes:
 def expected_identity_from_repository(candidate: str, workflow_revision: str) -> tuple[dict[str, Any], dict[str, str], bytes]:
     check(GIT_REVISION.fullmatch(candidate) is not None, "candidate must be exactly 40 lowercase hexadecimal characters")
     check(GIT_REVISION.fullmatch(workflow_revision) is not None, "workflow revision must be exactly 40 lowercase hexadecimal characters")
+    check(candidate == workflow_revision, "candidate and workflow revision must be identical")
     head = git_bytes("rev-parse", "HEAD").decode("ascii").strip()
     check(head == candidate, "verification candidate does not equal HEAD")
     tree = git_bytes("rev-parse", "HEAD^{tree}").decode("ascii").strip()
@@ -116,7 +130,7 @@ def fixed_results() -> dict[str, str]:
         "help_grammar_only": "passed",
         "installer": "pending",
         "full_direct_binary": "pending",
-        "provenance": "checksum-only-unattested",
+        "provenance": "github-sigstore-attested",
     }
 
 
@@ -133,8 +147,8 @@ def fixed_authority() -> dict[str, Any]:
         "release_authorized": False,
         "publish_authorized": False,
         "promotion_authorized": False,
-        "signing_authorized": False,
-        "attestation_authorized": False,
+        "production_signing_authorized": False,
+        "artifact_provenance": "github-sigstore-attested",
         "phase8": "closed",
         "blockers": BLOCKERS,
     }
@@ -145,6 +159,8 @@ def verify_receipt_directory(
     expected_candidate: dict[str, Any],
     expected_execution_workflow: dict[str, str],
     expected_help: bytes,
+    *,
+    command_runner: CommandRunner = default_command_runner,
 ) -> tuple[str, dict[str, str]]:
     receipt_path = directory / RECEIPT_NAME
     receipt_payload = read_member(directory, RECEIPT_NAME, "receipt")
@@ -168,6 +184,8 @@ def verify_receipt_directory(
         "artifact": artifact_name,
         "checksum": f"{artifact_name}.sha256",
         "help_output": f"{artifact_name}.help.json",
+        "attestation_bundle": f"{artifact_name}.sigstore.json",
+        "provenance_verification": PROVENANCE_RECORD_NAME,
     }
     for field, expected_path in expected_paths.items():
         check(document["files"][field]["path"] == expected_path, f"{field} path drift: {platform_name}")
@@ -189,12 +207,71 @@ def verify_receipt_directory(
     help_document = parse_json_bytes(payloads["help_output"], f"help output: {platform_name}")
     expected_help_document = parse_json_bytes(expected_help, "committed core grammar")
     check(payloads["help_output"] == expected_help and help_document == expected_help_document, f"help grammar substitution: {platform_name}")
+
+    provenance_record = parse_json_bytes(payloads["provenance_verification"], f"provenance verification: {platform_name}")
+    validate_verification_record(provenance_record)
+    check(
+        payloads["provenance_verification"] == canonical_json_bytes(provenance_record),
+        f"provenance verification record is not canonical: {platform_name}",
+    )
+    expected_record_identity = {
+        "repository": EXPECTED_REPOSITORY,
+        "repository_visibility": "public",
+        "event_name": EXPECTED_EVENT,
+        "source_ref": EXPECTED_SOURCE_REF,
+        "candidate_sha": expected_candidate["source_commit"],
+        "workflow_path": EXPECTED_WORKFLOW_PATH,
+        "workflow_ref": expected_workflow_ref(EXPECTED_REPOSITORY, EXPECTED_WORKFLOW_PATH, EXPECTED_SOURCE_REF),
+        "workflow_sha": expected_execution_workflow["revision"],
+    }
+    expected_record_artifact = {
+        "platform": platform_name,
+        "target": target,
+        "runner": runner,
+        "name": artifact_name,
+        "sha256": artifact_sha,
+    }
+    check(provenance_record["identity"] == expected_record_identity, f"provenance identity drift: {platform_name}")
+    check(provenance_record["artifact"] == expected_record_artifact, f"provenance artifact tuple drift: {platform_name}")
+    check(
+        provenance_record["attestation"]
+        == {
+            "bundle_path": expected_paths["attestation_bundle"],
+            "bundle_sha256": sha256_bytes(payloads["attestation_bundle"]),
+        },
+        f"provenance bundle binding drift: {platform_name}",
+    )
+    expected_provenance = {
+        "kind": "github-sigstore-build-provenance",
+        "verification": "passed-before-execution",
+        "repository": EXPECTED_REPOSITORY,
+        "event_name": EXPECTED_EVENT,
+        "source_ref": EXPECTED_SOURCE_REF,
+        "candidate_sha": expected_candidate["source_commit"],
+        "workflow_path": EXPECTED_WORKFLOW_PATH,
+        "workflow_ref": expected_record_identity["workflow_ref"],
+        "workflow_sha": expected_execution_workflow["revision"],
+        "artifact_name": artifact_name,
+        "artifact_sha256": artifact_sha,
+    }
+    check(document["provenance"] == expected_provenance, f"build receipt provenance cross-binding drift: {platform_name}")
+    verify_signed_bundle(
+        directory / artifact_name,
+        directory / expected_paths["attestation_bundle"],
+        candidate_sha=expected_candidate["source_commit"],
+        workflow_sha=expected_execution_workflow["revision"],
+        artifact_name=artifact_name,
+        artifact_sha256=artifact_sha,
+        command_runner=command_runner,
+    )
     return platform_name, {
         "platform": platform_name,
         "target": target,
         "runner": runner,
         "name": artifact_name,
         "sha256": artifact_sha,
+        "attestation_bundle_sha256": sha256_bytes(payloads["attestation_bundle"]),
+        "provenance_verification_sha256": sha256_bytes(payloads["provenance_verification"]),
     }
 
 
@@ -223,6 +300,7 @@ def verify_collection(
     require_five: bool,
     *,
     expected: tuple[dict[str, Any], dict[str, str], bytes] | None = None,
+    command_runner: CommandRunner = default_command_runner,
 ) -> list[str]:
     return list(
         verify_artifact_identity_collection(
@@ -231,6 +309,7 @@ def verify_collection(
             workflow_revision,
             require_five,
             expected=expected,
+            command_runner=command_runner,
         )
     )
 
@@ -242,6 +321,7 @@ def verify_artifact_identity_collection(
     require_five: bool,
     *,
     expected: tuple[dict[str, Any], dict[str, str], bytes] | None = None,
+    command_runner: CommandRunner = default_command_runner,
 ) -> dict[str, dict[str, str]]:
     expected_candidate, expected_execution_workflow, expected_help = expected or expected_identity_from_repository(candidate, workflow_revision)
     directories = discover_directories(root, require_five)
@@ -251,6 +331,7 @@ def verify_artifact_identity_collection(
             expected_candidate,
             expected_execution_workflow,
             expected_help,
+            command_runner=command_runner,
         )
         for directory in directories
     ]
@@ -287,7 +368,7 @@ def main() -> int:
     print(
         "V1 non-production build receipt verification passed for "
         + ", ".join(platforms)
-        + "; no platform is accepted and installer, full direct-binary, authenticated provenance, and release remain blocked"
+        + "; GitHub/Sigstore provenance is authenticated, but no platform is accepted and production release remains blocked"
     )
     return 0
 

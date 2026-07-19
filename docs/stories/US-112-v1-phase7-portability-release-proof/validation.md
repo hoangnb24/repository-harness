@@ -15,13 +15,16 @@ prove one exact candidate across every fixture and platform. A passing macOS
 test cannot substitute for a missing Windows artifact, and a complete platform
 matrix cannot substitute for the deferred Phase 6 pilot comparison.
 
-The build-receipt continuation can compile one real native release artifact,
-write its exact SHA-256 sidecar, capture its raw six-command JSON help, and bind
-those bytes to the exact committed inputs. Its verifier can collect the same
-shape from all five runner labels without executing any downloaded binary.
-This is infrastructure proof, not platform acceptance: building and asking for
-help exercises neither installer behavior nor the six commands' full mutation,
-recovery, audit, and unsupported boundaries.
+The build-receipt continuation compiles one real native release artifact and
+writes its exact SHA-256 sidecar without executing the artifact. After those
+bytes are final, the exact-pinned v3.2.0 action commit generates GitHub/Sigstore
+provenance in an isolated job that cannot execute candidate code. A separate
+read-only native job uses the setup-python output explicitly; its finalizer
+verifies the signed bundle before capturing raw
+six-command JSON help. Its collector repeats that verification read-only for
+one receipt or all five runner labels without executing downloaded binaries.
+This is authenticated diagnostic provenance, not platform acceptance or
+production signing; production signing remains blocked.
 
 The local execution continuation now covers those behaviors on the current
 native host. Each case installs a checksum-verified artifact, commits the
@@ -31,15 +34,15 @@ identity, and refuses a nonexistent recovery operation without mutation. The
 runner snapshots every owner file, including spaces/Unicode and LF/CRLF bytes,
 and seeds package manifests that must remain outside the V1 role map.
 
-The receipt says `unattested-not-authenticated` for artifact provenance. The
-signed payload is authenticated with test-fixture Ed25519 roots materialized in
-a temporary external directory; that does not authenticate who built the
-executable. A later exact-five collection must share candidate, workflow,
-command, and normalized contract identity. It must also independently verify
-the downloaded build-receipt collection and match each execution proof to the
-build receipt's platform, target, runner, artifact name, and authenticated
-artifact SHA-256. Until those remote receipts exist, platform proof remains
-zero.
+The finalized receipt says `github-sigstore-attested` only after `gh attestation
+verify` authenticates the Sigstore bundle and its certificate/statement
+identity. For example, changing only the recorded repository, workflow ref, or
+artifact digest fails the closed verifier; supplying a checksum without the
+bundle also fails. The exact-five collector must share candidate, workflow,
+command, and normalized contract identity and match each execution proof to the
+build receipt's platform, target, runner, artifact name, artifact SHA-256,
+bundle SHA-256, and verification-record SHA-256. Until remote receipts exist,
+platform proof remains zero.
 
 Exact-five verification requires an independently resolved candidate SHA and
 workflow revision, then recomputes the candidate tree, Cargo lock, command
@@ -58,8 +61,8 @@ can therefore pass while `five_platform_equivalence` remains `pending`.
 
 | Layer | Cases |
 | --- | --- |
-| Unit | Closed schemas, duplicate-key rejection, exact candidate identity, native tuple/output safety, platform/path uniqueness, digest and authority-state negatives. |
-| Integration | Fixture-only repository-shape inventory plus independently constructed closed verifier documents, checksum/help byte verification, exact build/execution tuple cross-binding, and no downloaded artifact execution. |
+| Unit | Closed schemas, duplicate-key rejection, exact candidate identity, native tuple/output safety, platform/path uniqueness, signed-subject/repo/workflow/ref/SHA/event/digest negatives, and authority-state negatives. |
+| Integration | Fixture-only repository-shape inventory plus independently constructed closed verifier documents, checksum/help/bundle byte verification, exact build/execution/provenance tuple cross-binding, and no collector artifact execution. |
 | E2E | Local Bash/direct-binary install-to-audit across all ten fixtures; Windows authenticates native bytes, proves PowerShell refusal before destination creation/copy/move, and runs only controlled-unsupported commands directly. |
 | Platform | macOS arm64/x64, Linux x64/arm64, and Windows x64 exact artifacts. |
 | Performance | Build/proof duration recorded; no performance acceptance claim in the opening slice. |
@@ -131,6 +134,8 @@ scripts/verify-v1-phase7-release-proof.sh --require-promotable  # expected exit 
 tests/release/test-v1-phase7-execution-proof.sh
 tests/release/test-v1-build-receipts.sh
 tests/release/test-v1-build-receipt-workflow.sh
+tests/release/test-v1-artifact-provenance.sh
+tests/release/test-v1-attestation-workflow.sh
 tests/release/test-release-workflow-contract.sh
 tests/docs/test-doc-contracts.sh
 scripts/verify-v1-phase6-evidence.sh --framework-only
@@ -156,8 +161,9 @@ evidence promotable or changing any platform result from `pending`.
 
 The build-receipt continuation adds a separate fourteenth closed schema; it
 does not loosen `phase7-release-proof-v1.schema.json` from
-`fixture-only-non-production`. Nine focused Python adversaries and the static
-workflow contract cover dirty/mutable candidate boundaries, separately bound
+`fixture-only-non-production`. Ten focused build-receipt adversaries, eight
+provenance adversaries (including the installed `gh` parser), and nineteen
+static workflow adversaries cover dirty/mutable candidate boundaries, separately bound
 candidate and executing-workflow revisions, approved-remote-branch
 reachability, non-persisted checkout credentials, exact native tuples, safe
 new external output, missing/duplicate platforms, candidate and input drift,
@@ -167,17 +173,38 @@ the candidate identity once. The corrected diagnostic uses a tightly scoped
 push trigger on `refactor/harness-v1` and only when
 `.github/harness-v1-diagnostic-request` changes. It has no arbitrary candidate
 input and no `agent/*` or main authority. Exact repository, push event, branch
-ref, workflow ref, candidate SHA, and workflow SHA must agree. Matrix and
-collector jobs check out that SHA with credential persistence disabled, verify
+ref, workflow ref, candidate SHA, and workflow SHA must agree. Build,
+verify/execute, and collector jobs check out that SHA with credential persistence disabled, verify
 the immutable workflow object/path, upload bounded receipts for five days, and
 download them under `contents: read`.
 
+The provenance continuation extends the existing closed V1 build-receipt
+schema and the closed Phase 7 execution-proof schema with a bounded
+verification record. The build artifact bytes are finalized before
+`actions/attest-build-provenance` runs at the verified v3.2.0 commit
+`96278af6caaf10aea03fd8d33a09a777ca52d62f`. Its artifact download is pinned to
+the verified v8.0.1 commit `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c`
+and its bundle upload to the verified v7.0.1 commit
+`043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`. Only the isolated attestation job
+receives `contents: read`, `id-token: write`, and `attestations: write`; it
+downloads immutable build output and never invokes repository Python or candidate
+code. Build, verify/execute, and collection remain read-only. All platform Python
+calls use the setup-python `python-path`. Candidate subprocesses use a fresh
+minimal allowlist, so GitHub command-file paths, Actions runtime/OIDC state,
+tokens, `PYTHONPATH`, `PYTHONHOME`, home, cache, and unrelated runner variables
+never reach candidate code. The trusted `gh` process alone gets a temporary
+home/config/state/cache root so its local bookkeeping cannot change the
+checkout. No repository secret or private key is used. The retained public
+Sigstore bundle and record contain no token. Finalization, the execution runner, the Windows installer
+guard, and the collector all fail closed unless the exact signed subject and
+repository/workflow/ref/SHA identity verify before execution.
+
 No remote workflow run exists for this slice and no platform is accepted. A
 local macOS arm64 test-fixture installer/direct-binary proof exists; native
-Windows refusal evidence, exact-five build/execution cross-binding and
-normalized equivalence, authenticated artifact
-provenance, deferred Phase 6 P0-P7 evidence, Phase 7 acceptance, and all tag/
-release/publish/signing/attestation/promotion actions remain pending or blocked.
+Windows refusal evidence, exact-five build/execution/provenance cross-binding
+and normalized equivalence, remote attestation evidence, deferred Phase 6
+P0-P7 evidence, Phase 7 acceptance, and all tag/release/publish/production-
+signing/promotion actions remain pending or blocked.
 
 The local execution continuation adds a closed non-production schema under the
 release test surface, V1-only Bash/PowerShell installers, direct self-digest

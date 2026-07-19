@@ -4,7 +4,7 @@
   "title": "Repository Harness V1 non-production native build receipt",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "evidence_kind", "candidate", "execution_workflow", "environment", "files", "results", "authority"],
+  "required": ["schema", "evidence_kind", "candidate", "execution_workflow", "environment", "files", "provenance", "results", "authority"],
   "properties": {
     "schema": {"const": "repository-harness-v1-build-receipt/v1"},
     "evidence_kind": {"const": "native-build-receipt-non-production"},
@@ -12,6 +12,7 @@
     "execution_workflow": {"$ref": "#/$defs/workflowInput"},
     "environment": {"$ref": "#/$defs/environment"},
     "files": {"$ref": "#/$defs/files"},
+    "provenance": {"$ref": "#/$defs/provenance"},
     "results": {"$ref": "#/$defs/results"},
     "authority": {"$ref": "#/$defs/authority"}
   },
@@ -86,11 +87,31 @@
     "files": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["artifact", "checksum", "help_output"],
+      "required": ["artifact", "checksum", "help_output", "attestation_bundle", "provenance_verification"],
       "properties": {
         "artifact": {"$ref": "#/$defs/file"},
         "checksum": {"$ref": "#/$defs/file"},
-        "help_output": {"$ref": "#/$defs/file"}
+        "help_output": {"$ref": "#/$defs/file"},
+        "attestation_bundle": {"$ref": "#/$defs/file"},
+        "provenance_verification": {"$ref": "#/$defs/file"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "verification", "repository", "event_name", "source_ref", "candidate_sha", "workflow_path", "workflow_ref", "workflow_sha", "artifact_name", "artifact_sha256"],
+      "properties": {
+        "kind": {"const": "github-sigstore-build-provenance"},
+        "verification": {"const": "passed-before-execution"},
+        "repository": {"const": "hoangnb24/repository-harness"},
+        "event_name": {"const": "push"},
+        "source_ref": {"const": "refs/heads/refactor/harness-v1"},
+        "candidate_sha": {"$ref": "#/$defs/gitObject"},
+        "workflow_path": {"const": ".github/workflows/harness-v1-release.yml"},
+        "workflow_ref": {"const": "hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/refactor/harness-v1"},
+        "workflow_sha": {"$ref": "#/$defs/gitObject"},
+        "artifact_name": {"enum": ["harness-macos-arm64", "harness-macos-x64", "harness-linux-x64", "harness-linux-arm64", "harness-windows-x64.exe"]},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"}
       }
     },
     "results": {
@@ -102,7 +123,7 @@
         "help_grammar_only": {"const": "passed"},
         "installer": {"const": "pending"},
         "full_direct_binary": {"const": "pending"},
-        "provenance": {"const": "checksum-only-unattested"}
+        "provenance": {"const": "github-sigstore-attested"}
       }
     },
     "authority": {
@@ -111,7 +132,7 @@
       "required": [
         "phase6_live_evidence", "platform_acceptance", "phase7_acceptance", "platform_accepted",
         "phase7_accepted", "production", "promotable", "tag_authorized", "release_authorized",
-        "publish_authorized", "promotion_authorized", "signing_authorized", "attestation_authorized",
+        "publish_authorized", "promotion_authorized", "production_signing_authorized", "artifact_provenance",
         "phase8", "blockers"
       ],
       "properties": {
@@ -126,19 +147,20 @@
         "release_authorized": {"const": false},
         "publish_authorized": {"const": false},
         "promotion_authorized": {"const": false},
-        "signing_authorized": {"const": false},
-        "attestation_authorized": {"const": false},
+        "production_signing_authorized": {"const": false},
+        "artifact_provenance": {"const": "github-sigstore-attested"},
         "phase8": {"const": "closed"},
         "blockers": {
           "type": "array",
-          "minItems": 5,
-          "maxItems": 5,
+          "minItems": 6,
+          "maxItems": 6,
           "prefixItems": [
             {"const": "deferred-phase6-live-p0-p7-evidence-pending"},
-            {"const": "five-platform-acceptance-pending"},
-            {"const": "installer-proof-pending"},
-            {"const": "full-direct-binary-proof-pending"},
-            {"const": "authenticated-provenance-pending"}
+            {"const": "five-platform-semantic-equivalence-pending"},
+            {"const": "safe-windows-repository-mutation-pending"},
+            {"const": "platform-acceptance-pending"},
+            {"const": "phase7-acceptance-pending"},
+            {"const": "production-release-signing-and-promotion-blocked"}
           ],
           "items": false
         }

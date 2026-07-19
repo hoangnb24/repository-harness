@@ -163,6 +163,28 @@ and publishes relative to a physically pinned `bin` directory. PowerShell does
 not inspect or create the destination tree and contains no copy/move path; its
 controlled-unsupported result remains a Phase 7 Windows blocker.
 
+The Phase 7 diagnostic workflow supplies the separate provenance gate. It
+finalizes artifact bytes, generates GitHub/Sigstore build provenance with the
+exact-pinned action in an isolated non-executing job, verifies the retained
+signed bundle in a separate read-only job, and only then permits
+help, installer, or direct-binary execution. Build/execution receipts bind the
+artifact, bundle, verification record, repository, workflow path/ref, and exact
+candidate/workflow SHA. Verification uses exact `--cert-identity` without the
+mutually exclusive `--signer-workflow` flag. Workflow Python calls use the
+setup-python output explicitly. The privileged job also pins artifact download
+to v8.0.1 commit `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c` and
+bundle upload to v7.0.1 commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`;
+moving artifact refs remain only in read-only jobs. Candidate subprocesses use
+a fresh minimal allowlist with launch/temp/locale/Windows essentials and exact
+trusted `HARNESS_V1_*` bindings. GitHub command files, Actions/OIDC state,
+tokens, Python injection, home, and cache variables are not inherited. This
+candidate boundary is separate from the trusted `gh` verifier, whose temporary
+home/config/state/cache root is deleted after verification to keep its local
+bookkeeping outside the checkout. The diagnostic attestation uses no stored
+key and does
+not authorize platform acceptance, production signing, publishing, or
+promotion.
+
 The upstream installer applies the Harness v0 operating files and folder
 structure to a target project directory. It defaults to the current directory,
 accepts a target path, and asks interactive users whether to `1. Merge`,

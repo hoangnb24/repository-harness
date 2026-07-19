@@ -490,18 +490,28 @@ def proof_workflow_lifecycle_guard() -> None:
     workflow = (ROOT / ".github/workflows/harness-v1-release.yml").read_text(encoding="utf-8")
     for fragment in [
         'test "$REPOSITORY" = hoangnb24/repository-harness',
-        "capture-native-proof:",
+        "build-native-artifact:",
+        "attest-native-artifact:",
+        "verify-execute-native-proof:",
         "collect-receipts:",
-        "scripts/capture-v1-build-receipt.sh",
-        "scripts/verify-v1-build-receipts.sh",
+        "scripts/capture_v1_build_receipt.py",
+        "scripts/verify_v1_build_receipts.py",
     ]:
         check(fragment in workflow, f"workflow diagnostic proof structure omits {fragment}")
     for forbidden in [
         "promotion-blocked:", "request_promotion", "contents: write",
-        "id-token: write", "gh release create", "git push", "git tag",
-        "cargo publish", "npm publish", "attest-build-provenance",
+        "gh release create", "git push", "git tag",
+        "cargo publish", "npm publish",
     ]:
         check(forbidden not in workflow, f"unpromoted workflow contains promotion capability: {forbidden}")
+    check(
+        workflow.count("id-token: write") == 1
+        and workflow.count("attestations: write") == 1
+        and "actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f" in workflow
+        and "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" in workflow
+        and "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" in workflow,
+        "unpromoted workflow lost its exact diagnostic attestation boundary",
+    )
     bridge = identity["bridge"]["workflow_lifecycle"]
     check(bridge["state"] == "source-present-unpromoted" and bridge["source_path"] == ".github/workflows/harness-v0-bridge-release.yml",
           "bridge lifecycle is not source-present-unpromoted")
