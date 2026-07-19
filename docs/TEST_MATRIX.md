@@ -238,6 +238,21 @@ Windows assertion and skipped final collection mean no platform is accepted;
 Windows publication, five-platform equivalence, Phase 7 acceptance, and
 release authority remain pending or blocked.
 
+CI attempt 4, run `29688587069` at published candidate
+`fc22a466344f4b0297cb23b6b1da29f4ebc9c47b`, again completed verified
+provenance and six-command execution on all five platforms. Windows job
+`88197342173` reached the exact refusal but Windows PowerShell 5.1 serialized
+the redirected `-EncodedCommand` streams as CLIXML: stderr began `#< CLIXML`
+and contained a `Preparing modules for first use` progress record plus the
+refusal. The child now adds `-OutputFormat Text`, the documented text-string
+format, without suppressing progress or filtering stderr. Exact exit 1, empty
+stdout, refusal plus platform newline, absent destination state, and unchanged
+artifact/checksum hashes remain mandatory. The complete CRLF test is pinned at
+SHA-256
+`23c2b91db380bef9528b72f7519f6f7c7ac021185a5bdddc97e46bf0685e4fb9`,
+and an XML-format substitution fails the hash contract. Final collection and
+all blocked authority remain pending.
+
 US-112's local execution slice adds checksum/platform preflight to the real V1
 binary, a V1-only Bash installer and PowerShell controlled-unsupported installer
 surface, external signed-test-payload

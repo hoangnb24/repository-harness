@@ -251,6 +251,20 @@ the required test in `<# #>`, preserve old markers in trailing comments while
 disabling redirect or loosening comparison, add native `*>&1`, or force exit 1.
 Every byte-substituted variant fails the contract.
 
+CI attempt 4, run `29688587069` at exact published candidate
+`fc22a466344f4b0297cb23b6b1da29f4ebc9c47b`, again verified provenance and
+completed the six-command proof on all five platforms. Windows job
+`88197342173` reached the refusal capture, but its redirected Windows
+PowerShell 5.1 `-EncodedCommand` minishell emitted CLIXML: stderr began
+`#< CLIXML` and serialized `Preparing modules for first use` progress together
+with the exact refusal. The correction adds only `-OutputFormat Text` to the
+child arguments. It does not suppress progress or filter stderr, so unexpected
+output still fails the exact comparison. Exit 1, empty stdout, exact refusal
+plus platform newline, absent destination state, and unchanged authenticated
+input hashes remain required. The exact reviewed CRLF test now hashes to
+`23c2b91db380bef9528b72f7519f6f7c7ac021185a5bdddc97e46bf0685e4fb9`;
+an `-OutputFormat XML` substitution is a seeded hash-regression adversary.
+
 No platform is accepted. A local macOS arm64 test-fixture installer/direct-
 binary proof exists, and the remote run supplies five-platform provenance plus
 six-command diagnostic execution. Native Windows installer-refusal completion,

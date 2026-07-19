@@ -402,6 +402,14 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
                 1,
             ),
         ),
+        (
+            "PowerShell minishell output format reverted to CLIXML",
+            windows_refusal_test.replace(
+                b"-OutputFormat Text",
+                b"-OutputFormat XML",
+                1,
+            ),
+        ),
     ):
         try:
             verifier.verify_windows_refusal_test(adversary)

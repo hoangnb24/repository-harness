@@ -156,15 +156,17 @@ promotion blocked.
   pre-execution verification; bounded bundle/verification evidence; Unix
   destination-link adversaries; exact build/execution tuple binding; Windows
   pre-publication refusal; PowerShell 5.1-safe separate refusal-stream capture;
+  explicit plain-text minishell output;
   and local focused tests.
 - Current evidence: local focused execution passes on macOS arm64. CI run
-  `29685632567` at `dd5648daa0db822f29a90fc47fcfbfce43db4a88` verified
+  `29688587069` at `fc22a466344f4b0297cb23b6b1da29f4ebc9c47b` verified
   provenance and completed six-command execution on all five platforms.
-  Windows job `88189458225` then failed because its PowerShell 5.1 parent test
-  promoted the expected refusal stderr to a terminating `NativeCommandError`
-  before the no-mutation/input-hash assertions. The test harness now uses
-  separate .NET process streams while Windows mutation remains unsupported.
-  Final collection did not complete, and no platform is accepted.
+  Windows job `88197342173` then failed because redirected Windows PowerShell
+  5.1 `-EncodedCommand` output used CLIXML, adding its marker and serialized
+  startup progress around the exact refusal. The child now requests
+  `-OutputFormat Text` while retaining separate .NET process streams and exact
+  unfiltered stderr comparison. Windows mutation remains unsupported, final
+  collection did not complete, and no platform is accepted.
 - Remaining: a successful remote Windows refusal assertion and final receipt
   collection/equivalence, safe Windows repository mutation, deferred Phase 6
   live evidence, platform acceptance, review, and any
