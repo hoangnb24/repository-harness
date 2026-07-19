@@ -23,6 +23,7 @@ ALLOWED_LATER_CHANGESETS = {
     ".harness/changesets/harness_v1_phase7_03_build_receipts.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_04_execution_proof.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_05_review_corrections.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_06_cross_binding_corrections.changeset.jsonl",
 }
 
 

@@ -699,16 +699,22 @@ def validate_bootstrap(value: dict[str, Any], repository_root: Path = ROOT) -> N
             text = workflow.read_text(encoding="utf-8")
             for fragment in [
                 "Repository Harness V1 Proof (Unpromoted)",
-                "github.repository == 'hoangnb24/repository-harness'",
-                "prove-before-promotion:",
-                "promotion-blocked:",
-                "needs: collect-receipts",
-                "repository-protection and pinned artifact-attestation evidence are not present",
-                "exit 1",
+                'test "$REPOSITORY" = hoangnb24/repository-harness',
+                "capture-native-proof:",
+                "collect-receipts:",
             ]:
-                check(fragment in text, f"core workflow source omits promotion guard: {fragment}")
+                check(fragment in text, f"core workflow source omits diagnostic identity/proof boundary: {fragment}")
             check("contents: read" in text and "contents: write" not in text and "id-token: write" not in text, "unpromoted core workflow has production write permission")
-            for forbidden in ["gh release create", "git tag", "git push", "attest-build-provenance"]:
+            for forbidden in [
+                "promotion-blocked:",
+                "request_promotion",
+                "gh release create",
+                "git tag",
+                "git push",
+                "cargo publish",
+                "npm publish",
+                "attest-build-provenance",
+            ]:
                 check(forbidden not in text, f"unpromoted core workflow contains production action: {forbidden}")
         else:
             check(lifecycle["state"] == "source-present-unpromoted" and lifecycle["source_path"] == workflow_path,

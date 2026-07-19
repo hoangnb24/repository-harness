@@ -11,24 +11,6 @@ function Refuse([string]$Message) {
     exit 1
 }
 
-function Assert-NoReparseComponents([string]$Path, [string]$Label) {
-    $FullPath = [IO.Path]::GetFullPath($Path)
-    $PathRoot = [IO.Path]::GetPathRoot($FullPath)
-    $Cursor = $PathRoot
-    $Remainder = $FullPath.Substring($PathRoot.Length)
-    $Separators = [char[]]@([IO.Path]::DirectorySeparatorChar)
-    foreach ($Component in $Remainder.Split($Separators, [StringSplitOptions]::RemoveEmptyEntries)) {
-        $Cursor = Join-Path $Cursor $Component
-        if (Test-Path -LiteralPath $Cursor) {
-            $Item = Get-Item -LiteralPath $Cursor -Force
-            if ($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-                Refuse "$Label contains a link or reparse point: $Cursor"
-            }
-        }
-    }
-    return $FullPath
-}
-
 if (!(Test-Path -LiteralPath $Artifact -PathType Leaf)) { Refuse "artifact is missing" }
 if (!(Test-Path -LiteralPath $Checksum -PathType Leaf)) { Refuse "checksum is missing" }
 $ArtifactItem = Get-Item -LiteralPath $Artifact -Force
@@ -54,54 +36,7 @@ if (![System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.R
 if ($Platform -ne "windows-x64") { Refuse "platform identity mismatch: expected windows-x64" }
 if ($ArtifactItem.Name -ne "harness-windows-x64.exe") { Refuse "artifact filename does not match platform identity" }
 
-if (![IO.Path]::IsPathRooted($Directory)) { Refuse "target directory must be an absolute path" }
-$RootPath = Assert-NoReparseComponents $Directory "target directory"
-if (!(Test-Path -LiteralPath $RootPath -PathType Container)) { Refuse "target directory is missing or is not a directory" }
-$RootItem = Get-Item -LiteralPath $RootPath -Force
-if ($RootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) { Refuse "target directory is a link or reparse point" }
-$RootPath = $RootItem.FullName.TrimEnd([IO.Path]::DirectorySeparatorChar)
-if ($RootPath -eq [IO.Path]::GetPathRoot($RootPath)) { Refuse "target directory cannot be the filesystem root" }
-
-$ScriptsDirectory = Join-Path $RootPath "scripts"
-if (Test-Path -LiteralPath $ScriptsDirectory) {
-    if (!(Test-Path -LiteralPath $ScriptsDirectory -PathType Container)) { Refuse "destination component scripts is not a directory" }
-} else {
-    [IO.Directory]::CreateDirectory($ScriptsDirectory) | Out-Null
-}
-$ScriptsDirectory = Assert-NoReparseComponents $ScriptsDirectory "destination component scripts"
-
-$BinDirectory = Join-Path $ScriptsDirectory "bin"
-if (Test-Path -LiteralPath $BinDirectory) {
-    if (!(Test-Path -LiteralPath $BinDirectory -PathType Container)) { Refuse "destination component scripts/bin is not a directory" }
-} else {
-    [IO.Directory]::CreateDirectory($BinDirectory) | Out-Null
-}
-$BinDirectory = Assert-NoReparseComponents $BinDirectory "destination component scripts/bin"
-$RootPrefix = $RootPath + [IO.Path]::DirectorySeparatorChar
-if (!$BinDirectory.StartsWith($RootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-    Refuse "destination directory escaped the target root"
-}
-
-$Destination = Join-Path $BinDirectory "harness.exe"
-if (Test-Path -LiteralPath $Destination) { Refuse "destination already exists" }
-$Temporary = Join-Path $BinDirectory (".harness-v1-install." + [guid]::NewGuid().ToString("N"))
-try {
-    $VerifiedBinDirectory = Assert-NoReparseComponents $BinDirectory "destination component scripts/bin"
-    if (!$VerifiedBinDirectory.Equals($BinDirectory, [StringComparison]::OrdinalIgnoreCase)) {
-        Refuse "destination directory identity changed before copy"
-    }
-    Copy-Item -LiteralPath $Artifact -Destination $Temporary
-    $Installed = (Get-FileHash -LiteralPath $Temporary -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($Installed -ne $Expected) { Refuse "installed copy changed after authentication" }
-    $VerifiedBinDirectory = Assert-NoReparseComponents $BinDirectory "destination component scripts/bin"
-    if (!$VerifiedBinDirectory.Equals($BinDirectory, [StringComparison]::OrdinalIgnoreCase)) {
-        Refuse "destination directory identity changed before publication"
-    }
-    if (Test-Path -LiteralPath $Destination) { Refuse "destination appeared during install" }
-    [IO.File]::Move($Temporary, $Destination)
-} finally {
-    if (Test-Path -LiteralPath $Temporary) {
-        Move-Item -LiteralPath $Temporary -Destination "$Temporary.failed" -Force
-    }
-}
-Write-Output "Installed checksum-verified Harness V1 artifact at scripts/bin/harness.exe; provenance and platform acceptance remain unclaimed."
+# Safe handle-relative/no-follow destination publication is not implemented on
+# Windows. Refuse after authenticating bytes and validating the native platform,
+# before inspecting or mutating the caller-controlled destination namespace.
+Refuse "safe Windows destination publication is controlled-unsupported before mutation"

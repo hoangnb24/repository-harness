@@ -35,8 +35,11 @@ The receipt says `unattested-not-authenticated` for artifact provenance. The
 signed payload is authenticated with test-fixture Ed25519 roots materialized in
 a temporary external directory; that does not authenticate who built the
 executable. A later exact-five collection must share candidate, workflow,
-command, and normalized contract identity. Until those remote receipts exist,
-platform proof remains zero.
+command, and normalized contract identity. It must also independently verify
+the downloaded build-receipt collection and match each execution proof to the
+build receipt's platform, target, runner, artifact name, and authenticated
+artifact SHA-256. Until those remote receipts exist, platform proof remains
+zero.
 
 Exact-five verification requires an independently resolved candidate SHA and
 workflow revision, then recomputes the candidate tree, Cargo lock, command
@@ -56,8 +59,8 @@ can therefore pass while `five_platform_equivalence` remains `pending`.
 | Layer | Cases |
 | --- | --- |
 | Unit | Closed schemas, duplicate-key rejection, exact candidate identity, native tuple/output safety, platform/path uniqueness, digest and authority-state negatives. |
-| Integration | Fixture-only repository-shape inventory plus synthetic single/exact-five receipt collection, checksum/help byte verification, and no artifact execution. |
-| E2E | Local Bash/direct-binary install-to-audit across all ten fixtures; Windows records controlled unsupported and runs native PowerShell junction adversaries when its diagnostic runner executes. |
+| Integration | Fixture-only repository-shape inventory plus independently constructed closed verifier documents, checksum/help byte verification, exact build/execution tuple cross-binding, and no downloaded artifact execution. |
+| E2E | Local Bash/direct-binary install-to-audit across all ten fixtures; Windows authenticates native bytes, proves PowerShell refusal before destination creation/copy/move, and runs only controlled-unsupported commands directly. |
 | Platform | macOS arm64/x64, Linux x64/arm64, and Windows x64 exact artifacts. |
 | Performance | Build/proof duration recorded; no performance acceptance claim in the opening slice. |
 | Logs/Audit | Candidate/platform/check/evidence identities; no target telemetry. |
@@ -95,7 +98,7 @@ can therefore pass while `five_platform_equivalence` remains `pending`.
 | --- | --- | --- | --- | --- |
 | Rust/core | Core maintainers | Cargo tests and platform builds | Tests/builds pass | Mark platform proof unavailable. |
 | Bash installer | Installer maintainers | Installer fixture suite | Expected manifest/audit result | Keep Unix candidate unaccepted. |
-| PowerShell installer | Installer maintainers | Windows runner fixture suite | Expected `.exe` and manifest result | Keep Windows unsupported. |
+| PowerShell installer | Installer maintainers | Windows runner refusal suite | Deterministic controlled-unsupported after authentication and before destination mutation | Keep Windows unsupported. |
 | Release workflow | Release maintainers | Pre-promotion workflow tests | Immutable complete artifact set | No tag or publish. |
 
 ## Repeated Corrections
@@ -170,8 +173,9 @@ the immutable workflow object/path, upload bounded receipts for five days, and
 download them under `contents: read`.
 
 No remote workflow run exists for this slice and no platform is accepted. A
-local macOS arm64 test-fixture installer/direct-binary proof exists; remote
-PowerShell and exact-five normalized equivalence, authenticated artifact
+local macOS arm64 test-fixture installer/direct-binary proof exists; native
+Windows refusal evidence, exact-five build/execution cross-binding and
+normalized equivalence, authenticated artifact
 provenance, deferred Phase 6 P0-P7 evidence, Phase 7 acceptance, and all tag/
 release/publish/signing/attestation/promotion actions remain pending or blocked.
 
@@ -180,10 +184,11 @@ release test surface, V1-only Bash/PowerShell installers, direct self-digest
 and platform preflight, external signed-test-payload adapters, and an
 exact-ten-case runner/verifier. Focused local proof executes all six commands
 for all ten cases and rejects checksum tampering, target-root/`scripts`/`bin`
-links, mutually substituted exact-five identities, absent external identity,
+links, mutually substituted exact-five identities, absent external identity or
+build receipts, swapped platform/runner/target/artifact-name/digest tuples,
 provenance and platform overclaims, normalized payload substitution, normalized
-drift, and missing authentication. PowerShell ordering and containment are
-checked statically locally; its native junction adversary remains unrun until
-a Windows diagnostic.
+drift, and missing authentication. PowerShell's checksum/platform-before-refusal
+order and absence of destination creation/copy/move are checked statically
+locally; its native refusal test remains unrun until a Windows diagnostic.
 No remote workflow was dispatched, so `platform_proof`, Phase 7 acceptance,
 and all promotion authorities remain false.

@@ -40,7 +40,7 @@ assert built.is_file()
 
 with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporary_text:
     temporary = Path(temporary_text)
-    artifact_name = f"harness-{platform_name}{suffix}"
+    target_name, runner_name, artifact_name = runner.PLATFORMS[platform_name]
     artifact = temporary / artifact_name
     shutil.copyfile(built, artifact)
     artifact.chmod(0o755)
@@ -61,7 +61,12 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
     rejected = temporary / "rejected"
     rejected.mkdir()
     try:
-        runner.install(artifact, bad_checksum, platform_name, rejected)
+        if platform_name == "windows-x64":
+            runner.windows_direct_after_installer_refusal(
+                artifact, bad_checksum, platform_name, rejected
+            )
+        else:
+            runner.install_unix(artifact, bad_checksum, platform_name, rejected)
     except runner.ProofError as error:
         assert "checksum mismatch" in str(error)
     else:
@@ -85,7 +90,7 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
                     (attack_root / "scripts").mkdir()
                     os.symlink(outside, attack_root / "scripts/bin", target_is_directory=True)
             try:
-                runner.install(artifact, checksum, platform_name, attack_root)
+                runner.install_unix(artifact, checksum, platform_name, attack_root)
             except runner.ProofError as error:
                 assert "installer failed" in str(error)
             else:
@@ -138,6 +143,10 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
             "behavior": "full-native-test-fixture",
         },
         "artifact": {
+            "platform": platform_name,
+            "target": target_name,
+            "runner": runner_name,
+            "name": artifact_name,
             "sha256": artifact_sha,
             "authentication": "checksum-verified-before-every-execution",
             "provenance": "unattested-not-authenticated",
@@ -157,55 +166,110 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
         },
     }
     verifier.verify(document)
-    five = []
-    for platform in verifier.PLATFORMS[:4]:
-        item = deepcopy(document)
-        item["environment"] = {
-            "platform": platform,
-            "installer": "bash",
-            "behavior": "full-native-test-fixture",
-        }
-        item["artifact"]["sha256"] = hashlib.sha256(platform.encode()).hexdigest()
-        five.append(item)
-
-    # Windows is a distinct controlled-unsupported receipt, never a relabeled
-    # local success document.
-    windows = deepcopy(document)
-    windows["environment"] = {
-        "platform": "windows-x64",
-        "installer": "powershell",
-        "behavior": "controlled-unsupported-before-mutation",
-    }
-    windows["artifact"]["sha256"] = hashlib.sha256(b"windows-x64").hexdigest()
-    for record in windows["fixtures"]:
-        record["execution_status"] = "controlled-unsupported-before-mutation"
-        result = record["normalized_result"]
-        result["mode"] = "controlled-unsupported-before-mutation"
-        for index, command in enumerate(result["commands"]):
-            command["exit_code"] = [74, 74, 74, 74, 74, 0][index]
-            command["mutation"] = "none"
-            command["outcome"] = "controlled-unsupported" if index < 5 else "success"
-            command["repository_mode"] = None
-            command["release_role"] = None
-            command["release_sequence"] = None
-            command["release_index_sha256"] = None
-            command["readiness"] = None
-            command["violation_codes"] = []
-            command["notice_codes"] = []
-        result["recovery_refusal"]["exit_code"] = 74
-        result["recovery_refusal"]["mutation"] = "none"
-        result["recovery_refusal"]["outcome"] = "controlled-unsupported"
-        record["normalized_sha256"] = hashlib.sha256(runner.canonical(result)).hexdigest()
-    windows["normalized_contract_sha256"] = hashlib.sha256(runner.canonical([
-        {"case": record["case"], "normalized_result": record["normalized_result"]}
-        for record in windows["fixtures"]
-    ])).hexdigest()
-    five.append(windows)
     expected_identity = {
         "candidate": deepcopy(document["candidate"]),
         "execution_workflow": deepcopy(document["execution_workflow"]),
     }
-    verifier.verify_collection(five, True, expected_identity)
+
+    def closed_command(command, mode, index, *, recovery=False):
+        if mode == "full-native-test-fixture":
+            exit_code = 3 if recovery else 0
+            mutation = "committed" if not recovery and index in (0, 3) else "none"
+            outcome = "invalid" if recovery else "success"
+        else:
+            exit_code = 74 if recovery or index < 5 else 0
+            mutation = "none"
+            outcome = "controlled-unsupported" if exit_code == 74 else "success"
+        return {
+            "command": command,
+            "outcome": outcome,
+            "exit_code": exit_code,
+            "mutation": mutation,
+            "repository_mode": None,
+            "release_role": None,
+            "release_sequence": None,
+            "release_index_sha256": None,
+            "readiness": None,
+            "violation_codes": [],
+            "notice_codes": [],
+        }
+
+    def independent_fixture_document(platform):
+        target, platform_runner, name = runner.PLATFORMS[platform]
+        mode = (
+            "controlled-unsupported-before-mutation"
+            if platform == "windows-x64"
+            else "full-native-test-fixture"
+        )
+        fixture_records = []
+        for case in runner.CASES:
+            normalized_result = {
+                "mode": mode,
+                "commands": [
+                    closed_command(command, mode, index)
+                    for index, command in enumerate(runner.COMMANDS)
+                ],
+                "recovery_refusal": closed_command("update", mode, 0, recovery=True),
+            }
+            fixture_records.append({
+                "case": case,
+                "execution_status": mode,
+                "owner_bytes_preserved": True,
+                "language_manifests_ignored": True,
+                "line_endings_preserved": True,
+                "normalized_result": normalized_result,
+                "normalized_sha256": hashlib.sha256(runner.canonical(normalized_result)).hexdigest(),
+            })
+        artifact_identity = {
+            "platform": platform,
+            "target": target,
+            "runner": platform_runner,
+            "name": name,
+            "sha256": hashlib.sha256(f"independent-build:{platform}".encode()).hexdigest(),
+        }
+        return {
+            "schema": "repository-harness-v1-phase7-execution-proof/v1",
+            "evidence_kind": "local-or-runner-test-fixture-non-production",
+            "candidate": deepcopy(expected_identity["candidate"]),
+            "execution_workflow": deepcopy(expected_identity["execution_workflow"]),
+            "environment": {
+                "platform": platform,
+                "installer": (
+                    "powershell-controlled-unsupported-before-mutation"
+                    if platform == "windows-x64" else "bash"
+                ),
+                "behavior": mode,
+            },
+            "artifact": {
+                **artifact_identity,
+                "authentication": "checksum-verified-before-every-execution",
+                "provenance": "unattested-not-authenticated",
+            },
+            "commands": list(runner.COMMANDS),
+            "fixtures": fixture_records,
+            "normalized_contract_sha256": hashlib.sha256(runner.canonical([
+                {"case": record["case"], "normalized_result": record["normalized_result"]}
+                for record in fixture_records
+            ])).hexdigest(),
+            "authority": {
+                "phase6_live_evidence": "pending",
+                "five_platform_equivalence": "pending",
+                "platform_accepted": False,
+                "phase7_accepted": False,
+                "promotable": False,
+                "production": False,
+                "phase8": "closed",
+                "blockers": list(runner.BLOCKERS),
+            },
+        }, artifact_identity
+
+    five = []
+    expected_artifacts = {}
+    for platform in verifier.PLATFORMS:
+        fixture_document, artifact_identity = independent_fixture_document(platform)
+        five.append(fixture_document)
+        expected_artifacts[platform] = artifact_identity
+    verifier.verify_collection(five, True, expected_identity, expected_artifacts)
 
     substituted = deepcopy(five)
     for item in substituted:
@@ -221,18 +285,41 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
             "sha256": "f" * 64,
         }
     try:
-        verifier.verify_collection(substituted, True, expected_identity)
+        verifier.verify_collection(substituted, True, expected_identity, expected_artifacts)
     except verifier.VerificationError:
         print("ok - rejected exact-five identity substitution")
     else:
         raise AssertionError("accepted mutually consistent substituted identities")
 
     try:
-        verifier.verify_collection(five, True)
+        verifier.verify_collection(five, True, expected_artifacts=expected_artifacts)
     except verifier.VerificationError:
         print("ok - rejected exact-five without external identity")
     else:
         raise AssertionError("accepted exact-five without external identity")
+
+    try:
+        verifier.verify_collection(five, True, expected_identity)
+    except verifier.VerificationError:
+        print("ok - rejected exact-five without verified build artifacts")
+    else:
+        raise AssertionError("accepted exact-five without verified build artifacts")
+
+    for field, replacement in (
+        ("platform", "macos-arm64"),
+        ("runner", "ubuntu-24.04"),
+        ("target", "x86_64-unknown-linux-gnu"),
+        ("name", "harness-linux-x64"),
+        ("sha256", "0" * 64),
+    ):
+        adversary = deepcopy(five)
+        adversary[1]["artifact"][field] = replacement
+        try:
+            verifier.verify_collection(adversary, True, expected_identity, expected_artifacts)
+        except verifier.VerificationError:
+            print(f"ok - rejected build-receipt {field} substitution")
+        else:
+            raise AssertionError(f"accepted build-receipt {field} substitution")
 
     drifted = deepcopy(five)
     drifted[3]["fixtures"][0]["normalized_result"]["commands"][0]["outcome"] = "substituted"
@@ -243,7 +330,7 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
         for record in drifted[3]["fixtures"]
     ])).hexdigest()
     try:
-        verifier.verify_collection(drifted, True, expected_identity)
+        verifier.verify_collection(drifted, True, expected_identity, expected_artifacts)
     except verifier.VerificationError:
         print("ok - rejected cross-platform normalized drift")
     else:
@@ -269,13 +356,12 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
 
     powershell = (root / "scripts/install-harness-v1.ps1").read_text(encoding="utf-8")
     assert powershell.index("Get-FileHash") < powershell.index("RuntimeInformation")
-    assert "Assert-NoReparseComponents" in powershell
-    assert powershell.count("Assert-NoReparseComponents $BinDirectory") >= 3
-    assert powershell.index("Assert-NoReparseComponents $BinDirectory") < powershell.index("Copy-Item")
-    assert powershell.rindex("Assert-NoReparseComponents $BinDirectory") < powershell.index("[IO.File]::Move")
-    assert "New-Item -ItemType Directory -Force" not in powershell
+    refusal = 'Refuse "safe Windows destination publication is controlled-unsupported before mutation"'
+    assert powershell.index("RuntimeInformation") < powershell.index(refusal)
+    for prohibited in ("Copy-Item", "Move-Item", "[IO.File]::Move", "CreateDirectory", "New-Item", "Join-Path $Directory"):
+        assert prohibited not in powershell
     assert "harness-windows-x64.exe" in powershell
-    assert "unclaimed" in powershell
+    assert "Write-Output" not in powershell
 
 print("Phase 7 native execution proof covered all six commands and all ten fixtures without support claims")
 PY

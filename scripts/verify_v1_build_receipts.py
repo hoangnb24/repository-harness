@@ -145,7 +145,7 @@ def verify_receipt_directory(
     expected_candidate: dict[str, Any],
     expected_execution_workflow: dict[str, str],
     expected_help: bytes,
-) -> str:
+) -> tuple[str, dict[str, str]]:
     receipt_path = directory / RECEIPT_NAME
     receipt_payload = read_member(directory, RECEIPT_NAME, "receipt")
     document = parse_json_bytes(receipt_payload, str(receipt_path))
@@ -189,7 +189,13 @@ def verify_receipt_directory(
     help_document = parse_json_bytes(payloads["help_output"], f"help output: {platform_name}")
     expected_help_document = parse_json_bytes(expected_help, "committed core grammar")
     check(payloads["help_output"] == expected_help and help_document == expected_help_document, f"help grammar substitution: {platform_name}")
-    return platform_name
+    return platform_name, {
+        "platform": platform_name,
+        "target": target,
+        "runner": runner,
+        "name": artifact_name,
+        "sha256": artifact_sha,
+    }
 
 
 def discover_directories(root: Path, require_five: bool) -> list[Path]:
@@ -218,15 +224,43 @@ def verify_collection(
     *,
     expected: tuple[dict[str, Any], dict[str, str], bytes] | None = None,
 ) -> list[str]:
+    return list(
+        verify_artifact_identity_collection(
+            root,
+            candidate,
+            workflow_revision,
+            require_five,
+            expected=expected,
+        )
+    )
+
+
+def verify_artifact_identity_collection(
+    root: Path,
+    candidate: str,
+    workflow_revision: str,
+    require_five: bool,
+    *,
+    expected: tuple[dict[str, Any], dict[str, str], bytes] | None = None,
+) -> dict[str, dict[str, str]]:
     expected_candidate, expected_execution_workflow, expected_help = expected or expected_identity_from_repository(candidate, workflow_revision)
     directories = discover_directories(root, require_five)
-    platforms = [verify_receipt_directory(directory, expected_candidate, expected_execution_workflow, expected_help) for directory in directories]
+    verified = [
+        verify_receipt_directory(
+            directory,
+            expected_candidate,
+            expected_execution_workflow,
+            expected_help,
+        )
+        for directory in directories
+    ]
+    platforms = [platform for platform, _ in verified]
     check(len(platforms) == len(set(platforms)), "duplicate platform receipts")
     if require_five:
         check(platforms == list(PLATFORMS), f"receipt matrix must contain the exact five-platform order: {list(PLATFORMS)}")
     else:
         check(len(platforms) == 1, "single verification requires exactly one receipt")
-    return platforms
+    return {platform: identity for platform, identity in verified}
 
 
 def parse_arguments() -> argparse.Namespace:

@@ -88,8 +88,10 @@ This completion slice closes the remaining locally executable path: the real
 native binary refuses before command parsing unless its own SHA-256 and native
 platform label match; external signed test release material drives real
 install/update/scaffold commits through the existing recovery engine; Bash and
-PowerShell V1 installers verify checksums before platform selection; and one
-runner executes all six commands across the ten fixtures. It seeds inert
+PowerShell V1 installer surfaces verify checksums before platform selection.
+Bash publishes on Unix, while PowerShell refuses publication before destination
+mutation because safe Windows handle-relative publication is not implemented.
+One runner executes all six commands across the ten fixtures. It seeds inert
 `package.json` and `Cargo.toml` files and proves they remain owner-owned rather
 than interpreted. The normalized receipt binds the candidate commit/tree,
 Cargo lock, command binding, exact workflow bytes, and each closed normalized
@@ -110,16 +112,23 @@ default-branch installation. A push runs the costly jobs only when the
 dedicated `.github/harness-v1-diagnostic-request` sentinel changes. It accepts
 no candidate input: repository, event, ref, workflow ref, `github.sha`, and
 `github.workflow_sha` must match exactly. The collector recomputes candidate
-and workflow identities from checked-out Git objects before comparing receipts.
+and workflow identities from checked-out Git objects, independently verifies
+the downloaded build-receipt root, and requires each execution proof's
+platform/target/runner/artifact-name/digest tuple to match its build receipt.
+The diagnostic contains no promotion job or release path, so successful
+diagnostics finish green while receipt and documentation authority fields keep
+promotion blocked.
 
 ## Resume Capsule
 
 - Objective: implement Phase 7 portability and release proof without promotion.
 - Completed: Decision 0016 accepted; intake #9 recorded; fixture-only and build
   receipt slices; checksum/platform preflight; external release/trust adapters;
-  Bash and PowerShell V1 installers; six-command/ten-fixture execution runner;
+  Bash V1 installer and PowerShell controlled-unsupported installer surface;
+  six-command/ten-fixture execution runner;
   normalized-payload receipt schema/verifier; refactor-branch sentinel
-  diagnostic identity; destination-link adversaries; and local focused tests.
+  diagnostic identity; Unix destination-link adversaries; exact build/execution
+  tuple binding; Windows pre-publication refusal; and local focused tests.
 - Current evidence: local focused execution passes on macOS arm64. The workflow
   has not been dispatched, no remote execution receipt has been downloaded,
   provenance is explicitly unattested, and no platform is accepted.

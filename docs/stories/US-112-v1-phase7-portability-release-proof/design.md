@@ -44,13 +44,14 @@ architecture. For example, when both values are wrong, the digest error is
 returned and the platform branch is never reached. Only after both pass can a
 command inspect the repository.
 
-The V1 installers also close the destination namespace before publication.
-The Bash installer rejects a linked target root, `scripts`, or `scripts/bin`,
-then changes into each physical directory so final publication is relative to
-the pinned `bin` directory. The PowerShell installer rejects reparse points,
-proves the resolved `bin` remains under the intended root, and repeats that
-check before copy and publication. A target-controlled `scripts/bin` link to
-an outside directory is therefore refused before any artifact byte escapes.
+The Bash V1 installer closes the destination namespace before publication. It
+rejects a linked target root, `scripts`, or `scripts/bin`, then changes into
+each physical directory so final publication is relative to the pinned `bin`
+directory. Windows does not claim equivalent publication safety: after exact
+checksum and native-platform validation, the PowerShell V1 installer returns a
+deterministic controlled-unsupported refusal before inspecting or creating the
+destination tree and contains no copy or move path. This avoids treating
+reparse-point checks followed by path-based copy as race-free publication.
 
 Install, update, and scaffold accept release transport and independent trust
 state only through absolute external paths. The directory adapter supplies
@@ -79,12 +80,18 @@ decrypted recovery material remain external and untracked.
 ## UI / Platform Impact
 
 macOS and Linux use the Bash V1 installer and direct binaries. Windows uses the
-PowerShell V1 installer and `.exe` identities. Both installers authenticate the
-checksum before platform selection and never claim provenance from a checksum.
+PowerShell V1 surface only to authenticate the checksum, validate the native
+`.exe` identity, and refuse publication before mutation. The runner may then
+execute those same authenticated bytes directly for controlled-unsupported
+results; it records no Windows installation claim. Neither path claims
+provenance from a checksum.
 Platform equivalence compares normalized manifest, audit, recovery, and
 identity outcomes, not executable byte equality. Each receipt contains the
-closed normalized result payload as well as its recomputed digest. Windows
-controlled unsupported behavior is distinct and cannot satisfy equivalence.
+closed normalized result payload as well as its recomputed digest. Exact-five
+verification also consumes the independently verified build-receipt root and
+cross-binds platform, target, runner, artifact name, and artifact SHA-256.
+Windows controlled unsupported behavior is distinct and cannot satisfy
+equivalence.
 
 ## Observability
 

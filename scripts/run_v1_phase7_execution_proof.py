@@ -21,6 +21,13 @@ CASES = [
     "spaces-unicode", "lf", "crlf", "custom-update", "bridge",
 ]
 COMMANDS = ["install", "update", "audit", "scaffold", "status", "version"]
+PLATFORMS = {
+    "macos-arm64": ("aarch64-apple-darwin", "macos-15", "harness-macos-arm64"),
+    "macos-x64": ("x86_64-apple-darwin", "macos-15-intel", "harness-macos-x64"),
+    "linux-x64": ("x86_64-unknown-linux-gnu", "ubuntu-24.04", "harness-linux-x64"),
+    "linux-arm64": ("aarch64-unknown-linux-gnu", "ubuntu-24.04-arm", "harness-linux-arm64"),
+    "windows-x64": ("x86_64-pc-windows-msvc", "windows-latest", "harness-windows-x64.exe"),
+}
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 BLOCKERS = [
     "deferred-phase6-live-p0-p7-evidence-pending",
@@ -123,32 +130,60 @@ def invoke(arguments: list[str], cwd: Path, environment: dict[str, str]) -> subp
         raise ProofError(f"could not execute {arguments[0]}") from error
 
 
-def install(artifact: Path, checksum: Path, platform_name: str, repository: Path) -> tuple[Path, str]:
-    if platform_name == "windows-x64":
-        shell = shutil.which("pwsh") or shutil.which("powershell")
-        check(shell is not None, "PowerShell is unavailable")
-        result = invoke(
-            [shell, "-NoProfile", "-File", str(ROOT / "scripts/install-harness-v1.ps1"),
-             "-Artifact", str(artifact), "-Checksum", str(checksum),
-             "-Platform", platform_name, "-Directory", str(repository)],
-            repository,
-            os.environ.copy(),
-        )
-        installed = repository / "scripts/bin/harness.exe"
-        installer = "powershell"
-    else:
-        result = invoke(
-            ["/bin/bash", str(ROOT / "scripts/install-harness-v1.sh"),
-             "--artifact", str(artifact), "--checksum", str(checksum),
-             "--platform", platform_name, "--directory", str(repository)],
-            repository,
-            os.environ.copy(),
-        )
-        installed = repository / "scripts/bin/harness"
-        installer = "bash"
+def install_unix(artifact: Path, checksum: Path, platform_name: str, repository: Path) -> tuple[Path, str]:
+    check(platform_name != "windows-x64", "Windows publication is controlled unsupported")
+    result = invoke(
+        ["/bin/bash", str(ROOT / "scripts/install-harness-v1.sh"),
+         "--artifact", str(artifact), "--checksum", str(checksum),
+         "--platform", platform_name, "--directory", str(repository)],
+        repository,
+        os.environ.copy(),
+    )
+    installed = repository / "scripts/bin/harness"
+    installer = "bash"
     check(result.returncode == 0, f"{installer} installer failed: {result.stderr.decode(errors='replace')}")
     check(installed.is_file() and not installed.is_symlink(), "installed artifact is missing or unsafe")
     return installed, installer
+
+
+def namespace_snapshot(root: Path) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            result[relative] = f"link:{os.readlink(path)}"
+        elif path.is_dir():
+            result[relative] = "directory"
+        elif path.is_file():
+            result[relative] = f"file:{digest_bytes(path.read_bytes())}"
+        else:
+            result[relative] = "other"
+    return result
+
+
+def windows_direct_after_installer_refusal(
+    artifact: Path,
+    checksum: Path,
+    platform_name: str,
+    repository: Path,
+) -> tuple[Path, str]:
+    shell = shutil.which("pwsh") or shutil.which("powershell")
+    check(shell is not None, "PowerShell is unavailable")
+    before = namespace_snapshot(repository)
+    result = invoke(
+        [shell, "-NoProfile", "-File", str(ROOT / "scripts/install-harness-v1.ps1"),
+         "-Artifact", str(artifact), "-Checksum", str(checksum),
+         "-Platform", platform_name, "-Directory", str(repository)],
+        repository,
+        os.environ.copy(),
+    )
+    message = "Harness V1 installer refused: safe Windows destination publication is controlled-unsupported before mutation"
+    check(result.returncode == 1, f"PowerShell installer did not return controlled unsupported: {result.stderr.decode(errors='replace')}")
+    check(result.stdout == b"", "PowerShell installer wrote success output while controlled unsupported")
+    check(result.stderr.decode(errors="replace").splitlines() == [message], f"PowerShell installer refusal changed: {result.stderr.decode(errors='replace')}")
+    check(namespace_snapshot(repository) == before, "PowerShell installer mutated the destination before refusal")
+    check(exact_checksum(artifact, checksum) == digest_bytes(artifact.read_bytes()), "Windows direct artifact changed after installer refusal")
+    return artifact, "powershell-controlled-unsupported-before-mutation"
 
 
 def parse_human(payload: bytes) -> dict[str, object]:
@@ -263,7 +298,9 @@ def run_unsupported_windows_case(
     (repository / "package.json").write_bytes(b'{"scripts":{"phase7-canary":"must-not-run"}}\n')
     (repository / "Cargo.toml").write_bytes(b'[package]\nname = "must-not-interpret"\n')
     before = snapshot(repository)
-    binary, installer = install(artifact, checksum, platform_name, repository)
+    binary, installer = windows_direct_after_installer_refusal(
+        artifact, checksum, platform_name, repository
+    )
     environment = os.environ.copy()
     environment.update({
         "HARNESS_V1_ARTIFACT_SHA256": artifact_sha,
@@ -334,7 +371,7 @@ def run_case(
     (repository / "package.json").write_bytes(b'{"scripts":{"phase7-canary":"must-not-run"}}\n')
     (repository / "Cargo.toml").write_bytes(b'[package]\nname = "must-not-interpret"\n')
     before = snapshot(repository)
-    binary, installer = install(artifact, checksum, platform_name, repository)
+    binary, installer = install_unix(artifact, checksum, platform_name, repository)
     environment = os.environ.copy()
     environment.update({
         "HARNESS_V1_ARTIFACT_SHA256": artifact_sha,
@@ -344,7 +381,7 @@ def run_case(
     })
     scaffold_repository = workspace / f"{case}-scaffold"
     scaffold_repository.mkdir()
-    scaffold_binary, scaffold_installer = install(
+    scaffold_binary, scaffold_installer = install_unix(
         artifact, checksum, platform_name, scaffold_repository
     )
     check(scaffold_installer == installer, "installer changed for scaffold surface")
@@ -387,6 +424,8 @@ def main() -> int:
     parser.add_argument("--artifact", required=True)
     parser.add_argument("--checksum", required=True)
     parser.add_argument("--platform", required=True)
+    parser.add_argument("--target", required=True)
+    parser.add_argument("--runner", required=True)
     parser.add_argument("--release-directory", required=True)
     parser.add_argument("--trust-state", required=True)
     parser.add_argument("--candidate", required=True)
@@ -401,6 +440,11 @@ def main() -> int:
         output = Path(arguments.output)
         check(output.is_absolute() and not output.exists() and output.parent.is_dir(), "output must be a new absolute path")
         check(arguments.platform == native_platform(), "requested platform is not native")
+        check(arguments.platform in PLATFORMS, "requested platform is unsupported")
+        target, runner, artifact_name = PLATFORMS[arguments.platform]
+        check(arguments.target == target, "requested target does not match platform")
+        check(arguments.runner == runner, "requested runner does not match platform")
+        check(artifact.name == artifact_name, "artifact filename does not match platform")
         artifact_sha = exact_checksum(artifact, checksum)
         candidate_identity, workflow_identity = immutable_identity(
             arguments.candidate, arguments.workflow_revision
@@ -438,6 +482,10 @@ def main() -> int:
                 "behavior": behavior,
             },
             "artifact": {
+                "platform": arguments.platform,
+                "target": target,
+                "runner": runner,
+                "name": artifact_name,
                 "sha256": artifact_sha,
                 "authentication": "checksum-verified-before-every-execution",
                 "provenance": "unattested-not-authenticated",

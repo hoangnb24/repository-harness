@@ -489,17 +489,18 @@ def proof_workflow_lifecycle_guard() -> None:
     check(lifecycle["external_evidence"] == {"repository_protection": "required-not-present", "pinned_artifact_attestation": "required-not-present"}, "external evidence was falsely claimed")
     workflow = (ROOT / ".github/workflows/harness-v1-release.yml").read_text(encoding="utf-8")
     for fragment in [
-        "github.repository == 'hoangnb24/repository-harness'",
-        "prove-before-promotion:",
+        'test "$REPOSITORY" = hoangnb24/repository-harness',
+        "capture-native-proof:",
         "collect-receipts:",
-        "promotion-blocked:",
-        "needs: collect-receipts",
         "scripts/capture-v1-build-receipt.sh",
         "scripts/verify-v1-build-receipts.sh",
-        "exit 1",
     ]:
-        check(fragment in workflow, f"workflow proof-before-promotion structure omits {fragment}")
-    for forbidden in ["contents: write", "id-token: write", "gh release create", "git push", "git tag"]:
+        check(fragment in workflow, f"workflow diagnostic proof structure omits {fragment}")
+    for forbidden in [
+        "promotion-blocked:", "request_promotion", "contents: write",
+        "id-token: write", "gh release create", "git push", "git tag",
+        "cargo publish", "npm publish", "attest-build-provenance",
+    ]:
         check(forbidden not in workflow, f"unpromoted workflow contains promotion capability: {forbidden}")
     bridge = identity["bridge"]["workflow_lifecycle"]
     check(bridge["state"] == "source-present-unpromoted" and bridge["source_path"] == ".github/workflows/harness-v0-bridge-release.yml",

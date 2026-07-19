@@ -57,7 +57,7 @@ grep -Fq 'WORKFLOW_REVISION: ${{ github.workflow_sha }}' "$workflow" || fail "im
 [[ "$(grep -Fc 'git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"' "$workflow")" == 2 ]] ||
   fail "matrix and collector do not prove exact workflow bytes exist at the execution revision"
 
-matrix_block=$(sed -n '/^  prove-before-promotion:/,/^  collect-receipts:/p' "$workflow")
+matrix_block=$(sed -n '/^  capture-native-proof:/,/^  collect-receipts:/p' "$workflow")
 [[ "$matrix_block" != *'inputs.candidate_ref'* ]] || fail "matrix checkout still uses the mutable input ref"
 [[ "$matrix_block" == *'actions/setup-python@v5'* && "$matrix_block" == *"python-version: '3.12'"* ]] ||
   fail "matrix does not pin a cross-platform Python runtime"
@@ -65,8 +65,12 @@ matrix_block=$(sed -n '/^  prove-before-promotion:/,/^  collect-receipts:/p' "$w
 [[ "$matrix_block" == *'scripts/run_v1_phase7_execution_proof.py'* ]] || fail "matrix does not run the six-command fixture proof"
 [[ "$matrix_block" == *'behavior: controlled-unsupported-before-mutation'* ]] ||
   fail "Windows row fabricates successful mutation instead of controlled unsupported behavior"
-[[ "$matrix_block" == *'tests/release/test-install-harness-v1-destination.ps1'* ]] ||
-  fail "Windows row lacks native destination-junction adversaries"
+[[ "$matrix_block" == *'tests/release/test-install-harness-v1-windows-unsupported.ps1'* ]] ||
+  fail "Windows row lacks native controlled-unsupported-before-mutation proof"
+[[ "$matrix_block" == *'--target "${{ matrix.target }}"'* ]] ||
+  fail "execution proof is not bound to the build target"
+[[ "$matrix_block" == *'--runner "${{ matrix.runner }}"'* ]] ||
+  fail "execution proof is not bound to the build runner"
 [[ "$matrix_block" == *'.authority.five_platform_equivalence == "pending"'* ]] ||
   fail "matrix no longer verifies that five-platform equivalence remains pending"
 [[ "$matrix_block" == *'scripts/install-harness-v1.ps1'* || "$matrix_block" == *'scripts/prepare-v1-phase7-test-release.py'* ]] ||
@@ -91,17 +95,21 @@ grep -Fq 'scripts/verify-v1-phase7-execution-proof.sh --require-five' "$workflow
 grep -Fq -- '--candidate "$CANDIDATE_SHA"' "$workflow" || fail "exact-five verifier lacks external candidate identity"
 grep -Fq -- '--workflow-revision "$WORKFLOW_REVISION"' "$workflow" || fail "exact-five verifier lacks external workflow revision"
 grep -Fq -- '--repository-root "$REPOSITORY_ROOT"' "$workflow" || fail "exact-five verifier cannot recompute committed identity bytes"
+grep -Fq 'BUILD_RECEIPT_ROOT: ${{ runner.temp }}/harness-v1-build-receipts' "$workflow" ||
+  fail "execution collector does not reuse the verified build-receipt root"
+grep -Fq -- '--build-receipt-root "$BUILD_RECEIPT_ROOT"' "$workflow" ||
+  fail "exact-five verifier is not cross-bound to verified build receipts"
 grep -Fq 'pattern: harness-v1-execution-proof-*' "$workflow" ||
   fail "execution-proof download inventory is missing"
 grep -Fq -- '--require-five' "$workflow" || fail "collector does not require all five platforms"
 grep -Fq 'contents: read' "$workflow" || fail "workflow lacks contents-read permission"
-grep -Fq "if: github.repository == 'hoangnb24/repository-harness'" "$workflow" || fail "workflow-level repository guard is missing"
-grep -Fq 'promotion-blocked:' "$workflow" || fail "fail-closed promotion guard is missing"
-grep -Fq 'needs: collect-receipts' "$workflow" || fail "promotion guard is not downstream of diagnostics"
-grep -Fq 'repository-protection and pinned artifact-attestation evidence are not present' "$workflow" ||
-  fail "promotion guard lost its external-evidence refusal"
+! grep -Fq "if: github.repository == 'hoangnb24/repository-harness'" "$workflow" ||
+  fail "foreign repositories can skip benignly through a job-level repository guard"
+! grep -Eiq '^  [^#[:space:]][^:]*(promotion|release|publish|sign|attest|tag)[^:]*:' "$workflow" ||
+  fail "diagnostic workflow contains a promotion or release-authority job/path"
+! grep -Fq 'promotion-blocked:' "$workflow" || fail "diagnostic workflow contains a failing promotion job"
 
-! grep -Eq 'contents:[[:space:]]*write|id-token:|packages:[[:space:]]*write|actions/attest|sigstore|gh release|git tag|git push|cargo publish|npm publish' "$workflow" ||
+! grep -Eiq 'contents:[[:space:]]*write|id-token:|packages:[[:space:]]*write|actions/(attest|create-release)|softprops/action-gh-release|ncipollo/release-action|sigstore|gh[[:space:]]+release|git[[:space:]]+tag|git[[:space:]]+push|cargo[[:space:]]+publish|npm[[:space:]]+publish|cosign|gpg[[:space:]]+--sign' "$workflow" ||
   fail "workflow contains release, publish, OIDC, signing, or attestation authority"
 
 ! grep -Eq 'request_promotion|inputs\.' "$workflow" ||

@@ -74,6 +74,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase7_03_build_receipts.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_04_execution_proof.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_05_review_corrections.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_06_cross_binding_corrections.changeset.jsonl",
     "crates/harness-core/src/infrastructure.rs",
     "crates/harness-core/src/main.rs",
     "crates/harness-core/tests/phase7_direct_binary.rs",
@@ -174,6 +175,7 @@ ALLOWED_CHANGED_FILES = {
     "tests/release/test-v1-phase7-release-proof.sh",
     "tests/release/schemas/phase7-execution-proof-v1.schema.json",
     "tests/release/test-install-harness-v1-destination.ps1",
+    "tests/release/test-install-harness-v1-windows-unsupported.ps1",
     "tests/release/test-v1-phase7-execution-proof.sh",
     "tests/release/test-v1-build-receipt-workflow.sh",
     "tests/release/test-v1-build-receipts.sh",
@@ -208,6 +210,10 @@ PHASE7_EXECUTION_PROOF_CHANGESET = (
 PHASE7_REVIEW_CORRECTION_CHANGESET = (
     ROOT
     / ".harness/changesets/harness_v1_phase7_05_review_corrections.changeset.jsonl"
+)
+PHASE7_SECOND_CORRECTION_CHANGESET = (
+    ROOT
+    / ".harness/changesets/harness_v1_phase7_06_cross_binding_corrections.changeset.jsonl"
 )
 PHASE7_DECISION_ID = "0016-phase6-framework-acceptance-and-phase7-opening"
 PHASE7_STORY_ID = "US-112"
@@ -309,6 +315,32 @@ PHASE7_REVIEW_RECORD_SHA256 = (
     "16f10dcb4bcb7b92ea878f7f23d9cf5f75f8397fc25e969a5fa4da098177c108",
     "0fefc1d5e551d119b051a9229a6d924c07cce8930ec6d78ceb0367bbc7837892",
     "2024395d2fca271e70ba4289ffb72c4371b814ec0f718fb5ab11b187556e5626",
+)
+PHASE7_SECOND_CORRECTION_VERIFY_COMMAND = PHASE7_EXECUTION_VERIFY_COMMAND
+PHASE7_SECOND_CORRECTION_EVIDENCE = (
+    "The second reviewed Phase 7 correction removes the unconditional failing "
+    "promotion job, makes repository identity mismatches fail explicitly, binds "
+    "every exact-five execution proof to its independently verified build receipt "
+    "platform/target/runner/artifact-name/SHA-256 tuple, and records PowerShell "
+    "publication as controlled-unsupported after authentication and before "
+    "destination mutation. Focused execution/build/workflow/release tests and "
+    "workspace fmt/test/clippy pass locally. The no-trust premerge reached the "
+    "required external Phase 5 registry boundary after Phases 1-4 passed. No "
+    "Windows runner or remote workflow executed; Phase 6 live P0-P7, provenance, "
+    "Windows safe publication, five-platform equivalence, platform acceptance, "
+    "Phase 7 acceptance, release authority, promotion, and Phase 8 remain pending "
+    "or blocked."
+)
+PHASE7_SECOND_CORRECTION_TRACE_UID = "trc_9d8e7f645e4c4b7186a2c14f430612ab"
+PHASE7_SECOND_CORRECTION_TRACE_SUMMARY = (
+    "Corrected Phase 7 diagnostic authority build cross-binding and Windows "
+    "publication claims"
+)
+PHASE7_SECOND_CORRECTION_RECORD_SHA256 = (
+    "2d8b588fd46aebb11d33cbcd23cd8e0f1a38d2ff1e30a4b74dbe31b0652a1d72",
+    "23f163cf02b5b8ee34579325c47443077be800d1df87fcd6d00113ff6a4f65d5",
+    "43119769ae9952c3b7d795dbaef87ca86d6b597740403eac0639759ab0bef682",
+    "f531132ab2e3261b9b6e527ea464cc1c6b1c53a94998852d8afa8de37e2ea128",
 )
 PHASE7_BUILD_RECEIPT_TRACE_UIDS = (
     "trc_1af4542310616a192351f13e21302f03",
@@ -1632,6 +1664,82 @@ def self_test_phase7_review_correction_records(records: list[dict[str, Any]]) ->
     )
 
 
+def validate_phase7_second_correction_records(records: list[dict[str, Any]]) -> None:
+    check(
+        tuple(sha256_bytes(canonical_bytes(record)) for record in records)
+        == PHASE7_SECOND_CORRECTION_RECORD_SHA256,
+        "Phase 7 second-correction changeset record bytes changed",
+    )
+    check(
+        [record.get("op") for record in records]
+        == ["changeset.header", "story.update", "trace.add", "story.verify"],
+        "Phase 7 second-correction operation sequence changed",
+    )
+    check(
+        records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase7_06_cross_binding_corrections",
+            "version": 1,
+        },
+        "Phase 7 second-correction header changed",
+    )
+    story = records[1]
+    payload = story.get("payload", {})
+    check(
+        story.get("id") == PHASE7_STORY_ID
+        and story.get("version") == 1
+        and payload.get("status") == "in_progress"
+        and payload.get("contract_doc") is None
+        and all(
+            payload.get(field) == 0
+            for field in ("unit_proof", "integration_proof", "e2e_proof", "platform_proof")
+        )
+        and payload.get("evidence") == PHASE7_SECOND_CORRECTION_EVIDENCE
+        and payload.get("verify_command") == PHASE7_SECOND_CORRECTION_VERIFY_COMMAND,
+        "Phase 7 second correction changed story state, proof flags, or evidence",
+    )
+    trace = records[2]
+    trace_payload = trace.get("payload", {})
+    check(
+        trace.get("uid") == PHASE7_SECOND_CORRECTION_TRACE_UID
+        and trace.get("version") == 2
+        and trace_payload.get("task_summary") == PHASE7_SECOND_CORRECTION_TRACE_SUMMARY
+        and trace_payload.get("intake_uid") == PHASE7_INTAKE_UID
+        and trace_payload.get("story_id") == PHASE7_STORY_ID
+        and trace_payload.get("agent") == "codex"
+        and trace_payload.get("outcome") == "completed"
+        and trace_payload.get("duration_seconds") is None
+        and trace_payload.get("token_estimate") is None
+        and "No push, dispatch, main mutation" in trace_payload.get("notes", ""),
+        "Phase 7 second correction lost trace identity or closed authority",
+    )
+    for field in ("actions_taken", "files_read", "files_changed", "decisions_made", "errors"):
+        values = strict_json_loads(trace_payload.get(field, ""))
+        check(
+            isinstance(values, list)
+            and values
+            and all(isinstance(value, str) and value for value in values),
+            f"Phase 7 second correction trace {field} is not Detailed",
+        )
+    check(
+        records[3].get("id") == PHASE7_STORY_ID
+        and records[3].get("version") == 2
+        and records[3].get("payload", {}).get("result") == "pass",
+        "Phase 7 second correction verification changed",
+    )
+
+
+def self_test_phase7_second_correction_records(records: list[dict[str, Any]]) -> None:
+    asserted = deepcopy(records)
+    asserted[1]["payload"]["platform_proof"] = 1
+    expect_rejection(
+        "same-filename Phase 7 second correction platform overclaim",
+        lambda: validate_phase7_second_correction_records(asserted),
+    )
+
+
 def verify_phase7_opening_gate() -> None:
     intake_records = load_jsonl(PHASE7_INTAKE_CHANGESET)
     story_records = load_jsonl(PHASE7_STORY_CHANGESET)
@@ -1639,6 +1747,7 @@ def verify_phase7_opening_gate() -> None:
     build_receipt_records = load_jsonl(PHASE7_BUILD_RECEIPT_CHANGESET)
     execution_proof_records = load_jsonl(PHASE7_EXECUTION_PROOF_CHANGESET)
     review_correction_records = load_jsonl(PHASE7_REVIEW_CORRECTION_CHANGESET)
+    second_correction_records = load_jsonl(PHASE7_SECOND_CORRECTION_CHANGESET)
     validate_phase7_opening_records(intake_records, story_records)
     self_test_phase7_opening_records(intake_records, story_records)
     validate_phase7_proof_contract_records(intake_records, proof_records)
@@ -1649,6 +1758,8 @@ def verify_phase7_opening_gate() -> None:
     self_test_phase7_execution_proof_records(execution_proof_records)
     validate_phase7_review_correction_records(review_correction_records)
     self_test_phase7_review_correction_records(review_correction_records)
+    validate_phase7_second_correction_records(second_correction_records)
+    self_test_phase7_second_correction_records(second_correction_records)
 
     with tempfile.TemporaryDirectory(prefix="phase7-opening-replay-") as temporary:
         database = Path(temporary) / "replay.db"
@@ -1660,6 +1771,7 @@ def verify_phase7_opening_gate() -> None:
                 PHASE7_BUILD_RECEIPT_CHANGESET,
                 PHASE7_EXECUTION_PROOF_CHANGESET,
                 PHASE7_REVIEW_CORRECTION_CHANGESET,
+                PHASE7_SECOND_CORRECTION_CHANGESET,
             }:
                 shutil.copyfile(changeset, prior_changesets / changeset.name)
         environment = dict(os.environ)
@@ -2104,6 +2216,87 @@ def verify_phase7_opening_gate() -> None:
         finally:
             connection.close()
 
+        second_correction_apply = [
+            str(ROOT / "scripts/bin/harness-cli"),
+            "db",
+            "changeset",
+            "apply",
+            str(PHASE7_SECOND_CORRECTION_CHANGESET),
+        ]
+        for attempt in ("initial", "idempotent"):
+            second_correction_result = subprocess.run(
+                second_correction_apply,
+                cwd=ROOT,
+                capture_output=True,
+                check=False,
+                env=environment,
+                text=True,
+            )
+            check(
+                second_correction_result.returncode == 0,
+                f"Phase 7 second-correction changeset {attempt} apply failed",
+            )
+        connection = sqlite3.connect(str(database))
+        try:
+            story = connection.execute(
+                """
+                SELECT status, unit_proof, integration_proof, e2e_proof,
+                       platform_proof, evidence, last_verified_result,
+                       verify_command
+                FROM story WHERE id = ?
+                """,
+                (PHASE7_STORY_ID,),
+            ).fetchall()
+            check(
+                story
+                == [
+                    (
+                        "in_progress",
+                        0,
+                        0,
+                        0,
+                        0,
+                        PHASE7_SECOND_CORRECTION_EVIDENCE,
+                        "pass",
+                        PHASE7_SECOND_CORRECTION_VERIFY_COMMAND,
+                    )
+                ],
+                "isolated second-correction replay changed US-112 status or proof flags",
+            )
+            trace = connection.execute(
+                """
+                SELECT uid, intake_uid, story_id, task_summary, outcome,
+                       duration_seconds, token_estimate
+                FROM trace WHERE uid = ?
+                """,
+                (PHASE7_SECOND_CORRECTION_TRACE_UID,),
+            ).fetchall()
+            check(
+                trace
+                == [
+                    (
+                        PHASE7_SECOND_CORRECTION_TRACE_UID,
+                        PHASE7_INTAKE_UID,
+                        PHASE7_STORY_ID,
+                        PHASE7_SECOND_CORRECTION_TRACE_SUMMARY,
+                        "completed",
+                        None,
+                        None,
+                    )
+                ],
+                "isolated second-correction replay lost stable trace identity",
+            )
+            applied = connection.execute(
+                "SELECT COUNT(*) FROM changeset_applied WHERE id = ?",
+                ("harness_v1_phase7_06_cross_binding_corrections",),
+            ).fetchone()
+            check(
+                applied == (1,),
+                "Phase 7 second-correction idempotent replay recorded multiple applications",
+            )
+        finally:
+            connection.close()
+
 
 def verify_phase7_proof_contract_boundary() -> None:
     schema_document = load_json(
@@ -2245,10 +2438,13 @@ def verify_phase7_execution_proof_boundary() -> None:
         < powershell_installer.index("RuntimeInformation")
         and "cd \"$root_physical\"" in bash_installer
         and "destination component scripts/bin is unsafe" in bash_installer
-        and "Assert-NoReparseComponents" in powershell_installer
-        and "destination directory escaped the target root" in powershell_installer
+        and "safe Windows destination publication is controlled-unsupported before mutation" in powershell_installer
+        and all(
+            fragment not in powershell_installer
+            for fragment in ("Copy-Item", "Move-Item", "[IO.File]::Move", "CreateDirectory", "New-Item")
+        )
         and "provenance and platform acceptance remain unclaimed" in bash_installer
-        and "provenance and platform acceptance remain unclaimed" in powershell_installer,
+        and "Write-Output" not in powershell_installer,
         "V1 installers no longer authenticate before platform selection or preserve authority wording",
     )
     runner = (ROOT / "scripts/run_v1_phase7_execution_proof.py").read_text(encoding="utf-8")
@@ -2270,13 +2466,17 @@ def verify_phase7_execution_proof_boundary() -> None:
         and "controlled-unsupported-before-mutation" in runner
         and "verify_collection" in verifier
         and "expected_identity" in verifier
+        and "verify_artifact_identity_collection" in verifier
+        and "--build-receipt-root" in verifier
         and "normalized payload digest drifted" in verifier
         and "scripts/run_v1_phase7_execution_proof.py" in workflow
         and 'test "$CANDIDATE_SHA" = "$WORKFLOW_REVISION"' in workflow
         and "refs/heads/refactor/harness-v1" in workflow
         and "workflow_dispatch" not in workflow
         and "candidate_ref" not in workflow
-        and "--repository-root \"$REPOSITORY_ROOT\"" in workflow,
+        and "--repository-root \"$REPOSITORY_ROOT\"" in workflow
+        and "--build-receipt-root \"$BUILD_RECEIPT_ROOT\"" in workflow
+        and "promotion-blocked:" not in workflow,
         "Phase 7 execution proof lost closed provenance, acceptance, equivalence, or diagnostic identity",
     )
 

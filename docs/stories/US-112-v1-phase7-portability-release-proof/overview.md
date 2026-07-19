@@ -11,16 +11,20 @@ reviewed, and accepted by the repository owner for sequencing under Decision
 
 The repository now has a local deterministic execution slice in addition to
 the earlier fixture and build-receipt slices. On a native host it verifies the
-artifact checksum before any execution, verifies the exact platform label,
-installs through the platform shell, and exercises all six core commands
-against all ten Phase 7 fixtures. Signed test-fixture payloads and independent
+artifact checksum before any execution and verifies the exact platform label.
+Unix hosts install through Bash before exercising all six core commands against
+all ten Phase 7 fixtures. Windows authenticates the `.exe`, then the PowerShell
+installer deterministically refuses before destination creation or publication;
+the authenticated artifact is executed directly only to observe the contracted
+controlled-unsupported command results. Signed test-fixture payloads and independent
 test trust state are materialized outside each target repository. This proves
 the local mechanism, not artifact provenance or supported-platform status.
 
 The five native jobs are wired to produce closed receipts, but they have not
 run for this candidate. Four Unix rows require the full normalized mutation
-contract. The Windows row instead requires checksum-first PowerShell install
-followed by controlled-unsupported exit 74 before repository mutation. Its
+contract. The Windows row instead requires checksum-first PowerShell installer
+refusal before destination mutation, followed by direct authenticated-binary
+controlled-unsupported exit 74 before repository mutation. Its
 distinct receipt keeps five-platform equivalence pending until a safe Windows
 adapter and native evidence exist.
 

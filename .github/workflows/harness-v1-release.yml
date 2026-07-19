@@ -20,7 +20,6 @@ concurrency:
 jobs:
   repository-identity:
     name: Verify reserved repository/workflow identity
-    if: github.repository == 'hoangnb24/repository-harness'
     runs-on: ubuntu-24.04
     steps:
       - name: Prove unpromoted workflow identity
@@ -70,7 +69,7 @@ jobs:
           test "$(git status --porcelain=v1 --untracked-files=all)" = ""
           echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
 
-  prove-before-promotion:
+  capture-native-proof:
     name: Capture ${{ matrix.platform }} non-production build receipt
     needs: [repository-identity, resolve-candidate]
     strategy:
@@ -166,6 +165,8 @@ jobs:
             --artifact "$RECEIPT_OUTPUT/$ARTIFACT_NAME" \
             --checksum "$RECEIPT_OUTPUT/$ARTIFACT_NAME.sha256" \
             --platform "$PLATFORM" \
+            --target "${{ matrix.target }}" \
+            --runner "${{ matrix.runner }}" \
             --release-directory "$EXTERNAL_INPUT/release" \
             --trust-state "$EXTERNAL_INPUT/trust-state.json" \
             --candidate "$CANDIDATE_SHA" \
@@ -175,14 +176,14 @@ jobs:
             '.environment.behavior == $expected and .authority.five_platform_equivalence == "pending"' \
             "$EXECUTION_PROOF" >/dev/null
 
-      - name: Reject Windows destination junction escapes
+      - name: Verify Windows installer refusal before destination mutation
         if: matrix.platform == 'windows-x64'
         shell: powershell
         run: |
-          tests/release/test-install-harness-v1-destination.ps1 `
+          tests/release/test-install-harness-v1-windows-unsupported.ps1 `
             -Artifact "${{ runner.temp }}/harness-v1-build-receipt-windows-x64/harness-windows-x64.exe" `
             -Checksum "${{ runner.temp }}/harness-v1-build-receipt-windows-x64/harness-windows-x64.exe.sha256" `
-            -Workspace "${{ runner.temp }}/harness-v1-installer-junction-adversaries"
+            -Workspace "${{ runner.temp }}/harness-v1-installer-controlled-unsupported"
 
       - name: Upload bounded non-production receipt directory
         uses: actions/upload-artifact@v4
@@ -202,7 +203,7 @@ jobs:
 
   collect-receipts:
     name: Verify exact five-platform receipt collection
-    needs: [resolve-candidate, prove-before-promotion]
+    needs: [resolve-candidate, capture-native-proof]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact candidate
@@ -258,26 +259,17 @@ jobs:
           CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           REPOSITORY_ROOT: ${{ github.workspace }}
+          BUILD_RECEIPT_ROOT: ${{ runner.temp }}/harness-v1-build-receipts
           PROOF_ROOT: ${{ runner.temp }}/harness-v1-execution-proofs
         run: |
           scripts/verify-v1-phase7-execution-proof.sh \
             --candidate "$CANDIDATE_SHA" \
             --workflow-revision "$WORKFLOW_REVISION" \
             --repository-root "$REPOSITORY_ROOT" \
+            --build-receipt-root "$BUILD_RECEIPT_ROOT" \
             --require-five \
             "$PROOF_ROOT/harness-v1-execution-proof-macos-arm64/harness-v1-execution-proof-macos-arm64.json" \
             "$PROOF_ROOT/harness-v1-execution-proof-macos-x64/harness-v1-execution-proof-macos-x64.json" \
             "$PROOF_ROOT/harness-v1-execution-proof-linux-x64/harness-v1-execution-proof-linux-x64.json" \
             "$PROOF_ROOT/harness-v1-execution-proof-linux-arm64/harness-v1-execution-proof-linux-arm64.json" \
             "$PROOF_ROOT/harness-v1-execution-proof-windows-x64/harness-v1-execution-proof-windows-x64.json"
-
-  promotion-blocked:
-    name: Production promotion remains unavailable
-    needs: collect-receipts
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Refuse promotion without external evidence and separate authority
-        shell: bash
-        run: |
-          echo "Production V1 promotion is blocked: repository-protection and pinned artifact-attestation evidence are not present." >&2
-          exit 1

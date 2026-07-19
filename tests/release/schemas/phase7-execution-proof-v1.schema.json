@@ -68,14 +68,18 @@
       "required": ["platform", "installer", "behavior"],
       "properties": {
         "platform": {"enum": ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64"]},
-        "installer": {"enum": ["bash", "powershell"]},
+        "installer": {"enum": ["bash", "powershell-controlled-unsupported-before-mutation"]},
         "behavior": {"enum": ["full-native-test-fixture", "controlled-unsupported-before-mutation"]}
       }
     },
     "artifact": {
       "type": "object", "additionalProperties": false,
-      "required": ["sha256", "authentication", "provenance"],
+      "required": ["platform", "target", "runner", "name", "sha256", "authentication", "provenance"],
       "properties": {
+        "platform": {"enum": ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64"]},
+        "target": {"enum": ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]},
+        "runner": {"enum": ["macos-15", "macos-15-intel", "ubuntu-24.04", "ubuntu-24.04-arm", "windows-latest"]},
+        "name": {"enum": ["harness-macos-arm64", "harness-macos-x64", "harness-linux-x64", "harness-linux-arm64", "harness-windows-x64.exe"]},
         "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "authentication": {"const": "checksum-verified-before-every-execution"},
         "provenance": {"const": "unattested-not-authenticated"}

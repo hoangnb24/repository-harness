@@ -11,8 +11,14 @@ import re
 import subprocess
 import sys
 
+SCRIPTS = Path(__file__).resolve().parent
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
-PLATFORMS = ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64"]
+from v1_build_receipt_common import PLATFORMS as BUILD_PLATFORMS, ReceiptError
+from verify_v1_build_receipts import verify_artifact_identity_collection
+
+PLATFORMS = list(BUILD_PLATFORMS)
 CASES = ["fresh", "brownfield", "nested-instructions", "docs-only", "monorepo", "spaces-unicode", "lf", "crlf", "custom-update", "bridge"]
 COMMANDS = ["install", "update", "audit", "scaffold", "status", "version"]
 BLOCKERS = ["deferred-phase6-live-p0-p7-evidence-pending", "remote-five-platform-execution-pending", "safe-windows-repository-mutation-pending", "artifact-provenance-attestation-pending", "platform-acceptance-pending"]
@@ -151,13 +157,34 @@ def verify(document: dict[str, object]) -> None:
     check(isinstance(environment, dict), "environment is missing")
     keys(environment, {"platform", "installer", "behavior"}, "environment")
     check(environment["platform"] in PLATFORMS, "platform is unsupported")
-    expected_installer = "powershell" if environment["platform"] == "windows-x64" else "bash"
+    expected_installer = (
+        "powershell-controlled-unsupported-before-mutation"
+        if environment["platform"] == "windows-x64"
+        else "bash"
+    )
     check(environment["installer"] == expected_installer, "platform installer is wrong")
     expected_behavior = "controlled-unsupported-before-mutation" if environment["platform"] == "windows-x64" else "full-native-test-fixture"
     check(environment["behavior"] == expected_behavior, "platform behavior claim is wrong")
     artifact = document["artifact"]
     check(isinstance(artifact, dict), "artifact is missing")
-    keys(artifact, {"sha256", "authentication", "provenance"}, "artifact")
+    keys(artifact, {"platform", "target", "runner", "name", "sha256", "authentication", "provenance"}, "artifact")
+    platform_name = environment["platform"]
+    target, runner, artifact_name = BUILD_PLATFORMS[platform_name]
+    check(
+        {
+            "platform": artifact["platform"],
+            "target": artifact["target"],
+            "runner": artifact["runner"],
+            "name": artifact["name"],
+        }
+        == {
+            "platform": platform_name,
+            "target": target,
+            "runner": runner,
+            "name": artifact_name,
+        },
+        "artifact platform/target/runner/name tuple is invalid",
+    )
     check(SHA256.fullmatch(artifact["sha256"]) is not None, "artifact digest is invalid")
     check(artifact["authentication"] == "checksum-verified-before-every-execution", "artifact did not authenticate before execution")
     check(artifact["provenance"] == "unattested-not-authenticated", "proof overclaims provenance")
@@ -192,16 +219,29 @@ def verify_collection(
     documents: list[dict[str, object]],
     require_five: bool,
     expected: dict[str, object] | None = None,
+    expected_artifacts: dict[str, dict[str, str]] | None = None,
 ) -> None:
     for document in documents:
         verify(document)
     if require_five:
         check(expected is not None, "exact-five verification requires independent candidate and workflow identity")
+        check(expected_artifacts is not None, "exact-five verification requires independently verified build artifacts")
         check(len(documents) == 5, "exactly five proofs are required")
         check([document["environment"]["platform"] for document in documents] == PLATFORMS, "five-platform proof order or inventory changed")
+        check(set(expected_artifacts) == set(PLATFORMS), "verified build artifact inventory is not exact-five")
         for document in documents:
             check(document["candidate"] == expected["candidate"], "receipt candidate does not match the independently resolved candidate")
             check(document["execution_workflow"] == expected["execution_workflow"], "receipt workflow does not match independently resolved workflow bytes")
+            platform_name = document["environment"]["platform"]
+            artifact = document["artifact"]
+            bound_artifact = {
+                field: artifact[field]
+                for field in ("platform", "target", "runner", "name", "sha256")
+            }
+            check(
+                bound_artifact == expected_artifacts[platform_name],
+                f"execution proof artifact identity does not match verified build receipt: {platform_name}",
+            )
         check(all(document["commands"] == documents[0]["commands"] for document in documents), "cross-platform command identity failed")
         check(all(document["normalized_contract_sha256"] == documents[0]["normalized_contract_sha256"] for document in documents[:4]), "Unix normalized equivalence failed")
         check(documents[-1]["authority"]["five_platform_equivalence"] == "pending", "Windows receipt overclaimed five-platform equivalence")
@@ -214,6 +254,7 @@ def main() -> int:
     parser.add_argument("--candidate")
     parser.add_argument("--workflow-revision")
     parser.add_argument("--repository-root")
+    parser.add_argument("--build-receipt-root")
     arguments = parser.parse_args()
     try:
         documents = [load(Path(path)) for path in arguments.proofs]
@@ -223,12 +264,24 @@ def main() -> int:
                 arguments.candidate is not None
                 and arguments.workflow_revision is not None
                 and arguments.repository_root is not None,
-                "--require-five requires --candidate, --workflow-revision, and --repository-root",
+                "--require-five requires --candidate, --workflow-revision, --repository-root, and --build-receipt-root",
             )
+            check(arguments.build_receipt_root is not None, "--require-five requires --build-receipt-root")
             expected = expected_identity(
                 Path(arguments.repository_root), arguments.candidate, arguments.workflow_revision
             )
-        verify_collection(documents, arguments.require_five, expected)
+            try:
+                expected_artifacts = verify_artifact_identity_collection(
+                    Path(arguments.build_receipt_root),
+                    arguments.candidate,
+                    arguments.workflow_revision,
+                    True,
+                )
+            except ReceiptError as error:
+                raise VerificationError(f"build receipt collection failed independent verification: {error}") from error
+        else:
+            expected_artifacts = None
+        verify_collection(documents, arguments.require_five, expected, expected_artifacts)
         suffix = "; five-platform equivalence remains pending" if arguments.require_five else ""
         print(f"Verified {len(documents)} non-production Phase 7 execution proof(s){suffix}; platform acceptance remains blocked")
         return 0
