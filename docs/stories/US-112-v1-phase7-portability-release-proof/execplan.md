@@ -167,6 +167,13 @@ promotion blocked.
   `-OutputFormat Text` while retaining separate .NET process streams and exact
   unfiltered stderr comparison. Windows mutation remains unsupported, final
   collection did not complete, and no platform is accepted.
+  Separately, Pre-Merge run `29688588050`, job `88197179137`, passed the live
+  Phase 5 six-group verifier and 19 trust adversaries, then failed because
+  Phase 2's Phase 1 import and the Phase 7 release-proof import created
+  repository-local `.pyc` files. The workflow-global
+  `PYTHONDONTWRITEBYTECODE: "1"` guard and isolated-clean-clone regression close
+  that CI-hygiene defect without deleting primary-checkout files or changing
+  authority.
 - Remaining: a successful remote Windows refusal assertion and final receipt
   collection/equivalence, safe Windows repository mutation, deferred Phase 6
   live evidence, platform acceptance, review, and any

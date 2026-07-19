@@ -253,6 +253,19 @@ SHA-256
 and an XML-format substitution fails the hash contract. Final collection and
 all blocked authority remain pending.
 
+The separate attempt-4 Pre-Merge run `29688588050`, job `88197179137`, passed
+the live Phase 5 verifier's six proof groups and all 19 trust adversaries, then
+failed at the Phase 7 focused gate's final clean-status check. Phase 2 had
+already imported `verify_v1_phase1_contracts` and created its repository-local
+`.pyc`; the Phase 7 test imported `verify_v1_phase7_release_proof` and added a
+second `.pyc`, so the before/after status differed. Pre-Merge now exports
+`PYTHONDONTWRITEBYTECODE: "1"` at workflow scope. Its release-workflow contract
+also uses a temporary clean clone, exercises both import paths, and proves no
+`__pycache__`, `.pyc`, or Git-status drift; missing, false, comment-only, and
+job-only settings are rejected. The test never deletes files from the primary
+checkout. This is CI hygiene evidence only and changes no Phase 6, Phase 7,
+platform, promotion, signing, or Phase 8 authority.
+
 US-112's local execution slice adds checksum/platform preflight to the real V1
 binary, a V1-only Bash installer and PowerShell controlled-unsupported installer
 surface, external signed-test-payload

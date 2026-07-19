@@ -265,6 +265,22 @@ input hashes remain required. The exact reviewed CRLF test now hashes to
 `23c2b91db380bef9528b72f7519f6f7c7ac021185a5bdddc97e46bf0685e4fb9`;
 an `-OutputFormat XML` substitution is a seeded hash-regression adversary.
 
+The companion Pre-Merge run `29688588050`, job `88197179137`, completed all
+six live Phase 5 proof groups and all 19 trust adversaries before the Phase 7
+focused gate failed its final status-preservation assertion. Concretely, the
+checkout already contained
+`scripts/__pycache__/verify_v1_phase1_contracts.cpython-312.pyc` after the
+Phase 2 import, and the Phase 7 test added
+`verify_v1_phase7_release_proof.cpython-312.pyc`. The workflow now sets
+`PYTHONDONTWRITEBYTECODE: "1"` in its top-level environment, so every Python
+process in every Pre-Merge job inherits the guard. The workflow contract clones
+a clean repository into a temporary directory, triggers the Phase 2-to-Phase 1
+import and the Phase 7 focused release-proof entry point, and then requires no
+`__pycache__`, no `.pyc`, and byte-for-byte-equivalent empty Git status. Static
+adversaries reject a missing, false, comment-only, or job-scoped setting. The
+regression removes only its temporary clone; it does not delete or normalize
+anything in the primary checkout.
+
 No platform is accepted. A local macOS arm64 test-fixture installer/direct-
 binary proof exists, and the remote run supplies five-platform provenance plus
 six-command diagnostic execution. Native Windows installer-refusal completion,

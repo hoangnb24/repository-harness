@@ -80,6 +80,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase7_08_windows_compile_fix.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_09_windows_refusal_capture.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_10_windows_plaintext_refusal.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_11_premerge_bytecode_boundary.changeset.jsonl",
     ".harness/changesets/harness_v1_phase5_ci_trust_provisioning.changeset.jsonl",
     "crates/harness-core/src/infrastructure.rs",
     "crates/harness-core/src/main.rs",
@@ -195,6 +196,7 @@ ALLOWED_CHANGED_FILES = {
     "tests/release/test-v1-build-receipts.sh",
     "tests/release/test-v1-artifact-provenance.sh",
     "tests/release/test-v1-attestation-workflow.sh",
+    "tests/release/test-release-workflow-contract.sh",
     "tests/release/test_v1_artifact_provenance.py",
     "tests/release/test_v1_build_receipts.py",
 }
@@ -245,6 +247,10 @@ PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET = (
 PHASE7_WINDOWS_PLAINTEXT_REFUSAL_CHANGESET = (
     ROOT
     / ".harness/changesets/harness_v1_phase7_10_windows_plaintext_refusal.changeset.jsonl"
+)
+PHASE7_PREMERGE_BYTECODE_BOUNDARY_CHANGESET = (
+    ROOT
+    / ".harness/changesets/harness_v1_phase7_11_premerge_bytecode_boundary.changeset.jsonl"
 )
 PHASE5_CI_TRUST_PROVISIONING_CHANGESET = (
     ROOT
@@ -450,6 +456,14 @@ PHASE7_WINDOWS_PLAINTEXT_REFUSAL_TRACE_SUMMARY = (
 PHASE7_WINDOWS_PLAINTEXT_REFUSAL_RECORD_SHA256 = (
     "b3783a7e66be46ef307fbf6d94cb57d829b1e5cdee23c4fc4fa075cfa6939aa5",
     "1db683681448283bf56c104686e2d3e15911132b304deb97414f5f3fd723978f",
+)
+PHASE7_PREMERGE_BYTECODE_BOUNDARY_TRACE_UID = "trc_0d6bc7ab09f29a6c4368c91da6db3f1e"
+PHASE7_PREMERGE_BYTECODE_BOUNDARY_TRACE_SUMMARY = (
+    "Prevented Pre-Merge Python bytecode from changing candidate repository status"
+)
+PHASE7_PREMERGE_BYTECODE_BOUNDARY_RECORD_SHA256 = (
+    "cdbca1642b7fe91383f2db9bfceed56b147213afb4c37e8e542e89bd9703c13a",
+    "1ecf31e222b8c8116b920d1a250d3c5a84b093cd4409e6b3d4cb394c72bbda5c",
 )
 PHASE5_CI_TRUST_PROVISIONING_TRACE_UID = "trc_749511795a5f28ab13de671bf182d0c3"
 PHASE5_CI_TRUST_PROVISIONING_TRACE_SUMMARY = (
@@ -2086,6 +2100,60 @@ def validate_phase7_windows_plaintext_refusal_records(
         )
 
 
+def validate_phase7_premerge_bytecode_boundary_records(
+    records: list[dict[str, Any]],
+) -> None:
+    check(
+        tuple(sha256_bytes(canonical_bytes(record)) for record in records)
+        == PHASE7_PREMERGE_BYTECODE_BOUNDARY_RECORD_SHA256,
+        "Phase 7 Pre-Merge bytecode-boundary changeset record bytes changed",
+    )
+    check(
+        [record.get("op") for record in records] == ["changeset.header", "trace.add"],
+        "Phase 7 Pre-Merge bytecode-boundary operation sequence changed",
+    )
+    check(
+        records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase7_11_premerge_bytecode_boundary",
+            "version": 1,
+        },
+        "Phase 7 Pre-Merge bytecode-boundary header changed",
+    )
+    trace = records[1]
+    payload = trace.get("payload", {})
+    check(
+        trace.get("uid") == PHASE7_PREMERGE_BYTECODE_BOUNDARY_TRACE_UID
+        and trace.get("version") == 2
+        and payload.get("task_summary")
+        == PHASE7_PREMERGE_BYTECODE_BOUNDARY_TRACE_SUMMARY
+        and payload.get("intake_uid") == PHASE7_INTAKE_UID
+        and payload.get("story_id") == PHASE7_STORY_ID
+        and payload.get("agent") == "codex"
+        and payload.get("outcome") == "completed"
+        and payload.get("duration_seconds") is None
+        and payload.get("token_estimate") is None
+        and "No push, dispatch, main mutation" in payload.get("notes", ""),
+        "Phase 7 Pre-Merge bytecode-boundary trace lost identity or closed authority",
+    )
+    for field in (
+        "actions_taken",
+        "files_read",
+        "files_changed",
+        "decisions_made",
+        "errors",
+    ):
+        values = strict_json_loads(payload.get(field, ""))
+        check(
+            isinstance(values, list)
+            and values
+            and all(isinstance(value, str) and value for value in values),
+            f"Phase 7 Pre-Merge bytecode-boundary trace {field} is not Detailed",
+        )
+
+
 def validate_phase5_ci_trust_provisioning_records(
     records: list[dict[str, Any]],
 ) -> None:
@@ -2151,6 +2219,9 @@ def verify_phase7_opening_gate() -> None:
     windows_plaintext_refusal_records = load_jsonl(
         PHASE7_WINDOWS_PLAINTEXT_REFUSAL_CHANGESET
     )
+    premerge_bytecode_boundary_records = load_jsonl(
+        PHASE7_PREMERGE_BYTECODE_BOUNDARY_CHANGESET
+    )
     phase5_ci_trust_provisioning_records = load_jsonl(
         PHASE5_CI_TRUST_PROVISIONING_CHANGESET
     )
@@ -2175,6 +2246,9 @@ def verify_phase7_opening_gate() -> None:
     validate_phase7_windows_plaintext_refusal_records(
         windows_plaintext_refusal_records
     )
+    validate_phase7_premerge_bytecode_boundary_records(
+        premerge_bytecode_boundary_records
+    )
     validate_phase5_ci_trust_provisioning_records(
         phase5_ci_trust_provisioning_records
     )
@@ -2194,6 +2268,7 @@ def verify_phase7_opening_gate() -> None:
                 PHASE7_WINDOWS_COMPILE_FIX_CHANGESET,
                 PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET,
                 PHASE7_WINDOWS_PLAINTEXT_REFUSAL_CHANGESET,
+                PHASE7_PREMERGE_BYTECODE_BOUNDARY_CHANGESET,
                 PHASE5_CI_TRUST_PROVISIONING_CHANGESET,
             }:
                 shutil.copyfile(changeset, prior_changesets / changeset.name)
@@ -3115,6 +3190,87 @@ def verify_phase7_opening_gate() -> None:
             check(
                 applied == (1,),
                 "Windows plain-text refusal idempotent replay recorded multiple applications",
+            )
+        finally:
+            connection.close()
+
+        premerge_bytecode_boundary_apply = [
+            str(ROOT / "scripts/bin/harness-cli"),
+            "db",
+            "changeset",
+            "apply",
+            str(PHASE7_PREMERGE_BYTECODE_BOUNDARY_CHANGESET),
+        ]
+        for attempt in ("initial", "idempotent"):
+            premerge_bytecode_boundary_result = subprocess.run(
+                premerge_bytecode_boundary_apply,
+                cwd=ROOT,
+                capture_output=True,
+                check=False,
+                env=environment,
+                text=True,
+            )
+            check(
+                premerge_bytecode_boundary_result.returncode == 0,
+                f"Phase 7 Pre-Merge bytecode-boundary changeset {attempt} apply failed",
+            )
+        connection = sqlite3.connect(str(database))
+        try:
+            story = connection.execute(
+                """
+                SELECT status, unit_proof, integration_proof, e2e_proof,
+                       platform_proof, evidence, last_verified_result,
+                       verify_command
+                FROM story WHERE id = ?
+                """,
+                (PHASE7_STORY_ID,),
+            ).fetchall()
+            check(
+                story
+                == [
+                    (
+                        "in_progress",
+                        0,
+                        0,
+                        0,
+                        0,
+                        PHASE7_ATTESTATION_EVIDENCE,
+                        "pass",
+                        PHASE7_ATTESTATION_VERIFY_COMMAND,
+                    )
+                ],
+                "Pre-Merge bytecode trace changed US-112 proof or authority state",
+            )
+            trace = connection.execute(
+                """
+                SELECT uid, intake_uid, story_id, task_summary, outcome,
+                       duration_seconds, token_estimate
+                FROM trace WHERE uid = ?
+                """,
+                (PHASE7_PREMERGE_BYTECODE_BOUNDARY_TRACE_UID,),
+            ).fetchall()
+            check(
+                trace
+                == [
+                    (
+                        PHASE7_PREMERGE_BYTECODE_BOUNDARY_TRACE_UID,
+                        PHASE7_INTAKE_UID,
+                        PHASE7_STORY_ID,
+                        PHASE7_PREMERGE_BYTECODE_BOUNDARY_TRACE_SUMMARY,
+                        "completed",
+                        None,
+                        None,
+                    )
+                ],
+                "isolated Pre-Merge bytecode replay lost stable trace identity",
+            )
+            applied = connection.execute(
+                "SELECT COUNT(*) FROM changeset_applied WHERE id = ?",
+                ("harness_v1_phase7_11_premerge_bytecode_boundary",),
+            ).fetchone()
+            check(
+                applied == (1,),
+                "Pre-Merge bytecode idempotent replay recorded multiple applications",
             )
         finally:
             connection.close()
