@@ -96,6 +96,7 @@ tests/evals/test-phase5-premerge-trust-forwarding.sh
 HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY=/absolute/external/trusted-owners.json \
 HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256=<lowercase-sha256> \
   scripts/validate-premerge.sh  # current authorized full-premerge form
+python3 scripts/verify_premerge_phase5_trust.py
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
@@ -107,13 +108,25 @@ cargo fmt --all -- --check
 git diff --check
 ```
 
+GitHub Pre-Merge supplies the original external public registry through the
+repository variable `PHASE5_TRUSTED_OWNER_REGISTRY_BASE64`, decodes it only
+under `runner.temp` before checkout, and verifies the exact pinned digest
+`f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d`
+before forwarding the existing pair. The static workflow contract rejects an
+absent variable, substituted bytes/digest, tracked or candidate-authenticated
+paths, secret use, and inexact forwarding. After removing the two exact allowed
+blocks, it also rejects every GitHub expression access to `vars`, `secrets`, or
+`steps` contexts, including dot, bracket, computed `format()`, split-key, and
+whitespace forms. This is CI configuration only and does not change Phase 5
+evidence or production authority.
+
 ## Acceptance Evidence
 
 The authenticated live gate on exact `b2dd775` was invoked with the
 caller-pinned registry outside the candidate repository at SHA-256
 `f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d`.
 Tracked `evidence/trusted-owners.json` remains empty. The corrected current command passed six
-proof groups, rejected 46/46 adversarial cases, verified both SSH Ed25519
+proof groups, rejected 48/48 adversarial cases, verified both SSH Ed25519
 signatures and both bundle-resolved revisions, and accepted two packets with
 distinct owner IDs, canonical repositories, bundles, and external keys under
 one stable GitHub identity.

@@ -21,6 +21,39 @@ jobs:
     name: Validate repository contract
     runs-on: ubuntu-24.04
     steps:
+      - name: Provision pinned Phase 5 public trust registry
+        id: phase5-trust
+        env:
+          PHASE5_TRUSTED_OWNER_REGISTRY_BASE64: ${{ vars.PHASE5_TRUSTED_OWNER_REGISTRY_BASE64 }}
+        run: |
+          [[ -n "${PHASE5_TRUSTED_OWNER_REGISTRY_BASE64:-}" ]] || {
+            echo "PHASE5_TRUSTED_OWNER_REGISTRY_BASE64 repository variable is required" >&2
+            exit 1
+          }
+          umask 077
+          registry="$(mktemp "$RUNNER_TEMP/phase5-trusted-owner-registry.XXXXXX.json")"
+          case "$registry" in
+            "$RUNNER_TEMP"/*) ;;
+            *) echo "Phase 5 trust registry escaped runner.temp" >&2; exit 1 ;;
+          esac
+          case "$registry" in
+            "$GITHUB_WORKSPACE"|"$GITHUB_WORKSPACE"/*)
+              echo "Phase 5 trust registry entered the candidate checkout" >&2
+              exit 1
+              ;;
+          esac
+          printf '%s' "$PHASE5_TRUSTED_OWNER_REGISTRY_BASE64" | base64 --decode > "$registry" || {
+            echo "PHASE5_TRUSTED_OWNER_REGISTRY_BASE64 is not valid base64" >&2
+            exit 1
+          }
+          expected_digest="f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d"
+          actual_digest="$(sha256sum "$registry" | awk '{print $1}')"
+          [[ "$actual_digest" == "$expected_digest" ]] || {
+            echo "Phase 5 trust registry digest mismatch" >&2
+            exit 1
+          }
+          echo "registry=$registry" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -35,6 +68,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run pre-merge contract
+        env:
+          HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY: ${{ steps.phase5-trust.outputs.registry }}
+          HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256: f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d
         run: scripts/validate-premerge.sh
 
       - name: Prove Linux initial-to-candidate upgrade

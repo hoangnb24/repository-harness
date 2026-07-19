@@ -15,6 +15,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -35,6 +36,7 @@ HOSTNAME = re.compile(
     r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$"
 )
 NAMESPACE = "repository-harness-phase5"
+MAX_TRUSTED_OWNER_REGISTRY_BYTES = 1024 * 1024
 PHASE5_ACCEPTED_COMMIT = "5d6e6bc516cd60e47c60ae3b516363cd99b433a5"
 CORE_PACKET_FILES = {
     "enrollment.json", "environment.json", "eligibility.json",
@@ -414,8 +416,25 @@ def validate_baseline(document: dict[str, Any], artifact_digests: dict[str, str]
     check(document["result_sha256"] == canonical_digest(document, "result_sha256"), "baseline result digest mismatch")
 
 
-def parse_trusted_owners(path: Path, location: str) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-    document = load_json(path)
+def reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    document: dict[str, Any] = {}
+    for key, value in pairs:
+        check(key not in document, f"trusted-owner registry contains duplicate JSON key: {key}")
+        document[key] = value
+    return document
+
+
+def parse_trusted_owners_bytes(
+    payload: bytes, location: str
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    try:
+        document = json.loads(
+            payload.decode("utf-8"), object_pairs_hook=reject_duplicate_json_keys
+        )
+    except VerificationError:
+        raise
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise VerificationError(f"cannot parse {location}: {error}") from error
     validate(document, schema("trusted-owners"), location)
     owners: dict[str, dict[str, Any]] = {}
     repositories: set[str] = set()
@@ -450,6 +469,20 @@ def parse_trusted_owners(path: Path, location: str) -> tuple[dict[str, Any], dic
     return document, owners
 
 
+def parse_trusted_owners(
+    path: Path, location: str
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    try:
+        payload = path.read_bytes()
+    except OSError as error:
+        raise VerificationError(f"cannot read {location}: {error}") from error
+    check(
+        len(payload) <= MAX_TRUSTED_OWNER_REGISTRY_BYTES,
+        f"{location} exceeds the bounded registry size",
+    )
+    return parse_trusted_owners_bytes(payload, location)
+
+
 def validate_tracked_trust_placeholder(evidence_root: Path) -> None:
     path = contained_member(evidence_root, "trusted-owners.json", "tracked trust placeholder")
     document, _ = parse_trusted_owners(path, "tracked trust placeholder")
@@ -461,20 +494,53 @@ def load_external_trusted_owners(path: Path | None, expected_sha256: str | None)
     check(SHA256.fullmatch(expected_sha256) is not None, "external trusted-owner registry digest is malformed")
     check(path.is_absolute(), "external trusted-owner registry path must be absolute")
     try:
-        path.lstat()
+        initial_stat = path.lstat()
         resolved = path.resolve(strict=True)
     except OSError as error:
         raise VerificationError(f"external trusted-owner registry is unavailable: {path}") from error
-    check(not path.is_symlink() and resolved.is_file(), "external trusted-owner registry must be a regular non-symlink file")
+    check(
+        not path.is_symlink() and stat.S_ISREG(initial_stat.st_mode),
+        "external trusted-owner registry must be a regular non-symlink file",
+    )
     try:
         resolved.relative_to(ROOT.resolve(strict=True))
     except ValueError:
         pass
     else:
         raise VerificationError("external trusted-owner registry must be supplied from outside the candidate repository")
-    digest = sha256_file(resolved)
+    flags = os.O_RDONLY
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise VerificationError(f"cannot open external trusted-owner registry: {path}") from error
+    try:
+        opened_stat = os.fstat(descriptor)
+        check(
+            stat.S_ISREG(opened_stat.st_mode),
+            "external trusted-owner registry descriptor is not a regular file",
+        )
+        check(
+            (opened_stat.st_dev, opened_stat.st_ino)
+            == (initial_stat.st_dev, initial_stat.st_ino),
+            "external trusted-owner registry changed before its single open",
+        )
+        with os.fdopen(descriptor, "rb", closefd=True) as registry:
+            descriptor = -1
+            payload = registry.read(MAX_TRUSTED_OWNER_REGISTRY_BYTES + 1)
+    except OSError as error:
+        raise VerificationError(f"cannot read external trusted-owner registry: {path}") from error
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    check(
+        len(payload) <= MAX_TRUSTED_OWNER_REGISTRY_BYTES,
+        "external trusted-owner registry exceeds the bounded registry size",
+    )
+    digest = sha256_bytes(payload)
     check(digest == expected_sha256, "external trusted-owner registry digest mismatch")
-    _, owners = parse_trusted_owners(resolved, "external trusted-owner registry")
+    _, owners = parse_trusted_owners_bytes(payload, "external trusted-owner registry")
     check(owners, "external trusted-owner registry contains no authorized owners")
     return owners, digest
 
@@ -1340,6 +1406,60 @@ def prove_negative_contracts() -> None:
             lambda: load_external_trusted_owners(mismatched_registry, "0" * 64),
         )
 
+        duplicate_registry = root / "duplicate-key-external-trust.json"
+        valid_registry_text = json.dumps(external_registry_document(trusted))
+        duplicate_registry.write_text(
+            valid_registry_text.replace(
+                '"schema":',
+                '"schema":"repository-harness-trusted-pilot-owners/v1","schema":',
+                1,
+            ),
+            encoding="utf-8",
+        )
+        expect_rejection(
+            "duplicate-key external trust registry",
+            lambda: load_external_trusted_owners(
+                duplicate_registry, sha256_file(duplicate_registry)
+            ),
+        )
+
+        swapping_registry = root / "single-open-external-trust.json"
+        replacement_registry = root / "single-open-replacement.json"
+        write_json(swapping_registry, external_registry_document(trusted))
+        write_json(
+            replacement_registry,
+            {
+                "schema": "repository-harness-trusted-pilot-owners/v1",
+                "owners": [],
+            },
+        )
+        original_registry_payload = swapping_registry.read_bytes()
+        original_registry_digest = sha256_bytes(original_registry_payload)
+        original_sha256_bytes = sha256_bytes
+        pathname_replaced = False
+
+        def replace_pathname_after_hash(payload: bytes) -> str:
+            nonlocal pathname_replaced
+            digest = original_sha256_bytes(payload)
+            if payload == original_registry_payload and not pathname_replaced:
+                os.replace(replacement_registry, swapping_registry)
+                pathname_replaced = True
+            return digest
+
+        globals()["sha256_bytes"] = replace_pathname_after_hash
+        try:
+            loaded_after_swap, _ = load_external_trusted_owners(
+                swapping_registry, original_registry_digest
+            )
+        finally:
+            globals()["sha256_bytes"] = original_sha256_bytes
+        check(pathname_replaced, "atomic registry pathname substitution did not run")
+        check(
+            set(loaded_after_swap) == set(trusted),
+            "atomic registry pathname substitution changed the parsed opened bytes",
+        )
+        NEGATIVE_COUNT += 1
+
         alias = ["git", "-c", "alias.h=!scripts/bin/harness audit", "h"]
         expect_rejection("Git alias core-call bypass", lambda: check(alias in ORDINARY_ARGV, "argv outside closed grammar"))
         expect_rejection("subprocess OSError", lambda: run(["phase5-command-that-does-not-exist"]))
@@ -1354,7 +1474,7 @@ def prove_negative_contracts() -> None:
             completed = run(["/bin/bash", str(wrapper_path), "--dogfood-only"], expected=1, environment={"PATH": str(path_root)})
             check(b"requires: rg" in completed.stderr, "wrapper did not fail deterministically when rg was missing")
             NEGATIVE_COUNT += 1
-        check(NEGATIVE_COUNT == 46, f"adversarial suite count changed: {NEGATIVE_COUNT}")
+        check(NEGATIVE_COUNT == 48, f"adversarial suite count changed: {NEGATIVE_COUNT}")
 
 
 def validate_story_packet() -> None:
@@ -1399,7 +1519,7 @@ def main() -> None:
     index = load_evidence_index(EVIDENCE)
     proof("Draft 2020-12 contracts, fixed P0-P7 catalog, empty tracked trust placeholder, and candidate index validate", lambda: None)
     proof("one stable owner and SSH Ed25519 key authenticate two repository-scoped packets with distinct repositories and bundles", prove_positive_packet)
-    proof("46 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
+    proof("48 adversarial oracle, trust, identity, custody, environment, subprocess, and completeness cases fail closed", prove_negative_contracts)
     proof("US-110 records accepted authenticated baselines and leaves Phase 6 closed", validate_story_packet)
     if index["status"] == "complete":
         proof(

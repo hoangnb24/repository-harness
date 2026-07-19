@@ -163,4 +163,205 @@ printf '%s\n' \
 [[ "$cases_run" -eq 6 ]] || fail "expected 6 completed cases, got $cases_run"
 cmp -s "$expected_cases" "$case_log" || fail "case completion markers were missing or out of order"
 
-printf 'Phase 5 premerge forwarding contracts passed (6/6 cases under /bin/bash)\n'
+python3 "$root/scripts/verify_premerge_phase5_trust.py"
+ROOT="$root" PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'
+import os
+from pathlib import Path
+import sys
+
+root = Path(os.environ["ROOT"])
+sys.path.insert(0, str(root / "scripts"))
+from verify_premerge_phase5_trust import (
+    EXPECTED_DIGEST,
+    VARIABLE,
+    WorkflowContractError,
+    verify_text,
+)
+
+workflow = (root / ".github/workflows/premerge.yml").read_text(encoding="utf-8")
+
+
+def rejected(label: str, changed: str) -> None:
+    try:
+        verify_text(changed)
+    except WorkflowContractError:
+        print(f"ok - rejected {label}")
+    else:
+        raise AssertionError(f"accepted {label}")
+
+
+rejected(
+    "absent Phase 5 registry variable",
+    workflow.replace(f"${{{{ vars.{VARIABLE} }}}}", "", 1),
+)
+rejected(
+    "changed inline registry bytes",
+    workflow.replace(f"${{{{ vars.{VARIABLE} }}}}", "eyJzdWJzdGl0dXRlZCI6dHJ1ZX0K", 1),
+)
+rejected(
+    "changed pinned registry digest",
+    workflow.replace(EXPECTED_DIGEST, "0" * 64),
+)
+rejected(
+    "tracked registry path",
+    workflow.replace(
+        'registry="$(mktemp "$RUNNER_TEMP/phase5-trusted-owner-registry.XXXXXX.json")"',
+        'registry="$GITHUB_WORKSPACE/tests/evals/v1-phase5/trusted-owner-registry.json"',
+        1,
+    ),
+)
+rejected(
+    "candidate self-authenticated registry",
+    workflow.replace(
+        "printf '%s' \"$PHASE5_TRUSTED_OWNER_REGISTRY_BASE64\" | base64 --decode > \"$registry\"",
+        'cp "$GITHUB_WORKSPACE/tests/evals/v1-phase5/trusted-owner-registry.json" "$registry"',
+        1,
+    ),
+)
+rejected(
+    "tracked path forwarded to Phase 5 verifier",
+    workflow.replace(
+        "${{ steps.phase5-trust.outputs.registry }}",
+        "${{ github.workspace }}/tests/evals/v1-phase5/trusted-owner-registry.json",
+        1,
+    ),
+)
+rejected(
+    "self-authenticated digest forwarded to Phase 5 verifier",
+    workflow.replace(
+        f"HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256: {EXPECTED_DIGEST}",
+        "HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256: ${{ steps.phase5-trust.outputs.digest }}",
+        1,
+    ),
+)
+rejected(
+    "repository secret substituted for public variable",
+    workflow.replace(
+        f"vars.{VARIABLE}",
+        f"secrets.{VARIABLE}",
+        1,
+    ),
+)
+rejected(
+    "workflow-global Phase 5 registry exposure",
+    workflow.replace(
+        "env:\n  CARGO_TERM_COLOR: always\n",
+        "env:\n"
+        f"  {VARIABLE}: ${{{{ vars.{VARIABLE} }}}}\n"
+        "  CARGO_TERM_COLOR: always\n",
+        1,
+    ),
+)
+rejected(
+    "job-global verified registry exposure",
+    workflow.replace(
+        "    runs-on: ubuntu-24.04\n    steps:\n",
+        "    runs-on: ubuntu-24.04\n"
+        "    env:\n"
+        "      HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY: "
+        "${{ steps.phase5-trust.outputs.registry }}\n"
+        "    steps:\n",
+        1,
+    ),
+)
+rejected(
+    "Windows Phase 5 registry echo leak",
+    workflow
+    + "\n  phase5-windows-leak:\n"
+    + "    runs-on: windows-latest\n"
+    + "    steps:\n"
+    + "      - shell: pwsh\n"
+    + f"        run: Write-Error '${{{{ vars.{VARIABLE} }}}}'\n",
+)
+rejected(
+    "additional Phase 5 repository secret",
+    workflow
+    + "\n  phase5-secret-leak:\n"
+    + "    runs-on: ubuntu-24.04\n"
+    + "    env:\n"
+    + f"      {VARIABLE}: ${{{{ secrets.{VARIABLE} }}}}\n"
+    + "    steps: []\n",
+)
+checkout_step = (
+    "      - name: Checkout\n"
+    "        uses: actions/checkout@v4\n"
+    "        with:\n"
+    "          fetch-depth: 0\n\n"
+)
+rejected(
+    "post-checkout overwrite from candidate bytes",
+    workflow.replace(
+        checkout_step,
+        checkout_step
+        + "      - name: Replace Phase 5 trust from candidate\n"
+        + "        run: cp tests/evals/v1-phase5/trusted-owners.json "
+        + '"${{ steps.phase5-trust.outputs.registry }}"\n\n',
+        1,
+    ),
+)
+rejected(
+    "computed split-key repository-variable exposure",
+    workflow.replace(
+        "env:\n  CARGO_TERM_COLOR: always\n",
+        "env:\n"
+        "  COMPUTED_PUBLIC_TRUST: "
+        "${{ vars[format('{0}{1}{2}', 'PHA', 'SE5_TRUSTED_OWNER_', "
+        "'REGISTRY_BASE64')] }}\n"
+        "  CARGO_TERM_COLOR: always\n",
+        1,
+    ),
+)
+rejected(
+    "computed split-key secret exposure",
+    workflow
+    + "\n  computed-secret-leak:\n"
+    + "    runs-on: ubuntu-24.04\n"
+    + "    env:\n"
+    + "      COMPUTED_SECRET: ${{ secrets[format('{0}{1}', 'PHA', "
+    + "'SE5_TRUSTED_OWNER_REGISTRY_BASE64')] }}\n"
+    + "    steps: []\n",
+)
+rejected(
+    "computed post-checkout steps output overwrite",
+    workflow.replace(
+        checkout_step,
+        checkout_step
+        + "      - name: Computed candidate trust overwrite\n"
+        + "        run: cp tests/evals/v1-phase5/trusted-owners.json "
+        + '"${{ steps[format(\'{0}{1}\', \'phase5-\', \'trust\')].outputs'
+        + "[format('{0}{1}', 'reg', 'istry')] }}\"\n\n",
+        1,
+    ),
+)
+rejected(
+    "bracket repository-variable context access",
+    workflow
+    + "\n  bracket-variable-leak:\n"
+    + "    runs-on: ubuntu-24.04\n"
+    + "    env:\n"
+    + "      LEAK: ${{ vars ['UNRELATED_PUBLIC_VALUE'] }}\n"
+    + "    steps: []\n",
+)
+rejected(
+    "whitespace format secret context access",
+    workflow
+    + "\n  whitespace-secret-leak:\n"
+    + "    runs-on: ubuntu-24.04\n"
+    + "    env:\n"
+    + "      LEAK: ${{ secrets [ format('UNRELATED_{0}', 'VALUE') ] }}\n"
+    + "    steps: []\n",
+)
+rejected(
+    "whitespace bracket steps context access",
+    workflow.replace(
+        checkout_step,
+        checkout_step
+        + "      - name: Bracket output leak\n"
+        + "        run: echo ${{ steps [ 'unrelated-step' ] . outputs "
+        + "[ 'value' ] }}\n\n",
+        1,
+    ),
+)
+PY
+
+printf 'Phase 5 premerge forwarding contracts passed (6/6 runtime cases plus 19 workflow trust adversaries)\n'

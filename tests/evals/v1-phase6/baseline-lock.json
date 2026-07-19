@@ -23,7 +23,7 @@
       "git_oid": "305641b164e105088148283b5770af4d7749c675"
     }
   ],
-  "phase5_verifier_compatibility_git_oid": "c53bd4d02992ef8b0c8084790c2072377921f2a6",
+  "phase5_verifier_compatibility_git_oid": "85c9b54ff7cd629a4f80c53c9f96e5eca816bbb1",
   "card_catalog_sha256": "678e00b103bf32dc6fbdd6617bba7eda710e65cdb1bf43b69467cff594f0a594",
   "phase5_evidence_index_sha256": "13e5507390a2b7e0977e072a6e7ea48aaa7b889238bac9068d1715d8028d0b26",
   "pilots": [
@@ -42,5 +42,5 @@
       "repository_bundle_sha256": "ee4833f28ad4a3d4394b36100ae56d76f90dc58dd92205ea017fb99f2a1f42a1"
     }
   ],
-  "lock_sha256": "e57987512bf3a23a81bf0935304d5c632e12da28696cfc1d9fabb84b5f531570"
+  "lock_sha256": "ff51061bc490fdf294aa631c5394fbf3e19eb50b8695e55842537415c6798e21"
 }

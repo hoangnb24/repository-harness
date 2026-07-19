@@ -100,7 +100,8 @@ scripts/verify-v1-phase5-evidence.sh --require-pilot-baselines \
 
 On exact `b2dd775`, the full caller-pinned live invocation passed six proof groups
 and rejected 42/42 adversarial cases. The corrected current gate rejects four
-additional GitHub path/hostname alias attacks, for 46/46. It authenticated two complete packets for
+additional GitHub path/hostname alias attacks plus duplicate-key and atomic
+pathname-substitution trust-registry attacks, for 48/48. It authenticated two complete packets for
 distinct canonical repositories, repository-scoped owner IDs, bundles, and
 external Ed25519 keys under one stable GitHub identity. Both signatures and
 bundle revisions verified. The external registry remains outside the candidate
@@ -281,6 +282,24 @@ contract runs the copied premerge under `/bin/bash`, requires six ordered case
 markers, and rejects partial, unknown, positional, and dogfood-only bypass
 inputs. The no-pair path uses a literal zero-argument verifier call, avoiding
 empty-array expansion under macOS Bash 3.2 with `set -u`.
+
+GitHub Pre-Merge provisions the original external public owner registry from
+the repository variable `PHASE5_TRUSTED_OWNER_REGISTRY_BASE64` before checkout.
+It decodes only to a unique `runner.temp` file, verifies the pinned SHA-256
+`f55a117eb20df727ee21cb922345d62bce3f3afc4458ba5a8b057dc430c9bb6d`,
+then scopes the verified path and that exact digest to the existing paired
+premerge variables. Missing variables, changed bytes/digest, tracked or
+candidate-derived registries, secret substitution, and inexact forwarding fail
+closed. The workflow oracle removes only the exact reviewed provisioning and
+premerge environment blocks. It then masks quoted string contents in every
+remaining GitHub expression and rejects any `vars`, `secrets`, or `steps`
+context identifier, including dot, bracket, computed `format()`, split-key, and
+whitespace forms; literal trust markers also remain prohibited outside those
+blocks. Nineteen workflow adversaries cover global scopes, Windows steps,
+computed access, and post-checkout candidate overwrites. This is CI trust-input
+provisioning only: it is not a private key,
+production signing input, acceptance record, or release authority. The manual
+Harness CLI release workflow remains unchanged.
 
 Mandatory premerge also snapshots `git status --short --untracked-files=all`
 before verification and requires the exact same status afterward. The two

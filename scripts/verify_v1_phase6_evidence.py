@@ -61,10 +61,11 @@ PHASE5_FORWARDING_COMPATIBILITY_PATH = (
     "tests/evals/test-phase5-premerge-trust-forwarding.sh"
 )
 PHASE5_FORWARDING_COMPATIBILITY_GIT_OID = (
-    "9cf3290dc24d5abb1b299a0dff38771ffa7577fd"
+    "c7adde35992892118029586ca6474f73c93d7ad9"
 )
 ALLOWED_CHANGED_FILES = {
     ".github/harness-v1-diagnostic-request",
+    ".github/workflows/premerge.yml",
     ".github/workflows/harness-v1-release.yml",
     ".harness/changesets/harness_v1_phase6_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase6_01_story.changeset.jsonl",
@@ -78,6 +79,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase7_07_github_attestation.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_08_windows_compile_fix.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_09_windows_refusal_capture.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase5_ci_trust_provisioning.changeset.jsonl",
     "crates/harness-core/src/infrastructure.rs",
     "crates/harness-core/src/main.rs",
     "crates/harness-core/src/recovery.rs",
@@ -94,6 +96,9 @@ ALLOWED_CHANGED_FILES = {
     "docs/stories/US-105-harness-v1-implementation/execplan.md",
     "docs/stories/US-105-harness-v1-implementation/overview.md",
     "docs/stories/US-105-harness-v1-implementation/validation.md",
+    "docs/stories/US-110-v1-dogfood-pilot-baselines/design.md",
+    "docs/stories/US-110-v1-dogfood-pilot-baselines/overview.md",
+    "docs/stories/US-110-v1-dogfood-pilot-baselines/validation.md",
     "docs/stories/US-111-v1-phase6-capability-evaluation/design.md",
     "docs/stories/US-111-v1-phase6-capability-evaluation/execplan.md",
     "docs/stories/US-111-v1-phase6-capability-evaluation/overview.md",
@@ -121,6 +126,7 @@ ALLOWED_CHANGED_FILES = {
     "scripts/capture-v1-phase6-warm-v0.py",
     "scripts/harness-install-files.txt",
     "scripts/validate-premerge.sh",
+    "scripts/verify_premerge_phase5_trust.py",
     "scripts/v1_build_receipt_common.py",
     "scripts/v1_artifact_provenance.py",
     "scripts/verify-v1-build-receipts.sh",
@@ -234,6 +240,10 @@ PHASE7_WINDOWS_COMPILE_FIX_CHANGESET = (
 PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET = (
     ROOT
     / ".harness/changesets/harness_v1_phase7_09_windows_refusal_capture.changeset.jsonl"
+)
+PHASE5_CI_TRUST_PROVISIONING_CHANGESET = (
+    ROOT
+    / ".harness/changesets/harness_v1_phase5_ci_trust_provisioning.changeset.jsonl"
 )
 PHASE7_DECISION_ID = "0016-phase6-framework-acceptance-and-phase7-opening"
 PHASE7_STORY_ID = "US-112"
@@ -426,6 +436,14 @@ PHASE7_WINDOWS_REFUSAL_CAPTURE_TRACE_SUMMARY = (
 PHASE7_WINDOWS_REFUSAL_CAPTURE_RECORD_SHA256 = (
     "1cf34f45a8fd079d7d6ef5cc09e3aaa20b42f637fd0baa1974e78f05c023ffea",
     "d69b82758c2a0a2161ad07fcc70127004928bda34279548eecfdea9fa2a08b63",
+)
+PHASE5_CI_TRUST_PROVISIONING_TRACE_UID = "trc_749511795a5f28ab13de671bf182d0c3"
+PHASE5_CI_TRUST_PROVISIONING_TRACE_SUMMARY = (
+    "Provisioned pinned external Phase 5 public trust for premerge CI"
+)
+PHASE5_CI_TRUST_PROVISIONING_RECORD_SHA256 = (
+    "7ab76bd9a446c5b1b772b68bfd5bd500989267e3844ef50320398ae961ee7e02",
+    "63ce5fca4d94c8bf2aeef392b3ec2a2628d3d3fdc9dce693b9f6216b254d405e",
 )
 PHASE7_BUILD_RECEIPT_TRACE_UIDS = (
     "trc_1af4542310616a192351f13e21302f03",
@@ -1638,7 +1656,13 @@ def validate_phase7_execution_proof_records(records: list[dict[str, Any]]) -> No
         "Phase 7 execution-proof trace identity or bounded outcome changed",
     )
     lists = {}
-    for field in ("actions_taken", "files_read", "files_changed", "decisions_made", "errors"):
+    for field in (
+        "actions_taken",
+        "files_read",
+        "files_changed",
+        "decisions_made",
+        "errors",
+    ):
         values = strict_json_loads(trace_payload.get(field, ""))
         check(
             isinstance(values, list)
@@ -1994,6 +2018,55 @@ def validate_phase7_windows_refusal_capture_records(
         )
 
 
+def validate_phase5_ci_trust_provisioning_records(
+    records: list[dict[str, Any]],
+) -> None:
+    check(
+        tuple(sha256_bytes(canonical_bytes(record)) for record in records)
+        == PHASE5_CI_TRUST_PROVISIONING_RECORD_SHA256,
+        "Phase 5 CI trust-provisioning changeset record bytes changed",
+    )
+    check(
+        [record.get("op") for record in records] == ["changeset.header", "trace.add"],
+        "Phase 5 CI trust-provisioning operation sequence changed",
+    )
+    check(
+        records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase5_ci_trust_provisioning",
+            "version": 1,
+        },
+        "Phase 5 CI trust-provisioning header changed",
+    )
+    trace = records[1]
+    payload = trace.get("payload", {})
+    check(
+        trace.get("uid") == PHASE5_CI_TRUST_PROVISIONING_TRACE_UID
+        and trace.get("version") == 2
+        and payload.get("task_summary")
+        == PHASE5_CI_TRUST_PROVISIONING_TRACE_SUMMARY
+        and payload.get("intake_uid") == "ink_ba685328eb7d990cfdabdbcf1cbcefb1"
+        and payload.get("story_id") == "US-110"
+        and payload.get("agent") == "codex"
+        and payload.get("outcome") == "completed"
+        and payload.get("duration_seconds") is None
+        and payload.get("token_estimate") is None
+        and "CI configuration" in payload.get("notes", "")
+        and "No push, dispatch, main mutation" in payload.get("notes", ""),
+        "Phase 5 CI trust-provisioning trace lost identity or closed authority",
+    )
+    for field in ("actions_taken", "files_read", "files_changed", "decisions_made", "errors"):
+        values = strict_json_loads(payload.get(field, ""))
+        check(
+            isinstance(values, list)
+            and values
+            and all(isinstance(value, str) and value for value in values),
+            f"Phase 5 CI trust-provisioning trace {field} is not Detailed",
+        )
+
+
 def verify_phase7_opening_gate() -> None:
     intake_records = load_jsonl(PHASE7_INTAKE_CHANGESET)
     story_records = load_jsonl(PHASE7_STORY_CHANGESET)
@@ -2006,6 +2079,9 @@ def verify_phase7_opening_gate() -> None:
     windows_compile_fix_records = load_jsonl(PHASE7_WINDOWS_COMPILE_FIX_CHANGESET)
     windows_refusal_capture_records = load_jsonl(
         PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET
+    )
+    phase5_ci_trust_provisioning_records = load_jsonl(
+        PHASE5_CI_TRUST_PROVISIONING_CHANGESET
     )
     validate_phase7_opening_records(intake_records, story_records)
     self_test_phase7_opening_records(intake_records, story_records)
@@ -2025,6 +2101,9 @@ def verify_phase7_opening_gate() -> None:
     validate_phase7_windows_refusal_capture_records(
         windows_refusal_capture_records
     )
+    validate_phase5_ci_trust_provisioning_records(
+        phase5_ci_trust_provisioning_records
+    )
 
     with tempfile.TemporaryDirectory(prefix="phase7-opening-replay-") as temporary:
         database = Path(temporary) / "replay.db"
@@ -2040,6 +2119,7 @@ def verify_phase7_opening_gate() -> None:
                 PHASE7_ATTESTATION_CHANGESET,
                 PHASE7_WINDOWS_COMPILE_FIX_CHANGESET,
                 PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET,
+                PHASE5_CI_TRUST_PROVISIONING_CHANGESET,
             }:
                 shutil.copyfile(changeset, prior_changesets / changeset.name)
         environment = dict(os.environ)
@@ -2804,6 +2884,81 @@ def verify_phase7_opening_gate() -> None:
             check(
                 applied == (1,),
                 "Phase 7 Windows refusal-capture idempotent replay recorded multiple applications",
+            )
+        finally:
+            connection.close()
+
+        connection = sqlite3.connect(str(database))
+        try:
+            phase5_story_before = connection.execute(
+                "SELECT * FROM story WHERE id = ?", ("US-110",)
+            ).fetchall()
+            check(
+                len(phase5_story_before) == 1,
+                "Phase 5 CI trust replay is missing US-110",
+            )
+        finally:
+            connection.close()
+
+        phase5_ci_trust_apply = [
+            str(ROOT / "scripts/bin/harness-cli"),
+            "db",
+            "changeset",
+            "apply",
+            str(PHASE5_CI_TRUST_PROVISIONING_CHANGESET),
+        ]
+        for attempt in ("initial", "idempotent"):
+            phase5_ci_trust_result = subprocess.run(
+                phase5_ci_trust_apply,
+                cwd=ROOT,
+                capture_output=True,
+                check=False,
+                env=environment,
+                text=True,
+            )
+            check(
+                phase5_ci_trust_result.returncode == 0,
+                f"Phase 5 CI trust-provisioning changeset {attempt} apply failed",
+            )
+        connection = sqlite3.connect(str(database))
+        try:
+            phase5_story_after = connection.execute(
+                "SELECT * FROM story WHERE id = ?", ("US-110",)
+            ).fetchall()
+            check(
+                phase5_story_after == phase5_story_before,
+                "Phase 5 CI trust provisioning changed US-110 proof or authority state",
+            )
+            trace = connection.execute(
+                """
+                SELECT uid, intake_uid, story_id, task_summary, outcome,
+                       duration_seconds, token_estimate
+                FROM trace WHERE uid = ?
+                """,
+                (PHASE5_CI_TRUST_PROVISIONING_TRACE_UID,),
+            ).fetchall()
+            check(
+                trace
+                == [
+                    (
+                        PHASE5_CI_TRUST_PROVISIONING_TRACE_UID,
+                        "ink_ba685328eb7d990cfdabdbcf1cbcefb1",
+                        "US-110",
+                        PHASE5_CI_TRUST_PROVISIONING_TRACE_SUMMARY,
+                        "completed",
+                        None,
+                        None,
+                    )
+                ],
+                "isolated Phase 5 CI trust replay lost stable trace identity",
+            )
+            applied = connection.execute(
+                "SELECT COUNT(*) FROM changeset_applied WHERE id = ?",
+                ("harness_v1_phase5_ci_trust_provisioning",),
+            ).fetchone()
+            check(
+                applied == (1,),
+                "Phase 5 CI trust idempotent replay recorded multiple applications",
             )
         finally:
             connection.close()

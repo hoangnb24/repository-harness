@@ -111,8 +111,12 @@ Authorized pilot flow:
 
 The complete index live flow loaded and verified both authenticated packets.
 The caller-pinned external registry/hash supplied the trust root outside the
-repository, while the tracked registry stays empty. The live command passed
-six proof groups and rejected 46/46 adversarial cases in the corrected current gate.
+repository, while the tracked registry stays empty. The verifier opens that
+registry once without following its final symlink, checks the opened descriptor
+is the same regular file inspected outside the checkout, reads one bounded byte
+buffer, and hashes and strict duplicate-key parses those identical bytes. The
+live command passed six proof groups and rejected 48/48 adversarial cases in the
+corrected current gate.
 
 ## Interface Contract
 
