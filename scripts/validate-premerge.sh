@@ -48,6 +48,9 @@ while IFS= read -r script; do
   bash -n "$script"
 done < <(find scripts tests -type f -name '*.sh' -print | LC_ALL=C sort)
 
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+
 scripts/verify-v1-phase1-contracts.sh
 scripts/verify-v1-phase2-core.sh
 scripts/verify-v1-phase3-recovery.sh
@@ -63,9 +66,7 @@ tests/release/test-v1-build-receipts.sh
 tests/release/test-v1-build-receipt-workflow.sh
 tests/release/test-release-workflow-contract.sh
 
-cargo fmt --all -- --check
 cargo test --workspace --locked
-cargo clippy --workspace --all-targets --locked -- -D warnings
 
 scripts/verify-revision-coherence.sh
 tests/coherence/test-revision-coherence.sh

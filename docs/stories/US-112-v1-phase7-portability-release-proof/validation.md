@@ -143,6 +143,11 @@ scripts/verify-v1-phase6-evidence.sh --framework-only
 
 ## Acceptance Evidence
 
+Premerge pins Rust 1.97.0 in both jobs and runs formatting and Clippy before
+the long phase proofs. Unix custody mode checks accept Rustix's native
+`RawMode`, avoiding a Linux-only useless-conversion lint while preserving the
+macOS `u16` mode representation.
+
 The schema, deterministic fixture inventory, verifier, and adversarial focused
 test are implemented. The schema accepts only `fixture-only-non-production`
 evidence and pins the readable V1 CLI, template-release, and bridge identities;

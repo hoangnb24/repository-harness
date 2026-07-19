@@ -83,6 +83,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase7_11_premerge_bytecode_boundary.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_12_premerge_bytecode_causality.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_13_windows_progress_suppression.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_14_ci_toolchain.changeset.jsonl",
     ".harness/changesets/harness_v1_phase5_ci_trust_provisioning.changeset.jsonl",
     "crates/harness-core/src/infrastructure.rs",
     "crates/harness-core/src/main.rs",
@@ -261,6 +262,9 @@ PHASE7_PREMERGE_BYTECODE_CAUSALITY_CHANGESET = (
 PHASE7_WINDOWS_PROGRESS_SUPPRESSION_CHANGESET = (
     ROOT
     / ".harness/changesets/harness_v1_phase7_13_windows_progress_suppression.changeset.jsonl"
+)
+PHASE7_CI_TOOLCHAIN_CHANGESET = (
+    ROOT / ".harness/changesets/harness_v1_phase7_14_ci_toolchain.changeset.jsonl"
 )
 PHASE5_CI_TRUST_PROVISIONING_CHANGESET = (
     ROOT
@@ -2417,6 +2421,7 @@ def verify_phase7_opening_gate() -> None:
                 PHASE7_PREMERGE_BYTECODE_BOUNDARY_CHANGESET,
                 PHASE7_PREMERGE_BYTECODE_CAUSALITY_CHANGESET,
                 PHASE7_WINDOWS_PROGRESS_SUPPRESSION_CHANGESET,
+                PHASE7_CI_TOOLCHAIN_CHANGESET,
                 PHASE5_CI_TRUST_PROVISIONING_CHANGESET,
             }:
                 shutil.copyfile(changeset, prior_changesets / changeset.name)

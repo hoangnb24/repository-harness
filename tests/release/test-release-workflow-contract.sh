@@ -17,6 +17,7 @@ import sys
 
 
 workflow = Path(sys.argv[1]).read_text(encoding="utf-8")
+toolchain = "          toolchain: 1.97.0\n"
 expected = (
     "env:\n"
     "  CARGO_TERM_COLOR: always\n"
@@ -27,6 +28,8 @@ expected = (
 
 
 def verify(source: str) -> None:
+    if source.count(toolchain) != 2:
+        raise ValueError("Pre-Merge Rust toolchain is not pinned for both jobs")
     if source.count("PYTHONDONTWRITEBYTECODE") != 1:
         raise ValueError("Pre-Merge bytecode setting is missing or ambiguous")
     if source.count(expected) != 1:
@@ -34,6 +37,17 @@ def verify(source: str) -> None:
 
 
 verify(workflow)
+
+fmt = "cargo fmt --all -- --check"
+clippy = "cargo clippy --workspace --all-targets --locked -- -D warnings"
+phase1 = "scripts/verify-v1-phase1-contracts.sh"
+if not workflow:
+    raise ValueError("Pre-Merge workflow is empty")
+
+premerge_script = Path(sys.argv[1]).parents[2] / "scripts/validate-premerge.sh"
+premerge = premerge_script.read_text(encoding="utf-8")
+if not (premerge.index(fmt) < premerge.index(clippy) < premerge.index(phase1)):
+    raise ValueError("Pre-Merge fmt and Clippy gates do not fail fast")
 
 adversaries = {
     "missing": workflow.replace('  PYTHONDONTWRITEBYTECODE: "1"\n', "", 1),

@@ -288,7 +288,7 @@ impl OsFileSystem {
         }
         if private
             && !private_file_metadata_valid(
-                u32::from(before.st_mode),
+                before.st_mode,
                 before.st_uid,
                 self.root_stat.st_uid,
                 before.st_size,
@@ -354,7 +354,7 @@ impl OsFileSystem {
         let before = fstat(first_descriptor).map_err(|error| map_errno(path, error))?;
         if !FileType::from_raw_mode(before.st_mode).is_dir()
             || !private_directory_metadata_valid(
-                u32::from(before.st_mode),
+                before.st_mode,
                 before.st_uid,
                 self.root_stat.st_uid,
             )
@@ -386,11 +386,7 @@ impl OsFileSystem {
             .expect("validated private directory has a final descriptor");
         let stat = fstat(&descriptor).map_err(|error| map_errno(&directory.path, error))?;
         if !FileType::from_raw_mode(stat.st_mode).is_dir()
-            || !private_directory_metadata_valid(
-                u32::from(stat.st_mode),
-                stat.st_uid,
-                self.root_stat.st_uid,
-            )
+            || !private_directory_metadata_valid(stat.st_mode, stat.st_uid, self.root_stat.st_uid)
             || stat.st_dev.to_string() != directory.device
             || stat.st_ino.to_string() != directory.inode
         {
@@ -445,7 +441,7 @@ impl OsFileSystem {
         }
         if private
             && !private_file_metadata_valid(
-                u32::from(before.st_mode),
+                before.st_mode,
                 before.st_uid,
                 self.root_stat.st_uid,
                 before.st_size,
@@ -532,7 +528,7 @@ fn same_stat(left: &rustix::fs::Stat, right: &rustix::fs::Stat) -> bool {
 
 #[cfg(unix)]
 fn private_file_metadata_valid(
-    mode: u32,
+    mode: rustix::fs::RawMode,
     owner: u32,
     root_owner: u32,
     size: i64,
@@ -544,7 +540,11 @@ fn private_file_metadata_valid(
 }
 
 #[cfg(unix)]
-fn private_directory_metadata_valid(mode: u32, owner: u32, root_owner: u32) -> bool {
+fn private_directory_metadata_valid(
+    mode: rustix::fs::RawMode,
+    owner: u32,
+    root_owner: u32,
+) -> bool {
     (mode & 0o777) == 0o700 && owner == root_owner
 }
 
