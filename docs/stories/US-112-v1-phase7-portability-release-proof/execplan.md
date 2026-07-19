@@ -167,6 +167,13 @@ promotion blocked.
   `-OutputFormat Text` while retaining separate .NET process streams and exact
   unfiltered stderr comparison. Windows mutation remains unsupported, final
   collection did not complete, and no platform is accepted.
+  Attempt 5 at `fc177ab5c52780782419e6caafba1cec7ee8148c` again passed all
+  five build, attestation, and provenance rows and the four Unix platform
+  paths. Windows final refusal still emitted CLIXML progress records despite
+  text output format. The encoded child now sets
+  `$ProgressPreference = "SilentlyContinue"` as its first statement, before
+  installer execution, while leaving real stderr unfiltered and every exact
+  refusal/no-mutation/input-hash assertion intact.
   Separately, Pre-Merge run `29688588050`, job `88197179137`, passed the live
   Phase 5 six-group verifier and 19 trust adversaries, then failed because
   Phase 2's Phase 1 import and the Phase 7 release-proof import created

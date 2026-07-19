@@ -265,6 +265,25 @@ input hashes remain required. The exact reviewed CRLF test now hashes to
 `23c2b91db380bef9528b72f7519f6f7c7ac021185a5bdddc97e46bf0685e4fb9`;
 an `-OutputFormat XML` substitution is a seeded hash-regression adversary.
 
+Remote attempt 5 at exact candidate
+`fc177ab5c52780782419e6caafba1cec7ee8148c` completed all five native builds,
+GitHub/Sigstore attestations, and exact provenance verifications, and the four
+Unix platform paths passed. Windows failed only at the final refusal assertion:
+stderr still began with `#< CLIXML`, contained the exact controlled-unsupported
+refusal, and ended with serialized `Preparing modules for first use.` progress
+records despite `-OutputFormat Text`. The output-format switch controls text
+versus XML formatting of ordinary output; `$ProgressPreference` independently
+controls progress updates and defaults to `Continue`. The encoded child command
+therefore now starts with `$ProgressPreference = "SilentlyContinue"` before the
+installer call. The parent does not suppress or parse stderr, so unexpected
+errors remain visible and fail the exact comparison. Exit 1, empty stdout, the
+exact refusal plus CRLF, absent destination state, and unchanged authenticated
+input hashes are unchanged. The complete reviewed CRLF file now hashes to
+`7651b11278475a26af45f0d9a14c7c909da1205b2881c87de624794127eb8b16`.
+Seeded full-file-oracle adversaries remove the child setting, weaken it to
+`Continue`, move it to the parent session, move it after installer execution,
+or restore XML output; every variant is rejected.
+
 The companion Pre-Merge run `29688588050`, job `88197179137`, completed all
 six live Phase 5 proof groups and all 19 trust adversaries before the Phase 7
 focused gate failed its final status-preservation assertion. Concretely, the

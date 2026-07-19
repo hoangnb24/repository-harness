@@ -253,6 +253,24 @@ SHA-256
 and an XML-format substitution fails the hash contract. Final collection and
 all blocked authority remain pending.
 
+Remote attempt 5 at exact candidate
+`fc177ab5c52780782419e6caafba1cec7ee8148c` passed all five native builds,
+attestations, and provenance verifications, and the four Unix platform paths
+passed. Windows failed only at the final controlled-unsupported refusal because
+stderr still contained `#< CLIXML`, the exact refusal, and serialized
+`Preparing modules for first use.` progress records despite
+`-OutputFormat Text`. PowerShell treats output formatting and progress handling
+as separate controls: the encoded child invocation now begins with
+`$ProgressPreference = "SilentlyContinue"` before calling the installer. No
+stderr is filtered, so empty stdout, exact refusal plus CRLF, exit 1, absent
+destination state, and unchanged artifact/checksum hashes remain mandatory.
+The complete CRLF test is pinned at SHA-256
+`7651b11278475a26af45f0d9a14c7c909da1205b2881c87de624794127eb8b16`.
+Adversaries reject missing or weakened suppression, parent-only suppression,
+suppression after installer execution, and XML output format. Windows final
+refusal completion, collection, platform acceptance, and every release
+authority remain pending or blocked.
+
 The separate attempt-4 Pre-Merge run `29688588050`, job `88197179137`, passed
 the live Phase 5 verifier's six proof groups and all 19 trust adversaries, then
 failed at the Phase 7 focused gate's final clean-status check. Phase 2 had

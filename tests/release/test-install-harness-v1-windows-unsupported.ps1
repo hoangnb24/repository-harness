@@ -16,7 +16,7 @@ if (Test-Path -LiteralPath $Workspace) {
 $ArtifactBefore = (Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash
 $ChecksumBefore = (Get-FileHash -LiteralPath $Checksum -Algorithm SHA256).Hash
 
-$Invocation = '& $env:HARNESS_V1_TEST_INSTALLER -Artifact $env:HARNESS_V1_TEST_ARTIFACT -Checksum $env:HARNESS_V1_TEST_CHECKSUM -Platform windows-x64 -Directory $env:HARNESS_V1_TEST_DESTINATION'
+$Invocation = '$ProgressPreference = "SilentlyContinue"; & $env:HARNESS_V1_TEST_INSTALLER -Artifact $env:HARNESS_V1_TEST_ARTIFACT -Checksum $env:HARNESS_V1_TEST_CHECKSUM -Platform windows-x64 -Directory $env:HARNESS_V1_TEST_DESTINATION'
 $EncodedInvocation = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Invocation))
 $StartInfo = New-Object System.Diagnostics.ProcessStartInfo
 $StartInfo.FileName = $PowerShellExe

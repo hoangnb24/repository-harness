@@ -26,7 +26,7 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REVISION = re.compile(r"^[0-9a-f]{40}$")
 WORKFLOW_PATH = ".github/workflows/harness-v1-release.yml"
 WINDOWS_REFUSAL_TEST_SHA256 = (
-    "23c2b91db380bef9528b72f7519f6f7c7ac021185a5bdddc97e46bf0685e4fb9"
+    "7651b11278475a26af45f0d9a14c7c909da1205b2881c87de624794127eb8b16"
 )
 
 

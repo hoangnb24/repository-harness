@@ -410,6 +410,42 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
                 1,
             ),
         ),
+        (
+            "child progress suppression removed",
+            windows_refusal_test.replace(
+                b'$ProgressPreference = "SilentlyContinue"; & ',
+                b"& ",
+                1,
+            ),
+        ),
+        (
+            "child progress suppression weakened",
+            windows_refusal_test.replace(
+                b'$ProgressPreference = "SilentlyContinue"; & ',
+                b'$ProgressPreference = "Continue"; & ',
+                1,
+            ),
+        ),
+        (
+            "progress suppression set only in parent session",
+            windows_refusal_test.replace(
+                b"$Invocation = '$ProgressPreference = \"SilentlyContinue\"; & ",
+                b'$ProgressPreference = "SilentlyContinue"\r\n$Invocation = \'& ',
+                1,
+            ),
+        ),
+        (
+            "progress suppression moved after child installer invocation",
+            windows_refusal_test.replace(
+                b'$ProgressPreference = "SilentlyContinue"; & ',
+                b"& ",
+                1,
+            ).replace(
+                b" -Directory $env:HARNESS_V1_TEST_DESTINATION'\r\n$EncodedInvocation",
+                b' -Directory $env:HARNESS_V1_TEST_DESTINATION; $ProgressPreference = "SilentlyContinue"\'\r\n$EncodedInvocation',
+                1,
+            ),
+        ),
     ):
         try:
             verifier.verify_windows_refusal_test(adversary)
