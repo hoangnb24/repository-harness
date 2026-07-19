@@ -4,11 +4,12 @@
   "title": "Repository Harness V1 non-production native build receipt",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "evidence_kind", "candidate", "environment", "files", "results", "authority"],
+  "required": ["schema", "evidence_kind", "candidate", "execution_workflow", "environment", "files", "results", "authority"],
   "properties": {
     "schema": {"const": "repository-harness-v1-build-receipt/v1"},
     "evidence_kind": {"const": "native-build-receipt-non-production"},
     "candidate": {"$ref": "#/$defs/candidate"},
+    "execution_workflow": {"$ref": "#/$defs/workflowInput"},
     "environment": {"$ref": "#/$defs/environment"},
     "files": {"$ref": "#/$defs/files"},
     "results": {"$ref": "#/$defs/results"},
@@ -44,7 +45,7 @@
     "candidate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source_commit", "source_tree", "cargo_lock", "command_implementation_binding", "workflow"],
+      "required": ["source_commit", "source_tree", "cargo_lock", "command_implementation_binding"],
       "properties": {
         "source_commit": {"$ref": "#/$defs/gitObject"},
         "source_tree": {"$ref": "#/$defs/gitObject"},
@@ -59,8 +60,7 @@
             {"$ref": "#/$defs/input"},
             {"properties": {"path": {"const": "release/contracts/v1/command-implementation-binding.json"}}}
           ]
-        },
-        "workflow": {"$ref": "#/$defs/workflowInput"}
+        }
       }
     },
     "environment": {

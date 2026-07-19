@@ -53,15 +53,16 @@ def git_bytes(*arguments: str) -> bytes:
     return result.stdout
 
 
-def expected_identity_from_repository(candidate: str) -> tuple[dict[str, Any], bytes]:
+def expected_identity_from_repository(candidate: str, workflow_revision: str) -> tuple[dict[str, Any], dict[str, str], bytes]:
     check(GIT_REVISION.fullmatch(candidate) is not None, "candidate must be exactly 40 lowercase hexadecimal characters")
+    check(GIT_REVISION.fullmatch(workflow_revision) is not None, "workflow revision must be exactly 40 lowercase hexadecimal characters")
     head = git_bytes("rev-parse", "HEAD").decode("ascii").strip()
     check(head == candidate, "verification candidate does not equal HEAD")
     tree = git_bytes("rev-parse", "HEAD^{tree}").decode("ascii").strip()
     check(GIT_REVISION.fullmatch(tree) is not None, "candidate tree is not an exact 40-hex object")
 
     committed: dict[str, bytes] = {}
-    for path in (CARGO_LOCK_PATH, COMMAND_BINDING_PATH, WORKFLOW_PATH, COMMAND_GRAMMAR_PATH):
+    for path in (CARGO_LOCK_PATH, COMMAND_BINDING_PATH, COMMAND_GRAMMAR_PATH):
         committed[path] = git_bytes("show", f"{candidate}:{path}")
     grammar = parse_json_bytes(committed[COMMAND_GRAMMAR_PATH], COMMAND_GRAMMAR_PATH)
     check(isinstance(grammar, dict), "committed command grammar is not an object")
@@ -73,13 +74,14 @@ def expected_identity_from_repository(candidate: str) -> tuple[dict[str, Any], b
             "path": COMMAND_BINDING_PATH,
             "sha256": sha256_bytes(committed[COMMAND_BINDING_PATH]),
         },
-        "workflow": {
-            "path": WORKFLOW_PATH,
-            "revision": candidate,
-            "sha256": sha256_bytes(committed[WORKFLOW_PATH]),
-        },
     }
-    return identity, exact_core_help_bytes(grammar)
+    workflow_bytes = git_bytes("show", f"{workflow_revision}:{WORKFLOW_PATH}")
+    execution_workflow = {
+        "path": WORKFLOW_PATH,
+        "revision": workflow_revision,
+        "sha256": sha256_bytes(workflow_bytes),
+    }
+    return identity, execution_workflow, exact_core_help_bytes(grammar)
 
 
 def safe_directory(path: Path, label: str) -> None:
@@ -141,6 +143,7 @@ def fixed_authority() -> dict[str, Any]:
 def verify_receipt_directory(
     directory: Path,
     expected_candidate: dict[str, Any],
+    expected_execution_workflow: dict[str, str],
     expected_help: bytes,
 ) -> str:
     receipt_path = directory / RECEIPT_NAME
@@ -149,7 +152,8 @@ def verify_receipt_directory(
     validate_contract(document)
     reject_command_fields(document)
     check(receipt_payload == canonical_json_bytes(document), "receipt JSON is not canonical")
-    check(document["candidate"] == expected_candidate, "candidate/workflow/input identity drift")
+    check(document["candidate"] == expected_candidate, "candidate/input identity drift")
+    check(document["execution_workflow"] == expected_execution_workflow, "execution workflow identity drift")
     check(document["results"] == fixed_results(), "unsupported result claim")
     check(document["authority"] == fixed_authority(), "unsupported acceptance or release authority claim")
 
@@ -209,13 +213,14 @@ def discover_directories(root: Path, require_five: bool) -> list[Path]:
 def verify_collection(
     root: Path,
     candidate: str,
+    workflow_revision: str,
     require_five: bool,
     *,
-    expected: tuple[dict[str, Any], bytes] | None = None,
+    expected: tuple[dict[str, Any], dict[str, str], bytes] | None = None,
 ) -> list[str]:
-    expected_candidate, expected_help = expected or expected_identity_from_repository(candidate)
+    expected_candidate, expected_execution_workflow, expected_help = expected or expected_identity_from_repository(candidate, workflow_revision)
     directories = discover_directories(root, require_five)
-    platforms = [verify_receipt_directory(directory, expected_candidate, expected_help) for directory in directories]
+    platforms = [verify_receipt_directory(directory, expected_candidate, expected_execution_workflow, expected_help) for directory in directories]
     check(len(platforms) == len(set(platforms)), "duplicate platform receipts")
     if require_five:
         check(platforms == list(PLATFORMS), f"receipt matrix must contain the exact five-platform order: {list(PLATFORMS)}")
@@ -227,6 +232,7 @@ def verify_collection(
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidate", required=True)
+    parser.add_argument("--workflow-revision", required=True)
     parser.add_argument("--require-five", action="store_true")
     parser.add_argument("receipt_root", type=Path)
     return parser.parse_args()
@@ -238,6 +244,7 @@ def main() -> int:
         platforms = verify_collection(
             arguments.receipt_root,
             arguments.candidate,
+            arguments.workflow_revision,
             arguments.require_five,
         )
     except ReceiptError as error:

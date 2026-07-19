@@ -38,8 +38,15 @@ def git_text(*arguments: str) -> str:
     return subprocess.check_output(["git", *arguments], cwd=ROOT, text=True).strip()
 
 
-def current_expected() -> tuple[dict, bytes]:
+def git_bytes(*arguments: str) -> bytes:
+    return subprocess.check_output(["git", *arguments], cwd=ROOT)
+
+
+def current_expected() -> tuple[dict, dict, bytes]:
     candidate = git_text("rev-parse", "HEAD")
+    # Deliberately differ from the candidate: the protected workflow revision
+    # and candidate revision are independent identities.
+    workflow_revision = git_text("rev-parse", "HEAD^")
     tree = git_text("rev-parse", "HEAD^{tree}")
     identity = {
         "source_commit": candidate,
@@ -49,19 +56,19 @@ def current_expected() -> tuple[dict, bytes]:
             "path": COMMAND_BINDING_PATH,
             "sha256": sha256_file(ROOT / COMMAND_BINDING_PATH),
         },
-        "workflow": {
-            "path": WORKFLOW_PATH,
-            "revision": candidate,
-            "sha256": sha256_file(ROOT / WORKFLOW_PATH),
-        },
     }
-    return identity, exact_core_help_bytes(load_json(ROOT / COMMAND_GRAMMAR_PATH))
+    execution_workflow = {
+        "path": WORKFLOW_PATH,
+        "revision": workflow_revision,
+        "sha256": sha256_bytes(git_bytes("show", f"{workflow_revision}:{WORKFLOW_PATH}")),
+    }
+    return identity, execution_workflow, exact_core_help_bytes(load_json(ROOT / COMMAND_GRAMMAR_PATH))
 
 
 class ReceiptFactory:
     def __init__(self, root: Path):
         self.root = root
-        self.expected, self.help_bytes = current_expected()
+        self.expected, self.execution_workflow, self.help_bytes = current_expected()
 
     def write(self, directory: Path, platform_name: str) -> dict:
         directory.mkdir()
@@ -72,6 +79,7 @@ class ReceiptFactory:
         help_name = f"{artifact_name}.help.json"
         document = capture.build_receipt_document(
             candidate_identity=self.expected,
+            execution_workflow_identity=self.execution_workflow,
             platform_name=platform_name,
             target=target,
             runner=runner,
@@ -106,6 +114,8 @@ class CaptureBoundaryTests(unittest.TestCase):
     def test_rejects_non_exact_candidate_before_git(self) -> None:
         with self.assertRaisesRegex(ReceiptError, "exactly 40"):
             capture.validate_candidate("main")
+        with self.assertRaisesRegex(ReceiptError, "workflow revision must be exactly 40"):
+            capture.committed_execution_workflow_identity("main")
 
     def test_accepts_only_native_exact_tuple(self) -> None:
         result = capture.validate_tuple(
@@ -163,7 +173,8 @@ class VerifierAdversaryTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.factory = ReceiptFactory(self.root)
         self.candidate = self.factory.expected["source_commit"]
-        self.expected = (self.factory.expected, self.factory.help_bytes)
+        self.workflow_revision = self.factory.execution_workflow["revision"]
+        self.expected = (self.factory.expected, self.factory.execution_workflow, self.factory.help_bytes)
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -176,17 +187,18 @@ class VerifierAdversaryTests(unittest.TestCase):
         mutate(document, directory)
         self.rewrite(directory, document)
         with self.assertRaises(ReceiptError):
-            verifier.verify_collection(directory, self.candidate, False, expected=self.expected)
+            verifier.verify_collection(directory, self.candidate, self.workflow_revision, False, expected=self.expected)
 
     def test_valid_single_and_exact_five_are_read_without_execution(self) -> None:
+        self.assertNotEqual(self.candidate, self.workflow_revision)
         single, _ = self.factory.single()
         self.assertEqual(
-            verifier.verify_collection(single, self.candidate, False, expected=self.expected),
+            verifier.verify_collection(single, self.candidate, self.workflow_revision, False, expected=self.expected),
             ["macos-arm64"],
         )
         collection = self.factory.five()
         self.assertEqual(
-            verifier.verify_collection(collection, self.candidate, True, expected=self.expected),
+            verifier.verify_collection(collection, self.candidate, self.workflow_revision, True, expected=self.expected),
             list(PLATFORMS),
         )
 
@@ -194,7 +206,7 @@ class VerifierAdversaryTests(unittest.TestCase):
         collection = self.factory.five()
         shutil.rmtree(collection / f"{verifier.ARTIFACT_DIRECTORY_PREFIX}linux-arm64")
         with self.assertRaises(ReceiptError):
-            verifier.verify_collection(collection, self.candidate, True, expected=self.expected)
+            verifier.verify_collection(collection, self.candidate, self.workflow_revision, True, expected=self.expected)
 
         collection = self.root / "duplicate-collection"
         collection.mkdir()
@@ -209,12 +221,12 @@ class VerifierAdversaryTests(unittest.TestCase):
                 }
                 self.rewrite(directory, document)
         with self.assertRaises(ReceiptError):
-            verifier.verify_collection(collection, self.candidate, True, expected=self.expected)
+            verifier.verify_collection(collection, self.candidate, self.workflow_revision, True, expected=self.expected)
 
     def test_candidate_workflow_and_input_drift_are_rejected(self) -> None:
         for name, mutation in (
             ("candidate", lambda document: document["candidate"].update(source_commit="0" * 40)),
-            ("workflow", lambda document: document["candidate"]["workflow"].update(sha256="0" * 64)),
+            ("workflow", lambda document: document["execution_workflow"].update(sha256="0" * 64)),
             ("lock", lambda document: document["candidate"]["cargo_lock"].update(sha256="0" * 64)),
             ("binding", lambda document: document["candidate"]["command_implementation_binding"].update(sha256="0" * 64)),
         ):
@@ -223,7 +235,7 @@ class VerifierAdversaryTests(unittest.TestCase):
             mutation(document)
             self.rewrite(directory, document)
             with self.assertRaises(ReceiptError, msg=name):
-                verifier.verify_collection(directory, self.candidate, False, expected=self.expected)
+                verifier.verify_collection(directory, self.candidate, self.workflow_revision, False, expected=self.expected)
 
     def test_byte_checksum_and_help_substitution_are_rejected(self) -> None:
         for field, replacement in (
@@ -234,7 +246,7 @@ class VerifierAdversaryTests(unittest.TestCase):
             directory, document = self.factory.single({"artifact": "macos-x64", "checksum": "linux-x64", "help_output": "linux-arm64"}[field])
             (directory / document["files"][field]["path"]).write_bytes(replacement)
             with self.assertRaises(ReceiptError, msg=field):
-                verifier.verify_collection(directory, self.candidate, False, expected=self.expected)
+                verifier.verify_collection(directory, self.candidate, self.workflow_revision, False, expected=self.expected)
 
     def test_unsupported_claim_extra_file_and_traversal_are_rejected(self) -> None:
         directory, _ = self.factory.single("windows-x64")
@@ -243,7 +255,7 @@ class VerifierAdversaryTests(unittest.TestCase):
         directory, _ = self.factory.single("macos-x64")
         (directory / "extra.txt").write_text("extra\n", encoding="utf-8")
         with self.assertRaises(ReceiptError):
-            verifier.verify_collection(directory, self.candidate, False, expected=self.expected)
+            verifier.verify_collection(directory, self.candidate, self.workflow_revision, False, expected=self.expected)
 
         directory, _ = self.factory.single("linux-x64")
         self.assert_rejected(directory, lambda document, _: document["files"]["artifact"].update(path="../artifact"))
@@ -254,7 +266,7 @@ class VerifierAdversaryTests(unittest.TestCase):
         payload = receipt.read_bytes()
         receipt.write_bytes(payload.replace(b'{"authority":', b'{"schema":"duplicate","authority":', 1))
         with self.assertRaises(ReceiptError):
-            verifier.verify_collection(directory, self.candidate, False, expected=self.expected)
+            verifier.verify_collection(directory, self.candidate, self.workflow_revision, False, expected=self.expected)
 
         directory, _ = self.factory.single("windows-x64")
         marker = self.root / "receipt-command-ran"
@@ -269,7 +281,7 @@ class VerifierAdversaryTests(unittest.TestCase):
         artifact.unlink()
         artifact.symlink_to(directory / document["files"]["help_output"]["path"])
         with self.assertRaises(ReceiptError):
-            verifier.verify_collection(directory, self.candidate, False, expected=self.expected)
+            verifier.verify_collection(directory, self.candidate, self.workflow_revision, False, expected=self.expected)
 
 
 if __name__ == "__main__":

@@ -125,13 +125,18 @@ evidence promotable or changing any platform result from `pending`.
 The build-receipt continuation adds a separate fourteenth closed schema; it
 does not loosen `phase7-release-proof-v1.schema.json` from
 `fixture-only-non-production`. Nine focused Python adversaries and the static
-workflow contract cover dirty/mutable candidate boundaries, exact native
-tuples, safe new external output, missing/duplicate platforms, candidate and
-input drift, artifact/checksum/help substitution, unsupported claims, extra
-files, duplicate keys, command fields, traversal, and symlinks. The workflow
-resolves the dispatch input once, checks out that full SHA in matrix and
-collector jobs, uploads exactly five receipt directories for five days, and
-downloads them for read-only collection under `contents: read`.
+workflow contract cover dirty/mutable candidate boundaries, separately bound
+candidate and executing-workflow revisions, approved-remote-branch
+reachability, non-persisted checkout credentials, exact native tuples, safe
+new external output, missing/duplicate platforms, candidate and input drift,
+artifact/checksum/help substitution, unsupported claims, extra files,
+duplicate keys, command fields, traversal, and symlinks. The workflow resolves
+the dispatch input once, proves the result is reachable from
+`refs/remotes/origin/refactor/harness-v1`, and checks out that full SHA in
+matrix and collector jobs with credential persistence disabled. Both jobs
+fetch protected `main`, verify GitHub's immutable `workflow_sha` object and
+workflow path, upload exactly five receipt directories for five days, and
+download them for read-only collection under `contents: read`.
 
 No remote workflow run exists for this slice and no platform is accepted.
 Installer proof, full direct-binary proof, authenticated provenance, deferred

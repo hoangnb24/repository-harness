@@ -64,13 +64,17 @@ promotion negatives. It does not execute or satisfy step 5, and it does not
 assert any Phase 7 proof flag.
 
 The next bounded slice implements only the build/checksum/help-grammar portion
-of step 5. A closed build receipt binds the exact source commit and tree,
-`Cargo.lock`, command-implementation binding, workflow revision and bytes,
-native platform tuple, artifact, checksum, and raw help output. The capture
+of step 5. A closed build receipt separately binds (a) the exact candidate
+source commit/tree, `Cargo.lock`, and command-implementation binding and (b)
+the immutable revision and bytes of the protected-main workflow that actually
+executed the capture. The receipt also binds the native platform tuple,
+artifact, checksum, and raw help output. The capture
 refuses a dirty tree, mutable/non-HEAD candidate, cross-target tuple, unsafe or
 preexisting output, and non-exact six-command help. The collector reads either
 one receipt or exactly five downloaded workflow directories and never executes
-the artifacts.
+the artifacts. Local diagnostic capture must explicitly pass the current
+40-hex HEAD commit to `--workflow-revision`; there is no implicit
+workflow-identity default.
 
 Cause and effect: a successful native `cargo build` changes only
 `results.build` to the schema-fixed `passed`, and exact `--help` bytes change

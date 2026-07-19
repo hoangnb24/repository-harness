@@ -31,9 +31,13 @@ jobs:
     steps:
       - name: Prove unpromoted workflow identity
         shell: bash
+        env:
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
         run: |
           test "$GITHUB_WORKFLOW_REF" = "hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/main"
-          test "${{ inputs.candidate_ref }}" != ""
+          test -n "$CANDIDATE_REF"
+          [[ "$WORKFLOW_REVISION" =~ ^[0-9a-f]{40}$ ]]
 
   resolve-candidate:
     name: Resolve candidate once
@@ -45,15 +49,21 @@ jobs:
       - name: Checkout candidate ref for resolution only
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_ref }}
+          ref: refactor/harness-v1
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Export immutable candidate SHA
+      - name: Prove approved-branch reachability and export immutable candidate SHA
         id: resolve
         shell: bash
+        env:
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
         run: |
-          candidate_sha=$(git rev-parse --verify 'HEAD^{commit}')
+          test -n "$CANDIDATE_REF"
+          git show-ref --verify --quiet refs/remotes/origin/refactor/harness-v1
+          candidate_sha=$(git rev-parse --verify --end-of-options "${CANDIDATE_REF}^{commit}")
           [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]
+          git merge-base --is-ancestor "$candidate_sha" refs/remotes/origin/refactor/harness-v1
           test "$(git status --porcelain=v1 --untracked-files=all)" = ""
           echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
 
@@ -86,6 +96,18 @@ jobs:
         with:
           ref: ${{ needs.resolve-candidate.outputs.candidate_sha }}
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch and verify protected execution-workflow revision
+        shell: bash
+        env:
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+        run: |
+          [[ "$WORKFLOW_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          git cat-file -e "${WORKFLOW_REVISION}^{commit}"
+          git merge-base --is-ancestor "$WORKFLOW_REVISION" refs/remotes/origin/main
+          git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -99,13 +121,18 @@ jobs:
 
       - name: Capture native artifact, checksum, help grammar, and receipt
         shell: bash
+        env:
+          CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+          RECEIPT_OUTPUT: ${{ runner.temp }}/harness-v1-build-receipt-${{ matrix.platform }}
         run: |
           scripts/capture-v1-build-receipt.sh \
-            --candidate "${{ needs.resolve-candidate.outputs.candidate_sha }}" \
+            --candidate "$CANDIDATE_SHA" \
+            --workflow-revision "$WORKFLOW_REVISION" \
             --platform "${{ matrix.platform }}" \
             --target "${{ matrix.target }}" \
             --runner "${{ matrix.runner }}" \
-            --output "$RUNNER_TEMP/harness-v1-build-receipt-${{ matrix.platform }}"
+            --output "$RECEIPT_OUTPUT"
 
       - name: Upload bounded non-production receipt directory
         uses: actions/upload-artifact@v4
@@ -125,6 +152,18 @@ jobs:
         with:
           ref: ${{ needs.resolve-candidate.outputs.candidate_sha }}
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch and verify protected execution-workflow revision
+        shell: bash
+        env:
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+        run: |
+          [[ "$WORKFLOW_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          git cat-file -e "${WORKFLOW_REVISION}^{commit}"
+          git merge-base --is-ancestor "$WORKFLOW_REVISION" refs/remotes/origin/main
+          git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"
 
       - name: Download all five receipt directories
         uses: actions/download-artifact@v4
@@ -135,9 +174,13 @@ jobs:
 
       - name: Collect and verify without executing artifacts
         shell: bash
+        env:
+          CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
         run: |
           scripts/verify-v1-build-receipts.sh \
-            --candidate "${{ needs.resolve-candidate.outputs.candidate_sha }}" \
+            --candidate "$CANDIDATE_SHA" \
+            --workflow-revision "$WORKFLOW_REVISION" \
             --require-five \
             "$RUNNER_TEMP/harness-v1-build-receipts"
 

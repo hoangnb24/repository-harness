@@ -27,8 +27,27 @@ done
 grep -Fq 'resolve-candidate:' "$workflow" || fail "candidate resolver job is missing"
 grep -Fq 'candidate_sha: ${{ steps.resolve.outputs.candidate_sha }}' "$workflow" || fail "resolver output is missing"
 grep -Fq "candidate_sha=\$candidate_sha" "$workflow" || fail "immutable SHA handoff is missing"
+grep -Fq 'ref: refactor/harness-v1' "$workflow" || fail "resolver does not start from the approved branch"
+grep -Fq 'refs/remotes/origin/refactor/harness-v1' "$workflow" || fail "approved remote branch policy is missing"
+grep -Fq 'git merge-base --is-ancestor "$candidate_sha" refs/remotes/origin/refactor/harness-v1' "$workflow" ||
+  fail "candidate reachability proof is missing"
+grep -Fq 'fetch-depth: 0' "$workflow" || fail "full history required for reachability is missing"
+[[ "$(grep -Fc 'persist-credentials: false' "$workflow")" == 3 ]] ||
+  fail "resolver, matrix, and collector must all disable persisted checkout credentials"
 [[ "$(grep -Fc 'ref: ${{ needs.resolve-candidate.outputs.candidate_sha }}' "$workflow")" == 2 ]] ||
   fail "matrix and collector do not both checkout the immutable resolver SHA"
+
+grep -Fq 'CANDIDATE_REF: ${{ inputs.candidate_ref }}' "$workflow" || fail "candidate input is not mapped through env"
+! grep -Fq 'test "${{ inputs.candidate_ref }}"' "$workflow" || fail "candidate input is interpolated into shell source"
+grep -Fq 'git rev-parse --verify --end-of-options "${CANDIDATE_REF}^{commit}"' "$workflow" ||
+  fail "candidate input is not passed as one end-of-options-protected argv value"
+grep -Fq 'WORKFLOW_REVISION: ${{ github.workflow_sha }}' "$workflow" || fail "immutable execution-workflow SHA is missing"
+[[ "$(grep -Fc -- '--workflow-revision "$WORKFLOW_REVISION"' "$workflow")" == 2 ]] ||
+  fail "capture and collector do not share the execution-workflow revision"
+[[ "$(grep -Fc 'refs/heads/main:refs/remotes/origin/main' "$workflow")" == 2 ]] ||
+  fail "matrix and collector do not fetch protected main for workflow object verification"
+[[ "$(grep -Fc 'git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"' "$workflow")" == 2 ]] ||
+  fail "matrix and collector do not prove exact workflow bytes exist at the execution revision"
 
 matrix_block=$(sed -n '/^  prove-before-promotion:/,/^  collect-receipts:/p' "$workflow")
 [[ "$matrix_block" != *'inputs.candidate_ref'* ]] || fail "matrix checkout still uses the mutable input ref"

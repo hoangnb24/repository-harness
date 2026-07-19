@@ -67,7 +67,7 @@ def git_text(*arguments: str) -> str:
 
 def committed_candidate_identity(candidate: str, tree: str) -> dict[str, object]:
     inputs: dict[str, bytes] = {}
-    for path in (CARGO_LOCK_PATH, COMMAND_BINDING_PATH, WORKFLOW_PATH):
+    for path in (CARGO_LOCK_PATH, COMMAND_BINDING_PATH):
         worktree_path = ROOT / path
         check(
             worktree_path.is_file() and not worktree_path.is_symlink(),
@@ -85,11 +85,22 @@ def committed_candidate_identity(candidate: str, tree: str) -> dict[str, object]
             "path": COMMAND_BINDING_PATH,
             "sha256": sha256_bytes(inputs[COMMAND_BINDING_PATH]),
         },
-        "workflow": {
-            "path": WORKFLOW_PATH,
-            "revision": candidate,
-            "sha256": sha256_bytes(inputs[WORKFLOW_PATH]),
-        },
+    }
+
+
+def committed_execution_workflow_identity(workflow_revision: str) -> dict[str, str]:
+    check(
+        GIT_REVISION.fullmatch(workflow_revision) is not None,
+        "workflow revision must be exactly 40 lowercase hexadecimal characters",
+    )
+    workflow_bytes = fixed_output(
+        ["git", "show", f"{workflow_revision}:{WORKFLOW_PATH}"],
+        f"committed execution workflow {WORKFLOW_PATH}",
+    )
+    return {
+        "path": WORKFLOW_PATH,
+        "revision": workflow_revision,
+        "sha256": sha256_bytes(workflow_bytes),
     }
 
 
@@ -205,6 +216,7 @@ def regular_built_artifact(target: str, artifact_name: str) -> Path:
 def build_receipt_document(
     *,
     candidate_identity: dict[str, object],
+    execution_workflow_identity: dict[str, str],
     platform_name: str,
     target: str,
     runner: str,
@@ -219,6 +231,7 @@ def build_receipt_document(
         "schema": "repository-harness-v1-build-receipt/v1",
         "evidence_kind": "native-build-receipt-non-production",
         "candidate": deepcopy(candidate_identity),
+        "execution_workflow": deepcopy(execution_workflow_identity),
         "environment": {"platform": platform_name, "target": target, "runner": runner},
         "files": {
             "artifact": {"path": artifact_name, "bytes": len(artifact_bytes), "sha256": artifact_sha},
@@ -298,6 +311,7 @@ def capture(arguments: argparse.Namespace) -> Path:
     help_name = f"{artifact_name}.help.json"
     document = build_receipt_document(
         candidate_identity=committed_candidate_identity(candidate, tree),
+        execution_workflow_identity=committed_execution_workflow_identity(arguments.workflow_revision),
         platform_name=arguments.platform,
         target=target,
         runner=runner,
@@ -326,6 +340,11 @@ def capture(arguments: argparse.Namespace) -> Path:
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidate", required=True)
+    parser.add_argument(
+        "--workflow-revision",
+        required=True,
+        help="immutable commit whose committed workflow bytes executed this capture (use HEAD explicitly for local diagnostics)",
+    )
     parser.add_argument("--platform", required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--runner", required=True)
