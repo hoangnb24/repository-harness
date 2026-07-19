@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hoangnb24/repository-harness/release/contracts/v1/schemas/build-receipt-v1.schema.json",
+  "title": "Repository Harness V1 non-production native build receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "evidence_kind", "candidate", "environment", "files", "results", "authority"],
+  "properties": {
+    "schema": {"const": "repository-harness-v1-build-receipt/v1"},
+    "evidence_kind": {"const": "native-build-receipt-non-production"},
+    "candidate": {"$ref": "#/$defs/candidate"},
+    "environment": {"$ref": "#/$defs/environment"},
+    "files": {"$ref": "#/$defs/files"},
+    "results": {"$ref": "#/$defs/results"},
+    "authority": {"$ref": "#/$defs/authority"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitObject": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relativePath"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "workflowInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "revision", "sha256"],
+      "properties": {
+        "path": {"const": ".github/workflows/harness-v1-release.yml"},
+        "revision": {"$ref": "#/$defs/gitObject"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_commit", "source_tree", "cargo_lock", "command_implementation_binding", "workflow"],
+      "properties": {
+        "source_commit": {"$ref": "#/$defs/gitObject"},
+        "source_tree": {"$ref": "#/$defs/gitObject"},
+        "cargo_lock": {
+          "allOf": [
+            {"$ref": "#/$defs/input"},
+            {"properties": {"path": {"const": "Cargo.lock"}}}
+          ]
+        },
+        "command_implementation_binding": {
+          "allOf": [
+            {"$ref": "#/$defs/input"},
+            {"properties": {"path": {"const": "release/contracts/v1/command-implementation-binding.json"}}}
+          ]
+        },
+        "workflow": {"$ref": "#/$defs/workflowInput"}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "target", "runner"],
+      "properties": {
+        "platform": {"enum": ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64"]},
+        "target": {"enum": ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]},
+        "runner": {"enum": ["macos-15", "macos-15-intel", "ubuntu-24.04", "ubuntu-24.04-arm", "windows-latest"]}
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relativePath"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "checksum", "help_output"],
+      "properties": {
+        "artifact": {"$ref": "#/$defs/file"},
+        "checksum": {"$ref": "#/$defs/file"},
+        "help_output": {"$ref": "#/$defs/file"}
+      }
+    },
+    "results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "help_grammar_only", "installer", "full_direct_binary", "provenance"],
+      "properties": {
+        "build": {"const": "passed"},
+        "help_grammar_only": {"const": "passed"},
+        "installer": {"const": "pending"},
+        "full_direct_binary": {"const": "pending"},
+        "provenance": {"const": "checksum-only-unattested"}
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase6_live_evidence", "platform_acceptance", "phase7_acceptance", "platform_accepted",
+        "phase7_accepted", "production", "promotable", "tag_authorized", "release_authorized",
+        "publish_authorized", "promotion_authorized", "signing_authorized", "attestation_authorized",
+        "phase8", "blockers"
+      ],
+      "properties": {
+        "phase6_live_evidence": {"const": "pending"},
+        "platform_acceptance": {"const": "blocked"},
+        "phase7_acceptance": {"const": "blocked"},
+        "platform_accepted": {"const": false},
+        "phase7_accepted": {"const": false},
+        "production": {"const": false},
+        "promotable": {"const": false},
+        "tag_authorized": {"const": false},
+        "release_authorized": {"const": false},
+        "publish_authorized": {"const": false},
+        "promotion_authorized": {"const": false},
+        "signing_authorized": {"const": false},
+        "attestation_authorized": {"const": false},
+        "phase8": {"const": "closed"},
+        "blockers": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "prefixItems": [
+            {"const": "deferred-phase6-live-p0-p7-evidence-pending"},
+            {"const": "five-platform-acceptance-pending"},
+            {"const": "installer-proof-pending"},
+            {"const": "full-direct-binary-proof-pending"},
+            {"const": "authenticated-provenance-pending"}
+          ],
+          "items": false
+        }
+      }
+    }
+  }
+}

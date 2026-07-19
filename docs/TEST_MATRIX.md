@@ -141,6 +141,28 @@ states are pending, no real platform has passed, deferred Phase 6 live evidence
 is pending, every US-112 proof flag remains unasserted, Phase 7 acceptance/tag/
 publish/signing/promotion remain blocked, and Phase 8 remains closed.
 
+US-112's next bounded slice adds separate non-production build receipts without
+changing that fixture-only schema. A native capture requires a clean exact
+HEAD candidate and exact platform/target/runner tuple, builds the release V1
+`harness`, writes the exact checksum, captures the exact six-command JSON help,
+and binds those bytes to the source tree, `Cargo.lock`, command binding, and
+workflow bytes. A read-only collector verifies one or the exact five downloaded
+receipt directories and rejects drift, substitutions, command fields, unsafe
+claims, links/traversal, and extra files without executing artifacts:
+
+```bash
+tests/release/test-v1-build-receipts.sh
+tests/release/test-v1-build-receipt-workflow.sh
+tests/release/test-release-workflow-contract.sh
+```
+
+The existing five-runner workflow now uses this capture and collector, but it
+has not been dispatched for this slice. Therefore no platform is accepted:
+`build=passed` plus `help_grammar_only=passed` proves only compilation and
+machine-help identity. Installer, full direct-binary behavior, authenticated
+provenance, deferred Phase 6 P0-P7 evidence, platform equivalence, acceptance,
+and every release action remain pending or blocked.
+
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256` variables; the focused forwarding

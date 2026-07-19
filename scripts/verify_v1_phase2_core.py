@@ -470,10 +470,11 @@ def proof_workflow_lifecycle_guard() -> None:
     for fragment in [
         "github.repository == 'hoangnb24/repository-harness'",
         "prove-before-promotion:",
+        "collect-receipts:",
         "promotion-blocked:",
-        "needs: prove-before-promotion",
-        "mkdir -p scripts/bin",
-        "New-Item -ItemType Directory -Force scripts/bin",
+        "needs: collect-receipts",
+        "scripts/capture-v1-build-receipt.sh",
+        "scripts/verify-v1-build-receipts.sh",
         "exit 1",
     ]:
         check(fragment in workflow, f"workflow proof-before-promotion structure omits {fragment}")

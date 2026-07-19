@@ -1,7 +1,7 @@
 # US-112 V1 Phase 7 Portability And Release Proof Exec Plan
 
-Status: **In progress: first proof-contract slice implemented; platform execution,
-acceptance, and promotion pending**
+Status: **In progress: fixture contract and build-receipt infrastructure
+implemented; remote execution, acceptance, and promotion pending**
 
 ## Goal
 
@@ -63,15 +63,38 @@ fixtures, five pending artifact/checksum placeholders, and fail-closed
 promotion negatives. It does not execute or satisfy step 5, and it does not
 assert any Phase 7 proof flag.
 
+The next bounded slice implements only the build/checksum/help-grammar portion
+of step 5. A closed build receipt binds the exact source commit and tree,
+`Cargo.lock`, command-implementation binding, workflow revision and bytes,
+native platform tuple, artifact, checksum, and raw help output. The capture
+refuses a dirty tree, mutable/non-HEAD candidate, cross-target tuple, unsafe or
+preexisting output, and non-exact six-command help. The collector reads either
+one receipt or exactly five downloaded workflow directories and never executes
+the artifacts.
+
+Cause and effect: a successful native `cargo build` changes only
+`results.build` to the schema-fixed `passed`, and exact `--help` bytes change
+only `results.help_grammar_only` to `passed`. Because the slice does not run an
+installer or the behavioral command matrix and supplies no authenticated
+attestation, installer and full direct-binary proof remain `pending`,
+provenance remains `checksum-only-unattested`, and platform acceptance and all
+release authorities remain blocked.
+
 ## Resume Capsule
 
 - Objective: implement Phase 7 portability and release proof without promotion.
 - Completed: Decision 0016 accepted; intake #9 recorded; US-112 packet opened;
-  closed schema, fixture inventory, verifier, and focused adversarial test added.
-- Remaining: real platform runners/workflows, authenticated builds, direct-binary
-  and installer execution, cross-platform equivalence, deferred Phase 6 live
-  evidence, review, acceptance, and any separately authorized release action.
-- Exact next action: `inspect .github/workflows/harness-v1-release.yml before a separately scoped five-platform evidence-population slice`
+  fixture-only schema/inventory/verifier; separate closed build-receipt schema;
+  native capture wrapper; read-only single/five collector; exact five-runner
+  workflow wiring; focused adversaries; and static workflow authority checks.
+- Current evidence: local focused tests pass. The workflow has not been
+  dispatched, no remote receipt has been downloaded, and no platform is
+  accepted. A post-commit local macOS arm64 capture is diagnostic only.
+- Remaining: remote five-runner execution, authenticated provenance, full
+  direct-binary and installer execution, cross-platform equivalence, deferred
+  Phase 6 live evidence, review, acceptance, and any separately authorized
+  release action.
+- Exact next action: `review this receipt-infrastructure commit, then separately authorize an immutable candidate workflow run if five-runner diagnostic capture is desired`
 - Validation ladder: documentation and JSON checks; focused fixture/proof
   tests; installer/direct-binary tests; five-platform workflow; full premerge;
   stop at the first failed boundary.
@@ -79,9 +102,10 @@ assert any Phase 7 proof flag.
   deferred live experiments remain mandatory before acceptance/promotion.
 - Blockers and owners: external pilot custody/signatures remain with repository
   owners; production release authority remains with release maintainers.
-- Working state: branch `agent/phase7-proof-contract` based at `9da1c49`; the
-  candidate is fixture-only and no tag, publish, workflow-permission, or live
-  pilot mutation is authorized.
+- Working state: this continuation started from
+  `5fdec632f940523ed17bbbc54f1c05e40115a1f8`; neither the fixture proof nor a
+  build receipt authorizes a tag, release, publish, signing, attestation,
+  promotion, platform acceptance, or live-pilot mutation.
 
 ## Stop Conditions
 

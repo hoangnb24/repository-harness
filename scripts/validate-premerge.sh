@@ -59,6 +59,9 @@ else
 fi
 tests/evals/test-phase5-premerge-trust-forwarding.sh
 tests/release/test-v1-phase7-release-proof.sh
+tests/release/test-v1-build-receipts.sh
+tests/release/test-v1-build-receipt-workflow.sh
+tests/release/test-release-workflow-contract.sh
 
 cargo fmt --all -- --check
 cargo test --workspace --locked

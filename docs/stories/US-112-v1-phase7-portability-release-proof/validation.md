@@ -1,7 +1,7 @@
 # US-112 V1 Phase 7 Portability And Release Proof Validation
 
-Status: **Executable fixture/candidate contract implemented / all live Phase 6
-and Phase 7 results pending / no acceptance or promotion**
+Status: **Fixture contract and build-receipt infrastructure implemented / no
+remote workflow run or accepted platform / no acceptance or promotion**
 
 ## Proof Strategy
 
@@ -15,12 +15,20 @@ prove one exact candidate across every fixture and platform. A passing macOS
 test cannot substitute for a missing Windows artifact, and a complete platform
 matrix cannot substitute for the deferred Phase 6 pilot comparison.
 
+The build-receipt continuation can compile one real native release artifact,
+write its exact SHA-256 sidecar, capture its raw six-command JSON help, and bind
+those bytes to the exact committed inputs. Its verifier can collect the same
+shape from all five runner labels without executing any downloaded binary.
+This is infrastructure proof, not platform acceptance: building and asking for
+help exercises neither installer behavior nor the six commands' full mutation,
+recovery, audit, and unsupported boundaries.
+
 ## Test Plan
 
 | Layer | Cases |
 | --- | --- |
-| Unit | Closed schema, duplicate-key rejection, exact candidate identity, platform/path uniqueness, digest and promotion-state negatives. |
-| Integration | Fixture-only fresh/brownfield/nested/docs/monorepo/path/line-ending/custom-update/bridge inventory; no live operation claim. |
+| Unit | Closed schemas, duplicate-key rejection, exact candidate identity, native tuple/output safety, platform/path uniqueness, digest and authority-state negatives. |
+| Integration | Fixture-only repository-shape inventory plus synthetic single/exact-five receipt collection, checksum/help byte verification, and no artifact execution. |
 | E2E | Bash, PowerShell, and direct-binary install-to-audit flows. |
 | Platform | macOS arm64/x64, Linux x64/arm64, and Windows x64 exact artifacts. |
 | Performance | Build/proof duration recorded; no performance acceptance claim in the opening slice. |
@@ -89,6 +97,9 @@ python3 -m py_compile scripts/verify_v1_phase7_release_proof.py
 scripts/verify-v1-phase7-release-proof.sh
 tests/release/test-v1-phase7-release-proof.sh
 scripts/verify-v1-phase7-release-proof.sh --require-promotable  # expected exit 2
+tests/release/test-v1-build-receipts.sh
+tests/release/test-v1-build-receipt-workflow.sh
+tests/release/test-release-workflow-contract.sh
 tests/docs/test-doc-contracts.sh
 scripts/verify-v1-phase6-evidence.sh --framework-only
 ```
@@ -110,3 +121,20 @@ The correction integrates the thirteenth closed schema into the Phase 1 schema
 inventory and adds its one exact `source-only` path-ledger entry. This closes
 the earlier full-premerge integration gap without making the Phase 7 fixture
 evidence promotable or changing any platform result from `pending`.
+
+The build-receipt continuation adds a separate fourteenth closed schema; it
+does not loosen `phase7-release-proof-v1.schema.json` from
+`fixture-only-non-production`. Nine focused Python adversaries and the static
+workflow contract cover dirty/mutable candidate boundaries, exact native
+tuples, safe new external output, missing/duplicate platforms, candidate and
+input drift, artifact/checksum/help substitution, unsupported claims, extra
+files, duplicate keys, command fields, traversal, and symlinks. The workflow
+resolves the dispatch input once, checks out that full SHA in matrix and
+collector jobs, uploads exactly five receipt directories for five days, and
+downloads them for read-only collection under `contents: read`.
+
+No remote workflow run exists for this slice and no platform is accepted.
+Installer proof, full direct-binary proof, authenticated provenance, deferred
+Phase 6 P0-P7 evidence, cross-platform equivalence, Phase 7 acceptance, and all
+tag/release/publish/signing/attestation/promotion actions remain pending or
+blocked.

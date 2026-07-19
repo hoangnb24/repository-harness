@@ -99,6 +99,7 @@
     {"path": "release/contracts/v1/schemas/archive-manifest-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Schema implementation input, not installed payload"},
     {"path": "release/contracts/v1/schemas/availability-receipt-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Release evidence schema, not installed payload"},
     {"path": "release/contracts/v1/schemas/bootstrap-identity-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Closed bootstrap identity schema, not installed payload"},
+    {"path": "release/contracts/v1/schemas/build-receipt-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Non-production native build receipt schema, not installed payload or release authority"},
     {"path": "release/contracts/v1/schemas/command-implementation-binding-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Closed command implementation binding schema, not installed payload"},
     {"path": "release/contracts/v1/schemas/command-grammar-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Closed command grammar schema, not installed payload"},
     {"path": "release/contracts/v1/schemas/manifest-v1.schema.json", "surface": "phase1-release-contract", "disposition": "source-only", "reason": "Core implementation input, not installed payload"},

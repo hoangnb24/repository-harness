@@ -1,8 +1,8 @@
 name: Repository Harness V1 Proof (Unpromoted)
 
-# Phase 2 supplies workflow source identity and cross-platform proof structure only.
-# Production promotion remains blocked until repository protection and a pinned
-# artifact attestation are supplied as external evidence.
+# Phase 7 captures non-production native build/checksum/help receipts only.
+# Installer, full direct-binary, authenticated provenance, platform acceptance,
+# release, and production promotion remain blocked.
 on:
   workflow_dispatch:
     inputs:
@@ -35,9 +35,31 @@ jobs:
           test "$GITHUB_WORKFLOW_REF" = "hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/main"
           test "${{ inputs.candidate_ref }}" != ""
 
-  prove-before-promotion:
-    name: Prove ${{ matrix.platform }} core source
+  resolve-candidate:
+    name: Resolve candidate once
     needs: repository-identity
+    runs-on: ubuntu-24.04
+    outputs:
+      candidate_sha: ${{ steps.resolve.outputs.candidate_sha }}
+    steps:
+      - name: Checkout candidate ref for resolution only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 0
+
+      - name: Export immutable candidate SHA
+        id: resolve
+        shell: bash
+        run: |
+          candidate_sha=$(git rev-parse --verify 'HEAD^{commit}')
+          [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git status --porcelain=v1 --untracked-files=all)" = ""
+          echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+
+  prove-before-promotion:
+    name: Capture ${{ matrix.platform }} non-production build receipt
+    needs: [repository-identity, resolve-candidate]
     strategy:
       fail-fast: false
       matrix:
@@ -62,7 +84,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_ref }}
+          ref: ${{ needs.resolve-candidate.outputs.candidate_sha }}
           fetch-depth: 0
 
       - name: Install Rust
@@ -70,38 +92,58 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Check and test pure core
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Capture native artifact, checksum, help grammar, and receipt
         shell: bash
         run: |
-          cargo check --workspace --locked
-          cargo test -p harness-core --locked
-          cargo clippy -p harness-core --all-targets --locked -- -D warnings
+          scripts/capture-v1-build-receipt.sh \
+            --candidate "${{ needs.resolve-candidate.outputs.candidate_sha }}" \
+            --platform "${{ matrix.platform }}" \
+            --target "${{ matrix.target }}" \
+            --runner "${{ matrix.runner }}" \
+            --output "$RUNNER_TEMP/harness-v1-build-receipt-${{ matrix.platform }}"
 
-      - name: Build exact platform binary identity
-        shell: bash
-        run: cargo build -p harness-core --bin harness --target "${{ matrix.target }}" --locked
+      - name: Upload bounded non-production receipt directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-v1-build-receipt-${{ matrix.platform }}
+          path: ${{ runner.temp }}/harness-v1-build-receipt-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 5
 
-      - name: Prove Unix binary help identity
-        if: runner.os != 'Windows'
+  collect-receipts:
+    name: Verify exact five-platform receipt collection
+    needs: [resolve-candidate, prove-before-promotion]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-candidate.outputs.candidate_sha }}
+          fetch-depth: 0
+
+      - name: Download all five receipt directories
+        uses: actions/download-artifact@v4
+        with:
+          pattern: harness-v1-build-receipt-*
+          path: ${{ runner.temp }}/harness-v1-build-receipts
+          merge-multiple: false
+
+      - name: Collect and verify without executing artifacts
         shell: bash
         run: |
-          mkdir -p scripts/bin
-          install -m 755 "target/${{ matrix.target }}/debug/harness" scripts/bin/harness
-          scripts/bin/harness --help > harness-machine-grammar.json
-          python3 -m json.tool harness-machine-grammar.json >/dev/null
-
-      - name: Prove Windows binary help identity
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force scripts/bin | Out-Null
-          Copy-Item "target/${{ matrix.target }}/debug/harness.exe" scripts/bin/harness.exe
-          scripts/bin/harness.exe --help | Set-Content -Encoding utf8 harness-machine-grammar.json
-          Get-Content harness-machine-grammar.json | ConvertFrom-Json | Out-Null
+          scripts/verify-v1-build-receipts.sh \
+            --candidate "${{ needs.resolve-candidate.outputs.candidate_sha }}" \
+            --require-five \
+            "$RUNNER_TEMP/harness-v1-build-receipts"
 
   promotion-blocked:
     name: Production promotion guard
-    needs: prove-before-promotion
+    needs: collect-receipts
     if: inputs.request_promotion
     runs-on: ubuntu-24.04
     steps:

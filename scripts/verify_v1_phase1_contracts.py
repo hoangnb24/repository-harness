@@ -681,7 +681,7 @@ def validate_bootstrap(value: dict[str, Any], repository_root: Path = ROOT) -> N
                 "github.repository == 'hoangnb24/repository-harness'",
                 "prove-before-promotion:",
                 "promotion-blocked:",
-                "needs: prove-before-promotion",
+                "needs: collect-receipts",
                 "repository-protection and pinned artifact-attestation evidence are not present",
                 "exit 1",
             ]:
@@ -814,7 +814,11 @@ def parse_changeset_fixture(path: Path, matrix: dict[str, Any]) -> None:
 
 def proof_schemas_and_examples() -> None:
     schema_files = sorted(SCHEMAS.glob("*.schema.json"))
-    check(len(schema_files) == 13, "expected thirteen versioned JSON schemas")
+    check(len(schema_files) == 14, "expected fourteen versioned JSON schemas")
+    check(
+        SCHEMAS / "build-receipt-v1.schema.json" in schema_files,
+        "V1 build receipt schema is missing from the closed inventory",
+    )
     check(
         SCHEMAS / "phase7-release-proof-v1.schema.json" in schema_files,
         "Phase 7 release proof schema is missing from the closed inventory",

@@ -117,7 +117,7 @@ fn signed_release_trust() -> ReleaseTrustInput {
             revoked_key_ids: Vec::new(),
         },
         trust_policy: TrustPolicy::TestFixtures,
-        path_ledger_sha256: "98336808d65dee5528e52f5ad128d47a3fe27d40a927d92e101ad6b79053448a"
+        path_ledger_sha256: "65021d88015172ff68a922aa6dca80f172b2009bd7c62f90db11dbb9cf5035a1"
             .into(),
         freshness: ReleaseFreshness::Existing {
             sequence: 44,

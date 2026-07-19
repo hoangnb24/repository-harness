@@ -61,9 +61,10 @@ PHASE5_FORWARDING_COMPATIBILITY_PATH = (
     "tests/evals/test-phase5-premerge-trust-forwarding.sh"
 )
 PHASE5_FORWARDING_COMPATIBILITY_GIT_OID = (
-    "91fcaf98580f824afc96e51825488bb690429f1c"
+    "9cf3290dc24d5abb1b299a0dff38771ffa7577fd"
 )
 ALLOWED_CHANGED_FILES = {
+    ".github/workflows/harness-v1-release.yml",
     ".harness/changesets/harness_v1_phase6_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase6_01_story.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_00_intake.changeset.jsonl",
@@ -95,10 +96,15 @@ ALLOWED_CHANGED_FILES = {
     "docs/templates/story.md",
     "docs/templates/validation-report.md",
     "release/contracts/v1/path-dispositions.json",
+    "release/contracts/v1/schemas/build-receipt-v1.schema.json",
     "release/contracts/v1/schemas/phase7-release-proof-v1.schema.json",
+    "scripts/capture-v1-build-receipt.sh",
+    "scripts/capture_v1_build_receipt.py",
     "scripts/capture-v1-phase6-warm-v0.py",
     "scripts/harness-install-files.txt",
     "scripts/validate-premerge.sh",
+    "scripts/v1_build_receipt_common.py",
+    "scripts/verify-v1-build-receipts.sh",
     "scripts/verify-v1-phase6-evidence.sh",
     "scripts/verify-v1-phase7-release-proof.sh",
     PHASE5_VERIFIER_COMPATIBILITY_PATH,
@@ -106,6 +112,7 @@ ALLOWED_CHANGED_FILES = {
     "scripts/verify_v1_phase2_core.py",
     "scripts/verify_v1_phase3_recovery.py",
     "scripts/verify_v1_phase6_evidence.py",
+    "scripts/verify_v1_build_receipts.py",
     "scripts/verify_v1_phase7_release_proof.py",
     "tests/evals/test-v1-phase6-evidence.sh",
     PHASE5_FORWARDING_COMPATIBILITY_PATH,
@@ -151,6 +158,9 @@ ALLOWED_CHANGED_FILES = {
     "tests/fixtures/v1-phase7/repositories/nested-instructions/packages/api/AGENTS.md",
     "tests/fixtures/v1-phase7/repositories/spaces-unicode/docs/Release notes/你好.md",
     "tests/release/test-v1-phase7-release-proof.sh",
+    "tests/release/test-v1-build-receipt-workflow.sh",
+    "tests/release/test-v1-build-receipts.sh",
+    "tests/release/test_v1_build_receipts.py",
 }
 FORBIDDEN_PHASE6_FILENAMES = {
     "harness.db",
@@ -1374,6 +1384,56 @@ def verify_phase7_proof_contract_boundary() -> None:
             ),
             "Phase 7 fixture contract makes a platform pass claim",
         )
+
+
+def verify_phase7_build_receipt_boundary() -> None:
+    schema_document = load_json(
+        ROOT / "release/contracts/v1/schemas/build-receipt-v1.schema.json"
+    )
+    check(
+        schema_document.get("$schema")
+        == "https://json-schema.org/draft/2020-12/schema"
+        and schema_document.get("additionalProperties") is False,
+        "Phase 7 build receipt schema is not closed Draft 2020-12",
+    )
+    properties = schema_document.get("properties", {})
+    check(
+        properties.get("evidence_kind", {}).get("const")
+        == "native-build-receipt-non-production",
+        "Phase 7 build receipt schema is not explicitly non-production",
+    )
+    definitions = schema_document.get("$defs", {})
+    result_properties = definitions.get("results", {}).get("properties", {})
+    check(
+        {name: value.get("const") for name, value in result_properties.items()}
+        == {
+            "build": "passed",
+            "help_grammar_only": "passed",
+            "installer": "pending",
+            "full_direct_binary": "pending",
+            "provenance": "checksum-only-unattested",
+        },
+        "Phase 7 build receipt result vocabulary opened an unsupported claim",
+    )
+    authority_properties = definitions.get("authority", {}).get("properties", {})
+    false_authorities = (
+        "platform_accepted",
+        "phase7_accepted",
+        "production",
+        "promotable",
+        "tag_authorized",
+        "release_authorized",
+        "publish_authorized",
+        "promotion_authorized",
+        "signing_authorized",
+        "attestation_authorized",
+    )
+    check(
+        all(authority_properties.get(field, {}).get("const") is False for field in false_authorities)
+        and authority_properties.get("platform_acceptance", {}).get("const") == "blocked"
+        and authority_properties.get("phase7_acceptance", {}).get("const") == "blocked",
+        "Phase 7 build receipt schema opened acceptance or release authority",
+    )
 
 
 def self_test_phase5_compatibility_boundary(lock: dict[str, Any]) -> None:
@@ -2682,6 +2742,10 @@ def main() -> int:
         proof(
             "Phase 7 fixture contract remains non-production and promotion-blocked",
             verify_phase7_proof_contract_boundary,
+        )
+        proof(
+            "Phase 7 native build receipt remains checksum-only and non-authoritative",
+            verify_phase7_build_receipt_boundary,
         )
         proof("no raw V0 database or archive in Phase 6 custody", scan_no_raw_state)
         registry = Path(arguments.trusted_owner_registry) if arguments.trusted_owner_registry else None
