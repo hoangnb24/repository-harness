@@ -155,19 +155,21 @@ promotion blocked.
   GitHub/Sigstore attestation generation;
   pre-execution verification; bounded bundle/verification evidence; Unix
   destination-link adversaries; exact build/execution tuple binding; Windows
-  pre-publication refusal; and local focused tests.
-- Current evidence: local focused execution passes on macOS arm64. CI attempt
-  2, run `29682593310` at `47d3ae1a341e87cd1d76811aa7f21b4fba707fec`,
-  passed all four Unix build rows and exposed a Windows compile-time cfg leak
-  before artifact upload or attestation. The pure recovery-path formatter is
-  now platform-neutral while mutation remains Unix-only; a local Windows-target
-  `cargo check` passes. No remote signed bundle or execution receipt has been
-  downloaded, and no platform is accepted.
-- Remaining: remote five-runner execution, safe Windows repository mutation,
-  remote verified provenance evidence, deferred Phase 6 live evidence,
-  platform acceptance, review, and any
+  pre-publication refusal; PowerShell 5.1-safe separate refusal-stream capture;
+  and local focused tests.
+- Current evidence: local focused execution passes on macOS arm64. CI run
+  `29685632567` at `dd5648daa0db822f29a90fc47fcfbfce43db4a88` verified
+  provenance and completed six-command execution on all five platforms.
+  Windows job `88189458225` then failed because its PowerShell 5.1 parent test
+  promoted the expected refusal stderr to a terminating `NativeCommandError`
+  before the no-mutation/input-hash assertions. The test harness now uses
+  separate .NET process streams while Windows mutation remains unsupported.
+  Final collection did not complete, and no platform is accepted.
+- Remaining: a successful remote Windows refusal assertion and final receipt
+  collection/equivalence, safe Windows repository mutation, deferred Phase 6
+  live evidence, platform acceptance, review, and any
   separately authorized release action.
-- Exact next action: `review this committed candidate; if remote diagnostics are later authorized, change the diagnostic sentinel in the exact candidate pushed to refactor/harness-v1`
+- Exact next action: `review this child commit; if another remote diagnostic is authorized, advance the sentinel in a normal child and push that exact candidate to refactor/harness-v1`
 - Validation ladder: documentation and JSON checks; focused fixture/proof
   tests; installer/direct-binary tests; five-platform workflow; full premerge;
   stop at the first failed boundary.

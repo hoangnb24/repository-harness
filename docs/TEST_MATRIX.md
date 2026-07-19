@@ -216,6 +216,27 @@ build receipt, deferred Phase 6 P0-P7 evidence, platform equivalence,
 acceptance, production signing, and every release action remain pending or
 blocked.
 
+CI attempt 3, run `29685632567` at published candidate
+`dd5648daa0db822f29a90fc47fcfbfce43db4a88`, completed GitHub/Sigstore
+provenance verification and the six-command execution proof on all five
+platforms. Windows job `88189458225` then failed only in the native
+controlled-unsupported installer test: Windows PowerShell 5.1 promoted the
+installer's expected stderr and exit 1 to a terminating `NativeCommandError`
+because the parent test used `ErrorActionPreference=Stop` with `2>&1`.
+The corrected test retains `Stop` for its own failures but launches the child
+through `System.Diagnostics.Process`, captures stdout and stderr independently,
+and asserts exact empty stdout, the exact refusal line plus platform newline,
+exit 1, absent destination state, and unchanged artifact/checksum hashes.
+The execution-proof verifier pins the complete reviewed CRLF PowerShell test
+bytes at SHA-256
+`059da9845613392a761a4016576d140c9be6c9957c430bcb6b192048696ad5a6`.
+Adversaries reject required strings moved into block/trailing comments, active
+redirect=false with a comment-preserved true marker, loose matching with the
+exact comparison in a comment, native `*>&1`, and forced exit 1. The failed
+Windows assertion and skipped final collection mean no platform is accepted;
+Windows publication, five-platform equivalence, Phase 7 acceptance, and
+release authority remain pending or blocked.
+
 US-112's local execution slice adds checksum/platform preflight to the real V1
 binary, a V1-only Bash installer and PowerShell controlled-unsupported installer
 surface, external signed-test-payload

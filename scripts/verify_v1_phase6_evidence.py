@@ -77,6 +77,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase7_06_cross_binding_corrections.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_07_github_attestation.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_08_windows_compile_fix.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_09_windows_refusal_capture.changeset.jsonl",
     "crates/harness-core/src/infrastructure.rs",
     "crates/harness-core/src/main.rs",
     "crates/harness-core/src/recovery.rs",
@@ -229,6 +230,10 @@ PHASE7_ATTESTATION_CHANGESET = (
 )
 PHASE7_WINDOWS_COMPILE_FIX_CHANGESET = (
     ROOT / ".harness/changesets/harness_v1_phase7_08_windows_compile_fix.changeset.jsonl"
+)
+PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET = (
+    ROOT
+    / ".harness/changesets/harness_v1_phase7_09_windows_refusal_capture.changeset.jsonl"
 )
 PHASE7_DECISION_ID = "0016-phase6-framework-acceptance-and-phase7-opening"
 PHASE7_STORY_ID = "US-112"
@@ -413,6 +418,14 @@ PHASE7_WINDOWS_COMPILE_FIX_TRACE_SUMMARY = (
 PHASE7_WINDOWS_COMPILE_FIX_RECORD_SHA256 = (
     "5e2854b86d1817a23064c9444cfc88ca0f21a94d18a942613e3090c5675e27c9",
     "33329265db6a9b650ec7424c77a4669ff69090070c5f14306d460d7f8281acab",
+)
+PHASE7_WINDOWS_REFUSAL_CAPTURE_TRACE_UID = "trc_472743323f88203ddbbf72ab150c6bbf"
+PHASE7_WINDOWS_REFUSAL_CAPTURE_TRACE_SUMMARY = (
+    "Corrected the Windows refusal test harness without weakening installer refusal"
+)
+PHASE7_WINDOWS_REFUSAL_CAPTURE_RECORD_SHA256 = (
+    "1cf34f45a8fd079d7d6ef5cc09e3aaa20b42f637fd0baa1974e78f05c023ffea",
+    "d69b82758c2a0a2161ad07fcc70127004928bda34279548eecfdea9fa2a08b63",
 )
 PHASE7_BUILD_RECEIPT_TRACE_UIDS = (
     "trc_1af4542310616a192351f13e21302f03",
@@ -1933,6 +1946,54 @@ def validate_phase7_windows_compile_fix_records(records: list[dict[str, Any]]) -
         )
 
 
+def validate_phase7_windows_refusal_capture_records(
+    records: list[dict[str, Any]],
+) -> None:
+    check(
+        tuple(sha256_bytes(canonical_bytes(record)) for record in records)
+        == PHASE7_WINDOWS_REFUSAL_CAPTURE_RECORD_SHA256,
+        "Phase 7 Windows refusal-capture changeset record bytes changed",
+    )
+    check(
+        [record.get("op") for record in records] == ["changeset.header", "trace.add"],
+        "Phase 7 Windows refusal-capture operation sequence changed",
+    )
+    check(
+        records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase7_09_windows_refusal_capture",
+            "version": 1,
+        },
+        "Phase 7 Windows refusal-capture header changed",
+    )
+    trace = records[1]
+    payload = trace.get("payload", {})
+    check(
+        trace.get("uid") == PHASE7_WINDOWS_REFUSAL_CAPTURE_TRACE_UID
+        and trace.get("version") == 2
+        and payload.get("task_summary")
+        == PHASE7_WINDOWS_REFUSAL_CAPTURE_TRACE_SUMMARY
+        and payload.get("intake_uid") == PHASE7_INTAKE_UID
+        and payload.get("story_id") == PHASE7_STORY_ID
+        and payload.get("agent") == "codex"
+        and payload.get("outcome") == "completed"
+        and payload.get("duration_seconds") is None
+        and payload.get("token_estimate") is None
+        and "No push, dispatch, main mutation" in payload.get("notes", ""),
+        "Phase 7 Windows refusal-capture trace lost identity or closed authority",
+    )
+    for field in ("actions_taken", "files_read", "files_changed", "decisions_made", "errors"):
+        values = strict_json_loads(payload.get(field, ""))
+        check(
+            isinstance(values, list)
+            and values
+            and all(isinstance(value, str) and value for value in values),
+            f"Phase 7 Windows refusal-capture trace {field} is not Detailed",
+        )
+
+
 def verify_phase7_opening_gate() -> None:
     intake_records = load_jsonl(PHASE7_INTAKE_CHANGESET)
     story_records = load_jsonl(PHASE7_STORY_CHANGESET)
@@ -1943,6 +2004,9 @@ def verify_phase7_opening_gate() -> None:
     second_correction_records = load_jsonl(PHASE7_SECOND_CORRECTION_CHANGESET)
     attestation_records = load_jsonl(PHASE7_ATTESTATION_CHANGESET)
     windows_compile_fix_records = load_jsonl(PHASE7_WINDOWS_COMPILE_FIX_CHANGESET)
+    windows_refusal_capture_records = load_jsonl(
+        PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET
+    )
     validate_phase7_opening_records(intake_records, story_records)
     self_test_phase7_opening_records(intake_records, story_records)
     validate_phase7_proof_contract_records(intake_records, proof_records)
@@ -1958,6 +2022,9 @@ def verify_phase7_opening_gate() -> None:
     validate_phase7_attestation_records(attestation_records)
     self_test_phase7_attestation_records(attestation_records)
     validate_phase7_windows_compile_fix_records(windows_compile_fix_records)
+    validate_phase7_windows_refusal_capture_records(
+        windows_refusal_capture_records
+    )
 
     with tempfile.TemporaryDirectory(prefix="phase7-opening-replay-") as temporary:
         database = Path(temporary) / "replay.db"
@@ -1972,6 +2039,7 @@ def verify_phase7_opening_gate() -> None:
                 PHASE7_SECOND_CORRECTION_CHANGESET,
                 PHASE7_ATTESTATION_CHANGESET,
                 PHASE7_WINDOWS_COMPILE_FIX_CHANGESET,
+                PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET,
             }:
                 shutil.copyfile(changeset, prior_changesets / changeset.name)
         environment = dict(os.environ)
@@ -2655,6 +2723,87 @@ def verify_phase7_opening_gate() -> None:
             check(
                 applied == (1,),
                 "Phase 7 Windows compile-fix idempotent replay recorded multiple applications",
+            )
+        finally:
+            connection.close()
+
+        windows_refusal_capture_apply = [
+            str(ROOT / "scripts/bin/harness-cli"),
+            "db",
+            "changeset",
+            "apply",
+            str(PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET),
+        ]
+        for attempt in ("initial", "idempotent"):
+            windows_refusal_capture_result = subprocess.run(
+                windows_refusal_capture_apply,
+                cwd=ROOT,
+                capture_output=True,
+                check=False,
+                env=environment,
+                text=True,
+            )
+            check(
+                windows_refusal_capture_result.returncode == 0,
+                f"Phase 7 Windows refusal-capture changeset {attempt} apply failed",
+            )
+        connection = sqlite3.connect(str(database))
+        try:
+            story = connection.execute(
+                """
+                SELECT status, unit_proof, integration_proof, e2e_proof,
+                       platform_proof, evidence, last_verified_result,
+                       verify_command
+                FROM story WHERE id = ?
+                """,
+                (PHASE7_STORY_ID,),
+            ).fetchall()
+            check(
+                story
+                == [
+                    (
+                        "in_progress",
+                        0,
+                        0,
+                        0,
+                        0,
+                        PHASE7_ATTESTATION_EVIDENCE,
+                        "pass",
+                        PHASE7_ATTESTATION_VERIFY_COMMAND,
+                    )
+                ],
+                "Windows refusal-capture trace changed US-112 proof or authority state",
+            )
+            trace = connection.execute(
+                """
+                SELECT uid, intake_uid, story_id, task_summary, outcome,
+                       duration_seconds, token_estimate
+                FROM trace WHERE uid = ?
+                """,
+                (PHASE7_WINDOWS_REFUSAL_CAPTURE_TRACE_UID,),
+            ).fetchall()
+            check(
+                trace
+                == [
+                    (
+                        PHASE7_WINDOWS_REFUSAL_CAPTURE_TRACE_UID,
+                        PHASE7_INTAKE_UID,
+                        PHASE7_STORY_ID,
+                        PHASE7_WINDOWS_REFUSAL_CAPTURE_TRACE_SUMMARY,
+                        "completed",
+                        None,
+                        None,
+                    )
+                ],
+                "isolated Windows refusal-capture replay lost stable trace identity",
+            )
+            applied = connection.execute(
+                "SELECT COUNT(*) FROM changeset_applied WHERE id = ?",
+                ("harness_v1_phase7_09_windows_refusal_capture",),
+            ).fetchone()
+            check(
+                applied == (1,),
+                "Phase 7 Windows refusal-capture idempotent replay recorded multiple applications",
             )
         finally:
             connection.close()

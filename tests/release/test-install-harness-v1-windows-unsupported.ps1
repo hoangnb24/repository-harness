@@ -16,17 +16,45 @@ if (Test-Path -LiteralPath $Workspace) {
 $ArtifactBefore = (Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash
 $ChecksumBefore = (Get-FileHash -LiteralPath $Checksum -Algorithm SHA256).Hash
 
-$Output = & $PowerShellExe -NoProfile -File $Installer `
-    -Artifact $Artifact `
-    -Checksum $Checksum `
-    -Platform windows-x64 `
-    -Directory $Destination 2>&1
+$Invocation = '& $env:HARNESS_V1_TEST_INSTALLER -Artifact $env:HARNESS_V1_TEST_ARTIFACT -Checksum $env:HARNESS_V1_TEST_CHECKSUM -Platform windows-x64 -Directory $env:HARNESS_V1_TEST_DESTINATION'
+$EncodedInvocation = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Invocation))
+$StartInfo = New-Object System.Diagnostics.ProcessStartInfo
+$StartInfo.FileName = $PowerShellExe
+$StartInfo.Arguments = "-NoLogo -NoProfile -NonInteractive -EncodedCommand $EncodedInvocation"
+$StartInfo.UseShellExecute = $false
+$StartInfo.CreateNoWindow = $true
+$StartInfo.RedirectStandardOutput = $true
+$StartInfo.RedirectStandardError = $true
+$StartInfo.EnvironmentVariables["HARNESS_V1_TEST_INSTALLER"] = $Installer
+$StartInfo.EnvironmentVariables["HARNESS_V1_TEST_ARTIFACT"] = $Artifact
+$StartInfo.EnvironmentVariables["HARNESS_V1_TEST_CHECKSUM"] = $Checksum
+$StartInfo.EnvironmentVariables["HARNESS_V1_TEST_DESTINATION"] = $Destination
 
-if ($LASTEXITCODE -ne 1) {
+$Process = New-Object System.Diagnostics.Process
+$Process.StartInfo = $StartInfo
+try {
+    if (!$Process.Start()) {
+        throw "Harness V1 PowerShell installer process did not start"
+    }
+    $StandardOutputTask = $Process.StandardOutput.ReadToEndAsync()
+    $StandardErrorTask = $Process.StandardError.ReadToEndAsync()
+    $Process.WaitForExit()
+    $ExitCode = $Process.ExitCode
+    $StandardOutput = $StandardOutputTask.GetAwaiter().GetResult()
+    $StandardError = $StandardErrorTask.GetAwaiter().GetResult()
+} finally {
+    $Process.Dispose()
+}
+
+if ($ExitCode -ne 1) {
     throw "Harness V1 PowerShell installer did not return controlled unsupported"
 }
-if (($Output -join "`n") -ne $Expected) {
-    throw "Harness V1 PowerShell installer refusal changed: $Output"
+if ($StandardOutput -ne "") {
+    throw "Harness V1 PowerShell installer wrote unexpected stdout: $StandardOutput"
+}
+$ExpectedStandardError = $Expected + [Environment]::NewLine
+if ($StandardError -ne $ExpectedStandardError) {
+    throw "Harness V1 PowerShell installer refusal changed: $StandardError"
 }
 if (Test-Path -LiteralPath $Workspace) {
     throw "Harness V1 PowerShell installer created destination state before refusal"

@@ -232,15 +232,31 @@ comment-spaced raw attribute, alternative Windows cfg expressions,
 conditionally absent method, unconditional/Windows-conditional filesystem
 work before refusal, and marker-preserving non-Unix success variants all fail.
 The scanner walks masked comments and ABI strings while retaining
-original offsets for associated attribute bytes. CI remains the final native
-Windows runner proof.
+original offsets for associated attribute bytes.
+
+CI run `29685632567` at published candidate
+`dd5648daa0db822f29a90fc47fcfbfce43db4a88` verified GitHub/Sigstore
+provenance and completed the six-command execution proof on all five runners.
+Windows job `88189458225` failed afterward only because the PowerShell 5.1 test
+harness combined expected native stderr with the success stream while
+`ErrorActionPreference=Stop`; the exact refusal became a terminating
+`NativeCommandError` before exit, no-mutation, and input-hash assertions could
+run. The correction uses `System.Diagnostics.Process` with separate asynchronous
+stdout/stderr capture and asserts empty stdout, exact refusal plus platform
+newline, exit 1, no destination state, and unchanged authenticated inputs.
+The execution-proof contract pins the entire reviewed CRLF test at SHA-256
+`059da9845613392a761a4016576d140c9be6c9957c430bcb6b192048696ad5a6`;
+commented markers cannot substitute for active behavior. Seeded variants hide
+the required test in `<# #>`, preserve old markers in trailing comments while
+disabling redirect or loosening comparison, add native `*>&1`, or force exit 1.
+Every byte-substituted variant fails the contract.
 
 No platform is accepted. A local macOS arm64 test-fixture installer/direct-
-binary proof exists; native Windows refusal evidence, exact-five build/
-execution/provenance cross-binding and normalized equivalence, remote
-attestation evidence, deferred Phase 6 P0-P7 evidence, Phase 7 acceptance, and
-all tag/release/publish/production-signing/promotion actions remain pending or
-blocked.
+binary proof exists, and the remote run supplies five-platform provenance plus
+six-command diagnostic execution. Native Windows installer-refusal completion,
+final receipt collection/equivalence, deferred Phase 6 P0-P7 evidence, Phase 7
+acceptance, and all tag/release/publish/production-signing/promotion actions
+remain pending or blocked.
 
 The local execution continuation adds a closed non-production schema under the
 release test surface, V1-only Bash/PowerShell installers, direct self-digest
@@ -252,7 +268,8 @@ build receipts, swapped platform/runner/target/artifact-name/digest tuples,
 provenance and platform overclaims, normalized payload substitution, normalized
 drift, and missing authentication. PowerShell's checksum/platform-before-refusal
 order and absence of destination creation/copy/move are checked statically
-locally; its native refusal test remains unrun until a Windows diagnostic.
-The failed remote workflow produced no attestation or execution receipt, so
+locally. Run `29685632567` exercised the native refusal but the parent test
+harness terminated while capturing its expected stderr, so its post-exit
+no-mutation/input-hash assertions and final collection remain incomplete.
 `platform_proof`, Phase 7 acceptance, and all promotion authorities remain
 false.

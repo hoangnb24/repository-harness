@@ -25,6 +25,9 @@ BLOCKERS = ["deferred-phase6-live-p0-p7-evidence-pending", "five-platform-semant
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REVISION = re.compile(r"^[0-9a-f]{40}$")
 WORKFLOW_PATH = ".github/workflows/harness-v1-release.yml"
+WINDOWS_REFUSAL_TEST_SHA256 = (
+    "059da9845613392a761a4016576d140c9be6c9957c430bcb6b192048696ad5a6"
+)
 
 
 class VerificationError(Exception):
@@ -50,6 +53,13 @@ def canonical(document: object) -> bytes:
 
 def sha(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
+
+def verify_windows_refusal_test(payload: bytes) -> None:
+    check(
+        sha(payload) == WINDOWS_REFUSAL_TEST_SHA256,
+        "Windows refusal test bytes differ from the reviewed PowerShell 5.1 contract",
+    )
 
 
 def keys(document: dict[str, object], expected: set[str], label: str) -> None:

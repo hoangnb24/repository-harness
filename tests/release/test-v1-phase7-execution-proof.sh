@@ -367,6 +367,49 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
     assert "harness-windows-x64.exe" in powershell
     assert "Write-Output" not in powershell
 
+    windows_refusal_test = (
+        root / "tests/release/test-install-harness-v1-windows-unsupported.ps1"
+    ).read_bytes()
+    verifier.verify_windows_refusal_test(windows_refusal_test)
+
+    for label, adversary in (
+        (
+            "required statements moved into a PowerShell block comment",
+            b"<#\r\n" + windows_refusal_test + b"\r\n#>\r\n",
+        ),
+        (
+            "comment-preserved disabled redirect and loose matching",
+            windows_refusal_test.replace(
+                b"$StartInfo.RedirectStandardError = $true",
+                b"$StartInfo.RedirectStandardError = $false # $StartInfo.RedirectStandardError = $true",
+                1,
+            ).replace(
+                b"$StandardError -ne $ExpectedStandardError",
+                b'$StandardError -notlike "*$Expected*" # $StandardError -ne $ExpectedStandardError',
+                1,
+            ),
+        ),
+        (
+            "native all-stream merge under ErrorActionPreference Stop",
+            windows_refusal_test
+            + b"\r\n$Output = & $PowerShellExe *>&1\r\n",
+        ),
+        (
+            "forced successful exit assertion",
+            windows_refusal_test.replace(
+                b"$ExitCode = $Process.ExitCode",
+                b"$ExitCode = 1 # $ExitCode = $Process.ExitCode",
+                1,
+            ),
+        ),
+    ):
+        try:
+            verifier.verify_windows_refusal_test(adversary)
+        except verifier.VerificationError:
+            print(f"ok - rejected {label}")
+        else:
+            raise AssertionError(f"accepted {label}")
+
 print("Phase 7 native execution proof covered all six commands and all ten fixtures without support claims")
 PY
 
