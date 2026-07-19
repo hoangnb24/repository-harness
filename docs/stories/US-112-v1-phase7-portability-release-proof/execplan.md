@@ -156,9 +156,13 @@ promotion blocked.
   pre-execution verification; bounded bundle/verification evidence; Unix
   destination-link adversaries; exact build/execution tuple binding; Windows
   pre-publication refusal; and local focused tests.
-- Current evidence: local focused execution passes on macOS arm64. The workflow
-  has not been dispatched, no remote signed bundle or execution receipt has
-  been downloaded, and no platform is accepted.
+- Current evidence: local focused execution passes on macOS arm64. CI attempt
+  2, run `29682593310` at `47d3ae1a341e87cd1d76811aa7f21b4fba707fec`,
+  passed all four Unix build rows and exposed a Windows compile-time cfg leak
+  before artifact upload or attestation. The pure recovery-path formatter is
+  now platform-neutral while mutation remains Unix-only; a local Windows-target
+  `cargo check` passes. No remote signed bundle or execution receipt has been
+  downloaded, and no platform is accepted.
 - Remaining: remote five-runner execution, safe Windows repository mutation,
   remote verified provenance evidence, deferred Phase 6 live evidence,
   platform acceptance, review, and any
@@ -171,8 +175,9 @@ promotion blocked.
   deferred live experiments remain mandatory before acceptance/promotion.
 - Blockers and owners: external pilot custody/signatures remain with repository
   owners; production release authority remains with release maintainers.
-- Working state: this continuation started from
-  `8842504407f1ac400a657a24e9cf857f54757272`; no local execution receipt
+- Working state: this correction starts from published diagnostic head
+  `47d3ae1a341e87cd1d76811aa7f21b4fba707fec`; no local compile result or
+  execution receipt
   authorizes a tag, release, publish, production signing, promotion, platform
   acceptance, or live-pilot mutation.
 

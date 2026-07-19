@@ -104,6 +104,14 @@ target repository. Unix commands then use the existing descriptor-anchored
 mutation port. Non-Unix mutation still fails closed rather than emulating Unix
 safety with path strings.
 
+Journal ownership validation is platform-neutral even though journal mutation
+is not. Its deterministic `.harness/recovery/<operation-id>` formatter is a
+private pure function available to every target; it performs no filesystem
+operation. Unix-only descriptor access, directory creation, reads, writes,
+renames, recovery replay, and mutation dispatch remain behind `#[cfg(unix)]`.
+This lets Windows compile and validate data structure ownership without
+creating a Windows mutation path or weakening controlled-unsupported refusal.
+
 ## Interface Contract
 
 Phase 7 adds V1-only Bash and PowerShell checksum-first installers, fixture

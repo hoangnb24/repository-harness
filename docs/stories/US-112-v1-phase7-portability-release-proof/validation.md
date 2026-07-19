@@ -1,7 +1,7 @@
 # US-112 V1 Phase 7 Portability And Release Proof Validation
 
-Status: **Local native execution proof implemented / no remote five-platform
-run or accepted platform / no acceptance or promotion**
+Status: **Remote build attempt recorded / no complete five-platform run or
+accepted platform / no acceptance or promotion**
 
 ## Proof Strategy
 
@@ -205,12 +205,42 @@ Sigstore bundle and record contain no token. Finalization, the execution runner,
 guard, and the collector all fail closed unless the exact signed subject and
 repository/workflow/ref/SHA identity verify before execution.
 
-No remote workflow run exists for this slice and no platform is accepted. A
-local macOS arm64 test-fixture installer/direct-binary proof exists; native
-Windows refusal evidence, exact-five build/execution/provenance cross-binding
-and normalized equivalence, remote attestation evidence, deferred Phase 6
-P0-P7 evidence, Phase 7 acceptance, and all tag/release/publish/production-
-signing/promotion actions remain pending or blocked.
+CI attempt 2, run `29682593310`, executed against exact candidate
+`47d3ae1a341e87cd1d76811aa7f21b4fba707fec`. Its macOS arm64/x64 and Linux
+x64/arm64 build jobs succeeded. Windows failed in
+`crates/harness-core/src/recovery.rs` before artifact upload because
+platform-neutral journal ownership validation called the Unix-gated
+`OsMutationPort::operation_root`. Consequently every attestation,
+verification/execution, and collection job was skipped. The correction moves
+only the pure deterministic operation-root formatter outside `#[cfg(unix)]`;
+all filesystem mutation methods stay Unix-gated and non-Unix mutation stays
+controlled-unsupported. A local Windows-target `cargo check -p harness-core
+--all-targets` and a Phase 3 static cfg-boundary contract cover the regression.
+The contract structurally
+associates all outer attributes with the formatter's complete function item,
+including restricted visibility and `const`/`async`/`unsafe`/`extern`
+qualifiers. It also rejects `cfg` or `cfg_attr` on the required `apply` and
+`recover` method items, normalizing the optional raw-identifier prefix so
+`r#cfg` and `r#cfg_attr` cannot hide those items. Each method body must consist
+of exactly one `cfg(unix)` dispatch and one `cfg(not(unix))` refusal, with no
+other executable text or conditional region; the refusal then permits only
+inert argument consumption followed by
+`Err(MutationFailure::before_journal(...))`. Seeded restricted/public
+visibility, qualifier, same-line/separate-line/nested block-comment, adjacent
+line-comment, intervening-attribute, ordinary/raw conditional attribute,
+comment-spaced raw attribute, alternative Windows cfg expressions,
+conditionally absent method, unconditional/Windows-conditional filesystem
+work before refusal, and marker-preserving non-Unix success variants all fail.
+The scanner walks masked comments and ABI strings while retaining
+original offsets for associated attribute bytes. CI remains the final native
+Windows runner proof.
+
+No platform is accepted. A local macOS arm64 test-fixture installer/direct-
+binary proof exists; native Windows refusal evidence, exact-five build/
+execution/provenance cross-binding and normalized equivalence, remote
+attestation evidence, deferred Phase 6 P0-P7 evidence, Phase 7 acceptance, and
+all tag/release/publish/production-signing/promotion actions remain pending or
+blocked.
 
 The local execution continuation adds a closed non-production schema under the
 release test surface, V1-only Bash/PowerShell installers, direct self-digest
@@ -223,5 +253,6 @@ provenance and platform overclaims, normalized payload substitution, normalized
 drift, and missing authentication. PowerShell's checksum/platform-before-refusal
 order and absence of destination creation/copy/move are checked statically
 locally; its native refusal test remains unrun until a Windows diagnostic.
-No remote workflow was dispatched, so `platform_proof`, Phase 7 acceptance,
-and all promotion authorities remain false.
+The failed remote workflow produced no attestation or execution receipt, so
+`platform_proof`, Phase 7 acceptance, and all promotion authorities remain
+false.

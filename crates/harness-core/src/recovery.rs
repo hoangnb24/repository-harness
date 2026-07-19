@@ -25,6 +25,10 @@ const JOURNAL_SCHEMA: &str = "repository-harness-recovery-journal/v1";
 const MANIFEST_PATH: &str = ".harness/manifest.json";
 type ManagedBlockParts = (Vec<u8>, Vec<u8>, Vec<u8>);
 
+fn operation_root_path(operation_id: &str) -> String {
+    format!(".harness/recovery/{operation_id}")
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlannedWrite {
     pub step_id: String,
@@ -342,13 +346,8 @@ impl OsMutationPort {
     }
 
     #[cfg(unix)]
-    fn operation_root(operation_id: &str) -> String {
-        format!(".harness/recovery/{operation_id}")
-    }
-
-    #[cfg(unix)]
     fn journal_path(operation_id: &str) -> String {
-        format!("{}/journal.json", Self::operation_root(operation_id))
+        format!("{}/journal.json", operation_root_path(operation_id))
     }
 
     #[cfg(unix)]
@@ -503,23 +502,23 @@ impl OsMutationPort {
             }
         }
 
-        self.ensure_dir(&Self::operation_root(&request.operation_id))
+        self.ensure_dir(&operation_root_path(&request.operation_id))
             .and_then(|()| {
                 self.ensure_dir(&format!(
                     "{}/backups",
-                    Self::operation_root(&request.operation_id)
+                    operation_root_path(&request.operation_id)
                 ))
             })
             .and_then(|()| {
                 self.ensure_dir(&format!(
                     "{}/staged",
-                    Self::operation_root(&request.operation_id)
+                    operation_root_path(&request.operation_id)
                 ))
             })
             .and_then(|()| {
                 self.ensure_dir(&format!(
                     "{}/creates",
-                    Self::operation_root(&request.operation_id)
+                    operation_root_path(&request.operation_id)
                 ))
             })
             .map_err(MutationFailure::before_journal)?;
@@ -2628,7 +2627,7 @@ fn validate_journal_ownership(
             .filter(|step| !step.manifest_commit)
             .map(|step| step.path.as_str()),
     )?;
-    let operation_root = OsMutationPort::operation_root(operation_id);
+    let operation_root = operation_root_path(operation_id);
     let mut paths = BTreeSet::new();
     for step in &journal.steps {
         if !is_lower_kebab(&step.step_id) || !is_lower_kebab(&step.operation_id) {
@@ -3147,21 +3146,21 @@ mod tests {
 
     #[cfg(unix)]
     fn persist_fabricated_journal(port: &OsMutationPort, request: &MutationRequest) {
-        port.ensure_dir(&OsMutationPort::operation_root(&request.operation_id))
+        port.ensure_dir(&operation_root_path(&request.operation_id))
             .unwrap();
         port.ensure_dir(&format!(
             "{}/backups",
-            OsMutationPort::operation_root(&request.operation_id)
+            operation_root_path(&request.operation_id)
         ))
         .unwrap();
         port.ensure_dir(&format!(
             "{}/staged",
-            OsMutationPort::operation_root(&request.operation_id)
+            operation_root_path(&request.operation_id)
         ))
         .unwrap();
         port.ensure_dir(&format!(
             "{}/creates",
-            OsMutationPort::operation_root(&request.operation_id)
+            operation_root_path(&request.operation_id)
         ))
         .unwrap();
         for write in &request.writes {

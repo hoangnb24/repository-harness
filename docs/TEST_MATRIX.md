@@ -180,8 +180,35 @@ Git repository with bytecode environment variables unset and repository-local
 cache placement forced; it requires no `__pycache__`, no `.pyc`, and unchanged
 Git status after both entrypoints.
 
-The existing five-runner workflow now uses this capture and collector, but it
-has not been dispatched for this slice. Therefore no platform is accepted:
+CI attempt 2, run `29682593310` at candidate
+`47d3ae1a341e87cd1d76811aa7f21b4fba707fec`, passed the macOS arm64/x64 and
+Linux x64/arm64 build rows. Windows failed during compilation before artifact
+upload because platform-neutral journal ownership validation called a
+`#[cfg(unix)]` formatter through `OsMutationPort`. The correction keeps the
+formatter private but platform-neutral, while all descriptor-backed mutation
+methods remain Unix-only. Phase 3's static contract rejects that exact cfg
+leak by structurally associating every outer attribute with the pure formatter
+and inspecting the actual `cfg(not(unix))` `apply`/`recover` blocks for an
+unconditional pre-journal error. Attribute association walks the comment-masked
+source while slicing original offsets and starts at the complete function item,
+including `pub(...)`, `const`, `async`, `unsafe`, and `extern` qualifiers. Thus
+visibility, same-line/separate-line comments, nested blocks, adjacent line
+comments, or intervening attributes cannot hide a cfg. Required `apply` and
+`recover` method items must also have no `cfg` or `cfg_attr` outer attribute;
+the matcher normalizes Rust's optional raw-identifier prefix, so `r#cfg` and
+`r#cfg_attr` are equivalent and cannot bypass the check. Each complete method
+body must contain exactly the Unix dispatch and non-Unix refusal blocks, with
+only comments or whitespace outside them. The non-Unix block is then limited
+to inert argument consumption followed by the unconditional pre-journal error.
+Seeded self-tests reject ordinary/raw and comment-spaced attributes,
+alternative Windows-excluding cfg expressions, conditionally absent methods,
+unconditional or Windows-conditional filesystem work outside the refusal, and
+non-Unix success returns that retain inert refusal text.
+Local `cargo check --locked --package
+harness-core --all-targets --target x86_64-pc-windows-msvc` supplies
+Windows-target compile coverage. Attestation,
+verification/execution, and collection were skipped in the failed run, so no
+platform is accepted:
 `build=passed`, `provenance=github-sigstore-attested`, and
 `help_grammar_only=passed` prove compilation, authenticated diagnostic build
 origin, and machine-help identity. Installer/full direct-binary results in the
