@@ -1,7 +1,7 @@
 # US-112 V1 Phase 7 Portability And Release Proof Exec Plan
 
-Status: **In progress: fixture contract and build-receipt infrastructure
-implemented; remote execution, acceptance, and promotion pending**
+Status: **In progress: local closed execution slice implemented; remote
+five-platform evidence, acceptance, and promotion pending**
 
 ## Goal
 
@@ -84,21 +84,41 @@ attestation, installer and full direct-binary proof remain `pending`,
 provenance remains `checksum-only-unattested`, and platform acceptance and all
 release authorities remain blocked.
 
+This completion slice closes the remaining locally executable path: the real
+native binary refuses before command parsing unless its own SHA-256 and native
+platform label match; external signed test release material drives real
+install/update/scaffold commits through the existing recovery engine; Bash and
+PowerShell V1 installers verify checksums before platform selection; and one
+runner executes all six commands across the ten fixtures. It seeds inert
+`package.json` and `Cargo.toml` files and proves they remain owner-owned rather
+than interpreted. The normalized receipt binds the candidate commit/tree,
+Cargo lock, command binding, and exact workflow bytes.
+
+Cause and effect: a local macOS pass proves that checksum-first Bash install,
+native command execution, Unicode/space/LF/CRLF preservation, and normalized
+manifest/audit/recovery/identity behavior work on that local host. It does not
+prove Windows behavior, remote runner behavior, artifact provenance, or
+platform acceptance. The five workflow jobs must produce byte-valid receipts
+with the same normalized contract digest before a later reviewer can consider
+that platform matrix, and even that cannot replace deferred Phase 6 live
+evidence or external attestation.
+
 ## Resume Capsule
 
 - Objective: implement Phase 7 portability and release proof without promotion.
-- Completed: Decision 0016 accepted; intake #9 recorded; US-112 packet opened;
-  fixture-only schema/inventory/verifier; separate closed build-receipt schema;
-  native capture wrapper; read-only single/five collector; exact five-runner
-  workflow wiring; focused adversaries; and static workflow authority checks.
-- Current evidence: local focused tests pass. The workflow has not been
-  dispatched, no remote receipt has been downloaded, and no platform is
-  accepted. A post-commit local macOS arm64 capture is diagnostic only.
-- Remaining: remote five-runner execution, authenticated provenance, full
-  direct-binary and installer execution, cross-platform equivalence, deferred
-  Phase 6 live evidence, review, acceptance, and any separately authorized
-  release action.
-- Exact next action: `review this receipt-infrastructure commit, then separately authorize an immutable candidate workflow run if five-runner diagnostic capture is desired`
+- Completed: Decision 0016 accepted; intake #9 recorded; fixture-only and build
+  receipt slices; checksum/platform preflight; external release/trust adapters;
+  Bash and PowerShell V1 installers; six-command/ten-fixture execution runner;
+  normalized receipt schema/verifier; feature-branch diagnostic identity; and
+  local focused adversaries.
+- Current evidence: local focused execution passes on macOS arm64. The workflow
+  has not been dispatched, no remote execution receipt has been downloaded,
+  provenance is explicitly unattested, and no platform is accepted.
+- Remaining: remote five-runner execution, safe Windows repository mutation,
+  authenticated artifact provenance, external trust/attestation evidence,
+  deferred Phase 6 live evidence, platform acceptance, review, and any
+  separately authorized release action.
+- Exact next action: `review this committed candidate, then separately authorize an immutable agent-branch diagnostic workflow run if remote five-runner evidence is desired`
 - Validation ladder: documentation and JSON checks; focused fixture/proof
   tests; installer/direct-binary tests; five-platform workflow; full premerge;
   stop at the first failed boundary.
@@ -107,9 +127,9 @@ release authorities remain blocked.
 - Blockers and owners: external pilot custody/signatures remain with repository
   owners; production release authority remains with release maintainers.
 - Working state: this continuation started from
-  `5fdec632f940523ed17bbbc54f1c05e40115a1f8`; neither the fixture proof nor a
-  build receipt authorizes a tag, release, publish, signing, attestation,
-  promotion, platform acceptance, or live-pilot mutation.
+  `8842504407f1ac400a657a24e9cf857f54757272`; no local execution receipt
+  authorizes a tag, release, publish, signing, attestation, promotion, platform
+  acceptance, or live-pilot mutation.
 
 ## Stop Conditions
 

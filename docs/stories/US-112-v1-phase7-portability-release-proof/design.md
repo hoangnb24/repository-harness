@@ -1,7 +1,7 @@
 # US-112 V1 Phase 7 Portability And Release Proof Design
 
-Status: **Engineering opened / proof implementation pending / promotion
-blocked**
+Status: **Local execution proof implemented / remote five-platform proof and
+promotion blocked**
 
 ## Domain Model
 
@@ -37,12 +37,29 @@ Phase 6 comparison obligation all pass for the same candidate.
    path/line-ending loss, grammar divergence, or mutable release collisions.
 7. Keep promotion closed until the deferred Phase 6 evidence is complete.
 
+The direct executable enforces the first two runtime boundaries before parsing
+even `--help`: `HARNESS_V1_ARTIFACT_SHA256` must match two reads of the current
+executable, then `HARNESS_V1_PLATFORM` must match the compiled native OS and
+architecture. For example, when both values are wrong, the digest error is
+returned and the platform branch is never reached. Only after both pass can a
+command inspect the repository.
+
+Install, update, and scaffold accept release transport and independent trust
+state only through absolute external paths. The directory adapter supplies
+indexed bytes; the existing Ed25519 threshold verifier authenticates the
+payload and test/production trust policy. The trust file cannot sit inside the
+target repository. Unix commands then use the existing descriptor-anchored
+mutation port. Non-Unix mutation still fails closed rather than emulating Unix
+safety with path strings.
+
 ## Interface Contract
 
-Phase 7 may add fixture runners, build/proof scripts, schemas, and workflow
-checks. It does not add a seventh V1 core command, merge bridge grammar into the
-core, or create target telemetry. Existing install/update/audit/status/version
-contracts remain authoritative.
+Phase 7 adds V1-only Bash and PowerShell checksum-first installers, fixture
+runners, proof scripts, a closed non-production execution schema, and workflow
+checks. It does not add a seventh V1 core command, merge the four bridge
+commands into the core, change V0 installer behavior, or create target
+telemetry. Existing install/update/audit/scaffold/status/version contracts
+remain authoritative.
 
 ## Data Model
 
@@ -53,9 +70,11 @@ decrypted recovery material remain external and untracked.
 
 ## UI / Platform Impact
 
-macOS and Linux use Bash installers and direct binaries. Windows uses the
-PowerShell installer and `.exe` identities. Platform equivalence applies to
-contracted behavior, not byte equality between different executable formats.
+macOS and Linux use the Bash V1 installer and direct binaries. Windows uses the
+PowerShell V1 installer and `.exe` identities. Both installers authenticate the
+checksum before platform selection and never claim provenance from a checksum.
+Platform equivalence compares normalized manifest, audit, recovery, and
+identity outcomes, not executable byte equality.
 
 ## Observability
 

@@ -37,7 +37,12 @@ from v1_build_receipt_common import (
 GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
 
 
-def run_fixed(arguments: list[str], *, capture: bool = True) -> subprocess.CompletedProcess[bytes]:
+def run_fixed(
+    arguments: list[str],
+    *,
+    capture: bool = True,
+    environment: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[bytes]:
     try:
         return subprocess.run(
             arguments,
@@ -46,6 +51,7 @@ def run_fixed(arguments: list[str], *, capture: bool = True) -> subprocess.Compl
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE if capture else None,
             stderr=subprocess.PIPE if capture else None,
+            env=environment,
         )
     except OSError as error:
         raise ReceiptError(f"cannot execute required local tool: {arguments[0]}") from error
@@ -298,7 +304,17 @@ def capture(arguments: argparse.Namespace) -> Path:
     artifact_bytes = built.read_bytes()
     check(artifact_bytes, "native release artifact is empty")
 
-    help_result = run_fixed([str(built), "--help"])
+    artifact_sha = sha256_bytes(artifact_bytes)
+    execution_environment = os.environ.copy()
+    execution_environment.update(
+        {
+            "HARNESS_V1_ARTIFACT_SHA256": artifact_sha,
+            "HARNESS_V1_PLATFORM": arguments.platform,
+        }
+    )
+    help_result = run_fixed(
+        [str(built), "--help"], environment=execution_environment
+    )
     check(help_result.returncode == 0, "native V1 harness --help failed")
     check(help_result.stderr == b"", "native V1 harness --help wrote stderr")
     help_document = parse_json_bytes(help_result.stdout, "native V1 harness --help")
@@ -306,7 +322,6 @@ def capture(arguments: argparse.Namespace) -> Path:
     expected_help = exact_core_help_bytes(grammar)
     check(help_result.stdout == expected_help and help_document == grammar["core"], "native V1 harness --help is not the exact six-command JSON grammar")
 
-    artifact_sha = sha256_bytes(artifact_bytes)
     checksum_bytes = f"{artifact_sha}  {artifact_name}\n".encode("ascii")
     help_name = f"{artifact_name}.help.json"
     document = build_receipt_document(

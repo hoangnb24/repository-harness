@@ -147,6 +147,16 @@ docs.
 
 ## Installer
 
+Phase 7 also has separate, unpromoted V1 artifact installers:
+`scripts/install-harness-v1.sh` and `scripts/install-harness-v1.ps1`. They take
+an already-downloaded native artifact, an externally supplied exact checksum
+record, a platform label, and a target directory. They verify the checksum
+before platform selection, copy to `scripts/bin/harness` or
+`scripts/bin/harness.exe`, and never execute the artifact. A checksum proves
+byte integrity against that record; it does not authenticate provenance or
+authorize a release. These V1 surfaces do not change the public V0 installer
+below and remain non-production until US-112's external gates close.
+
 The upstream installer applies the Harness v0 operating files and folder
 structure to a target project directory. It defaults to the current directory,
 accepts a target path, and asks interactive users whether to `1. Merge`,

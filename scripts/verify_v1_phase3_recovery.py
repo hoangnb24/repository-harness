@@ -21,6 +21,7 @@ ALLOWED_LATER_CHANGESETS = {
     ".harness/changesets/harness_v1_phase7_01_story.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_02_proof_contract.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_03_build_receipts.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_04_execution_proof.changeset.jsonl",
 }
 
 
@@ -223,13 +224,27 @@ def proof_closed_dependency_and_execution_boundary() -> None:
 def proof_phase4_and_phase7_gates() -> None:
     main = text(CORE / "src" / "main.rs")
     check("UnavailableReleasePort" in main and "UnavailableTrustPort" in main, "production release/trust was promoted")
-    check("HarnessCore::with_mutations" not in main, "live binary was promoted before Phase 4/7 gates")
+    check(
+        "HarnessCore::with_mutations" in main
+        and "DirectoryReleasePort" in main
+        and "JsonTrustPort" in main
+        and main.index("authenticate_executable_and_platform()")
+        < main.index("parse(std::env::args_os().skip(1))"),
+        "Phase 7 local mutation path lacks external trust or pre-execution authentication",
+    )
     check((ROOT / "crates/harness-v0-migrate").is_dir(), "Phase 4 isolated bridge crate is missing")
     check((ROOT / ".github/workflows/harness-v0-bridge-release.yml").is_file(), "Phase 4 unpromoted bridge workflow is missing")
     cargo = text(ROOT / "crates/harness-core/Cargo.toml").lower()
     check("harness-v0-migrate" not in cargo and "rusqlite" not in cargo,
           "Phase 4 bridge or SQLite dependency entered permanent core")
     check("safe descriptor-anchored mutation is unavailable until Phase 7" in text(RECOVERY), "non-Unix fail-closed boundary missing")
+    phase7 = text(ROOT / "docs/stories/US-112-v1-phase7-portability-release-proof/validation.md")
+    check(
+        "no remote five-platform" in phase7
+        and "no acceptance or promotion" in phase7
+        and "unattested-not-authenticated" in phase7,
+        "Phase 7 local execution work opened platform or promotion authority",
+    )
 
 
 def proof_protected_paths_unchanged() -> None:

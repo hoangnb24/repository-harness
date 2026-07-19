@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import platform
 import re
 import shutil
 import sqlite3
@@ -604,9 +605,29 @@ def validate_command_binding(value: dict[str, Any], repository_root: Path = ROOT
     check(native_entrypoint.is_file(), f"platform-native core entrypoint is missing: {native_relative}")
     if os.name != "nt":
         check(os.access(native_entrypoint, os.X_OK), f"platform-native core entrypoint is not executable: {native_relative}")
+    native_platform = {
+        ("darwin", "arm64"): "macos-arm64",
+        ("darwin", "aarch64"): "macos-arm64",
+        ("darwin", "x86_64"): "macos-x64",
+        ("linux", "x86_64"): "linux-x64",
+        ("linux", "amd64"): "linux-x64",
+        ("linux", "aarch64"): "linux-arm64",
+        ("linux", "arm64"): "linux-arm64",
+        ("windows", "amd64"): "windows-x64",
+        ("windows", "x86_64"): "windows-x64",
+    }.get((platform.system().casefold(), platform.machine().casefold()))
+    check(native_platform is not None, "live core help platform is unsupported")
+    execution_environment = os.environ.copy()
+    execution_environment.update(
+        {
+            "HARNESS_V1_ARTIFACT_SHA256": sha256_file(native_entrypoint),
+            "HARNESS_V1_PLATFORM": native_platform,
+        }
+    )
     result = subprocess.run(
         [str(native_entrypoint), core["live_binding"]["help_argument"]],
         cwd=repository_root,
+        env=execution_environment,
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,

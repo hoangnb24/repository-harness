@@ -9,11 +9,18 @@ Phases 1-5 are accepted. The Phase 6 framework is implemented, independently
 reviewed, and accepted by the repository owner for sequencing under Decision
 0016; its live P0-P7 efficacy evidence remains deferred and pending.
 
-The repository already has platform-labelled release workflows and extensive
-Unix-local proof, but it does not yet have one exact V1 candidate with the
-complete five-platform artifact, installer, identity, fixture, and
-pre-promotion evidence required by the refactor plan. Windows repository
-capture remains controlled-unsupported.
+The repository now has a local deterministic execution slice in addition to
+the earlier fixture and build-receipt slices. On a native host it verifies the
+artifact checksum before any execution, verifies the exact platform label,
+installs through the platform shell, and exercises all six core commands
+against all ten Phase 7 fixtures. Signed test-fixture payloads and independent
+test trust state are materialized outside each target repository. This proves
+the local mechanism, not artifact provenance or supported-platform status.
+
+The five native jobs are wired to produce the same closed receipt, but they
+have not run for this candidate. Windows descriptor-anchored repository
+mutation therefore remains controlled-unsupported until real Windows runner
+evidence and the remaining safe adapter work pass.
 
 ## Target Behavior
 

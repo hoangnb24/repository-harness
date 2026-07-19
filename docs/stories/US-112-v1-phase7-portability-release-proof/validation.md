@@ -1,7 +1,7 @@
 # US-112 V1 Phase 7 Portability And Release Proof Validation
 
-Status: **Fixture contract and build-receipt infrastructure implemented / no
-remote workflow run or accepted platform / no acceptance or promotion**
+Status: **Local native execution proof implemented / no remote five-platform
+run or accepted platform / no acceptance or promotion**
 
 ## Proof Strategy
 
@@ -23,13 +23,28 @@ This is infrastructure proof, not platform acceptance: building and asking for
 help exercises neither installer behavior nor the six commands' full mutation,
 recovery, audit, and unsupported boundaries.
 
+The local execution continuation now covers those behaviors on the current
+native host. Each case installs a checksum-verified artifact, commits the
+signed test-fixture payload, confirms idempotent update, commits one neutral
+scaffold in an isolated surface, audits and reports ready state, reports exact
+identity, and refuses a nonexistent recovery operation without mutation. The
+runner snapshots every owner file, including spaces/Unicode and LF/CRLF bytes,
+and seeds package manifests that must remain outside the V1 role map.
+
+The receipt says `unattested-not-authenticated` for artifact provenance. The
+signed payload is authenticated with test-fixture Ed25519 roots materialized in
+a temporary external directory; that does not authenticate who built the
+executable. A later exact-five collection must share candidate, workflow,
+command, and normalized contract identity. Until those remote receipts exist,
+platform proof remains zero.
+
 ## Test Plan
 
 | Layer | Cases |
 | --- | --- |
 | Unit | Closed schemas, duplicate-key rejection, exact candidate identity, native tuple/output safety, platform/path uniqueness, digest and authority-state negatives. |
 | Integration | Fixture-only repository-shape inventory plus synthetic single/exact-five receipt collection, checksum/help byte verification, and no artifact execution. |
-| E2E | Bash, PowerShell, and direct-binary install-to-audit flows. |
+| E2E | Local Bash/direct-binary install-to-audit across all ten fixtures; PowerShell is wired for the Windows native runner. |
 | Platform | macOS arm64/x64, Linux x64/arm64, and Windows x64 exact artifacts. |
 | Performance | Build/proof duration recorded; no performance acceptance claim in the opening slice. |
 | Logs/Audit | Candidate/platform/check/evidence identities; no target telemetry. |
@@ -97,6 +112,7 @@ python3 -m py_compile scripts/verify_v1_phase7_release_proof.py
 scripts/verify-v1-phase7-release-proof.sh
 tests/release/test-v1-phase7-release-proof.sh
 scripts/verify-v1-phase7-release-proof.sh --require-promotable  # expected exit 2
+tests/release/test-v1-phase7-execution-proof.sh
 tests/release/test-v1-build-receipts.sh
 tests/release/test-v1-build-receipt-workflow.sh
 tests/release/test-release-workflow-contract.sh
@@ -131,15 +147,25 @@ reachability, non-persisted checkout credentials, exact native tuples, safe
 new external output, missing/duplicate platforms, candidate and input drift,
 artifact/checksum/help substitution, unsupported claims, extra files,
 duplicate keys, command fields, traversal, and symlinks. The workflow resolves
-the dispatch input once, proves the result is reachable from
-`refs/remotes/origin/refactor/harness-v1`, and checks out that full SHA in
-matrix and collector jobs with credential persistence disabled. Both jobs
-fetch protected `main`, verify GitHub's immutable `workflow_sha` object and
-workflow path, upload exactly five receipt directories for five days, and
-download them for read-only collection under `contents: read`.
+the dispatch input once. Protected-main diagnostics keep the approved
+`refs/remotes/origin/refactor/harness-v1` ancestry rule. An `agent/*`
+diagnostic instead requires candidate SHA, immutable workflow SHA, and dispatch
+SHA to be identical. Matrix and collector jobs check out that full SHA with
+credential persistence disabled, fetch the exact workflow ref into a fixed
+remote name, verify the immutable workflow object/path, upload bounded receipts
+for five days, and download them under `contents: read`.
 
-No remote workflow run exists for this slice and no platform is accepted.
-Installer proof, full direct-binary proof, authenticated provenance, deferred
-Phase 6 P0-P7 evidence, cross-platform equivalence, Phase 7 acceptance, and all
-tag/release/publish/signing/attestation/promotion actions remain pending or
-blocked.
+No remote workflow run exists for this slice and no platform is accepted. A
+local macOS arm64 test-fixture installer/direct-binary proof exists; remote
+PowerShell and exact-five normalized equivalence, authenticated artifact
+provenance, deferred Phase 6 P0-P7 evidence, Phase 7 acceptance, and all tag/
+release/publish/signing/attestation/promotion actions remain pending or blocked.
+
+The local execution continuation adds a closed non-production schema under the
+release test surface, V1-only Bash/PowerShell installers, direct self-digest
+and platform preflight, external signed-test-payload adapters, and an
+exact-ten-case runner/verifier. Focused local proof executes all six commands
+for all ten cases and rejects checksum tampering, provenance overclaim,
+platform-acceptance overclaim, normalized drift, and missing authentication.
+No remote workflow was dispatched, so `platform_proof`, Phase 7 acceptance,
+and all promotion authorities remain false.

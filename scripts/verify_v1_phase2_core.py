@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import stat
 import subprocess
@@ -81,9 +82,29 @@ def expect_schema_failure(value: Any, schema: dict[str, Any], label: str) -> Non
 
 
 def run_cli(arguments: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    native_platform = {
+        ("darwin", "arm64"): "macos-arm64",
+        ("darwin", "aarch64"): "macos-arm64",
+        ("darwin", "x86_64"): "macos-x64",
+        ("linux", "x86_64"): "linux-x64",
+        ("linux", "amd64"): "linux-x64",
+        ("linux", "aarch64"): "linux-arm64",
+        ("linux", "arm64"): "linux-arm64",
+        ("windows", "amd64"): "windows-x64",
+        ("windows", "x86_64"): "windows-x64",
+    }.get((platform.system().casefold(), platform.machine().casefold()))
+    check(native_platform is not None, "live core platform is unsupported")
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "HARNESS_V1_ARTIFACT_SHA256": hashlib.sha256(CLI.read_bytes()).hexdigest(),
+            "HARNESS_V1_PLATFORM": native_platform,
+        }
+    )
     return subprocess.run(
         [str(CLI), *arguments],
         cwd=cwd,
+        env=environment,
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,

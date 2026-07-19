@@ -1,18 +1,20 @@
 //! Host adapters for declared-file reads, strict manifests, and unavailable Phase 3 payloads.
 
+use std::collections::BTreeMap;
 #[cfg(all(test, unix))]
 use std::fs;
 #[cfg(unix)]
 use std::fs::File;
 #[cfg(unix)]
 use std::io::{Read, Seek, SeekFrom};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::domain::{Manifest, MANIFEST_SCHEMA, SUPPORTED_V0_BRIDGE_RELEASE};
 use crate::path::validate_relative;
 use crate::ports::{
-    CompatibilityObservation, FileSystemPort, ManifestPort, PinnedPrivateDirectory, PortError,
-    ReleaseMaterial, ReleasePort, ReleaseTrustInput, RepositoryRootIdentity, TrustPort,
+    CompatibilityObservation, FileSystemPort, ManifestPort, PinnedPrivateDirectory, PinnedRootKey,
+    PortError, ReleaseFreshness, ReleaseMaterial, ReleasePort, ReleaseTrustInput,
+    RepositoryRootIdentity, TrustPolicy, TrustPort, TrustedRootState,
 };
 #[cfg(unix)]
 use crate::strict_json::hex_sha256;
@@ -778,6 +780,290 @@ impl TrustPort for UnavailableTrustPort {
             "Phase 2 has no independently provisioned production trust state".into(),
         ))
     }
+}
+
+/// Release transport rooted outside the repository being operated on. The
+/// payload index remains the only authority for which source members are read;
+/// this adapter supplies bytes and the trust verifier authenticates them.
+pub struct DirectoryReleasePort {
+    root: PathBuf,
+}
+
+impl DirectoryReleasePort {
+    pub fn new(root: impl Into<PathBuf>) -> Result<Self, PortError> {
+        let root = root.into();
+        require_external_absolute_directory(&root, "release directory")?;
+        Ok(Self { root })
+    }
+
+    fn read(&self, relative: &str) -> Result<Vec<u8>, PortError> {
+        read_external_regular(&self.root, relative)
+    }
+}
+
+impl ReleasePort for DirectoryReleasePort {
+    fn load(&self) -> Result<ReleaseMaterial, PortError> {
+        let index = self.read("payload-index.json")?;
+        let value = parse(&index).map_err(PortError::ReleaseInvalid)?;
+        let assets = value
+            .get("assets")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| PortError::ReleaseInvalid("payload index assets are missing".into()))?;
+        let mut source_files = BTreeMap::new();
+        for asset in assets {
+            let source = asset
+                .get("source")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| PortError::ReleaseInvalid("payload source is missing".into()))?;
+            validate_relative(source, true)?;
+            if source_files
+                .insert(source.into(), self.read(&format!("source/{source}"))?)
+                .is_some()
+            {
+                return Err(PortError::ReleaseInvalid(format!(
+                    "duplicate payload source: {source}"
+                )));
+            }
+        }
+        Ok(ReleaseMaterial {
+            index,
+            signatures: self.read("payload-index.signatures.json")?,
+            trust_bundle: self.read("trust-bundle.json")?,
+            trust_bundle_signatures: self.read("trust-bundle.signatures.json")?,
+            path_ledger: self.read("path-ledger.json")?,
+            source_files,
+        })
+    }
+}
+
+/// Independently provisioned trust input. It is deliberately a separate file
+/// and adapter from the adjacent release transport.
+pub struct JsonTrustPort {
+    path: PathBuf,
+}
+
+impl JsonTrustPort {
+    pub fn new(path: impl Into<PathBuf>) -> Result<Self, PortError> {
+        let path = path.into();
+        if !path.is_absolute() {
+            return Err(PortError::ReleaseInvalid(
+                "trust state path must be absolute".into(),
+            ));
+        }
+        Ok(Self { path })
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TrustInputDocument {
+    schema: String,
+    trust_policy: String,
+    path_ledger_sha256: String,
+    freshness: TrustFreshnessDocument,
+    trusted_root: TrustedRootDocument,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "mode", rename_all = "kebab-case", deny_unknown_fields)]
+enum TrustFreshnessDocument {
+    FirstInstallExactDigest { digest: String },
+    FirstInstallMinimumSequence { sequence: u64 },
+    Existing { sequence: u64, digest: String },
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TrustedRootDocument {
+    trust_domain: String,
+    sequence: u64,
+    bundle_sha256: String,
+    threshold: u8,
+    keys: Vec<TrustedRootKeyDocument>,
+    revoked_key_ids: Vec<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TrustedRootKeyDocument {
+    key_id: String,
+    public_key_base64: String,
+    test_fixture: bool,
+}
+
+impl TrustPort for JsonTrustPort {
+    fn load(&self) -> Result<ReleaseTrustInput, PortError> {
+        let parent = self
+            .path
+            .parent()
+            .ok_or_else(|| PortError::ReleaseInvalid("trust state path has no parent".into()))?;
+        let name = self
+            .path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| PortError::ReleaseInvalid("trust state filename is not UTF-8".into()))?;
+        let bytes = read_external_regular(parent, name)?;
+        let value = parse(&bytes).map_err(PortError::ReleaseInvalid)?;
+        let document: TrustInputDocument = serde_json::from_value(value)
+            .map_err(|error| PortError::ReleaseInvalid(error.to_string()))?;
+        if document.schema != "repository-harness-external-trust-input/v1" {
+            return Err(PortError::ReleaseInvalid(
+                "external trust input schema is invalid".into(),
+            ));
+        }
+        let trust_policy = match document.trust_policy.as_str() {
+            "production" => TrustPolicy::Production,
+            "test-fixtures" => TrustPolicy::TestFixtures,
+            _ => {
+                return Err(PortError::ReleaseInvalid(
+                    "external trust policy is invalid".into(),
+                ))
+            }
+        };
+        let keys = document
+            .trusted_root
+            .keys
+            .into_iter()
+            .map(|key| {
+                Ok(PinnedRootKey {
+                    key_id: key.key_id,
+                    public_key: decode_base64_32(&key.public_key_base64)?,
+                    test_fixture: key.test_fixture,
+                })
+            })
+            .collect::<Result<Vec<_>, PortError>>()?;
+        let freshness = match document.freshness {
+            TrustFreshnessDocument::FirstInstallExactDigest { digest } => {
+                ReleaseFreshness::FirstInstallExactDigest(digest)
+            }
+            TrustFreshnessDocument::FirstInstallMinimumSequence { sequence } => {
+                ReleaseFreshness::FirstInstallMinimumSequence(sequence)
+            }
+            TrustFreshnessDocument::Existing { sequence, digest } => ReleaseFreshness::Existing {
+                sequence,
+                digest,
+                rollback: None,
+            },
+        };
+        Ok(ReleaseTrustInput {
+            trusted_root: TrustedRootState {
+                trust_domain: document.trusted_root.trust_domain,
+                sequence: document.trusted_root.sequence,
+                bundle_sha256: document.trusted_root.bundle_sha256,
+                threshold: document.trusted_root.threshold,
+                keys,
+                revoked_key_ids: document.trusted_root.revoked_key_ids,
+            },
+            trust_policy,
+            freshness,
+            path_ledger_sha256: document.path_ledger_sha256,
+        })
+    }
+}
+
+fn require_external_absolute_directory(path: &Path, label: &str) -> Result<(), PortError> {
+    if !path.is_absolute() || !path.is_dir() || path.is_symlink() {
+        return Err(PortError::ReleaseInvalid(format!(
+            "{label} must be an absolute, existing, non-link directory"
+        )));
+    }
+    Ok(())
+}
+
+fn read_external_regular(root: &Path, relative: &str) -> Result<Vec<u8>, PortError> {
+    validate_relative(relative, true)?;
+    require_external_absolute_directory(root, "external input root")?;
+    let canonical_root = root.canonicalize().map_err(|error| PortError::Io {
+        path: root.display().to_string(),
+        message: error.kind().to_string(),
+    })?;
+    let path = root.join(relative);
+    let mut cursor = root.to_path_buf();
+    for component in Path::new(relative).components() {
+        cursor.push(component);
+        let metadata = std::fs::symlink_metadata(&cursor).map_err(|error| PortError::Io {
+            path: relative.into(),
+            message: error.kind().to_string(),
+        })?;
+        if metadata.file_type().is_symlink() {
+            return Err(PortError::Link(relative.into()));
+        }
+    }
+    let canonical = path.canonicalize().map_err(|error| PortError::Io {
+        path: relative.into(),
+        message: error.kind().to_string(),
+    })?;
+    if !canonical.starts_with(&canonical_root) || !canonical.is_file() {
+        return Err(PortError::UnsafePath(relative.into()));
+    }
+    let first = std::fs::read(&canonical).map_err(|error| PortError::Io {
+        path: relative.into(),
+        message: error.kind().to_string(),
+    })?;
+    let second = std::fs::read(&canonical).map_err(|error| PortError::Io {
+        path: relative.into(),
+        message: error.kind().to_string(),
+    })?;
+    if first != second {
+        return Err(PortError::Changed(relative.into()));
+    }
+    Ok(first)
+}
+
+fn decode_base64_32(value: &str) -> Result<[u8; 32], PortError> {
+    fn digit(byte: u8) -> Option<u8> {
+        match byte {
+            b'A'..=b'Z' => Some(byte - b'A'),
+            b'a'..=b'z' => Some(byte - b'a' + 26),
+            b'0'..=b'9' => Some(byte - b'0' + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    }
+    if value.len() != 44 || !value.ends_with('=') {
+        return Err(PortError::ReleaseInvalid(
+            "root public key is not canonical base64 for 32 bytes".into(),
+        ));
+    }
+    if value.as_bytes()[..43].contains(&b'=')
+        || digit(value.as_bytes()[42]).is_none_or(|value| value & 0b11 != 0)
+    {
+        return Err(PortError::ReleaseInvalid(
+            "root public key base64 is not canonical".into(),
+        ));
+    }
+    let mut output = Vec::new();
+    for chunk in value.as_bytes().chunks_exact(4) {
+        let a = digit(chunk[0]);
+        let b = digit(chunk[1]);
+        let c = if chunk[2] == b'=' {
+            Some(0)
+        } else {
+            digit(chunk[2])
+        };
+        let d = if chunk[3] == b'=' {
+            Some(0)
+        } else {
+            digit(chunk[3])
+        };
+        let (Some(a), Some(b), Some(c), Some(d)) = (a, b, c, d) else {
+            return Err(PortError::ReleaseInvalid(
+                "root public key base64 is invalid".into(),
+            ));
+        };
+        let bits = (u32::from(a) << 18) | (u32::from(b) << 12) | (u32::from(c) << 6) | u32::from(d);
+        output.push((bits >> 16) as u8);
+        if chunk[2] != b'=' {
+            output.push((bits >> 8) as u8);
+        }
+        if chunk[3] != b'=' {
+            output.push(bits as u8);
+        }
+    }
+    output
+        .try_into()
+        .map_err(|_| PortError::ReleaseInvalid("root public key is not exactly 32 bytes".into()))
 }
 
 #[cfg(test)]

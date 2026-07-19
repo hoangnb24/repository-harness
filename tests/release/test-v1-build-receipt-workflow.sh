@@ -27,10 +27,15 @@ done
 grep -Fq 'resolve-candidate:' "$workflow" || fail "candidate resolver job is missing"
 grep -Fq 'candidate_sha: ${{ steps.resolve.outputs.candidate_sha }}' "$workflow" || fail "resolver output is missing"
 grep -Fq "candidate_sha=\$candidate_sha" "$workflow" || fail "immutable SHA handoff is missing"
-grep -Fq 'ref: refactor/harness-v1' "$workflow" || fail "resolver does not start from the approved branch"
+grep -Fq 'ref: ${{ github.sha }}' "$workflow" || fail "resolver does not start from the immutable dispatch SHA"
 grep -Fq 'refs/remotes/origin/refactor/harness-v1' "$workflow" || fail "approved remote branch policy is missing"
 grep -Fq 'git merge-base --is-ancestor "$candidate_sha" refs/remotes/origin/refactor/harness-v1' "$workflow" ||
   fail "candidate reachability proof is missing"
+grep -Fq 'refs/heads/agent/*)' "$workflow" || fail "agent diagnostic workflow ref is not explicitly bounded"
+grep -Fq 'test "$candidate_sha" = "$WORKFLOW_REVISION"' "$workflow" ||
+  fail "agent diagnostic candidate does not equal its immutable workflow revision"
+grep -Fq 'test "$candidate_sha" = "$DISPATCH_SHA"' "$workflow" ||
+  fail "agent diagnostic candidate does not equal its immutable dispatch SHA"
 grep -Fq 'fetch-depth: 0' "$workflow" || fail "full history required for reachability is missing"
 [[ "$(grep -Fc 'persist-credentials: false' "$workflow")" == 3 ]] ||
   fail "resolver, matrix, and collector must all disable persisted checkout credentials"
@@ -42,10 +47,10 @@ grep -Fq 'CANDIDATE_REF: ${{ inputs.candidate_ref }}' "$workflow" || fail "candi
 grep -Fq 'git rev-parse --verify --end-of-options "${CANDIDATE_REF}^{commit}"' "$workflow" ||
   fail "candidate input is not passed as one end-of-options-protected argv value"
 grep -Fq 'WORKFLOW_REVISION: ${{ github.workflow_sha }}' "$workflow" || fail "immutable execution-workflow SHA is missing"
-[[ "$(grep -Fc -- '--workflow-revision "$WORKFLOW_REVISION"' "$workflow")" == 2 ]] ||
-  fail "capture and collector do not share the execution-workflow revision"
-[[ "$(grep -Fc 'refs/heads/main:refs/remotes/origin/main' "$workflow")" == 2 ]] ||
-  fail "matrix and collector do not fetch protected main for workflow object verification"
+[[ "$(grep -Fc -- '--workflow-revision "$WORKFLOW_REVISION"' "$workflow")" == 3 ]] ||
+  fail "build capture, execution proof, and collector do not share the execution-workflow revision"
+[[ "$(grep -Fc 'refs/remotes/origin/workflow-execution' "$workflow")" == 4 ]] ||
+  fail "matrix and collector do not fetch and compare the exact workflow ref"
 [[ "$(grep -Fc 'git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"' "$workflow")" == 2 ]] ||
   fail "matrix and collector do not prove exact workflow bytes exist at the execution revision"
 
@@ -54,13 +59,16 @@ matrix_block=$(sed -n '/^  prove-before-promotion:/,/^  collect-receipts:/p' "$w
 [[ "$matrix_block" == *'actions/setup-python@v5'* && "$matrix_block" == *"python-version: '3.12'"* ]] ||
   fail "matrix does not pin a cross-platform Python runtime"
 [[ "$matrix_block" == *'scripts/capture-v1-build-receipt.sh'* ]] || fail "matrix does not use the capture script"
+[[ "$matrix_block" == *'scripts/run_v1_phase7_execution_proof.py'* ]] || fail "matrix does not run the six-command fixture proof"
+[[ "$matrix_block" == *'scripts/install-harness-v1.ps1'* || "$matrix_block" == *'scripts/prepare-v1-phase7-test-release.py'* ]] ||
+  fail "matrix does not prepare external signed test input for installer proof"
 [[ "$matrix_block" == *'actions/upload-artifact@v4'* ]] || fail "receipt upload is missing"
 [[ "$matrix_block" == *'retention-days: 5'* ]] || fail "explicit short retention is missing"
 
 grep -Fq 'actions/download-artifact@v4' "$workflow" || fail "receipt download is missing"
 grep -Fq 'pattern: harness-v1-build-receipt-*' "$workflow" || fail "exact receipt download pattern is missing"
-[[ "$(grep -Fc 'merge-multiple: false' "$workflow")" == 1 ]] ||
-  fail "receipt collection must preserve exactly one directory per downloaded platform artifact"
+[[ "$(grep -Fc 'merge-multiple: false' "$workflow")" == 2 ]] ||
+  fail "build and execution collection must preserve one directory per platform artifact"
 [[ "$(grep -Fc 'path: ${{ runner.temp }}/harness-v1-build-receipts' "$workflow")" == 1 ]] ||
   fail "receipt download root is missing or ambiguous"
 grep -Fq 'RECEIPT_ROOT: ${{ runner.temp }}/harness-v1-build-receipts' "$workflow" ||
@@ -69,6 +77,10 @@ grep -Fq '"$RECEIPT_ROOT"' "$workflow" || fail "collector does not pass its mapp
 ! grep -Fq '"$RUNNER_TEMP/harness-v1-build-receipts"' "$workflow" ||
   fail "collector verifier bypasses the shared cross-platform receipt-root mapping"
 grep -Fq 'scripts/verify-v1-build-receipts.sh' "$workflow" || fail "collector verifier is missing"
+grep -Fq 'scripts/verify-v1-phase7-execution-proof.sh --require-five' "$workflow" ||
+  fail "normalized five-platform execution verifier is missing"
+grep -Fq 'pattern: harness-v1-execution-proof-*' "$workflow" ||
+  fail "execution-proof download inventory is missing"
 grep -Fq -- '--require-five' "$workflow" || fail "collector does not require all five platforms"
 grep -Fq 'needs: collect-receipts' "$workflow" || fail "promotion guard is not downstream of collection"
 grep -Fq 'exit 1' "$workflow" || fail "promotion guard no longer fails closed"

@@ -163,6 +163,28 @@ machine-help identity. Installer, full direct-binary behavior, authenticated
 provenance, deferred Phase 6 P0-P7 evidence, platform equivalence, acceptance,
 and every release action remain pending or blocked.
 
+US-112's local execution slice adds checksum/platform preflight to the real V1
+binary, V1-only Bash and PowerShell installers, external signed-test-payload
+and independent trust adapters, and a closed execution receipt. The focused
+test runs install, update, audit, scaffold, status, and version across fresh,
+brownfield, nested-instruction, docs-only, monorepo, spaces/Unicode, LF, CRLF,
+custom-update, and bridge fixtures. It also seeds inert Cargo and package
+manifests and proves they are not interpreted:
+
+```bash
+cargo test -p harness-core --test phase7_direct_binary
+tests/release/test-v1-phase7-execution-proof.sh
+tests/release/test-v1-build-receipt-workflow.sh
+```
+
+Cause and effect: matching a checksum permits platform validation; matching the
+platform permits command parsing; valid external test trust permits signed
+payload planning; exact preview acceptance permits mutation. Failure at any
+earlier step produces no later step or owner-file change. Local success remains
+`unattested-not-authenticated`, sets no platform proof flag, and cannot replace
+remote five-runner evidence, external provenance/attestation, deferred Phase 6
+P0-P7 evidence, acceptance, or promotion.
+
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256` variables; the focused forwarding
