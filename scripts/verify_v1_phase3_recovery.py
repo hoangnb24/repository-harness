@@ -31,6 +31,7 @@ ALLOWED_LATER_CHANGESETS = {
     ".harness/changesets/harness_v1_phase7_12_premerge_bytecode_causality.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_13_windows_progress_suppression.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_14_ci_toolchain.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_15_ci_components.changeset.jsonl",
 }
 
 

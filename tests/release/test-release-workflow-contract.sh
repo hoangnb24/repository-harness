@@ -18,6 +18,7 @@ import sys
 
 workflow = Path(sys.argv[1]).read_text(encoding="utf-8")
 toolchain = "          toolchain: 1.97.0\n"
+components = "          components: rustfmt, clippy\n"
 expected = (
     "env:\n"
     "  CARGO_TERM_COLOR: always\n"
@@ -30,6 +31,8 @@ expected = (
 def verify(source: str) -> None:
     if source.count(toolchain) != 2:
         raise ValueError("Pre-Merge Rust toolchain is not pinned for both jobs")
+    if source.count(components) != 1:
+        raise ValueError("Pre-Merge validation toolchain omits rustfmt or Clippy")
     if source.count("PYTHONDONTWRITEBYTECODE") != 1:
         raise ValueError("Pre-Merge bytecode setting is missing or ambiguous")
     if source.count(expected) != 1:

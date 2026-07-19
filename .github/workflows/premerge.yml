@@ -69,6 +69,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.97.0
+          components: rustfmt, clippy
 
       - name: Run pre-merge contract
         env:

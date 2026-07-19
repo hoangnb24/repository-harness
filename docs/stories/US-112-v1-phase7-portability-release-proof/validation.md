@@ -143,8 +143,8 @@ scripts/verify-v1-phase6-evidence.sh --framework-only
 
 ## Acceptance Evidence
 
-Premerge pins Rust 1.97.0 in both jobs and runs formatting and Clippy before
-the long phase proofs. Unix custody mode checks accept Rustix's native
+Premerge pins Rust 1.97.0 in both jobs, installs `rustfmt` and `clippy` for the
+validation job, and runs those gates before the long phase proofs. Unix custody mode checks accept Rustix's native
 `RawMode`, avoiding a Linux-only useless-conversion lint while preserving the
 macOS `u16` mode representation.
 
