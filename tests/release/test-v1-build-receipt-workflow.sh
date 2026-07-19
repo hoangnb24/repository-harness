@@ -59,6 +59,15 @@ matrix_block=$(sed -n '/^  prove-before-promotion:/,/^  collect-receipts:/p' "$w
 
 grep -Fq 'actions/download-artifact@v4' "$workflow" || fail "receipt download is missing"
 grep -Fq 'pattern: harness-v1-build-receipt-*' "$workflow" || fail "exact receipt download pattern is missing"
+[[ "$(grep -Fc 'merge-multiple: false' "$workflow")" == 1 ]] ||
+  fail "receipt collection must preserve exactly one directory per downloaded platform artifact"
+[[ "$(grep -Fc 'path: ${{ runner.temp }}/harness-v1-build-receipts' "$workflow")" == 1 ]] ||
+  fail "receipt download root is missing or ambiguous"
+grep -Fq 'RECEIPT_ROOT: ${{ runner.temp }}/harness-v1-build-receipts' "$workflow" ||
+  fail "collector verifier root does not match the runner-temp download root"
+grep -Fq '"$RECEIPT_ROOT"' "$workflow" || fail "collector does not pass its mapped download root to the verifier"
+! grep -Fq '"$RUNNER_TEMP/harness-v1-build-receipts"' "$workflow" ||
+  fail "collector verifier bypasses the shared cross-platform receipt-root mapping"
 grep -Fq 'scripts/verify-v1-build-receipts.sh' "$workflow" || fail "collector verifier is missing"
 grep -Fq -- '--require-five' "$workflow" || fail "collector does not require all five platforms"
 grep -Fq 'needs: collect-receipts' "$workflow" || fail "promotion guard is not downstream of collection"

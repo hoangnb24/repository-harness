@@ -177,12 +177,13 @@ jobs:
         env:
           CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
+          RECEIPT_ROOT: ${{ runner.temp }}/harness-v1-build-receipts
         run: |
           scripts/verify-v1-build-receipts.sh \
             --candidate "$CANDIDATE_SHA" \
             --workflow-revision "$WORKFLOW_REVISION" \
             --require-five \
-            "$RUNNER_TEMP/harness-v1-build-receipts"
+            "$RECEIPT_ROOT"
 
   promotion-blocked:
     name: Production promotion guard
