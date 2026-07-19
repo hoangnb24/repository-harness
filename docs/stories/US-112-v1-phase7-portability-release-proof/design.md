@@ -42,6 +42,10 @@ Phase 6 comparison obligation all pass for the same candidate.
 
 The provenance sequence is deliberately causal. `capture_v1_build_receipt.py`
 builds and copies the artifact and checksum but does not execute the artifact.
+Capture and finalization disable Python bytecode before their first
+repository-local import, and the workflow also exports
+`PYTHONDONTWRITEBYTECODE=1`. Therefore importing receipt helpers cannot create
+an untracked `scripts/__pycache__` between checkout and the clean-status gate.
 The read-only build job uploads those final bytes, and an isolated attestation
 job downloads and attests them with the exact-pinned v3.2.0 action commit. A
 download-artifact v8.0.1 commit and upload-artifact v7.0.1 commit are also

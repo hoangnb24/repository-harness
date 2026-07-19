@@ -9,6 +9,10 @@ from pathlib import Path
 import platform as host_platform
 import sys
 
+# Prevent importing capture/provenance helpers from dirtying the checked-out
+# candidate when this finalizer runs without workflow-level bytecode controls.
+sys.dont_write_bytecode = True
+
 from capture_v1_build_receipt import (
     build_receipt_document,
     committed_candidate_identity,

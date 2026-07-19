@@ -79,6 +79,12 @@ that signed bundle before it may run the non-mutating `--help` grammar
 check. The collector reads either one receipt or exactly five downloaded
 workflow directories, repeats signed-bundle verification, and never executes
 the artifacts.
+
+Both receipt entrypoints disable bytecode before repository-local imports, and
+the workflow sets the matching environment defense globally. This keeps the
+clean-status check causal: invoking capture cannot create its own untracked
+Python cache and then reject the unchanged candidate.
+
 The privileged job pins its artifact download to the verified v8.0.1 commit,
 attestation generation to the verified v3.2.0 commit, and bundle upload to the
 verified v7.0.1 commit. Its three `uses` references are therefore immutable;

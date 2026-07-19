@@ -30,6 +30,7 @@ def rejected(name, changed):
         raise AssertionError(f"accepted {name}")
 
 rejected("unpinned attestation action", workflow.replace(ATTEST_ACTION, "actions/attest-build-provenance@v3"))
+rejected("bytecode defense disabled", workflow.replace("  PYTHONDONTWRITEBYTECODE: '1'", "  PYTHONDONTWRITEBYTECODE: '0'"))
 rejected("mutable privileged download action", workflow.replace(PRIVILEGED_DOWNLOAD_ACTION, "actions/download-artifact@v8"))
 rejected("substituted privileged download action", workflow.replace(PRIVILEGED_DOWNLOAD_ACTION, "attacker/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"))
 rejected("wrong privileged download commit", workflow.replace(PRIVILEGED_DOWNLOAD_ACTION, "actions/download-artifact@" + "0" * 40))

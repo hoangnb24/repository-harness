@@ -711,6 +711,8 @@ def validate_bootstrap(value: dict[str, Any], repository_root: Path = ROOT) -> N
                 and "contents: write" not in text
                 and text.count("id-token: write") == 1
                 and text.count("attestations: write") == 1
+                and "PYTHONDONTWRITEBYTECODE: '1'" in text
+                and "sys.dont_write_bytecode = True" in (repository_root / "scripts/capture_v1_build_receipt.py").read_text(encoding="utf-8")
                 and "actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f" in text
                 and "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" in text
                 and "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" in text,

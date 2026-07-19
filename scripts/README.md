@@ -171,7 +171,10 @@ help, installer, or direct-binary execution. Build/execution receipts bind the
 artifact, bundle, verification record, repository, workflow path/ref, and exact
 candidate/workflow SHA. Verification uses exact `--cert-identity` without the
 mutually exclusive `--signer-workflow` flag. Workflow Python calls use the
-setup-python output explicitly. The privileged job also pins artifact download
+setup-python output explicitly. Capture and finalizer disable bytecode before
+repository-local imports, while the workflow sets
+`PYTHONDONTWRITEBYTECODE=1`, so invoking receipt code cannot dirty the exact
+candidate before its clean-status check. The privileged job also pins artifact download
 to v8.0.1 commit `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c` and
 bundle upload to v7.0.1 commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`;
 moving artifact refs remain only in read-only jobs. Candidate subprocesses use

@@ -44,6 +44,10 @@ def require_permissions(block: str, expected: str, label: str) -> None:
 
 
 def verify_text(text: str) -> None:
+    require(
+        text.count("  PYTHONDONTWRITEBYTECODE: '1'") == 1,
+        "workflow must disable repository bytecode generation globally",
+    )
     require(text.count(ATTEST_ACTION) == 1, "attestation action must use the verified exact v3 commit once")
     require("actions/attest-build-provenance@v3" not in text, "attestation action uses a mutable tag")
     require(text.count("id-token: write") == 1, "OIDC permission must exist only on the attestation job")

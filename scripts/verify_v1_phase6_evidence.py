@@ -372,7 +372,10 @@ PHASE7_ATTESTATION_EVIDENCE = (
     "one exact certificate-identity mode plus repository, signer/source digest, "
     "source ref, artifact name/digest, event, runner, and transparency-log binding "
     "before execution. Every platform invokes finalization, execution proof, and "
-    "receipt verification through the setup-python output. Candidate subprocess "
+    "receipt verification through the setup-python output. Capture and finalization "
+    "disable bytecode before repository-local imports and the workflow exports "
+    "PYTHONDONTWRITEBYTECODE=1, so invoking receipt code cannot self-invalidate the "
+    "clean candidate check with untracked Python caches. Candidate subprocess "
     "environments are reconstructed from a minimal launch/temp/locale/Windows "
     "allowlist plus four explicit trusted HARNESS_V1 bindings; GitHub command-file "
     "channels, Actions runtime/OIDC variables, tokens, Python injection, home, and "
@@ -393,8 +396,8 @@ PHASE7_ATTESTATION_TRACE_SUMMARY = (
 )
 PHASE7_ATTESTATION_RECORD_SHA256 = (
     "4739ff91951ffaaf67a505321d2081917db0885718429d6bace12bc818697645",
-    "d576633c354711cffb1a4df58442d2d84983184ef011a025eeef5040e3bfe1f4",
-    "7fc800cffbd151e57a2bd34eba74b465f6b99202aeafb0305844ec5b70c90f1d",
+    "f7ee28f81387aa34b424b89faa6133c0ab6680350b75e4014112fcb839184e6b",
+    "4ffef19e17e80ca19d91655b4073ed2f80f1e38fe93a93e40ba1620827b81908",
     "08d1ca046de6cf76faf70a61fae44733c7fa1b7c0b523e5568743b69db1e700e",
 )
 PHASE7_BUILD_RECEIPT_TRACE_UIDS = (
@@ -2696,6 +2699,9 @@ def verify_phase7_execution_proof_boundary() -> None:
         and "build-native-artifact:" in workflow
         and "attest-native-artifact:" in workflow
         and "verify-execute-native-proof:" in workflow
+        and "PYTHONDONTWRITEBYTECODE: '1'" in workflow
+        and "sys.dont_write_bytecode = True" in (ROOT / "scripts/capture_v1_build_receipt.py").read_text(encoding="utf-8")
+        and "sys.dont_write_bytecode = True" in (ROOT / "scripts/finalize_v1_build_receipt.py").read_text(encoding="utf-8")
         and workflow.count("id-token: write") == 1
         and workflow.count("attestations: write") == 1
         and "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" in workflow

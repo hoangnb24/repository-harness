@@ -14,6 +14,10 @@ import stat
 import subprocess
 import sys
 
+# Repository-local helper imports must never make the candidate dirty before
+# its clean-status gate. The finalizer establishes the same invariant first.
+sys.dont_write_bytecode = True
+
 from v1_build_receipt_common import (
     BLOCKERS,
     CARGO_LOCK_PATH,

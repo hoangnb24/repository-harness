@@ -507,6 +507,8 @@ def proof_workflow_lifecycle_guard() -> None:
     check(
         workflow.count("id-token: write") == 1
         and workflow.count("attestations: write") == 1
+        and "PYTHONDONTWRITEBYTECODE: '1'" in workflow
+        and "sys.dont_write_bytecode = True" in (ROOT / "scripts/capture_v1_build_receipt.py").read_text(encoding="utf-8")
         and "actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f" in workflow
         and "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" in workflow
         and "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" in workflow,

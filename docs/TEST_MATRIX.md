@@ -145,7 +145,10 @@ US-112's next bounded slice adds separate non-production build receipts without
 changing that fixture-only schema. A native capture requires a clean exact
 HEAD candidate and exact platform/target/runner tuple, builds the release V1
 `harness`, and writes its checksum without execution. A read-only build job
-uploads those bytes, an isolated OIDC job uses the exact-pinned v3.2.0 action
+sets bytecode suppression before repository-local imports, with a workflow-wide
+environment defense, so its clean-status gate cannot be invalidated by
+`scripts/__pycache__` created by capture itself. It then uploads those bytes;
+an isolated OIDC job uses the exact-pinned v3.2.0 action
 plus exact-pinned v8.0.1 download and v7.0.1 upload actions to attest them
 without candidate execution, and a separate read-only native
 job downloads both inputs. Only successful signed-bundle verification may
@@ -171,6 +174,11 @@ command-file channels, Actions runtime/OIDC values, tokens, `PYTHONPATH`, and
 `PYTHONHOME`. The provenance
 test also exercises the installed `gh` parser so a fake runner cannot hide
 mutually exclusive verification flags.
+
+The build-receipt regression runs capture and finalizer in a temporary clean
+Git repository with bytecode environment variables unset and repository-local
+cache placement forced; it requires no `__pycache__`, no `.pyc`, and unchanged
+Git status after both entrypoints.
 
 The existing five-runner workflow now uses this capture and collector, but it
 has not been dispatched for this slice. Therefore no platform is accepted:

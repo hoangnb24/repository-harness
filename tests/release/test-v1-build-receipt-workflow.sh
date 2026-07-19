@@ -50,6 +50,8 @@ grep -Fq 'fetch-depth: 0' "$workflow" || fail "full history required for reachab
   fail "build, verify/execute, and collector do not checkout the immutable resolver SHA"
 
 grep -Fq 'WORKFLOW_REVISION: ${{ github.workflow_sha }}' "$workflow" || fail "immutable execution-workflow SHA is missing"
+[[ "$(grep -Fc "PYTHONDONTWRITEBYTECODE: '1'" "$workflow")" == 1 ]] ||
+  fail "workflow does not globally prevent repository-local Python bytecode"
 [[ "$(grep -Fc -- '--workflow-revision "$WORKFLOW_REVISION"' "$workflow")" == 5 ]] ||
   fail "build, finalization, execution, Windows guard, and both collectors do not share the workflow revision"
 [[ "$(grep -Fc 'refs/remotes/origin/workflow-execution' "$workflow")" == 6 ]] ||

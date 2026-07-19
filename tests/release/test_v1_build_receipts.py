@@ -194,6 +194,115 @@ class ReceiptFactory:
 
 
 class CaptureBoundaryTests(unittest.TestCase):
+    def test_entrypoints_cannot_create_repository_bytecode_or_invalidate_clean_status(self) -> None:
+        with tempfile.TemporaryDirectory(
+            dir=ROOT.parent,
+            prefix="phase7-capture-import-",
+        ) as temporary:
+            repository = Path(temporary)
+            scripts = repository / "scripts"
+            scripts.mkdir()
+            for name in (
+                "capture_v1_build_receipt.py",
+                "finalize_v1_build_receipt.py",
+                "v1_artifact_provenance.py",
+                "v1_build_receipt_common.py",
+            ):
+                shutil.copyfile(ROOT / "scripts" / name, scripts / name)
+
+            def repository_git(*arguments: str) -> bytes:
+                return subprocess.check_output(
+                    ["git", *arguments],
+                    cwd=repository,
+                    stderr=subprocess.DEVNULL,
+                )
+
+            subprocess.check_call(
+                ["git", "init", "-q"],
+                cwd=repository,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            repository_git("config", "user.name", "Phase 7 Test")
+            repository_git("config", "user.email", "phase7-test@example.invalid")
+            repository_git("add", "scripts")
+            repository_git("commit", "-q", "-m", "capture import fixture")
+            candidate = repository_git("rev-parse", "HEAD").decode("ascii").strip()
+
+            def bytecode_paths() -> set[Path]:
+                return {
+                    path.relative_to(repository)
+                    for path in scripts.rglob("*")
+                    if path.name == "__pycache__" or path.suffix == ".pyc"
+                }
+
+            self.assertEqual(bytecode_paths(), set(), "fixture must start without repository bytecode")
+            self.assertEqual(
+                repository_git("status", "--porcelain=v1", "--untracked-files=all"),
+                b"",
+            )
+            environment = os.environ.copy()
+            environment.pop("PYTHONDONTWRITEBYTECODE", None)
+            environment.pop("PYTHONPYCACHEPREFIX", None)
+            capture_result = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "pycache_prefix=",
+                    str(scripts / "capture_v1_build_receipt.py"),
+                    "--candidate",
+                    candidate,
+                    "--workflow-revision",
+                    candidate,
+                    "--platform",
+                    "regression-probe",
+                    "--target",
+                    "regression-probe",
+                    "--runner",
+                    "regression-probe",
+                    "--output",
+                    str(repository.parent / "never-created-receipt"),
+                ],
+                cwd=repository,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=20,
+            )
+            capture_error = capture_result.stderr.decode(errors="replace")
+            self.assertEqual(capture_result.returncode, 1, capture_error)
+            self.assertIn("unsupported platform: regression-probe", capture_error)
+            self.assertNotIn("worktree changes", capture_error)
+            self.assertEqual(bytecode_paths(), set())
+            self.assertEqual(
+                repository_git("status", "--porcelain=v1", "--untracked-files=all"),
+                b"",
+            )
+
+            finalizer_result = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "pycache_prefix=",
+                    str(scripts / "finalize_v1_build_receipt.py"),
+                ],
+                cwd=repository,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=20,
+            )
+            self.assertEqual(finalizer_result.returncode, 2)
+            self.assertEqual(bytecode_paths(), set())
+            self.assertEqual(
+                repository_git("status", "--porcelain=v1", "--untracked-files=all"),
+                b"",
+            )
+
     def test_rejects_non_exact_candidate_before_git(self) -> None:
         with self.assertRaisesRegex(ReceiptError, "exactly 40"):
             capture.validate_candidate("main")

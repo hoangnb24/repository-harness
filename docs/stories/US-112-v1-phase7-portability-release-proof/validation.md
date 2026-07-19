@@ -161,10 +161,10 @@ evidence promotable or changing any platform result from `pending`.
 
 The build-receipt continuation adds a separate fourteenth closed schema; it
 does not loosen `phase7-release-proof-v1.schema.json` from
-`fixture-only-non-production`. Ten focused build-receipt adversaries, eight
-provenance adversaries (including the installed `gh` parser), and nineteen
-static workflow adversaries cover dirty/mutable candidate boundaries, separately bound
-candidate and executing-workflow revisions, approved-remote-branch
+`fixture-only-non-production`. Eleven focused build-receipt adversaries, eight
+provenance adversaries (including the installed `gh` parser), and twenty
+static workflow adversaries cover dirty/mutable candidate boundaries,
+separately bound candidate and executing-workflow revisions, approved-remote-branch
 reachability, non-persisted checkout credentials, exact native tuples, safe
 new external output, missing/duplicate platforms, candidate and input drift,
 artifact/checksum/help substitution, unsupported claims, extra files,
@@ -177,6 +177,12 @@ ref, workflow ref, candidate SHA, and workflow SHA must agree. Build,
 verify/execute, and collector jobs check out that SHA with credential persistence disabled, verify
 the immutable workflow object/path, upload bounded receipts for five days, and
 download them under `contents: read`.
+
+The added bytecode regression creates a temporary clean Git repository with no
+`__pycache__` or `.pyc`, unsets both Python bytecode environment controls, and
+forces repository-local cache placement. Capture reaches the deliberate
+unsupported-platform rejection rather than failing its clean-status gate;
+finalizer startup also creates no bytecode, and the fixture remains clean.
 
 The provenance continuation extends the existing closed V1 build-receipt
 schema and the closed Phase 7 execution-proof schema with a bounded
