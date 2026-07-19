@@ -260,11 +260,15 @@ already imported `verify_v1_phase1_contracts` and created its repository-local
 `.pyc`; the Phase 7 test imported `verify_v1_phase7_release_proof` and added a
 second `.pyc`, so the before/after status differed. Pre-Merge now exports
 `PYTHONDONTWRITEBYTECODE: "1"` at workflow scope. Its release-workflow contract
-also uses a temporary clean clone, exercises both import paths, and proves no
-`__pycache__`, `.pyc`, or Git-status drift; missing, false, comment-only, and
-job-only settings are rejected. The test never deletes files from the primary
-checkout. This is CI hygiene evidence only and changes no Phase 6, Phase 7,
-platform, promotion, signing, or Phase 8 authority.
+uses two temporary clean clones with the same forced in-checkout
+`PYTHONPYCACHEPREFIX`. The unguarded negative control must create `.pyc` files,
+change Git status, and trip the Phase 7 status trap; the fresh guarded clone
+then exercises the exact same imports and must create no `__pycache__` or
+`.pyc` and preserve empty Git status. This proves the workflow variable, rather
+than an ambient macOS `sys.pycache_prefix`, causes cleanliness. Missing, false,
+comment-only, and job-only settings are also rejected. The test never deletes
+files from the primary checkout. This is CI hygiene evidence only and changes
+no Phase 6, Phase 7, platform, promotion, signing, or Phase 8 authority.
 
 US-112's local execution slice adds checksum/platform preflight to the real V1
 binary, a V1-only Bash installer and PowerShell controlled-unsupported installer

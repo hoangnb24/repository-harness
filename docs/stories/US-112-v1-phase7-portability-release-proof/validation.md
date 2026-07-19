@@ -274,12 +274,18 @@ Phase 2 import, and the Phase 7 test added
 `verify_v1_phase7_release_proof.cpython-312.pyc`. The workflow now sets
 `PYTHONDONTWRITEBYTECODE: "1"` in its top-level environment, so every Python
 process in every Pre-Merge job inherits the guard. The workflow contract clones
-a clean repository into a temporary directory, triggers the Phase 2-to-Phase 1
-import and the Phase 7 focused release-proof entry point, and then requires no
-`__pycache__`, no `.pyc`, and byte-for-byte-equivalent empty Git status. Static
-adversaries reject a missing, false, comment-only, or job-scoped setting. The
-regression removes only its temporary clone; it does not delete or normalize
-anything in the primary checkout.
+two clean repositories into a temporary directory and forces
+`PYTHONPYCACHEPREFIX` to the same relative in-checkout location in each. With
+`PYTHONDONTWRITEBYTECODE` absent, the exact Phase 2-to-Phase 1 import followed
+by the Phase 7 focused release-proof entry point must create `.pyc`, change Git
+status, and trigger the focused test's status trap. A fresh clone runs the same
+sequence with `PYTHONDONTWRITEBYTECODE=1` and must create no `__pycache__` or
+`.pyc` and retain byte-for-byte-equivalent empty Git status. The negative
+control prevents an inherited macOS `sys.pycache_prefix` from making the
+positive case pass without proving causality. Static adversaries still reject
+a missing, false, comment-only, or job-scoped setting. The regression removes
+only its temporary clones; it does not delete or normalize anything in the
+primary checkout.
 
 No platform is accepted. A local macOS arm64 test-fixture installer/direct-
 binary proof exists, and the remote run supplies five-platform provenance plus

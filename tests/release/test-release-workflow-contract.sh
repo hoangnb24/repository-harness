@@ -105,32 +105,59 @@ cleanup() {
   rm -rf "$temporary"
 }
 trap cleanup EXIT
-checkout="$temporary/checkout"
-git clone --quiet --no-hardlinks "$root" "$checkout"
+control_checkout="$temporary/control-checkout"
+git clone --quiet --no-hardlinks "$root" "$control_checkout"
 
-starting_status=$(git -C "$checkout" status --short --untracked-files=all)
-[[ -z "$starting_status" ]] || fail "isolated checkout did not start clean"
-if find "$checkout" \( -type d -name __pycache__ -o -type f -name '*.pyc' \) \
+control_starting_status=$(git -C "$control_checkout" status --short --untracked-files=all)
+[[ -z "$control_starting_status" ]] || fail "negative-control checkout did not start clean"
+set +e
+control_output=$(
+  (
+    cd "$control_checkout"
+    unset PYTHONDONTWRITEBYTECODE
+    export PYTHONPYCACHEPREFIX="$control_checkout/.premerge-pycache"
+    PYTHONPATH="$control_checkout/scripts" python3 -c 'import verify_v1_phase2_core'
+    tests/release/test-v1-phase7-release-proof.sh
+  ) 2>&1
+)
+control_exit=$?
+set -e
+[[ "$control_exit" -ne 0 ]] || fail "unguarded import sequence unexpectedly stayed clean"
+[[ "$control_output" == *"Phase 7 focused test changed repository status"* ]] || \
+  fail "unguarded import sequence did not trigger the Phase 7 status trap"
+if ! find "$control_checkout" -type f -name '*.pyc' -print -quit | grep -q .; then
+  fail "unguarded import sequence did not create in-checkout Python bytecode"
+fi
+control_ending_status=$(git -C "$control_checkout" status --short --untracked-files=all)
+[[ "$control_ending_status" != "$control_starting_status" ]] || \
+  fail "unguarded import sequence did not change Git status"
+
+guarded_checkout="$temporary/guarded-checkout"
+git clone --quiet --no-hardlinks "$root" "$guarded_checkout"
+
+guarded_starting_status=$(git -C "$guarded_checkout" status --short --untracked-files=all)
+[[ -z "$guarded_starting_status" ]] || fail "guarded checkout did not start clean"
+if find "$guarded_checkout" \( -type d -name __pycache__ -o -type f -name '*.pyc' \) \
   -print -quit | grep -q .; then
-  fail "isolated checkout unexpectedly contains Python bytecode"
+  fail "guarded checkout unexpectedly contains Python bytecode"
 fi
 
 (
-  cd "$checkout"
-  unset PYTHONPYCACHEPREFIX
+  cd "$guarded_checkout"
+  export PYTHONPYCACHEPREFIX="$guarded_checkout/.premerge-pycache"
   export PYTHONDONTWRITEBYTECODE=1
-  PYTHONPATH="$checkout/scripts" python3 -c 'import verify_v1_phase2_core'
+  PYTHONPATH="$guarded_checkout/scripts" python3 -c 'import verify_v1_phase2_core'
   tests/release/test-v1-phase7-release-proof.sh
 )
 
-if find "$checkout" \( -type d -name __pycache__ -o -type f -name '*.pyc' \) \
+if find "$guarded_checkout" \( -type d -name __pycache__ -o -type f -name '*.pyc' \) \
   -print -quit | grep -q .; then
   fail "premerge Python entry points created repository bytecode"
 fi
-ending_status=$(git -C "$checkout" status --short --untracked-files=all)
-[[ "$ending_status" == "$starting_status" ]] || {
+guarded_ending_status=$(git -C "$guarded_checkout" status --short --untracked-files=all)
+[[ "$guarded_ending_status" == "$guarded_starting_status" ]] || {
   printf 'isolated premerge entry points changed repository status\nbefore:\n%s\nafter:\n%s\n' \
-    "$starting_status" "$ending_status" >&2
+    "$guarded_starting_status" "$guarded_ending_status" >&2
   exit 1
 }
 

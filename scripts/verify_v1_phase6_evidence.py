@@ -81,6 +81,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase7_09_windows_refusal_capture.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_10_windows_plaintext_refusal.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_11_premerge_bytecode_boundary.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_12_premerge_bytecode_causality.changeset.jsonl",
     ".harness/changesets/harness_v1_phase5_ci_trust_provisioning.changeset.jsonl",
     "crates/harness-core/src/infrastructure.rs",
     "crates/harness-core/src/main.rs",
@@ -251,6 +252,10 @@ PHASE7_WINDOWS_PLAINTEXT_REFUSAL_CHANGESET = (
 PHASE7_PREMERGE_BYTECODE_BOUNDARY_CHANGESET = (
     ROOT
     / ".harness/changesets/harness_v1_phase7_11_premerge_bytecode_boundary.changeset.jsonl"
+)
+PHASE7_PREMERGE_BYTECODE_CAUSALITY_CHANGESET = (
+    ROOT
+    / ".harness/changesets/harness_v1_phase7_12_premerge_bytecode_causality.changeset.jsonl"
 )
 PHASE5_CI_TRUST_PROVISIONING_CHANGESET = (
     ROOT
@@ -464,6 +469,14 @@ PHASE7_PREMERGE_BYTECODE_BOUNDARY_TRACE_SUMMARY = (
 PHASE7_PREMERGE_BYTECODE_BOUNDARY_RECORD_SHA256 = (
     "cdbca1642b7fe91383f2db9bfceed56b147213afb4c37e8e542e89bd9703c13a",
     "1ecf31e222b8c8116b920d1a250d3c5a84b093cd4409e6b3d4cb394c72bbda5c",
+)
+PHASE7_PREMERGE_BYTECODE_CAUSALITY_TRACE_UID = "trc_8a1ad0878d440280f621c67dc5b5eb14"
+PHASE7_PREMERGE_BYTECODE_CAUSALITY_TRACE_SUMMARY = (
+    "Proved the Pre-Merge bytecode guard causes clean repository status"
+)
+PHASE7_PREMERGE_BYTECODE_CAUSALITY_RECORD_SHA256 = (
+    "6261926b537812393bbc9d2b85ee6a3c2b6fcb147c1fa2661df39971e5a55bce",
+    "e550d29a8a983b655858c748bacdbe97bb754c4c4229c5f6a22b5877eb3fd449",
 )
 PHASE5_CI_TRUST_PROVISIONING_TRACE_UID = "trc_749511795a5f28ab13de671bf182d0c3"
 PHASE5_CI_TRUST_PROVISIONING_TRACE_SUMMARY = (
@@ -2154,6 +2167,60 @@ def validate_phase7_premerge_bytecode_boundary_records(
         )
 
 
+def validate_phase7_premerge_bytecode_causality_records(
+    records: list[dict[str, Any]],
+) -> None:
+    check(
+        tuple(sha256_bytes(canonical_bytes(record)) for record in records)
+        == PHASE7_PREMERGE_BYTECODE_CAUSALITY_RECORD_SHA256,
+        "Phase 7 Pre-Merge bytecode-causality changeset record bytes changed",
+    )
+    check(
+        [record.get("op") for record in records] == ["changeset.header", "trace.add"],
+        "Phase 7 Pre-Merge bytecode-causality operation sequence changed",
+    )
+    check(
+        records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase7_12_premerge_bytecode_causality",
+            "version": 1,
+        },
+        "Phase 7 Pre-Merge bytecode-causality header changed",
+    )
+    trace = records[1]
+    payload = trace.get("payload", {})
+    check(
+        trace.get("uid") == PHASE7_PREMERGE_BYTECODE_CAUSALITY_TRACE_UID
+        and trace.get("version") == 2
+        and payload.get("task_summary")
+        == PHASE7_PREMERGE_BYTECODE_CAUSALITY_TRACE_SUMMARY
+        and payload.get("intake_uid") == PHASE7_INTAKE_UID
+        and payload.get("story_id") == PHASE7_STORY_ID
+        and payload.get("agent") == "codex"
+        and payload.get("outcome") == "completed"
+        and payload.get("duration_seconds") is None
+        and payload.get("token_estimate") is None
+        and "No push, dispatch, main mutation" in payload.get("notes", ""),
+        "Phase 7 Pre-Merge bytecode-causality trace lost identity or closed authority",
+    )
+    for field in (
+        "actions_taken",
+        "files_read",
+        "files_changed",
+        "decisions_made",
+        "errors",
+    ):
+        values = strict_json_loads(payload.get(field, ""))
+        check(
+            isinstance(values, list)
+            and values
+            and all(isinstance(value, str) and value for value in values),
+            f"Phase 7 Pre-Merge bytecode-causality trace {field} is not Detailed",
+        )
+
+
 def validate_phase5_ci_trust_provisioning_records(
     records: list[dict[str, Any]],
 ) -> None:
@@ -2222,6 +2289,9 @@ def verify_phase7_opening_gate() -> None:
     premerge_bytecode_boundary_records = load_jsonl(
         PHASE7_PREMERGE_BYTECODE_BOUNDARY_CHANGESET
     )
+    premerge_bytecode_causality_records = load_jsonl(
+        PHASE7_PREMERGE_BYTECODE_CAUSALITY_CHANGESET
+    )
     phase5_ci_trust_provisioning_records = load_jsonl(
         PHASE5_CI_TRUST_PROVISIONING_CHANGESET
     )
@@ -2249,6 +2319,9 @@ def verify_phase7_opening_gate() -> None:
     validate_phase7_premerge_bytecode_boundary_records(
         premerge_bytecode_boundary_records
     )
+    validate_phase7_premerge_bytecode_causality_records(
+        premerge_bytecode_causality_records
+    )
     validate_phase5_ci_trust_provisioning_records(
         phase5_ci_trust_provisioning_records
     )
@@ -2269,6 +2342,7 @@ def verify_phase7_opening_gate() -> None:
                 PHASE7_WINDOWS_REFUSAL_CAPTURE_CHANGESET,
                 PHASE7_WINDOWS_PLAINTEXT_REFUSAL_CHANGESET,
                 PHASE7_PREMERGE_BYTECODE_BOUNDARY_CHANGESET,
+                PHASE7_PREMERGE_BYTECODE_CAUSALITY_CHANGESET,
                 PHASE5_CI_TRUST_PROVISIONING_CHANGESET,
             }:
                 shutil.copyfile(changeset, prior_changesets / changeset.name)
@@ -3271,6 +3345,87 @@ def verify_phase7_opening_gate() -> None:
             check(
                 applied == (1,),
                 "Pre-Merge bytecode idempotent replay recorded multiple applications",
+            )
+        finally:
+            connection.close()
+
+        premerge_bytecode_causality_apply = [
+            str(ROOT / "scripts/bin/harness-cli"),
+            "db",
+            "changeset",
+            "apply",
+            str(PHASE7_PREMERGE_BYTECODE_CAUSALITY_CHANGESET),
+        ]
+        for attempt in ("initial", "idempotent"):
+            premerge_bytecode_causality_result = subprocess.run(
+                premerge_bytecode_causality_apply,
+                cwd=ROOT,
+                capture_output=True,
+                check=False,
+                env=environment,
+                text=True,
+            )
+            check(
+                premerge_bytecode_causality_result.returncode == 0,
+                f"Phase 7 Pre-Merge bytecode-causality changeset {attempt} apply failed",
+            )
+        connection = sqlite3.connect(str(database))
+        try:
+            story = connection.execute(
+                """
+                SELECT status, unit_proof, integration_proof, e2e_proof,
+                       platform_proof, evidence, last_verified_result,
+                       verify_command
+                FROM story WHERE id = ?
+                """,
+                (PHASE7_STORY_ID,),
+            ).fetchall()
+            check(
+                story
+                == [
+                    (
+                        "in_progress",
+                        0,
+                        0,
+                        0,
+                        0,
+                        PHASE7_ATTESTATION_EVIDENCE,
+                        "pass",
+                        PHASE7_ATTESTATION_VERIFY_COMMAND,
+                    )
+                ],
+                "Pre-Merge bytecode-causality trace changed US-112 authority state",
+            )
+            trace = connection.execute(
+                """
+                SELECT uid, intake_uid, story_id, task_summary, outcome,
+                       duration_seconds, token_estimate
+                FROM trace WHERE uid = ?
+                """,
+                (PHASE7_PREMERGE_BYTECODE_CAUSALITY_TRACE_UID,),
+            ).fetchall()
+            check(
+                trace
+                == [
+                    (
+                        PHASE7_PREMERGE_BYTECODE_CAUSALITY_TRACE_UID,
+                        PHASE7_INTAKE_UID,
+                        PHASE7_STORY_ID,
+                        PHASE7_PREMERGE_BYTECODE_CAUSALITY_TRACE_SUMMARY,
+                        "completed",
+                        None,
+                        None,
+                    )
+                ],
+                "isolated Pre-Merge bytecode-causality replay lost trace identity",
+            )
+            applied = connection.execute(
+                "SELECT COUNT(*) FROM changeset_applied WHERE id = ?",
+                ("harness_v1_phase7_12_premerge_bytecode_causality",),
+            ).fetchone()
+            check(
+                applied == (1,),
+                "Pre-Merge bytecode-causality replay recorded multiple applications",
             )
         finally:
             connection.close()

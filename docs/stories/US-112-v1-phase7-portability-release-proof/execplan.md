@@ -171,9 +171,11 @@ promotion blocked.
   Phase 5 six-group verifier and 19 trust adversaries, then failed because
   Phase 2's Phase 1 import and the Phase 7 release-proof import created
   repository-local `.pyc` files. The workflow-global
-  `PYTHONDONTWRITEBYTECODE: "1"` guard and isolated-clean-clone regression close
-  that CI-hygiene defect without deleting primary-checkout files or changing
-  authority.
+  `PYTHONDONTWRITEBYTECODE: "1"` guard and paired isolated-clone regression
+  close that CI-hygiene defect. Both clones force the same in-checkout bytecode
+  prefix: the unguarded clone must drift and the guarded clone must remain
+  clean, proving the guard is causal without deleting primary-checkout files or
+  changing authority.
 - Remaining: a successful remote Windows refusal assertion and final receipt
   collection/equivalence, safe Windows repository mutation, deferred Phase 6
   live evidence, platform acceptance, review, and any
