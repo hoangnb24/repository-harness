@@ -92,16 +92,25 @@ PowerShell V1 installers verify checksums before platform selection; and one
 runner executes all six commands across the ten fixtures. It seeds inert
 `package.json` and `Cargo.toml` files and proves they remain owner-owned rather
 than interpreted. The normalized receipt binds the candidate commit/tree,
-Cargo lock, command binding, and exact workflow bytes.
+Cargo lock, command binding, exact workflow bytes, and each closed normalized
+result payload.
 
 Cause and effect: a local macOS pass proves that checksum-first Bash install,
 native command execution, Unicode/space/LF/CRLF preservation, and normalized
 manifest/audit/recovery/identity behavior work on that local host. It does not
 prove Windows behavior, remote runner behavior, artifact provenance, or
-platform acceptance. The five workflow jobs must produce byte-valid receipts
-with the same normalized contract digest before a later reviewer can consider
-that platform matrix, and even that cannot replace deferred Phase 6 live
+platform acceptance. The four Unix jobs must produce matching full normalized
+contracts. Windows must record controlled unsupported behavior before
+mutation, so five-platform equivalence remains pending until the safe adapter
+exists. Even a five-receipt inventory cannot replace deferred Phase 6 live
 evidence or external attestation.
+
+The diagnostic workflow is discoverable on `refactor/harness-v1` without
+default-branch installation. A push runs the costly jobs only when the
+dedicated `.github/harness-v1-diagnostic-request` sentinel changes. It accepts
+no candidate input: repository, event, ref, workflow ref, `github.sha`, and
+`github.workflow_sha` must match exactly. The collector recomputes candidate
+and workflow identities from checked-out Git objects before comparing receipts.
 
 ## Resume Capsule
 
@@ -109,8 +118,8 @@ evidence or external attestation.
 - Completed: Decision 0016 accepted; intake #9 recorded; fixture-only and build
   receipt slices; checksum/platform preflight; external release/trust adapters;
   Bash and PowerShell V1 installers; six-command/ten-fixture execution runner;
-  normalized receipt schema/verifier; feature-branch diagnostic identity; and
-  local focused adversaries.
+  normalized-payload receipt schema/verifier; refactor-branch sentinel
+  diagnostic identity; destination-link adversaries; and local focused tests.
 - Current evidence: local focused execution passes on macOS arm64. The workflow
   has not been dispatched, no remote execution receipt has been downloaded,
   provenance is explicitly unattested, and no platform is accepted.
@@ -118,7 +127,7 @@ evidence or external attestation.
   authenticated artifact provenance, external trust/attestation evidence,
   deferred Phase 6 live evidence, platform acceptance, review, and any
   separately authorized release action.
-- Exact next action: `review this committed candidate, then separately authorize an immutable agent-branch diagnostic workflow run if remote five-runner evidence is desired`
+- Exact next action: `review this committed candidate; if remote diagnostics are later authorized, change the diagnostic sentinel in the exact candidate pushed to refactor/harness-v1`
 - Validation ladder: documentation and JSON checks; focused fixture/proof
   tests; installer/direct-binary tests; five-platform workflow; full premerge;
   stop at the first failed boundary.

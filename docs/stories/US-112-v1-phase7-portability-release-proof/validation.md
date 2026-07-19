@@ -38,13 +38,26 @@ executable. A later exact-five collection must share candidate, workflow,
 command, and normalized contract identity. Until those remote receipts exist,
 platform proof remains zero.
 
+Exact-five verification requires an independently resolved candidate SHA and
+workflow revision, then recomputes the candidate tree, Cargo lock, command
+binding, workflow path, and workflow byte digest from checked-out Git objects.
+Five mutually consistent substituted receipts are therefore rejected. Each
+fixture also includes its closed normalized command/recovery payload; fixture
+and collection digests are recomputed from those payloads rather than trusting
+arbitrary hash strings.
+
+Four Unix receipts may share the full native contract. Windows must instead
+record `controlled-unsupported-before-mutation`, exit 74 for repository
+commands, zero mutation, and no manifest. Exact-five inventory verification
+can therefore pass while `five_platform_equivalence` remains `pending`.
+
 ## Test Plan
 
 | Layer | Cases |
 | --- | --- |
 | Unit | Closed schemas, duplicate-key rejection, exact candidate identity, native tuple/output safety, platform/path uniqueness, digest and authority-state negatives. |
 | Integration | Fixture-only repository-shape inventory plus synthetic single/exact-five receipt collection, checksum/help byte verification, and no artifact execution. |
-| E2E | Local Bash/direct-binary install-to-audit across all ten fixtures; PowerShell is wired for the Windows native runner. |
+| E2E | Local Bash/direct-binary install-to-audit across all ten fixtures; Windows records controlled unsupported and runs native PowerShell junction adversaries when its diagnostic runner executes. |
 | Platform | macOS arm64/x64, Linux x64/arm64, and Windows x64 exact artifacts. |
 | Performance | Build/proof duration recorded; no performance acceptance claim in the opening slice. |
 | Logs/Audit | Candidate/platform/check/evidence identities; no target telemetry. |
@@ -147,13 +160,14 @@ reachability, non-persisted checkout credentials, exact native tuples, safe
 new external output, missing/duplicate platforms, candidate and input drift,
 artifact/checksum/help substitution, unsupported claims, extra files,
 duplicate keys, command fields, traversal, and symlinks. The workflow resolves
-the dispatch input once. Protected-main diagnostics keep the approved
-`refs/remotes/origin/refactor/harness-v1` ancestry rule. An `agent/*`
-diagnostic instead requires candidate SHA, immutable workflow SHA, and dispatch
-SHA to be identical. Matrix and collector jobs check out that full SHA with
-credential persistence disabled, fetch the exact workflow ref into a fixed
-remote name, verify the immutable workflow object/path, upload bounded receipts
-for five days, and download them under `contents: read`.
+the candidate identity once. The corrected diagnostic uses a tightly scoped
+push trigger on `refactor/harness-v1` and only when
+`.github/harness-v1-diagnostic-request` changes. It has no arbitrary candidate
+input and no `agent/*` or main authority. Exact repository, push event, branch
+ref, workflow ref, candidate SHA, and workflow SHA must agree. Matrix and
+collector jobs check out that SHA with credential persistence disabled, verify
+the immutable workflow object/path, upload bounded receipts for five days, and
+download them under `contents: read`.
 
 No remote workflow run exists for this slice and no platform is accepted. A
 local macOS arm64 test-fixture installer/direct-binary proof exists; remote
@@ -165,7 +179,11 @@ The local execution continuation adds a closed non-production schema under the
 release test surface, V1-only Bash/PowerShell installers, direct self-digest
 and platform preflight, external signed-test-payload adapters, and an
 exact-ten-case runner/verifier. Focused local proof executes all six commands
-for all ten cases and rejects checksum tampering, provenance overclaim,
-platform-acceptance overclaim, normalized drift, and missing authentication.
+for all ten cases and rejects checksum tampering, target-root/`scripts`/`bin`
+links, mutually substituted exact-five identities, absent external identity,
+provenance and platform overclaims, normalized payload substitution, normalized
+drift, and missing authentication. PowerShell ordering and containment are
+checked statically locally; its native junction adversary remains unrun until
+a Windows diagnostic.
 No remote workflow was dispatched, so `platform_proof`, Phase 7 acceptance,
 and all promotion authorities remain false.

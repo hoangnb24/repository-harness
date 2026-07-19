@@ -28,27 +28,30 @@ grep -Fq 'resolve-candidate:' "$workflow" || fail "candidate resolver job is mis
 grep -Fq 'candidate_sha: ${{ steps.resolve.outputs.candidate_sha }}' "$workflow" || fail "resolver output is missing"
 grep -Fq "candidate_sha=\$candidate_sha" "$workflow" || fail "immutable SHA handoff is missing"
 grep -Fq 'ref: ${{ github.sha }}' "$workflow" || fail "resolver does not start from the immutable dispatch SHA"
+grep -Fq 'push:' "$workflow" || fail "diagnostic workflow is not push-discoverable"
+grep -Fq -- '- refactor/harness-v1' "$workflow" || fail "diagnostic workflow is not scoped to refactor/harness-v1"
+grep -Fq -- '- .github/harness-v1-diagnostic-request' "$workflow" || fail "diagnostic workflow lacks its cost-control sentinel path"
+! grep -Fq 'workflow_dispatch:' "$workflow" || fail "workflow remains manual-dispatch-only"
+! grep -Fq 'candidate_ref' "$workflow" || fail "workflow still accepts an arbitrary candidate"
+! grep -Fq 'refs/heads/agent/' "$workflow" || fail "workflow still grants agent-branch diagnostic authority"
+! grep -Fq '@refs/heads/main' "$workflow" || fail "workflow still requires default-branch discovery"
+grep -Fq 'test "$REPOSITORY" = hoangnb24/repository-harness' "$workflow" || fail "repository identity check is missing"
+grep -Fq 'test "$EVENT_NAME" = push' "$workflow" || fail "event identity check is missing"
+grep -Fq 'test "$PUSH_REF" = refs/heads/refactor/harness-v1' "$workflow" || fail "push ref identity check is missing"
+grep -Fq 'test "$WORKFLOW_REF" = hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/refactor/harness-v1' "$workflow" ||
+  fail "workflow ref identity check is missing"
+grep -Fq 'test "$CANDIDATE_SHA" = "$WORKFLOW_REVISION"' "$workflow" ||
+  fail "push candidate is not identical to the executing workflow revision"
 grep -Fq 'refs/remotes/origin/refactor/harness-v1' "$workflow" || fail "approved remote branch policy is missing"
-grep -Fq 'git merge-base --is-ancestor "$candidate_sha" refs/remotes/origin/refactor/harness-v1' "$workflow" ||
-  fail "candidate reachability proof is missing"
-grep -Fq 'refs/heads/agent/*)' "$workflow" || fail "agent diagnostic workflow ref is not explicitly bounded"
-grep -Fq 'test "$candidate_sha" = "$WORKFLOW_REVISION"' "$workflow" ||
-  fail "agent diagnostic candidate does not equal its immutable workflow revision"
-grep -Fq 'test "$candidate_sha" = "$DISPATCH_SHA"' "$workflow" ||
-  fail "agent diagnostic candidate does not equal its immutable dispatch SHA"
 grep -Fq 'fetch-depth: 0' "$workflow" || fail "full history required for reachability is missing"
 [[ "$(grep -Fc 'persist-credentials: false' "$workflow")" == 3 ]] ||
   fail "resolver, matrix, and collector must all disable persisted checkout credentials"
 [[ "$(grep -Fc 'ref: ${{ needs.resolve-candidate.outputs.candidate_sha }}' "$workflow")" == 2 ]] ||
   fail "matrix and collector do not both checkout the immutable resolver SHA"
 
-grep -Fq 'CANDIDATE_REF: ${{ inputs.candidate_ref }}' "$workflow" || fail "candidate input is not mapped through env"
-! grep -Fq 'test "${{ inputs.candidate_ref }}"' "$workflow" || fail "candidate input is interpolated into shell source"
-grep -Fq 'git rev-parse --verify --end-of-options "${CANDIDATE_REF}^{commit}"' "$workflow" ||
-  fail "candidate input is not passed as one end-of-options-protected argv value"
 grep -Fq 'WORKFLOW_REVISION: ${{ github.workflow_sha }}' "$workflow" || fail "immutable execution-workflow SHA is missing"
-[[ "$(grep -Fc -- '--workflow-revision "$WORKFLOW_REVISION"' "$workflow")" == 3 ]] ||
-  fail "build capture, execution proof, and collector do not share the execution-workflow revision"
+[[ "$(grep -Fc -- '--workflow-revision "$WORKFLOW_REVISION"' "$workflow")" == 4 ]] ||
+  fail "build/execution capture and both collectors do not share the execution-workflow revision"
 [[ "$(grep -Fc 'refs/remotes/origin/workflow-execution' "$workflow")" == 4 ]] ||
   fail "matrix and collector do not fetch and compare the exact workflow ref"
 [[ "$(grep -Fc 'git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"' "$workflow")" == 2 ]] ||
@@ -60,6 +63,12 @@ matrix_block=$(sed -n '/^  prove-before-promotion:/,/^  collect-receipts:/p' "$w
   fail "matrix does not pin a cross-platform Python runtime"
 [[ "$matrix_block" == *'scripts/capture-v1-build-receipt.sh'* ]] || fail "matrix does not use the capture script"
 [[ "$matrix_block" == *'scripts/run_v1_phase7_execution_proof.py'* ]] || fail "matrix does not run the six-command fixture proof"
+[[ "$matrix_block" == *'behavior: controlled-unsupported-before-mutation'* ]] ||
+  fail "Windows row fabricates successful mutation instead of controlled unsupported behavior"
+[[ "$matrix_block" == *'tests/release/test-install-harness-v1-destination.ps1'* ]] ||
+  fail "Windows row lacks native destination-junction adversaries"
+[[ "$matrix_block" == *'.authority.five_platform_equivalence == "pending"'* ]] ||
+  fail "matrix no longer verifies that five-platform equivalence remains pending"
 [[ "$matrix_block" == *'scripts/install-harness-v1.ps1'* || "$matrix_block" == *'scripts/prepare-v1-phase7-test-release.py'* ]] ||
   fail "matrix does not prepare external signed test input for installer proof"
 [[ "$matrix_block" == *'actions/upload-artifact@v4'* ]] || fail "receipt upload is missing"
@@ -78,18 +87,24 @@ grep -Fq '"$RECEIPT_ROOT"' "$workflow" || fail "collector does not pass its mapp
   fail "collector verifier bypasses the shared cross-platform receipt-root mapping"
 grep -Fq 'scripts/verify-v1-build-receipts.sh' "$workflow" || fail "collector verifier is missing"
 grep -Fq 'scripts/verify-v1-phase7-execution-proof.sh --require-five' "$workflow" ||
-  fail "normalized five-platform execution verifier is missing"
+  grep -Fq -- '--require-five' "$workflow" || fail "exact-five execution verifier is missing"
+grep -Fq -- '--candidate "$CANDIDATE_SHA"' "$workflow" || fail "exact-five verifier lacks external candidate identity"
+grep -Fq -- '--workflow-revision "$WORKFLOW_REVISION"' "$workflow" || fail "exact-five verifier lacks external workflow revision"
+grep -Fq -- '--repository-root "$REPOSITORY_ROOT"' "$workflow" || fail "exact-five verifier cannot recompute committed identity bytes"
 grep -Fq 'pattern: harness-v1-execution-proof-*' "$workflow" ||
   fail "execution-proof download inventory is missing"
 grep -Fq -- '--require-five' "$workflow" || fail "collector does not require all five platforms"
-grep -Fq 'needs: collect-receipts' "$workflow" || fail "promotion guard is not downstream of collection"
-grep -Fq 'exit 1' "$workflow" || fail "promotion guard no longer fails closed"
 grep -Fq 'contents: read' "$workflow" || fail "workflow lacks contents-read permission"
+grep -Fq "if: github.repository == 'hoangnb24/repository-harness'" "$workflow" || fail "workflow-level repository guard is missing"
+grep -Fq 'promotion-blocked:' "$workflow" || fail "fail-closed promotion guard is missing"
+grep -Fq 'needs: collect-receipts' "$workflow" || fail "promotion guard is not downstream of diagnostics"
+grep -Fq 'repository-protection and pinned artifact-attestation evidence are not present' "$workflow" ||
+  fail "promotion guard lost its external-evidence refusal"
 
 ! grep -Eq 'contents:[[:space:]]*write|id-token:|packages:[[:space:]]*write|actions/attest|sigstore|gh release|git tag|git push|cargo publish|npm publish' "$workflow" ||
   fail "workflow contains release, publish, OIDC, signing, or attestation authority"
 
-grep -Fq 'hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/main' "$workflow" ||
-  fail "main-workflow identity pin is missing"
+! grep -Eq 'request_promotion|inputs\.' "$workflow" ||
+  fail "diagnostic workflow retains arbitrary-input authority"
 
-echo "V1 exact five-platform immutable build-receipt workflow contract passed; release authority remains absent"
+echo "V1 refactor-branch immutable diagnostic workflow contract passed; Windows equivalence and release authority remain blocked"

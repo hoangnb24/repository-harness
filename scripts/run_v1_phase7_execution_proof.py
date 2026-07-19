@@ -25,6 +25,7 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 BLOCKERS = [
     "deferred-phase6-live-p0-p7-evidence-pending",
     "remote-five-platform-execution-pending",
+    "safe-windows-repository-mutation-pending",
     "artifact-provenance-attestation-pending",
     "platform-acceptance-pending",
 ]
@@ -59,6 +60,7 @@ def git_bytes(*arguments: str) -> bytes:
 def immutable_identity(candidate: str, workflow_revision: str) -> tuple[dict[str, str], dict[str, str]]:
     check(re.fullmatch(r"[0-9a-f]{40}", candidate) is not None, "candidate must be exact 40-hex")
     check(re.fullmatch(r"[0-9a-f]{40}", workflow_revision) is not None, "workflow revision must be exact 40-hex")
+    check(candidate == workflow_revision, "candidate and workflow revision must be identical")
     head = git_bytes("rev-parse", "HEAD").decode("ascii").strip()
     check(candidate == head, "candidate does not equal HEAD")
     check(git_bytes("status", "--porcelain=v1", "--untracked-files=all") == b"", "worktree is not clean")
@@ -158,7 +160,7 @@ def parse_human(payload: bytes) -> dict[str, object]:
             continue
         if ": " in line:
             key, value = line.split(": ", 1)
-            fields[key] = int(value) if key == "exit-code" else value
+            fields[key] = int(value) if key in {"exit-code", "release-sequence"} else value
     fields["notice-codes"] = notices
     return fields
 
@@ -210,15 +212,105 @@ def snapshot(root: Path) -> dict[str, str]:
     }
 
 
-def normalized(document: dict[str, object]) -> dict[str, object]:
+def normalized_command(document: dict[str, object], *, human: bool = False) -> dict[str, object]:
+    details = {} if human else document.get("details", {})
+    notices = document.get("notice-codes", []) if human else [
+        notice.get("code") for notice in document.get("notices", [])
+    ]
     return {
-        key: document.get(key)
-        for key in ("schema", "command", "outcome", "exit_code", "mutation", "repository_mode", "release")
-    } | {
-        "readiness": document.get("details", {}).get("readiness"),
-        "violations": document.get("details", {}).get("violations"),
-        "notice_codes": [notice.get("code") for notice in document.get("notices", [])],
+        "command": document.get("command"),
+        "outcome": document.get("outcome"),
+        "exit_code": document.get("exit-code" if human else "exit_code"),
+        "mutation": document.get("mutation"),
+        "repository_mode": document.get("repository-mode" if human else "repository_mode"),
+        "release_role": document.get("release-role") if human else None,
+        "release_sequence": document.get("release-sequence") if human else None,
+        "release_index_sha256": document.get("release-index-sha256") if human else None,
+        "readiness": details.get("readiness"),
+        "violation_codes": [
+            violation.get("code") if isinstance(violation, dict) else str(violation)
+            for violation in details.get("violations", [])
+        ],
+        "notice_codes": notices,
     }
+
+
+def fixture_record(case: str, mode: str, normalized_result: dict[str, object]) -> dict[str, object]:
+    return {
+        "case": case,
+        "execution_status": mode,
+        "owner_bytes_preserved": True,
+        "language_manifests_ignored": True,
+        "line_endings_preserved": True,
+        "normalized_result": normalized_result,
+        "normalized_sha256": digest_bytes(canonical(normalized_result)),
+    }
+
+
+def run_unsupported_windows_case(
+    case: str,
+    source: Path,
+    workspace: Path,
+    artifact: Path,
+    checksum: Path,
+    artifact_sha: str,
+    platform_name: str,
+    release_directory: Path,
+    trust_state: Path,
+) -> tuple[dict[str, object], str]:
+    repository = workspace / case
+    shutil.copytree(source, repository)
+    (repository / "package.json").write_bytes(b'{"scripts":{"phase7-canary":"must-not-run"}}\n')
+    (repository / "Cargo.toml").write_bytes(b'[package]\nname = "must-not-interpret"\n')
+    before = snapshot(repository)
+    binary, installer = install(artifact, checksum, platform_name, repository)
+    environment = os.environ.copy()
+    environment.update({
+        "HARNESS_V1_ARTIFACT_SHA256": artifact_sha,
+        "HARNESS_V1_PLATFORM": platform_name,
+        "HARNESS_V1_RELEASE_DIRECTORY": str(release_directory),
+        "HARNESS_V1_TRUST_STATE": str(trust_state),
+    })
+    install_result = run_human(binary, ["install", "--preview"], repository, environment, 74)
+    update_result = run_human(binary, ["update", "--preview"], repository, environment, 74)
+    audit_result = run_json(binary, ["audit", "--json"], repository, environment, 74)
+    scaffold_result = run_human(
+        binary,
+        ["scaffold", "--template", "decision-template", "--destination", "docs/templates/decision.md", "--preview"],
+        repository,
+        environment,
+        74,
+    )
+    status_result = run_json(binary, ["status", "--json"], repository, environment, 74)
+    version_result = run_json(binary, ["version", "--json"], repository, environment, 0)
+    recovery_result = run_human(
+        binary, ["update", "--resume", "missing-operation"], repository, environment, 74
+    )
+    for name, result in (
+        ("install", install_result),
+        ("update", update_result),
+        ("audit", audit_result),
+        ("scaffold", scaffold_result),
+        ("status", status_result),
+        ("recovery", recovery_result),
+    ):
+        check(result.get("mutation") == "none", f"Windows {name} crossed the mutation boundary")
+    after = snapshot(repository)
+    check(all(after.get(path) == digest for path, digest in before.items()), f"owner bytes changed in {case}")
+    check(not (repository / ".harness/manifest.json").exists(), "Windows unsupported proof created a manifest")
+    normalized_result = {
+        "mode": "controlled-unsupported-before-mutation",
+        "commands": [
+            normalized_command(install_result, human=True),
+            normalized_command(update_result, human=True),
+            normalized_command(audit_result),
+            normalized_command(scaffold_result, human=True),
+            normalized_command(status_result),
+            normalized_command(version_result),
+        ],
+        "recovery_refusal": normalized_command(recovery_result, human=True),
+    }
+    return fixture_record(case, "controlled-unsupported-before-mutation", normalized_result), installer
 
 
 def run_case(
@@ -232,6 +324,11 @@ def run_case(
     release_directory: Path,
     trust_state: Path,
 ) -> tuple[dict[str, object], str]:
+    if platform_name == "windows-x64":
+        return run_unsupported_windows_case(
+            case, source, workspace, artifact, checksum, artifact_sha,
+            platform_name, release_directory, trust_state,
+        )
     repository = workspace / case
     shutil.copytree(source, repository)
     (repository / "package.json").write_bytes(b'{"scripts":{"phase7-canary":"must-not-run"}}\n')
@@ -271,30 +368,18 @@ def run_case(
     role_paths = {role["path"] for role in manifest["roles"]}
     check("package.json" not in role_paths and "Cargo.toml" not in role_paths, "language manifest was interpreted")
     normalized_result = {
-        "install": {key: install_result.get(key) for key in ("schema", "command", "outcome", "exit-code", "mutation", "release-role", "release-sequence", "release-index-sha256")},
-        "update": {key: update_result.get(key) for key in ("schema", "command", "outcome", "exit-code", "mutation", "release-role", "release-sequence", "release-index-sha256")},
-        "scaffold": {key: scaffold_result.get(key) for key in ("schema", "command", "outcome", "exit-code", "mutation", "release-role", "release-sequence", "release-index-sha256")},
-        "status": normalized(status),
-        "audit": normalized(audit),
-        "version": normalized(version),
-        "recovery": {key: recovery.get(key) for key in ("schema", "command", "outcome", "exit-code", "mutation", "release-role", "release-sequence", "release-index-sha256")},
+        "mode": "full-native-test-fixture",
+        "commands": [
+            normalized_command(install_result, human=True),
+            normalized_command(update_result, human=True),
+            normalized_command(audit),
+            normalized_command(scaffold_result, human=True),
+            normalized_command(status),
+            normalized_command(version),
+        ],
+        "recovery_refusal": normalized_command(recovery, human=True),
     }
-    normalized_sha = digest_bytes(canonical(normalized_result))
-    record = {
-        "case": case,
-        "owner_bytes_preserved": True,
-        "language_manifests_ignored": True,
-        "line_endings_preserved": True,
-        "install": "committed-authenticated-test-payload",
-        "update": "idempotent-authenticated-test-payload",
-        "audit": "ready-no-target-execution",
-        "scaffold": "committed-one-neutral-artifact",
-        "status": "ready",
-        "version": "success",
-        "recovery_refusal": "missing-operation-failed-closed-before-mutation",
-        "normalized_sha256": normalized_sha,
-    }
-    return record, installer
+    return fixture_record(case, "full-native-test-fixture", normalized_result), installer
 
 
 def main() -> int:
@@ -333,13 +418,25 @@ def main() -> int:
                 records.append(record)
                 installers.add(installer)
         check(len(installers) == 1, "installer identity changed across fixtures")
-        contract_sha = digest_bytes(canonical([record["normalized_sha256"] for record in records]))
+        contract_sha = digest_bytes(canonical([
+            {"case": record["case"], "normalized_result": record["normalized_result"]}
+            for record in records
+        ]))
+        behavior = (
+            "controlled-unsupported-before-mutation"
+            if arguments.platform == "windows-x64"
+            else "full-native-test-fixture"
+        )
         document = {
             "schema": "repository-harness-v1-phase7-execution-proof/v1",
             "evidence_kind": "local-or-runner-test-fixture-non-production",
             "candidate": candidate_identity,
             "execution_workflow": workflow_identity,
-            "environment": {"platform": arguments.platform, "installer": installers.pop()},
+            "environment": {
+                "platform": arguments.platform,
+                "installer": installers.pop(),
+                "behavior": behavior,
+            },
             "artifact": {
                 "sha256": artifact_sha,
                 "authentication": "checksum-verified-before-every-execution",
@@ -350,6 +447,7 @@ def main() -> int:
             "normalized_contract_sha256": contract_sha,
             "authority": {
                 "phase6_live_evidence": "pending",
+                "five_platform_equivalence": "pending",
                 "platform_accepted": False,
                 "phase7_accepted": False,
                 "promotable": False,

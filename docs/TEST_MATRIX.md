@@ -185,6 +185,13 @@ earlier step produces no later step or owner-file change. Local success remains
 remote five-runner evidence, external provenance/attestation, deferred Phase 6
 P0-P7 evidence, acceptance, or promotion.
 
+The reviewed correction adds destination-escape adversaries for a linked
+target root, `scripts`, and `scripts/bin`; independently resolved candidate and
+workflow identity for exact-five collection; and normalized-payload digest
+recomputation. Windows receipts must say
+`controlled-unsupported-before-mutation`, so their presence completes only an
+inventory and leaves five-platform equivalence pending.
+
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY_SHA256` variables; the focused forwarding

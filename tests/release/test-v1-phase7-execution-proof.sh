@@ -13,6 +13,7 @@ from copy import deepcopy
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -68,6 +69,30 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
     assert not (rejected / "scripts/bin/harness").exists()
     assert not (rejected / "scripts/bin/harness.exe").exists()
 
+    # Target-controlled destination links must fail before any outside copy.
+    if os.name != "nt":
+        for attack in ("root-link", "scripts-link", "bin-link"):
+            attack_root = temporary / f"attack-{attack}"
+            outside = temporary / f"outside-{attack}"
+            outside.mkdir()
+            if attack == "root-link":
+                os.symlink(outside, attack_root, target_is_directory=True)
+            else:
+                attack_root.mkdir()
+                if attack == "scripts-link":
+                    os.symlink(outside, attack_root / "scripts", target_is_directory=True)
+                else:
+                    (attack_root / "scripts").mkdir()
+                    os.symlink(outside, attack_root / "scripts/bin", target_is_directory=True)
+            try:
+                runner.install(artifact, checksum, platform_name, attack_root)
+            except runner.ProofError as error:
+                assert "installer failed" in str(error)
+            else:
+                raise AssertionError(f"installer accepted {attack}")
+            assert not (outside / "harness").exists()
+            assert not (outside / "harness.exe").exists()
+
     workspace = temporary / "cases"
     workspace.mkdir()
     records = []
@@ -89,7 +114,10 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
     assert len(installers) == 1
     assert len({record["normalized_sha256"] for record in records}) == 1
 
-    contract_sha = hashlib.sha256(runner.canonical([record["normalized_sha256"] for record in records])).hexdigest()
+    contract_sha = hashlib.sha256(runner.canonical([
+        {"case": record["case"], "normalized_result": record["normalized_result"]}
+        for record in records
+    ])).hexdigest()
     document = {
         "schema": "repository-harness-v1-phase7-execution-proof/v1",
         "evidence_kind": "local-or-runner-test-fixture-non-production",
@@ -101,10 +129,14 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
         },
         "execution_workflow": {
             "path": ".github/workflows/harness-v1-release.yml",
-            "revision": "5" * 40,
+            "revision": "1" * 40,
             "sha256": "6" * 64,
         },
-        "environment": {"platform": platform_name, "installer": installers.pop()},
+        "environment": {
+            "platform": platform_name,
+            "installer": installers.pop(),
+            "behavior": "full-native-test-fixture",
+        },
         "artifact": {
             "sha256": artifact_sha,
             "authentication": "checksum-verified-before-every-execution",
@@ -115,6 +147,7 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
         "normalized_contract_sha256": contract_sha,
         "authority": {
             "phase6_live_evidence": "pending",
+            "five_platform_equivalence": "pending",
             "platform_accepted": False,
             "phase7_accepted": False,
             "promotable": False,
@@ -125,19 +158,92 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
     }
     verifier.verify(document)
     five = []
-    for platform in verifier.PLATFORMS:
+    for platform in verifier.PLATFORMS[:4]:
         item = deepcopy(document)
         item["environment"] = {
             "platform": platform,
-            "installer": "powershell" if platform == "windows-x64" else "bash",
+            "installer": "bash",
+            "behavior": "full-native-test-fixture",
         }
         item["artifact"]["sha256"] = hashlib.sha256(platform.encode()).hexdigest()
         five.append(item)
-    verifier.verify_collection(five, True)
-    drifted = deepcopy(five)
-    drifted[-1]["normalized_contract_sha256"] = "0" * 64
+
+    # Windows is a distinct controlled-unsupported receipt, never a relabeled
+    # local success document.
+    windows = deepcopy(document)
+    windows["environment"] = {
+        "platform": "windows-x64",
+        "installer": "powershell",
+        "behavior": "controlled-unsupported-before-mutation",
+    }
+    windows["artifact"]["sha256"] = hashlib.sha256(b"windows-x64").hexdigest()
+    for record in windows["fixtures"]:
+        record["execution_status"] = "controlled-unsupported-before-mutation"
+        result = record["normalized_result"]
+        result["mode"] = "controlled-unsupported-before-mutation"
+        for index, command in enumerate(result["commands"]):
+            command["exit_code"] = [74, 74, 74, 74, 74, 0][index]
+            command["mutation"] = "none"
+            command["outcome"] = "controlled-unsupported" if index < 5 else "success"
+            command["repository_mode"] = None
+            command["release_role"] = None
+            command["release_sequence"] = None
+            command["release_index_sha256"] = None
+            command["readiness"] = None
+            command["violation_codes"] = []
+            command["notice_codes"] = []
+        result["recovery_refusal"]["exit_code"] = 74
+        result["recovery_refusal"]["mutation"] = "none"
+        result["recovery_refusal"]["outcome"] = "controlled-unsupported"
+        record["normalized_sha256"] = hashlib.sha256(runner.canonical(result)).hexdigest()
+    windows["normalized_contract_sha256"] = hashlib.sha256(runner.canonical([
+        {"case": record["case"], "normalized_result": record["normalized_result"]}
+        for record in windows["fixtures"]
+    ])).hexdigest()
+    five.append(windows)
+    expected_identity = {
+        "candidate": deepcopy(document["candidate"]),
+        "execution_workflow": deepcopy(document["execution_workflow"]),
+    }
+    verifier.verify_collection(five, True, expected_identity)
+
+    substituted = deepcopy(five)
+    for item in substituted:
+        item["candidate"] = {
+            "source_commit": "a" * 40,
+            "source_tree": "b" * 40,
+            "cargo_lock_sha256": "c" * 64,
+            "command_binding_sha256": "d" * 64,
+        }
+        item["execution_workflow"] = {
+            "path": verifier.WORKFLOW_PATH,
+            "revision": "e" * 40,
+            "sha256": "f" * 64,
+        }
     try:
-        verifier.verify_collection(drifted, True)
+        verifier.verify_collection(substituted, True, expected_identity)
+    except verifier.VerificationError:
+        print("ok - rejected exact-five identity substitution")
+    else:
+        raise AssertionError("accepted mutually consistent substituted identities")
+
+    try:
+        verifier.verify_collection(five, True)
+    except verifier.VerificationError:
+        print("ok - rejected exact-five without external identity")
+    else:
+        raise AssertionError("accepted exact-five without external identity")
+
+    drifted = deepcopy(five)
+    drifted[3]["fixtures"][0]["normalized_result"]["commands"][0]["outcome"] = "substituted"
+    changed = drifted[3]["fixtures"][0]
+    changed["normalized_sha256"] = hashlib.sha256(runner.canonical(changed["normalized_result"])).hexdigest()
+    drifted[3]["normalized_contract_sha256"] = hashlib.sha256(runner.canonical([
+        {"case": record["case"], "normalized_result": record["normalized_result"]}
+        for record in drifted[3]["fixtures"]
+    ])).hexdigest()
+    try:
+        verifier.verify_collection(drifted, True, expected_identity)
     except verifier.VerificationError:
         print("ok - rejected cross-platform normalized drift")
     else:
@@ -146,6 +252,7 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
         ("provenance-overclaim", lambda value: value["artifact"].update(provenance="authenticated")),
         ("platform-overclaim", lambda value: value["authority"].update(platform_accepted=True)),
         ("normalized-drift", lambda value: value.update(normalized_contract_sha256="0" * 64)),
+        ("normalized-payload-substitution", lambda value: value["fixtures"][0]["normalized_result"]["commands"][0].update(outcome="substituted")),
     ):
         adversary = deepcopy(document)
         mutate(adversary)
@@ -162,6 +269,11 @@ with tempfile.TemporaryDirectory(prefix="phase7-execution-focused-") as temporar
 
     powershell = (root / "scripts/install-harness-v1.ps1").read_text(encoding="utf-8")
     assert powershell.index("Get-FileHash") < powershell.index("RuntimeInformation")
+    assert "Assert-NoReparseComponents" in powershell
+    assert powershell.count("Assert-NoReparseComponents $BinDirectory") >= 3
+    assert powershell.index("Assert-NoReparseComponents $BinDirectory") < powershell.index("Copy-Item")
+    assert powershell.rindex("Assert-NoReparseComponents $BinDirectory") < powershell.index("[IO.File]::Move")
+    assert "New-Item -ItemType Directory -Force" not in powershell
     assert "harness-windows-x64.exe" in powershell
     assert "unclaimed" in powershell
 

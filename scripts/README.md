@@ -156,6 +156,10 @@ before platform selection, copy to `scripts/bin/harness` or
 byte integrity against that record; it does not authenticate provenance or
 authorize a release. These V1 surfaces do not change the public V0 installer
 below and remain non-production until US-112's external gates close.
+They reject a linked/reparse-point target root, `scripts`, or `scripts/bin`
+before copying. Bash publishes relative to a physically pinned `bin`
+directory; PowerShell revalidates the contained destination chain immediately
+before copy and atomic publication.
 
 The upstream installer applies the Harness v0 operating files and folder
 structure to a target project directory. It defaults to the current directory,

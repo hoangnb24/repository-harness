@@ -44,6 +44,14 @@ architecture. For example, when both values are wrong, the digest error is
 returned and the platform branch is never reached. Only after both pass can a
 command inspect the repository.
 
+The V1 installers also close the destination namespace before publication.
+The Bash installer rejects a linked target root, `scripts`, or `scripts/bin`,
+then changes into each physical directory so final publication is relative to
+the pinned `bin` directory. The PowerShell installer rejects reparse points,
+proves the resolved `bin` remains under the intended root, and repeats that
+check before copy and publication. A target-controlled `scripts/bin` link to
+an outside directory is therefore refused before any artifact byte escapes.
+
 Install, update, and scaffold accept release transport and independent trust
 state only through absolute external paths. The directory adapter supplies
 indexed bytes; the existing Ed25519 threshold verifier authenticates the
@@ -74,7 +82,9 @@ macOS and Linux use the Bash V1 installer and direct binaries. Windows uses the
 PowerShell V1 installer and `.exe` identities. Both installers authenticate the
 checksum before platform selection and never claim provenance from a checksum.
 Platform equivalence compares normalized manifest, audit, recovery, and
-identity outcomes, not executable byte equality.
+identity outcomes, not executable byte equality. Each receipt contains the
+closed normalized result payload as well as its recomputed digest. Windows
+controlled unsupported behavior is distinct and cannot satisfy equivalence.
 
 ## Observability
 

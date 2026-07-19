@@ -4,23 +4,17 @@ name: Repository Harness V1 Proof (Unpromoted)
 # receipts. Authenticated provenance, platform acceptance, release, and
 # production promotion remain blocked.
 on:
-  workflow_dispatch:
-    inputs:
-      candidate_ref:
-        description: Exact source ref to prove
-        required: true
-        type: string
-      request_promotion:
-        description: Exercise the deliberately closed promotion guard
-        required: false
-        default: false
-        type: boolean
+  push:
+    branches:
+      - refactor/harness-v1
+    paths:
+      - .github/harness-v1-diagnostic-request
 
 permissions:
   contents: read
 
 concurrency:
-  group: harness-v1-proof-${{ inputs.candidate_ref }}
+  group: harness-v1-proof-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -32,25 +26,20 @@ jobs:
       - name: Prove unpromoted workflow identity
         shell: bash
         env:
-          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          CANDIDATE_SHA: ${{ github.sha }}
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
-          DISPATCH_REF: ${{ github.ref }}
+          PUSH_REF: ${{ github.ref }}
         run: |
-          test -n "$CANDIDATE_REF"
+          test "$REPOSITORY" = hoangnb24/repository-harness
+          test "$EVENT_NAME" = push
+          test "$PUSH_REF" = refs/heads/refactor/harness-v1
+          test "$WORKFLOW_REF" = hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/refactor/harness-v1
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$WORKFLOW_REVISION" =~ ^[0-9a-f]{40}$ ]]
-          case "$WORKFLOW_REF" in
-            hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/main)
-              test "$DISPATCH_REF" = refs/heads/main
-              ;;
-            hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/agent/*)
-              test "$DISPATCH_REF" = "${WORKFLOW_REF##*@}"
-              ;;
-            *)
-              echo "Workflow ref is neither protected main nor an agent diagnostic branch" >&2
-              exit 1
-              ;;
-          esac
+          test "$CANDIDATE_SHA" = "$WORKFLOW_REVISION"
 
   resolve-candidate:
     name: Resolve candidate once
@@ -59,37 +48,25 @@ jobs:
     outputs:
       candidate_sha: ${{ steps.resolve.outputs.candidate_sha }}
     steps:
-      - name: Checkout candidate ref for resolution only
+      - name: Checkout exact push candidate
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Prove approved-branch reachability and export immutable candidate SHA
+      - name: Prove exact ref identity and export immutable candidate SHA
         id: resolve
         shell: bash
         env:
-          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          CANDIDATE_SHA: ${{ github.sha }}
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
-          WORKFLOW_REF: ${{ github.workflow_ref }}
-          DISPATCH_SHA: ${{ github.sha }}
         run: |
-          test -n "$CANDIDATE_REF"
-          candidate_sha=$(git rev-parse --verify --end-of-options "${CANDIDATE_REF}^{commit}")
-          [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]
-          case "$WORKFLOW_REF" in
-            *@refs/heads/main)
-              git fetch --no-tags origin refs/heads/refactor/harness-v1:refs/remotes/origin/refactor/harness-v1
-              git show-ref --verify --quiet refs/remotes/origin/refactor/harness-v1
-              git merge-base --is-ancestor "$candidate_sha" refs/remotes/origin/refactor/harness-v1
-              ;;
-            *@refs/heads/agent/*)
-              test "$candidate_sha" = "$WORKFLOW_REVISION"
-              test "$candidate_sha" = "$DISPATCH_SHA"
-              ;;
-            *) exit 1 ;;
-          esac
+          candidate_sha=$(git rev-parse --verify HEAD^{commit})
+          test "$candidate_sha" = "$CANDIDATE_SHA"
+          test "$candidate_sha" = "$WORKFLOW_REVISION"
+          git fetch --no-tags origin refs/heads/refactor/harness-v1:refs/remotes/origin/refactor/harness-v1
+          test "$(git rev-parse refs/remotes/origin/refactor/harness-v1)" = "$candidate_sha"
           test "$(git status --porcelain=v1 --untracked-files=all)" = ""
           echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
 
@@ -104,22 +81,27 @@ jobs:
             target: aarch64-apple-darwin
             runner: macos-15
             artifact: harness-macos-arm64
+            behavior: full-native-test-fixture
           - platform: macos-x64
             target: x86_64-apple-darwin
             runner: macos-15-intel
             artifact: harness-macos-x64
+            behavior: full-native-test-fixture
           - platform: linux-x64
             target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
             artifact: harness-linux-x64
+            behavior: full-native-test-fixture
           - platform: linux-arm64
             target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
             artifact: harness-linux-arm64
+            behavior: full-native-test-fixture
           - platform: windows-x64
             target: x86_64-pc-windows-msvc
             runner: windows-latest
             artifact: harness-windows-x64.exe
+            behavior: controlled-unsupported-before-mutation
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout exact candidate
@@ -129,18 +111,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Fetch and verify protected execution-workflow revision
+      - name: Fetch and verify exact diagnostic workflow revision
         shell: bash
         env:
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           [[ "$WORKFLOW_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test "$WORKFLOW_REF" = hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/refactor/harness-v1
           git cat-file -e "${WORKFLOW_REVISION}^{commit}"
           git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"
-          workflow_git_ref=${WORKFLOW_REF##*@}
-          case "$workflow_git_ref" in refs/heads/main|refs/heads/agent/*) ;; *) exit 1 ;; esac
-          git fetch --no-tags origin "$workflow_git_ref:refs/remotes/origin/workflow-execution"
+          git fetch --no-tags origin refs/heads/refactor/harness-v1:refs/remotes/origin/workflow-execution
           test "$(git rev-parse refs/remotes/origin/workflow-execution)" = "$WORKFLOW_REVISION"
 
       - name: Install Rust
@@ -174,6 +155,7 @@ jobs:
           CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           PLATFORM: ${{ matrix.platform }}
+          EXPECTED_BEHAVIOR: ${{ matrix.behavior }}
           ARTIFACT_NAME: ${{ matrix.artifact }}
           RECEIPT_OUTPUT: ${{ runner.temp }}/harness-v1-build-receipt-${{ matrix.platform }}
           EXECUTION_PROOF: ${{ runner.temp }}/harness-v1-execution-proof-${{ matrix.platform }}.json
@@ -189,6 +171,18 @@ jobs:
             --candidate "$CANDIDATE_SHA" \
             --workflow-revision "$WORKFLOW_REVISION" \
             --output "$EXECUTION_PROOF"
+          jq -e --arg expected "$EXPECTED_BEHAVIOR" \
+            '.environment.behavior == $expected and .authority.five_platform_equivalence == "pending"' \
+            "$EXECUTION_PROOF" >/dev/null
+
+      - name: Reject Windows destination junction escapes
+        if: matrix.platform == 'windows-x64'
+        shell: powershell
+        run: |
+          tests/release/test-install-harness-v1-destination.ps1 `
+            -Artifact "${{ runner.temp }}/harness-v1-build-receipt-windows-x64/harness-windows-x64.exe" `
+            -Checksum "${{ runner.temp }}/harness-v1-build-receipt-windows-x64/harness-windows-x64.exe.sha256" `
+            -Workspace "${{ runner.temp }}/harness-v1-installer-junction-adversaries"
 
       - name: Upload bounded non-production receipt directory
         uses: actions/upload-artifact@v4
@@ -218,18 +212,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Fetch and verify protected execution-workflow revision
+      - name: Fetch and verify exact diagnostic workflow revision
         shell: bash
         env:
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           [[ "$WORKFLOW_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test "$WORKFLOW_REF" = hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/refactor/harness-v1
           git cat-file -e "${WORKFLOW_REVISION}^{commit}"
           git cat-file -e "${WORKFLOW_REVISION}:.github/workflows/harness-v1-release.yml"
-          workflow_git_ref=${WORKFLOW_REF##*@}
-          case "$workflow_git_ref" in refs/heads/main|refs/heads/agent/*) ;; *) exit 1 ;; esac
-          git fetch --no-tags origin "$workflow_git_ref:refs/remotes/origin/workflow-execution"
+          git fetch --no-tags origin refs/heads/refactor/harness-v1:refs/remotes/origin/workflow-execution
           test "$(git rev-parse refs/remotes/origin/workflow-execution)" = "$WORKFLOW_REVISION"
 
       - name: Download all five receipt directories
@@ -259,12 +252,19 @@ jobs:
           path: ${{ runner.temp }}/harness-v1-execution-proofs
           merge-multiple: false
 
-      - name: Verify normalized five-platform execution equivalence
+      - name: Verify exact five-platform inventory with equivalence pending
         shell: bash
         env:
+          CANDIDATE_SHA: ${{ needs.resolve-candidate.outputs.candidate_sha }}
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+          REPOSITORY_ROOT: ${{ github.workspace }}
           PROOF_ROOT: ${{ runner.temp }}/harness-v1-execution-proofs
         run: |
-          scripts/verify-v1-phase7-execution-proof.sh --require-five \
+          scripts/verify-v1-phase7-execution-proof.sh \
+            --candidate "$CANDIDATE_SHA" \
+            --workflow-revision "$WORKFLOW_REVISION" \
+            --repository-root "$REPOSITORY_ROOT" \
+            --require-five \
             "$PROOF_ROOT/harness-v1-execution-proof-macos-arm64/harness-v1-execution-proof-macos-arm64.json" \
             "$PROOF_ROOT/harness-v1-execution-proof-macos-x64/harness-v1-execution-proof-macos-x64.json" \
             "$PROOF_ROOT/harness-v1-execution-proof-linux-x64/harness-v1-execution-proof-linux-x64.json" \
@@ -272,12 +272,11 @@ jobs:
             "$PROOF_ROOT/harness-v1-execution-proof-windows-x64/harness-v1-execution-proof-windows-x64.json"
 
   promotion-blocked:
-    name: Production promotion guard
+    name: Production promotion remains unavailable
     needs: collect-receipts
-    if: inputs.request_promotion
     runs-on: ubuntu-24.04
     steps:
-      - name: Refuse promotion without external protection and attestation evidence
+      - name: Refuse promotion without external evidence and separate authority
         shell: bash
         run: |
           echo "Production V1 promotion is blocked: repository-protection and pinned artifact-attestation evidence are not present." >&2

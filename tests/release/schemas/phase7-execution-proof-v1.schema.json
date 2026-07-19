@@ -2,6 +2,42 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/hoangnb24/repository-harness/tests/release/schemas/phase7-execution-proof-v1.schema.json",
   "title": "Repository Harness V1 deterministic non-production execution proof",
+  "$defs": {
+    "normalized_command": {
+      "type": "object", "additionalProperties": false,
+      "required": ["command", "outcome", "exit_code", "mutation", "repository_mode", "release_role", "release_sequence", "release_index_sha256", "readiness", "violation_codes", "notice_codes"],
+      "properties": {
+        "command": {"enum": ["install", "update", "audit", "scaffold", "status", "version"]},
+        "outcome": {"type": "string", "minLength": 1},
+        "exit_code": {"type": "integer", "minimum": 0, "maximum": 255},
+        "mutation": {"type": "string", "minLength": 1},
+        "repository_mode": {"type": ["string", "null"]},
+        "release_role": {"type": ["string", "null"]},
+        "release_sequence": {"type": ["integer", "null"]},
+        "release_index_sha256": {
+          "anyOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          ]
+        },
+        "readiness": {"type": ["string", "null"]},
+        "violation_codes": {"type": "array", "items": {"type": "string"}},
+        "notice_codes": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "normalized_result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "commands", "recovery_refusal"],
+      "properties": {
+        "mode": {"enum": ["full-native-test-fixture", "controlled-unsupported-before-mutation"]},
+        "commands": {
+          "type": "array", "minItems": 6, "maxItems": 6,
+          "items": {"$ref": "#/$defs/normalized_command"}
+        },
+        "recovery_refusal": {"$ref": "#/$defs/normalized_command"}
+      }
+    }
+  },
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "evidence_kind", "candidate", "execution_workflow", "environment", "artifact", "commands", "fixtures", "normalized_contract_sha256", "authority"],
@@ -29,10 +65,11 @@
     },
     "environment": {
       "type": "object", "additionalProperties": false,
-      "required": ["platform", "installer"],
+      "required": ["platform", "installer", "behavior"],
       "properties": {
         "platform": {"enum": ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64"]},
-        "installer": {"enum": ["bash", "powershell"]}
+        "installer": {"enum": ["bash", "powershell"]},
+        "behavior": {"enum": ["full-native-test-fixture", "controlled-unsupported-before-mutation"]}
       }
     },
     "artifact": {
@@ -55,19 +92,14 @@
       "type": "array", "minItems": 10, "maxItems": 10,
       "items": {
         "type": "object", "additionalProperties": false,
-        "required": ["case", "owner_bytes_preserved", "language_manifests_ignored", "line_endings_preserved", "install", "update", "audit", "scaffold", "status", "version", "recovery_refusal", "normalized_sha256"],
+        "required": ["case", "execution_status", "owner_bytes_preserved", "language_manifests_ignored", "line_endings_preserved", "normalized_result", "normalized_sha256"],
         "properties": {
           "case": {"enum": ["fresh", "brownfield", "nested-instructions", "docs-only", "monorepo", "spaces-unicode", "lf", "crlf", "custom-update", "bridge"]},
+          "execution_status": {"enum": ["full-native-test-fixture", "controlled-unsupported-before-mutation"]},
           "owner_bytes_preserved": {"const": true},
           "language_manifests_ignored": {"const": true},
           "line_endings_preserved": {"const": true},
-          "install": {"const": "committed-authenticated-test-payload"},
-          "update": {"const": "idempotent-authenticated-test-payload"},
-          "audit": {"const": "ready-no-target-execution"},
-          "scaffold": {"const": "committed-one-neutral-artifact"},
-          "status": {"const": "ready"},
-          "version": {"const": "success"},
-          "recovery_refusal": {"const": "missing-operation-failed-closed-before-mutation"},
+          "normalized_result": {"$ref": "#/$defs/normalized_result"},
           "normalized_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
         }
       }
@@ -75,19 +107,21 @@
     "normalized_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "authority": {
       "type": "object", "additionalProperties": false,
-      "required": ["phase6_live_evidence", "platform_accepted", "phase7_accepted", "promotable", "production", "phase8", "blockers"],
+      "required": ["phase6_live_evidence", "five_platform_equivalence", "platform_accepted", "phase7_accepted", "promotable", "production", "phase8", "blockers"],
       "properties": {
         "phase6_live_evidence": {"const": "pending"},
+        "five_platform_equivalence": {"const": "pending"},
         "platform_accepted": {"const": false},
         "phase7_accepted": {"const": false},
         "promotable": {"const": false},
         "production": {"const": false},
         "phase8": {"const": "closed"},
         "blockers": {
-          "type": "array", "minItems": 4, "maxItems": 4,
+          "type": "array", "minItems": 5, "maxItems": 5,
           "prefixItems": [
             {"const": "deferred-phase6-live-p0-p7-evidence-pending"},
             {"const": "remote-five-platform-execution-pending"},
+            {"const": "safe-windows-repository-mutation-pending"},
             {"const": "artifact-provenance-attestation-pending"},
             {"const": "platform-acceptance-pending"}
           ], "items": false

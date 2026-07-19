@@ -31,9 +31,21 @@ done
 [ -f "$artifact" ] && [ ! -L "$artifact" ] || fail "artifact is missing or is a link"
 [ -f "$checksum" ] && [ ! -L "$checksum" ] || fail "checksum is missing or is a link"
 
+artifact_name=${artifact##*/}
+artifact_parent=${artifact%/*}
+[ "$artifact_parent" != "$artifact" ] || artifact_parent=.
+artifact_parent=$(cd -P "$artifact_parent" 2>/dev/null && pwd -P) || fail "artifact parent is unavailable"
+artifact=$artifact_parent/$artifact_name
+checksum_name=${checksum##*/}
+checksum_parent=${checksum%/*}
+[ "$checksum_parent" != "$checksum" ] || checksum_parent=.
+checksum_parent=$(cd -P "$checksum_parent" 2>/dev/null && pwd -P) || fail "checksum parent is unavailable"
+checksum=$checksum_parent/$checksum_name
+[ -f "$artifact" ] && [ ! -L "$artifact" ] || fail "artifact changed before authentication"
+[ -f "$checksum" ] && [ ! -L "$checksum" ] || fail "checksum changed before authentication"
+
 # Authentication is deliberately first. No platform branch or executable
 # invocation occurs until the externally supplied checksum matches exact bytes.
-artifact_name=${artifact##*/}
 [ "$(wc -l <"$checksum" | tr -d ' ')" = 1 ] || fail "checksum must contain exactly one newline-terminated record"
 checksum_record=$(sed -n '1p' "$checksum")
 expected=${checksum_record%%  *}
@@ -66,11 +78,50 @@ case "$artifact_name" in
   *) fail "artifact filename does not match platform identity" ;;
 esac
 
-destination=$directory/scripts/bin/harness
-mkdir -p "$directory/scripts/bin"
+# Pin the intended repository and destination directories before copying. A
+# component that is a link, non-directory, non-canonical alias, or concurrently
+# substituted cannot redirect publication outside this pinned directory chain.
+while [ "$directory" != "/" ] && [ "${directory%/}" != "$directory" ]; do
+  directory=${directory%/}
+done
+case "$directory" in
+  /*) ;;
+  *) fail "target directory must be an absolute path" ;;
+esac
+[ "$directory" != "/" ] || fail "target directory cannot be the filesystem root"
+[ -d "$directory" ] && [ ! -L "$directory" ] || fail "target directory is missing or is a link"
+directory_name=${directory##*/}
+directory_parent=${directory%/*}
+[ -n "$directory_parent" ] || directory_parent=/
+parent_physical=$(cd -P "$directory_parent" 2>/dev/null && pwd -P) || fail "target parent cannot be pinned"
+case "$parent_physical" in
+  /) expected_root=/$directory_name ;;
+  *) expected_root=$parent_physical/$directory_name ;;
+esac
+root_physical=$(cd -P "$directory" 2>/dev/null && pwd -P) || fail "target directory cannot be pinned"
+[ "$root_physical" = "$expected_root" ] || fail "target directory escaped its physical parent"
+cd "$root_physical" || fail "target directory cannot be pinned"
+
+if [ -e scripts ] || [ -L scripts ]; then
+  [ -d scripts ] && [ ! -L scripts ] || fail "destination component scripts is unsafe"
+else
+  mkdir scripts || fail "destination component scripts could not be created"
+fi
+cd scripts || fail "destination component scripts could not be pinned"
+[ "$(pwd -P)" = "$root_physical/scripts" ] || fail "destination component scripts escaped the target root"
+
+if [ -e bin ] || [ -L bin ]; then
+  [ -d bin ] && [ ! -L bin ] || fail "destination component scripts/bin is unsafe"
+else
+  mkdir bin || fail "destination component scripts/bin could not be created"
+fi
+cd bin || fail "destination component scripts/bin could not be pinned"
+[ "$(pwd -P)" = "$root_physical/scripts/bin" ] || fail "destination component scripts/bin escaped the target root"
+
+destination=harness
 [ ! -e "$destination" ] && [ ! -L "$destination" ] || fail "destination already exists"
-temporary=$directory/scripts/bin/.harness-v1-install.$$
-[ ! -e "$temporary" ] || fail "temporary install path already exists"
+temporary=.harness-v1-install.$$
+[ ! -e "$temporary" ] && [ ! -L "$temporary" ] || fail "temporary install path already exists"
 trap 'if [ -n "${temporary:-}" ] && [ -f "$temporary" ]; then mv "$temporary" "$temporary.failed"; fi' EXIT HUP INT TERM
 cp "$artifact" "$temporary"
 chmod 755 "$temporary"

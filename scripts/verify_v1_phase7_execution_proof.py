@@ -8,15 +8,17 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 
 PLATFORMS = ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64"]
 CASES = ["fresh", "brownfield", "nested-instructions", "docs-only", "monorepo", "spaces-unicode", "lf", "crlf", "custom-update", "bridge"]
 COMMANDS = ["install", "update", "audit", "scaffold", "status", "version"]
-BLOCKERS = ["deferred-phase6-live-p0-p7-evidence-pending", "remote-five-platform-execution-pending", "artifact-provenance-attestation-pending", "platform-acceptance-pending"]
+BLOCKERS = ["deferred-phase6-live-p0-p7-evidence-pending", "remote-five-platform-execution-pending", "safe-windows-repository-mutation-pending", "artifact-provenance-attestation-pending", "platform-acceptance-pending"]
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REVISION = re.compile(r"^[0-9a-f]{40}$")
+WORKFLOW_PATH = ".github/workflows/harness-v1-release.yml"
 
 
 class VerificationError(Exception):
@@ -58,6 +60,79 @@ def load(path: Path) -> dict[str, object]:
     return value
 
 
+def git_bytes(repository: Path, *arguments: str) -> bytes:
+    result = subprocess.run(
+        ["git", "-C", str(repository), *arguments],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    check(result.returncode == 0, f"git {' '.join(arguments)} failed for expected identity")
+    return result.stdout
+
+
+def expected_identity(repository: Path, candidate: str, workflow_revision: str) -> dict[str, object]:
+    check(repository.is_absolute() and repository.is_dir() and not repository.is_symlink(), "repository root is unavailable or unsafe")
+    check(REVISION.fullmatch(candidate) is not None, "expected candidate is not exact 40-hex")
+    check(REVISION.fullmatch(workflow_revision) is not None, "expected workflow revision is not exact 40-hex")
+    check(candidate == workflow_revision, "expected candidate and workflow revision must be identical")
+    resolved_candidate = git_bytes(repository, "rev-parse", "--verify", f"{candidate}^{{commit}}").decode("ascii").strip()
+    resolved_workflow = git_bytes(repository, "rev-parse", "--verify", f"{workflow_revision}^{{commit}}").decode("ascii").strip()
+    check(resolved_candidate == candidate, "expected candidate did not resolve exactly")
+    check(resolved_workflow == workflow_revision, "expected workflow revision did not resolve exactly")
+    candidate_identity = {
+        "source_commit": candidate,
+        "source_tree": git_bytes(repository, "rev-parse", f"{candidate}^{{tree}}").decode("ascii").strip(),
+        "cargo_lock_sha256": sha(git_bytes(repository, "show", f"{candidate}:Cargo.lock")),
+        "command_binding_sha256": sha(git_bytes(repository, "show", f"{candidate}:release/contracts/v1/command-implementation-binding.json")),
+    }
+    workflow_identity = {
+        "path": WORKFLOW_PATH,
+        "revision": workflow_revision,
+        "sha256": sha(git_bytes(repository, "show", f"{workflow_revision}:{WORKFLOW_PATH}")),
+    }
+    return {"candidate": candidate_identity, "execution_workflow": workflow_identity}
+
+
+def verify_normalized_command(value: object, label: str) -> None:
+    check(isinstance(value, dict), f"{label} normalized command is missing")
+    keys(value, {"command", "outcome", "exit_code", "mutation", "repository_mode", "release_role", "release_sequence", "release_index_sha256", "readiness", "violation_codes", "notice_codes"}, label)
+    check(isinstance(value["command"], str) and value["command"], f"{label} command is invalid")
+    check(isinstance(value["outcome"], str) and value["outcome"], f"{label} outcome is invalid")
+    check(isinstance(value["exit_code"], int), f"{label} exit code is invalid")
+    check(isinstance(value["mutation"], str) and value["mutation"], f"{label} mutation is invalid")
+    for field in ("repository_mode", "release_role", "readiness"):
+        check(value[field] is None or isinstance(value[field], str), f"{label} {field} is invalid")
+    check(value["release_sequence"] is None or isinstance(value["release_sequence"], int), f"{label} release sequence is invalid")
+    check(value["release_index_sha256"] is None or SHA256.fullmatch(value["release_index_sha256"]) is not None, f"{label} release digest is invalid")
+    for field in ("violation_codes", "notice_codes"):
+        check(isinstance(value[field], list) and all(isinstance(item, str) for item in value[field]), f"{label} {field} is invalid")
+
+
+def verify_normalized_result(value: object, mode: str, label: str) -> None:
+    check(isinstance(value, dict), f"{label} normalized result is missing")
+    keys(value, {"mode", "commands", "recovery_refusal"}, label)
+    check(value["mode"] == mode, f"{label} normalized mode changed")
+    commands = value["commands"]
+    check(isinstance(commands, list) and len(commands) == 6, f"{label} normalized command inventory changed")
+    for index, command in enumerate(commands):
+        verify_normalized_command(command, f"{label} command {index}")
+    check([command["command"] for command in commands] == COMMANDS, f"{label} normalized command order changed")
+    recovery = value["recovery_refusal"]
+    verify_normalized_command(recovery, f"{label} recovery")
+    check(recovery["command"] == "update" and recovery["mutation"] == "none", f"{label} recovery refusal changed")
+    if mode == "full-native-test-fixture":
+        check([command["exit_code"] for command in commands] == [0, 0, 0, 0, 0, 0], f"{label} native command exits changed")
+        check([command["mutation"] for command in commands] == ["committed", "none", "none", "committed", "none", "none"], f"{label} native mutations changed")
+        check(recovery["exit_code"] == 3, f"{label} native recovery refusal exit changed")
+    else:
+        check(mode == "controlled-unsupported-before-mutation", f"{label} execution mode is unsupported")
+        check([command["exit_code"] for command in commands] == [74, 74, 74, 74, 74, 0], f"{label} Windows controlled-unsupported exits changed")
+        check(all(command["mutation"] == "none" for command in commands), f"{label} Windows command crossed mutation boundary")
+        check(recovery["exit_code"] == 74, f"{label} Windows recovery refusal exit changed")
+
+
 def verify(document: dict[str, object]) -> None:
     keys(document, {"schema", "evidence_kind", "candidate", "execution_workflow", "environment", "artifact", "commands", "fixtures", "normalized_contract_sha256", "authority"}, "proof")
     check(document["schema"] == "repository-harness-v1-phase7-execution-proof/v1", "proof schema identity changed")
@@ -70,13 +145,16 @@ def verify(document: dict[str, object]) -> None:
     workflow = document["execution_workflow"]
     check(isinstance(workflow, dict), "workflow identity is missing")
     keys(workflow, {"path", "revision", "sha256"}, "workflow")
-    check(workflow["path"] == ".github/workflows/harness-v1-release.yml" and REVISION.fullmatch(workflow["revision"]) is not None and SHA256.fullmatch(workflow["sha256"]) is not None, "workflow identity is invalid")
+    check(workflow["path"] == WORKFLOW_PATH and REVISION.fullmatch(workflow["revision"]) is not None and SHA256.fullmatch(workflow["sha256"]) is not None, "workflow identity is invalid")
+    check(candidate["source_commit"] == workflow["revision"], "receipt candidate and workflow revision differ")
     environment = document["environment"]
     check(isinstance(environment, dict), "environment is missing")
-    keys(environment, {"platform", "installer"}, "environment")
+    keys(environment, {"platform", "installer", "behavior"}, "environment")
     check(environment["platform"] in PLATFORMS, "platform is unsupported")
     expected_installer = "powershell" if environment["platform"] == "windows-x64" else "bash"
     check(environment["installer"] == expected_installer, "platform installer is wrong")
+    expected_behavior = "controlled-unsupported-before-mutation" if environment["platform"] == "windows-x64" else "full-native-test-fixture"
+    check(environment["behavior"] == expected_behavior, "platform behavior claim is wrong")
     artifact = document["artifact"]
     check(isinstance(artifact, dict), "artifact is missing")
     keys(artifact, {"sha256", "authentication", "provenance"}, "artifact")
@@ -86,50 +164,73 @@ def verify(document: dict[str, object]) -> None:
     check(document["commands"] == COMMANDS, "six-command core changed")
     fixtures = document["fixtures"]
     check(isinstance(fixtures, list) and [item.get("case") for item in fixtures if isinstance(item, dict)] == CASES, "fixture matrix is incomplete or reordered")
-    expected_fixture_fields = {"case", "owner_bytes_preserved", "language_manifests_ignored", "line_endings_preserved", "install", "update", "audit", "scaffold", "status", "version", "recovery_refusal", "normalized_sha256"}
+    expected_fixture_fields = {"case", "execution_status", "owner_bytes_preserved", "language_manifests_ignored", "line_endings_preserved", "normalized_result", "normalized_sha256"}
     expected_values = {
+        "execution_status": expected_behavior,
         "owner_bytes_preserved": True,
         "language_manifests_ignored": True,
         "line_endings_preserved": True,
-        "install": "committed-authenticated-test-payload",
-        "update": "idempotent-authenticated-test-payload",
-        "audit": "ready-no-target-execution",
-        "scaffold": "committed-one-neutral-artifact",
-        "status": "ready",
-        "version": "success",
-        "recovery_refusal": "missing-operation-failed-closed-before-mutation",
     }
     for fixture in fixtures:
         keys(fixture, expected_fixture_fields, f"fixture {fixture.get('case')}")
         check(all(fixture[field] == value for field, value in expected_values.items()), f"fixture {fixture['case']} result changed")
+        verify_normalized_result(fixture["normalized_result"], expected_behavior, f"fixture {fixture['case']}")
         check(SHA256.fullmatch(fixture["normalized_sha256"]) is not None, f"fixture {fixture['case']} normalized digest is invalid")
-    expected_contract = sha(canonical([fixture["normalized_sha256"] for fixture in fixtures]))
+        check(fixture["normalized_sha256"] == sha(canonical(fixture["normalized_result"])), f"fixture {fixture['case']} normalized payload digest drifted")
+    expected_contract = sha(canonical([
+        {"case": fixture["case"], "normalized_result": fixture["normalized_result"]}
+        for fixture in fixtures
+    ]))
     check(document["normalized_contract_sha256"] == expected_contract, "normalized contract digest drifted")
     authority = document["authority"]
     check(isinstance(authority, dict), "authority state is missing")
-    keys(authority, {"phase6_live_evidence", "platform_accepted", "phase7_accepted", "promotable", "production", "phase8", "blockers"}, "authority")
-    check(authority == {"phase6_live_evidence": "pending", "platform_accepted": False, "phase7_accepted": False, "promotable": False, "production": False, "phase8": "closed", "blockers": BLOCKERS}, "proof opened a blocked authority")
+    keys(authority, {"phase6_live_evidence", "five_platform_equivalence", "platform_accepted", "phase7_accepted", "promotable", "production", "phase8", "blockers"}, "authority")
+    check(authority == {"phase6_live_evidence": "pending", "five_platform_equivalence": "pending", "platform_accepted": False, "phase7_accepted": False, "promotable": False, "production": False, "phase8": "closed", "blockers": BLOCKERS}, "proof opened a blocked authority")
 
 
-def verify_collection(documents: list[dict[str, object]], require_five: bool) -> None:
+def verify_collection(
+    documents: list[dict[str, object]],
+    require_five: bool,
+    expected: dict[str, object] | None = None,
+) -> None:
     for document in documents:
         verify(document)
     if require_five:
+        check(expected is not None, "exact-five verification requires independent candidate and workflow identity")
         check(len(documents) == 5, "exactly five proofs are required")
         check([document["environment"]["platform"] for document in documents] == PLATFORMS, "five-platform proof order or inventory changed")
-        for field in ("candidate", "execution_workflow", "commands", "normalized_contract_sha256"):
-            check(all(document[field] == documents[0][field] for document in documents), f"cross-platform {field} equivalence failed")
+        for document in documents:
+            check(document["candidate"] == expected["candidate"], "receipt candidate does not match the independently resolved candidate")
+            check(document["execution_workflow"] == expected["execution_workflow"], "receipt workflow does not match independently resolved workflow bytes")
+        check(all(document["commands"] == documents[0]["commands"] for document in documents), "cross-platform command identity failed")
+        check(all(document["normalized_contract_sha256"] == documents[0]["normalized_contract_sha256"] for document in documents[:4]), "Unix normalized equivalence failed")
+        check(documents[-1]["authority"]["five_platform_equivalence"] == "pending", "Windows receipt overclaimed five-platform equivalence")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("proofs", nargs="+")
     parser.add_argument("--require-five", action="store_true")
+    parser.add_argument("--candidate")
+    parser.add_argument("--workflow-revision")
+    parser.add_argument("--repository-root")
     arguments = parser.parse_args()
     try:
         documents = [load(Path(path)) for path in arguments.proofs]
-        verify_collection(documents, arguments.require_five)
-        print(f"Verified {len(documents)} non-production Phase 7 execution proof(s); platform acceptance remains blocked")
+        expected = None
+        if arguments.require_five:
+            check(
+                arguments.candidate is not None
+                and arguments.workflow_revision is not None
+                and arguments.repository_root is not None,
+                "--require-five requires --candidate, --workflow-revision, and --repository-root",
+            )
+            expected = expected_identity(
+                Path(arguments.repository_root), arguments.candidate, arguments.workflow_revision
+            )
+        verify_collection(documents, arguments.require_five, expected)
+        suffix = "; five-platform equivalence remains pending" if arguments.require_five else ""
+        print(f"Verified {len(documents)} non-production Phase 7 execution proof(s){suffix}; platform acceptance remains blocked")
         return 0
     except VerificationError as error:
         print(f"Phase 7 execution proof verification failed: {error}", file=sys.stderr)

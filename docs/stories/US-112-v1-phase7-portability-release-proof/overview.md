@@ -17,10 +17,12 @@ against all ten Phase 7 fixtures. Signed test-fixture payloads and independent
 test trust state are materialized outside each target repository. This proves
 the local mechanism, not artifact provenance or supported-platform status.
 
-The five native jobs are wired to produce the same closed receipt, but they
-have not run for this candidate. Windows descriptor-anchored repository
-mutation therefore remains controlled-unsupported until real Windows runner
-evidence and the remaining safe adapter work pass.
+The five native jobs are wired to produce closed receipts, but they have not
+run for this candidate. Four Unix rows require the full normalized mutation
+contract. The Windows row instead requires checksum-first PowerShell install
+followed by controlled-unsupported exit 74 before repository mutation. Its
+distinct receipt keeps five-platform equivalence pending until a safe Windows
+adapter and native evidence exist.
 
 ## Target Behavior
 
