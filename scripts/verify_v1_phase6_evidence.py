@@ -70,6 +70,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase7_00_intake.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_01_story.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_02_proof_contract.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_03_build_receipts.changeset.jsonl",
     "crates/harness-core/tests/phase2_core.rs",
     "crates/harness-core/tests/phase3_recovery.rs",
     "docs/REFACTOR_PLAN.md",
@@ -180,6 +181,10 @@ PHASE7_PROOF_CONTRACT_CHANGESET = (
     ROOT
     / ".harness/changesets/harness_v1_phase7_02_proof_contract.changeset.jsonl"
 )
+PHASE7_BUILD_RECEIPT_CHANGESET = (
+    ROOT
+    / ".harness/changesets/harness_v1_phase7_03_build_receipts.changeset.jsonl"
+)
 PHASE7_DECISION_ID = "0016-phase6-framework-acceptance-and-phase7-opening"
 PHASE7_STORY_ID = "US-112"
 PHASE7_INTAKE_UID = "ink_b3b36388c90ab25b8d5f518a0306d0a6"
@@ -208,6 +213,30 @@ PHASE7_PROOF_RECORD_SHA256 = (
     "c8eaf2ad197bd0b26afdefb4af1c1efafc05a5704ff3b5c16a16bc1303f1b883",
     "5c3e500371ab88e09f2fa8f1a9e238cc999eca8d035645ef82a8381ab230929e",
     "158b209edbc95f30701ac492eae03b173b547ea9651afed052cab41b5350ad5f",
+)
+PHASE7_BUILD_RECEIPT_RECORD_SHA256 = (
+    "93af80461ce10d9f378ebefa1fcd0f34bb3b0faf209d16be049ab2c6a37bd3b7",
+    "594114bad088b5c8b5ad82e6d70524bf6d2dab10d98b691d387e2b19b342e23a",
+    "a31be10e72b6d4da8349c7e5e35fd15a6fee443b1e0fdc8f5860a90b13784862",
+    "3f6237d2cd7fa8f335bf3161f144f17ec585e72cdac31fe585b30f48f7672ef7",
+)
+PHASE7_BUILD_RECEIPT_VERIFY_COMMAND = (
+    "tests/release/test-v1-build-receipts.sh && "
+    "tests/release/test-v1-build-receipt-workflow.sh && "
+    "tests/release/test-v1-phase7-release-proof.sh && "
+    "scripts/verify-v1-phase6-evidence.sh --framework-only"
+)
+PHASE7_BUILD_RECEIPT_EVIDENCE = (
+    "Reviewed build-receipt infrastructure candidate b04753e passed local "
+    "macOS arm64 native capture, focused adversaries, cross-platform/security "
+    "review, and trust-enabled full premerge. Remote five-runner execution has "
+    "not occurred; installer, full direct-binary, authenticated provenance, "
+    "Phase 6 live P0-P7, platform acceptance, Phase 7 acceptance, tag, publish, "
+    "signing, promotion, and Phase 8 remain pending or blocked."
+)
+PHASE7_BUILD_RECEIPT_TRACE_UIDS = (
+    "trc_1af4542310616a192351f13e21302f03",
+    "trc_5273b3afc47ea2ac942889f1b60cf6ce",
 )
 PHASE7_PROOF_TRACE_ACTIONS = (
     "implemented the closed fixture-only candidate and five-platform placeholder contract",
@@ -1153,21 +1182,178 @@ def self_test_phase7_proof_contract_records(
     )
 
 
+def authenticate_phase7_build_receipt_records(
+    records: list[dict[str, Any]],
+) -> None:
+    check(
+        tuple(sha256_bytes(canonical_bytes(record)) for record in records)
+        == PHASE7_BUILD_RECEIPT_RECORD_SHA256,
+        "Phase 7 build-receipt changeset record bytes changed",
+    )
+
+
+def validate_phase7_build_receipt_semantics(
+    records: list[dict[str, Any]],
+) -> None:
+    check(
+        [record.get("op") for record in records]
+        == ["changeset.header", "story.update", "trace.add", "trace.add"],
+        "Phase 7 build-receipt changeset operation sequence changed",
+    )
+    check(
+        records[0]
+        == {
+            "base_schema_version": 13,
+            "op": "changeset.header",
+            "run_id": "harness_v1_phase7_03_build_receipts",
+            "version": 1,
+        },
+        "Phase 7 build-receipt changeset header changed",
+    )
+    story = records[1]
+    payload = story.get("payload")
+    check(
+        story.get("id") == PHASE7_STORY_ID
+        and story.get("version") == 1
+        and isinstance(payload, dict)
+        and payload.get("status") == "in_progress"
+        and payload.get("contract_doc") is None
+        and all(
+            payload.get(field) == 0
+            for field in (
+                "unit_proof",
+                "integration_proof",
+                "e2e_proof",
+                "platform_proof",
+            )
+        )
+        and payload.get("evidence") == PHASE7_BUILD_RECEIPT_EVIDENCE
+        and payload.get("verify_command") == PHASE7_BUILD_RECEIPT_VERIFY_COMMAND,
+        "Phase 7 build-receipt story no longer records bounded in-progress evidence",
+    )
+    traces = records[2:]
+    check(
+        tuple(trace.get("uid") for trace in traces)
+        == PHASE7_BUILD_RECEIPT_TRACE_UIDS,
+        "Phase 7 build-receipt trace identities or order changed",
+    )
+    for trace in traces:
+        trace_payload = trace.get("payload")
+        check(
+            trace.get("version") == 2
+            and isinstance(trace_payload, dict)
+            and trace_payload.get("intake_uid") == PHASE7_INTAKE_UID
+            and trace_payload.get("story_id") == PHASE7_STORY_ID
+            and trace_payload.get("agent") == "codex"
+            and trace_payload.get("outcome") == "completed"
+            and trace_payload.get("duration_seconds") is None
+            and trace_payload.get("token_estimate") is None,
+            "Phase 7 build-receipt trace lost stable intake, story, or bounded outcome identity",
+        )
+        for field in (
+            "actions_taken",
+            "files_read",
+            "files_changed",
+            "decisions_made",
+            "errors",
+        ):
+            values = strict_json_loads(trace_payload.get(field, ""))
+            check(
+                isinstance(values, list)
+                and values
+                and all(isinstance(value, str) and value for value in values),
+                f"Phase 7 build-receipt trace {field} is not Detailed",
+            )
+    latest = traces[1]["payload"]
+    check(
+        latest["recorded_at_unix_ns"] > traces[0]["payload"]["recorded_at_unix_ns"]
+        and latest["created_at"] > traces[0]["payload"]["created_at"]
+        and latest["task_summary"]
+        == "Verified Phase 7 build-receipt slice after corrections"
+        and latest["notes"].startswith("Detailed verification trace."),
+        "Phase 7 build-receipt latest trace is not the Detailed verification record",
+    )
+    decisions = "\n".join(
+        value
+        for trace in traces
+        for value in strict_json_loads(trace["payload"]["decisions_made"])
+    )
+    notes = "\n".join(trace["payload"]["notes"] for trace in traces)
+    check(
+        "every release authority false" in decisions
+        and "retain every proof flag at zero" in decisions
+        and "defer remote five-runner proof and all promotion authority" in decisions
+        and "No push, dispatch, tag, release, publish, signing, attestation, promotion, or Phase 8 action occurred."
+        in notes,
+        "Phase 7 build-receipt trace overclaims proof, remote action, or release authority",
+    )
+
+
+def validate_phase7_build_receipt_records(
+    records: list[dict[str, Any]],
+) -> None:
+    authenticate_phase7_build_receipt_records(records)
+    validate_phase7_build_receipt_semantics(records)
+
+
+def self_test_phase7_build_receipt_records(
+    records: list[dict[str, Any]],
+) -> None:
+    digest_drift = deepcopy(records)
+    digest_drift[3]["payload"]["created_at"] = "2026-07-19 01:40:02"
+    expect_rejection(
+        "same-filename Phase 7 build-receipt digest drift",
+        lambda: authenticate_phase7_build_receipt_records(digest_drift),
+    )
+    completed = deepcopy(records)
+    completed[1]["payload"]["status"] = "completed"
+    expect_rejection(
+        "same-filename Phase 7 build-receipt completed status",
+        lambda: validate_phase7_build_receipt_semantics(completed),
+    )
+    asserted = deepcopy(records)
+    asserted[1]["payload"]["platform_proof"] = 1
+    expect_rejection(
+        "same-filename Phase 7 build-receipt platform proof",
+        lambda: validate_phase7_build_receipt_semantics(asserted),
+    )
+    relinked = deepcopy(records)
+    relinked[3]["payload"]["intake_uid"] = "ink_00000000000000000000000000000000"
+    expect_rejection(
+        "same-filename Phase 7 build-receipt intake relink",
+        lambda: validate_phase7_build_receipt_semantics(relinked),
+    )
+    overclaim = deepcopy(records)
+    overclaim[2]["payload"]["decisions_made"] = json.dumps(
+        ["Phase 7 acceptance authorized"], separators=(",", ":")
+    )
+    expect_rejection(
+        "same-filename Phase 7 build-receipt authority overclaim",
+        lambda: validate_phase7_build_receipt_semantics(overclaim),
+    )
+
+
 def verify_phase7_opening_gate() -> None:
     intake_records = load_jsonl(PHASE7_INTAKE_CHANGESET)
     story_records = load_jsonl(PHASE7_STORY_CHANGESET)
     proof_records = load_jsonl(PHASE7_PROOF_CONTRACT_CHANGESET)
+    build_receipt_records = load_jsonl(PHASE7_BUILD_RECEIPT_CHANGESET)
     validate_phase7_opening_records(intake_records, story_records)
     self_test_phase7_opening_records(intake_records, story_records)
     validate_phase7_proof_contract_records(intake_records, proof_records)
     self_test_phase7_proof_contract_records(intake_records, proof_records)
+    validate_phase7_build_receipt_records(build_receipt_records)
+    self_test_phase7_build_receipt_records(build_receipt_records)
 
     with tempfile.TemporaryDirectory(prefix="phase7-opening-replay-") as temporary:
         database = Path(temporary) / "replay.db"
         prior_changesets = Path(temporary) / "prior-changesets"
         prior_changesets.mkdir()
         for changeset in sorted((ROOT / ".harness/changesets").glob("*.jsonl")):
-            if changeset != PHASE7_PROOF_CONTRACT_CHANGESET:
+            if changeset not in {
+                PHASE7_PROOF_CONTRACT_CHANGESET,
+                PHASE7_BUILD_RECEIPT_CHANGESET,
+            }:
                 shutil.copyfile(changeset, prior_changesets / changeset.name)
         environment = dict(os.environ)
         for name in list(environment):
@@ -1319,6 +1505,132 @@ def verify_phase7_opening_gate() -> None:
                     )
                 ],
                 "isolated proof replay lost the Detailed Phase 7 trace identity",
+            )
+        finally:
+            connection.close()
+
+        build_apply = [
+            str(ROOT / "scripts/bin/harness-cli"),
+            "db",
+            "changeset",
+            "apply",
+            str(PHASE7_BUILD_RECEIPT_CHANGESET),
+        ]
+        build_status = [
+            str(ROOT / "scripts/bin/harness-cli"),
+            "db",
+            "changeset",
+            "status",
+            str(PHASE7_BUILD_RECEIPT_CHANGESET),
+            "--json",
+        ]
+        status_before = subprocess.run(
+            build_status,
+            cwd=ROOT,
+            capture_output=True,
+            check=False,
+            env=environment,
+            text=True,
+        )
+        status_before_document = strict_json_loads(status_before.stdout)
+        check(
+            status_before.returncode == 0
+            and status_before_document.get("result", {}).get("applied") is False,
+            "Phase 7 build-receipt status did not report unapplied before replay",
+        )
+        for attempt in ("initial", "idempotent"):
+            build_result = subprocess.run(
+                build_apply,
+                cwd=ROOT,
+                capture_output=True,
+                check=False,
+                env=environment,
+                text=True,
+            )
+            check(
+                build_result.returncode == 0,
+                f"Phase 7 build-receipt changeset {attempt} apply failed",
+            )
+        status_after = subprocess.run(
+            build_status,
+            cwd=ROOT,
+            capture_output=True,
+            check=False,
+            env=environment,
+            text=True,
+        )
+        status_after_document = strict_json_loads(status_after.stdout)
+        check(
+            status_after.returncode == 0
+            and status_after_document.get("result", {}).get("applied") is True,
+            "Phase 7 build-receipt status did not report applied after idempotent replay",
+        )
+        connection = sqlite3.connect(str(database))
+        try:
+            story = connection.execute(
+                """
+                SELECT status, unit_proof, integration_proof, e2e_proof,
+                       platform_proof, evidence, last_verified_result,
+                       verify_command
+                FROM story WHERE id = ?
+                """,
+                (PHASE7_STORY_ID,),
+            ).fetchall()
+            check(
+                story
+                == [
+                    (
+                        "in_progress",
+                        0,
+                        0,
+                        0,
+                        0,
+                        PHASE7_BUILD_RECEIPT_EVIDENCE,
+                        "pass",
+                        PHASE7_BUILD_RECEIPT_VERIFY_COMMAND,
+                    )
+                ],
+                "isolated build-receipt replay changed US-112 status, proof, evidence, or verification",
+            )
+            traces = connection.execute(
+                """
+                SELECT uid, intake_uid, story_id, task_summary, outcome,
+                       duration_seconds, token_estimate
+                FROM trace WHERE uid IN (?, ?) ORDER BY recorded_at_unix_ns
+                """,
+                PHASE7_BUILD_RECEIPT_TRACE_UIDS,
+            ).fetchall()
+            check(
+                traces
+                == [
+                    (
+                        PHASE7_BUILD_RECEIPT_TRACE_UIDS[0],
+                        PHASE7_INTAKE_UID,
+                        PHASE7_STORY_ID,
+                        "Implemented reviewed Phase 7 immutable native build-receipt infrastructure without promotion",
+                        "completed",
+                        None,
+                        None,
+                    ),
+                    (
+                        PHASE7_BUILD_RECEIPT_TRACE_UIDS[1],
+                        PHASE7_INTAKE_UID,
+                        PHASE7_STORY_ID,
+                        "Verified Phase 7 build-receipt slice after corrections",
+                        "completed",
+                        None,
+                        None,
+                    ),
+                ],
+                "isolated build-receipt replay lost stable intake links or Detailed latest trace",
+            )
+            applied = connection.execute(
+                "SELECT COUNT(*) FROM changeset_applied WHERE id = ?",
+                ("harness_v1_phase7_03_build_receipts",),
+            ).fetchone()
+            check(
+                applied == (1,),
+                "Phase 7 build-receipt idempotent replay recorded multiple applications",
             )
         finally:
             connection.close()
