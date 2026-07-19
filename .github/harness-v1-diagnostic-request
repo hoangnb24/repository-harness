@@ -1,5 +1,5 @@
 phase7-diagnostic-request: reviewed-candidate-only
-diagnostic-attempt: 2
+diagnostic-attempt: 3
 
 # A push to refactor/harness-v1 runs the five native diagnostic jobs only when
 # this sentinel changes in that same push. It grants no release authority.
