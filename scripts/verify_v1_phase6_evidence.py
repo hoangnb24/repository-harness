@@ -238,6 +238,56 @@ PHASE7_BUILD_RECEIPT_TRACE_UIDS = (
     "trc_1af4542310616a192351f13e21302f03",
     "trc_5273b3afc47ea2ac942889f1b60cf6ce",
 )
+PHASE7_BUILD_RECEIPT_TRACE_SEMANTICS = (
+    {
+        "task_summary": "Implemented reviewed Phase 7 immutable native build-receipt infrastructure without promotion",
+        "actions_taken": [
+            "implemented closed native build receipt schema and exact byte verifier",
+            "wired five native CI runners and exact collection",
+            "separated candidate SHA from executing workflow SHA",
+            "restricted candidates to approved branch ancestry",
+            "removed persisted checkout credentials",
+            "added shell-input and Windows collection-root hardening",
+            "ran local native capture and independent reviews",
+            "ran trust-enabled full premerge",
+        ],
+        "decisions_made": [
+            "record candidate source and executing workflow as separate immutable identities",
+            "permit only candidates reachable from origin/refactor/harness-v1",
+            "keep receipts checksum-only-unattested and every release authority false",
+            "do not dispatch or mutate remote state without separate authorization",
+        ],
+        "errors": [
+            "initial review rejected false workflow identity evidence",
+            "review rejected arbitrary ref execution with stored checkout credentials",
+            "review rejected direct candidate_ref shell interpolation",
+            "empty temporary owner registry correctly failed full validation",
+        ],
+        "harness_friction": "Independent review found candidate/workflow identity conflation, unrestricted ref reachability, persisted checkout credentials, and shell interpolation; all were corrected before integration. Full validation requires the existing external owner registry and rejects an empty placeholder.",
+        "notes": "US-112 remains in_progress with every proof flag zero. Local macOS arm64 artifact SHA-256 babe4fdca008d6ca82aee420d9d266468ea22dec6000865482a5f0fdbf26b27d is diagnostic only. No push, dispatch, tag, release, publish, signing, attestation, promotion, or Phase 8 action occurred.",
+    },
+    {
+        "task_summary": "Verified Phase 7 build-receipt slice after corrections",
+        "actions_taken": [
+            "reproduced focused adversaries",
+            "captured and verified native macOS arm64 receipt",
+            "completed security rereview",
+            "completed cross-platform audit",
+            "completed trust-enabled full premerge",
+        ],
+        "decisions_made": [
+            "accept reviewed infrastructure only",
+            "retain every proof flag at zero",
+            "defer remote five-runner proof and all promotion authority",
+        ],
+        "errors": [
+            "empty placeholder registry failed as designed",
+            "external authorized registry was required for the successful full gate",
+        ],
+        "harness_friction": "Security review corrected workflow identity, branch reachability, credential persistence, and shell interpolation before integration; cross-platform review then pinned the collector root.",
+        "notes": "Detailed verification trace. Exact duration_seconds and token_estimate are unavailable because this continuation resumed after a process crash and the session does not expose stable end-to-end measurements. Candidate b04753e is reviewed; macOS artifact digest is diagnostic; no remote mutation occurred.",
+    },
+)
 PHASE7_PROOF_TRACE_ACTIONS = (
     "implemented the closed fixture-only candidate and five-platform placeholder contract",
     "bound V1 harness artifact identity and Cargo.lock build input",
@@ -1237,7 +1287,7 @@ def validate_phase7_build_receipt_semantics(
         == PHASE7_BUILD_RECEIPT_TRACE_UIDS,
         "Phase 7 build-receipt trace identities or order changed",
     )
-    for trace in traces:
+    for trace, approved in zip(traces, PHASE7_BUILD_RECEIPT_TRACE_SEMANTICS):
         trace_payload = trace.get("payload")
         check(
             trace.get("version") == 2
@@ -1250,6 +1300,7 @@ def validate_phase7_build_receipt_semantics(
             and trace_payload.get("token_estimate") is None,
             "Phase 7 build-receipt trace lost stable intake, story, or bounded outcome identity",
         )
+        parsed_lists: dict[str, list[str]] = {}
         for field in (
             "actions_taken",
             "files_read",
@@ -1264,28 +1315,24 @@ def validate_phase7_build_receipt_semantics(
                 and all(isinstance(value, str) and value for value in values),
                 f"Phase 7 build-receipt trace {field} is not Detailed",
             )
+            parsed_lists[field] = values
+        check(
+            trace_payload["task_summary"] == approved["task_summary"]
+            and parsed_lists["actions_taken"] == approved["actions_taken"]
+            and parsed_lists["decisions_made"] == approved["decisions_made"]
+            and parsed_lists["errors"] == approved["errors"]
+            and trace_payload["harness_friction"] == approved["harness_friction"]
+            and trace_payload["notes"] == approved["notes"],
+            "Phase 7 build-receipt trace changed approved actions, decisions, notes, friction, or authority boundary",
+        )
     latest = traces[1]["payload"]
     check(
         latest["recorded_at_unix_ns"] > traces[0]["payload"]["recorded_at_unix_ns"]
         and latest["created_at"] > traces[0]["payload"]["created_at"]
         and latest["task_summary"]
-        == "Verified Phase 7 build-receipt slice after corrections"
+        == PHASE7_BUILD_RECEIPT_TRACE_SEMANTICS[1]["task_summary"]
         and latest["notes"].startswith("Detailed verification trace."),
         "Phase 7 build-receipt latest trace is not the Detailed verification record",
-    )
-    decisions = "\n".join(
-        value
-        for trace in traces
-        for value in strict_json_loads(trace["payload"]["decisions_made"])
-    )
-    notes = "\n".join(trace["payload"]["notes"] for trace in traces)
-    check(
-        "every release authority false" in decisions
-        and "retain every proof flag at zero" in decisions
-        and "defer remote five-runner proof and all promotion authority" in decisions
-        and "No push, dispatch, tag, release, publish, signing, attestation, promotion, or Phase 8 action occurred."
-        in notes,
-        "Phase 7 build-receipt trace overclaims proof, remote action, or release authority",
     )
 
 
@@ -1324,12 +1371,24 @@ def self_test_phase7_build_receipt_records(
         lambda: validate_phase7_build_receipt_semantics(relinked),
     )
     overclaim = deepcopy(records)
+    decisions = strict_json_loads(overclaim[2]["payload"]["decisions_made"])
+    decisions.append("Phase 7 acceptance authorized")
     overclaim[2]["payload"]["decisions_made"] = json.dumps(
-        ["Phase 7 acceptance authorized"], separators=(",", ":")
+        decisions, separators=(",", ":")
     )
     expect_rejection(
         "same-filename Phase 7 build-receipt authority overclaim",
         lambda: validate_phase7_build_receipt_semantics(overclaim),
+    )
+    error_overclaim = deepcopy(records)
+    errors = strict_json_loads(error_overclaim[3]["payload"]["errors"])
+    errors.append("production release succeeded")
+    error_overclaim[3]["payload"]["errors"] = json.dumps(
+        errors, separators=(",", ":")
+    )
+    expect_rejection(
+        "same-filename Phase 7 build-receipt errors authority overclaim",
+        lambda: validate_phase7_build_receipt_semantics(error_overclaim),
     )
 
 
