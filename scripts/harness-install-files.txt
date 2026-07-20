@@ -17,6 +17,7 @@ docs/README.md
 docs/TEST_MATRIX.md
 docs/TOOL_REGISTRY.md
 docs/TRACE_SPEC.md
+docs/WORKTREE_CONFLICTS.md
 docs/decisions/0001-harness-first-development.md
 docs/decisions/0002-post-spec-product-lifecycle.md
 docs/decisions/0003-generic-spec-intake-harness.md
@@ -24,6 +25,7 @@ docs/decisions/0004-sqlite-durable-layer.md
 docs/decisions/0005-prebuilt-rust-harness-cli.md
 docs/decisions/0006-phase-4-benchmark-triage.md
 docs/decisions/0007-improvement-proposal-rules.md
+docs/decisions/0011-reproducible-core-state.md
 docs/decisions/README.md
 docs/contracts/harness-orchestration-v1.md
 docs/product/README.md
@@ -41,6 +43,11 @@ scripts/README.md
 scripts/agent-harness-block.md
 scripts/bootstrap-harness.sh
 scripts/bootstrap-harness.ps1
+scripts/materialize-core-state.sh
+scripts/materialize-core-state.ps1
+scripts/verify-core-snapshot.sh
+scripts/publish-core-snapshot.sh
+scripts/verify-materialized-core-parity.sh
 scripts/claude-harness-block.md
 scripts/harness-cli-release-tag
 .gitignore

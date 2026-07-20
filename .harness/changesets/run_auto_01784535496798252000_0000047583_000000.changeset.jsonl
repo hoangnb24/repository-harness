@@ -1,0 +1,2 @@
+{"base_schema_version":14,"op":"changeset.header","run_id":"run_auto_01784535496798252000_0000047583_000000","version":1}
+{"expected_revision":0,"id":19,"op":"backlog.close","payload":{"actual_outcome":"Implemented a checksummed, ownership-verified core snapshot plus atomic source materialization from the snapshot and later typed JSONL changesets.","status":"implemented"},"uid":"blg_436887a327e2f278f1b2ee0509685d99","version":3}

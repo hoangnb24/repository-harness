@@ -78,10 +78,29 @@ test "$conflict_exit" -eq 3
 jq -e '.error.code == "CONFLICT" and .operation == "story.hierarchy.add"' "$tmp/conflict.json" >/dev/null
 
 changeset="$tmp/protocol-smoke.jsonl"
-printf '%s\n' '{"base_schema_version":13,"op":"changeset.header","run_id":"protocol_smoke","version":1}' >"$changeset"
+printf '%s\n' '{"base_schema_version":14,"op":"changeset.header","run_id":"protocol_smoke","version":1}' >"$changeset"
 run db changeset status "$changeset" --json | jq -e '.result.applied == false and .result.operation_count == 0' >/dev/null
 run db changeset apply "$changeset" --json | jq -e '.result.applied == true and .result.operations == 0 and (.result.content_sha256 | length) == 64' >/dev/null
 run db changeset status "$changeset" --json | jq -e '.result.applied == true' >/dev/null
+
+stale="$tmp/protocol-stale.jsonl"
+printf '%s\n' \
+  '{"base_schema_version":14,"op":"changeset.header","run_id":"protocol_stale","version":1}' \
+  '{"op":"story.update","version":3,"id":"US-A","expected_revision":0,"payload":{"status":"changed"}}' \
+  >"$stale"
+set +e
+run db changeset apply "$stale" --json >"$tmp/stale.json"
+stale_exit=$?
+set -e
+test "$stale_exit" -eq 3
+jq -e '
+  .error.code == "CONFLICT" and
+  .error.details.changeset_id == "protocol_stale" and
+  .error.details.entity_kind == "story" and
+  .error.details.entity_id == "US-A" and
+  .error.details.expected_revision == 0 and
+  .error.details.actual_revision == 2
+' "$tmp/stale.json" >/dev/null
 
 snapshot="$tmp/path with spaces/snapshot.db"
 mkdir -p "$(dirname "$snapshot")"

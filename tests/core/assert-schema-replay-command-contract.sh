@@ -66,7 +66,7 @@ jq -e --argjson current "$current" '
   .result.schema_maximum == $current and
   .result.database_schema_version == $current and
   .result.database_state == "current" and
-  (["changesets.apply.v1","changesets.status-sha.v1","isolated-db-snapshot.v1",
+  (["changesets.apply.v1","changesets.status-sha.v1","entity-revision-conflicts.v1","isolated-db-snapshot.v1",
     "semantic-operation-log.v1","stories.read.v1","stories.write.v1",
     "story-dependencies.read-write.v1","story-hierarchy.read-write.v1",
     "work-graph.read.v1"] - .result.capabilities | length == 0)

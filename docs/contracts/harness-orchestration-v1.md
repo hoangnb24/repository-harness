@@ -24,8 +24,9 @@ Invoke `scripts/bin/harness-cli` on macOS/Linux or
 `scripts/bin/harness-cli.exe` on Windows. An orchestrator may instead provide an
 absolute executable path. The working repository is selected with
 `HARNESS_REPO_ROOT`; its database is selected with `HARNESS_DB_PATH`, otherwise
-the CLI uses `<repo-root>/harness.db`. `HARNESS_RUN_ID` enables semantic
-operation logging for mutations. `HARNESS_REQUEST_ID`, when set, is copied into
+the CLI uses `<repo-root>/harness.db`. The Harness source repository
+automatically logs typed default-database mutations; `HARNESS_RUN_ID` supplies
+an explicit identity elsewhere. `HARNESS_REQUEST_ID`, when set, is copied into
 the response after trimming and limiting it to 128 Unicode scalar values.
 
 Arguments are platform-native paths. JSON strings are UTF-8. If a path cannot
@@ -55,9 +56,9 @@ Its result is:
     "protocol_version": 1,
     "cli_version": "0.1.12",
     "schema_minimum": 1,
-    "schema_maximum": 13,
+    "schema_maximum": 14,
     "database_state": "current",
-    "database_schema_version": 13,
+    "database_schema_version": 14,
     "required_environment_variables": ["HARNESS_DB_PATH"],
     "capabilities": ["changesets.apply.v1", "work-graph.read.v1"]
   }
@@ -83,6 +84,7 @@ story-dependencies.read-write.v1
 story-hierarchy.read-write.v1
 changesets.apply.v1
 changesets.status-sha.v1
+entity-revision-conflicts.v1
 isolated-db.v1
 isolated-db-snapshot.v1
 semantic-operation-log.v1
@@ -222,8 +224,8 @@ harness-cli story hierarchy remove --parent <id> --child <id> --json
 
 Add/remove edge operations are idempotent and report whether state changed.
 Dependency and hierarchy self-links and cycles fail atomically. When
-`HARNESS_RUN_ID` is present, each successful logical mutation emits its
-versioned semantic operation; a failed mutation emits none.
+semantic capture is active, each successful logical mutation emits its
+versioned operation; a failed mutation emits none.
 
 For an orchestrator status transition, `--expected-status` compares the stored
 status in the same write transaction. `--require-runnable` evaluates the
@@ -262,6 +264,28 @@ with different bytes is `CONFLICT`, never a skip. Unsupported/malformed header,
 schema, or operation is `COMPATIBILITY_ERROR`. Apply is transactional: either
 all semantic operations and its applied marker commit, or none do.
 
+Guarded mutable operations carry `expected_revision`. A mismatch is
+`CONFLICT`/exit `3` and rolls back the whole changeset. Its `details` object is:
+
+```json
+{
+  "changeset_id": "run_auto_...",
+  "entity_kind": "story",
+  "entity_id": "US-200",
+  "expected_revision": 3,
+  "actual_revision": 4
+}
+```
+
+The caller rebases and reruns the high-level mutation after deciding the
+correct intent. It must not retry the stale changeset unchanged.
+
+Operations emitted after the reproducible-state cutover also carry database-
+generated timestamps used by inserts and time-stamped updates. Replay writes
+those recorded values instead of evaluating `datetime('now')` again. Historical
+operation versions remain accepted; the verified snapshot compacts their
+pre-cutover values.
+
 ## WAL-Safe Snapshot
 
 ```text
@@ -288,6 +312,21 @@ state. Result fields are:
 hashes the completed snapshot bytes. File hashes can vary after a future
 SQLite rewrite even when logical hashes match, so parity checks compare logical
 state first.
+
+## Source Core-State Materialization
+
+The upstream source repository tracks `.harness/core-state/harness.db` and
+`manifest.json`. The manifest binds the baseline byte hash, baseline logical
+hash, schema version, and the exact id/path/content hash of each JSONL file
+already represented by that snapshot.
+
+When the default source `harness.db` is absent, bootstrap copies the verified
+snapshot to a sibling temporary database. Incorporated JSONL is skipped only
+when all three manifest fields match; later files replay in lexical filename
+order using the normal transactional apply command. Current schema and core
+ownership are checked before an atomic rename. Any mismatch removes the
+temporary database and leaves the requested output absent. Explicit database
+paths and installed consumers retain their existing local-state behavior.
 
 ## Installer Upgrade Contract
 

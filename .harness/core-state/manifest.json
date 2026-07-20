@@ -1,0 +1,61 @@
+{
+  "format_version": 1,
+  "snapshot": {
+    "path": ".harness/core-state/harness.db",
+    "file_sha256": "3a2b30bedc7dc9c373c3788827b67b69c3e2a6bb2b7ad35db62568d194a41a73",
+    "logical_sha256": "72267125cbdccff423136c6070ce94c5a11379a53aff7354978309d12b77f387",
+    "schema_version": 14
+  },
+  "included_changesets": [
+    {
+      "id": "run_1783916400_us102",
+      "path": ".harness/changesets/run_1783916400_us102.changeset.jsonl",
+      "content_sha256": "91958cd12c28aee2d804a88a7ca3af243ee9108e4cbb8d49206cee3e8336e032"
+    },
+    {
+      "id": "run_20260720_e15_execution_intake",
+      "path": ".harness/changesets/run_20260720_e15_execution_intake.changeset.jsonl",
+      "content_sha256": "d8546e6750e4488d3122fe889767f29a8ba2518808fb7e71d4c3c4b544b7e4d4"
+    },
+    {
+      "id": "run_20260720_e15_reproducible_core_state",
+      "path": ".harness/changesets/run_20260720_e15_reproducible_core_state.changeset.jsonl",
+      "content_sha256": "cba46bc12c5b8383a4ded508a9992179991c555ea9834b6e3039b2558a7195ed"
+    },
+    {
+      "id": "run_20260720_e15_us115",
+      "path": ".harness/changesets/run_20260720_e15_us115.changeset.jsonl",
+      "content_sha256": "a2abb6068c09aeb5a5119e14a0d742f2ba9f358ffc370e5d1a075014fe0835dd"
+    },
+    {
+      "id": "run_20260720_e15_us116",
+      "path": ".harness/changesets/run_20260720_e15_us116.changeset.jsonl",
+      "content_sha256": "9ebc4fccef76cd6b6bb7d070308bf4315c1e2731c002bcf559cd3c2f409769f2"
+    },
+    {
+      "id": "run_20260720_e15_us117",
+      "path": ".harness/changesets/run_20260720_e15_us117.changeset.jsonl",
+      "content_sha256": "3dc3512a125f20a9272044d9a7020ecff78e2b20966e04d7f3f081a5d51a84c8"
+    },
+    {
+      "id": "run_20260720_e15_us117_complete",
+      "path": ".harness/changesets/run_20260720_e15_us117_complete.changeset.jsonl",
+      "content_sha256": "655adcbbc1e4251a1f6d1ff475ffa77cfdb11c4ecf6fe2bd34d1cac7cc3ed441"
+    },
+    {
+      "id": "run_20260720_e15_us118",
+      "path": ".harness/changesets/run_20260720_e15_us118.changeset.jsonl",
+      "content_sha256": "7e5d41090b07bd64a94a2d128aa243456985e44fdcaa49169499f7fe891945f4"
+    },
+    {
+      "id": "run_20260720_e15_us119",
+      "path": ".harness/changesets/run_20260720_e15_us119.changeset.jsonl",
+      "content_sha256": "e76c06683c5a9d320aa72e1964046ed34bc22289323b7a9cd66213be0b350b41"
+    },
+    {
+      "id": "run_auto_01784535496798252000_0000047583_000000",
+      "path": ".harness/changesets/run_auto_01784535496798252000_0000047583_000000.changeset.jsonl",
+      "content_sha256": "24cd0f67df6f7ba6f439aa369477ac3ded49064ba9e5c81eadea11f35d68614f"
+    }
+  ]
+}

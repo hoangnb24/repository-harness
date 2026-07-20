@@ -17,8 +17,10 @@ $defaultDatabase = [System.IO.Path]::GetFullPath((Join-Path $root "harness.db"))
 $sourceCheckout = (Test-Path (Join-Path $root "Cargo.toml")) -and
     (Test-Path (Join-Path $root "crates/harness-cli/Cargo.toml"))
 
-if ($sourceCheckout -and $Database -eq $defaultDatabase -and !(Test-Path $Database)) {
-    throw "Harness bootstrap failed: authoritative core state is unavailable; restore the verified core epoch instead of initializing an empty replacement"
+if ($sourceCheckout -and $Database -eq $defaultDatabase -and !(Test-Path $Database) -and
+    (!(Test-Path (Join-Path $root ".harness/core-state/manifest.json")) -or
+     !(Test-Path (Join-Path $root ".harness/core-state/harness.db")))) {
+    throw "Harness bootstrap failed: authoritative core state is unavailable; tracked verified core state is missing"
 }
 
 if ($sourceCheckout) {
@@ -47,6 +49,11 @@ $actualVersion = (& $Cli --version).Split()[-1]
 $expectedVersion = $releaseTag -replace '^harness-cli-v', ''
 if (!$releaseTag.StartsWith("harness-cli-v") -or $actualVersion -ne $expectedVersion) {
     throw "Harness bootstrap failed: CLI version $actualVersion does not match pinned release $releaseTag"
+}
+
+if ($sourceCheckout -and $Database -eq $defaultDatabase -and !(Test-Path $Database)) {
+    & (Join-Path $root "scripts/materialize-core-state.ps1") -Database $Database -Cli $Cli
+    if ($LASTEXITCODE -ne 0) { throw "Harness bootstrap failed: tracked core-state materialization failed" }
 }
 
 function Get-Contract {

@@ -1,0 +1,4 @@
+{"base_schema_version":14,"op":"changeset.header","run_id":"run_20260720_e15_us117","version":1}
+{"id":"US-117","op":"story.add","payload":{"contract_doc":"docs/stories/epics/E15-reproducible-core-state/US-117-verified-snapshot-materialization/overview.md","notes":"Third E15 implementation story; snapshot publication is a reviewed maintenance boundary, while ordinary tasks only emit typed JSONL.","risk_lane":"high_risk","title":"Verified Snapshot Materialization","verify_command":"tests/bootstrap/test-core-state-materialization.sh && scripts/verify-core-snapshot.sh && tests/docs/test-doc-contracts.sh && git diff --check"},"version":1}
+{"id":"US-116","op":"story.dependency.add","payload":{"blocked":"US-117"},"version":1}
+{"expected_revision":0,"id":"US-117","op":"story.update","payload":{"contract_doc":null,"e2e_proof":null,"evidence":null,"integration_proof":null,"platform_proof":null,"status":"in_progress","unit_proof":null,"verify_command":null},"version":3}

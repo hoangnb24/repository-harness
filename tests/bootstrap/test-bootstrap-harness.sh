@@ -11,12 +11,12 @@ cargo build --quiet --manifest-path "$root/Cargo.toml" -p harness-cli --locked
 fresh="$temp/fresh.db"
 HARNESS_CLI="$cli" HARNESS_DB_PATH="$fresh" "$root/scripts/bootstrap-harness.sh" >"$temp/fresh.out"
 grep -Fq 'Harness ready:' "$temp/fresh.out"
-[[ "$(sqlite3 "$fresh" 'SELECT MAX(version) FROM schema_version;')" == 13 ]]
+[[ "$(sqlite3 "$fresh" 'SELECT MAX(version) FROM schema_version;')" == 14 ]]
 
 old="$temp/old.db"
 sqlite3 "$old" <"$root/scripts/schema/001-init.sql" >/dev/null
 HARNESS_CLI="$cli" HARNESS_DB_PATH="$old" "$root/scripts/bootstrap-harness.sh" >"$temp/old.out"
-[[ "$(sqlite3 "$old" 'SELECT MAX(version) FROM schema_version;')" == 13 ]]
+[[ "$(sqlite3 "$old" 'SELECT MAX(version) FROM schema_version;')" == 14 ]]
 
 HARNESS_CLI="$cli" HARNESS_DB_PATH="$fresh" "$root/scripts/bootstrap-harness.sh" >"$temp/current.out"
 grep -Fq 'Harness ready:' "$temp/current.out"
@@ -39,7 +39,7 @@ cp "$cli" "$consumer/scripts/bin/harness-cli"
 chmod 755 "$consumer/scripts/bootstrap-harness.sh" "$consumer/scripts/bin/harness-cli"
 "$consumer/scripts/bootstrap-harness.sh" >"$temp/consumer.out"
 grep -Fq 'Harness ready:' "$temp/consumer.out"
-[[ "$(sqlite3 "$consumer/harness.db" 'SELECT MAX(version) FROM schema_version;')" == 13 ]]
+[[ "$(sqlite3 "$consumer/harness.db" 'SELECT MAX(version) FROM schema_version;')" == 14 ]]
 
 printf 'harness-cli-v9.9.9\n' >"$consumer/scripts/harness-cli-release-tag"
 if "$consumer/scripts/bootstrap-harness.sh" >"$temp/version.out" 2>&1; then
@@ -56,11 +56,12 @@ if "$missing_source/scripts/bootstrap-harness.sh" >"$temp/missing-source.out" 2>
   echo "bootstrap unexpectedly initialized empty source-repository state" >&2
   exit 1
 fi
-grep -Fq 'restore the verified core epoch instead of initializing an empty replacement' \
+grep -Fq 'tracked verified core state is missing' \
   "$temp/missing-source.out"
 
 grep -Fq '"needs_migration"' "$root/scripts/bootstrap-harness.ps1"
 grep -Fq '"unsupported"' "$root/scripts/bootstrap-harness.ps1"
 grep -Fq 'ConvertFrom-Json' "$root/scripts/bootstrap-harness.ps1"
+grep -Fq 'materialize-core-state.ps1' "$root/scripts/bootstrap-harness.ps1"
 
 echo "source isolation, consumer init, migration, refusal, version, and PowerShell bootstrap contracts passed"

@@ -13,6 +13,7 @@ future user-provided spec.
 - `HARNESS_BACKLOG.md`: legacy improvement list; current improvement records
   are stored with `scripts/bin/harness-cli backlog`.
 - `GLOSSARY.md`: shared terms.
+- `WORKTREE_CONFLICTS.md`: revision-conflict diagnosis and agent recovery.
 - `contracts/`: versioned machine-readable contracts for optional external
   orchestrators.
 

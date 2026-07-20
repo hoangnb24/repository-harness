@@ -11,6 +11,13 @@ project. The discovery guidance below is for that consumer application after a
 user-provided spec and stack decision exist; it does not describe the upstream
 Harness CLI as unimplemented.
 
+The upstream source control plane has three state forms: a tracked read-only
+baseline at `.harness/core-state/`, tracked typed JSONL deltas at
+`.harness/changesets/`, and one ignored writable `harness.db` per checkout or
+worktree. Bootstrap verifies baseline identity, replays only post-baseline
+deltas, and activates the local database atomically. Installed consumers keep
+their databases local and do not inherit the upstream baseline.
+
 ## Discovery Before Shape
 
 Before proposing implementation shape, identify:

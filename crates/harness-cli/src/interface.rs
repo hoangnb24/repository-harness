@@ -907,6 +907,7 @@ pub fn emit_machine_error(operation: &str, error: &InterfaceError) -> i32 {
             | crate::infrastructure::HarnessInfraError::StoryStatusConflict { .. }
             | crate::infrastructure::HarnessInfraError::StoryNotRunnable(_)
             | crate::infrastructure::HarnessInfraError::ChangesetIdentityConflict { .. }
+            | crate::infrastructure::HarnessInfraError::EntityRevisionConflict { .. }
             | crate::infrastructure::HarnessInfraError::SnapshotOutputExists(_),
         ) => ("CONFLICT", false, 3),
         InterfaceError::Infrastructure(
@@ -917,6 +918,24 @@ pub fn emit_machine_error(operation: &str, error: &InterfaceError) -> i32 {
         InterfaceError::NonUtf8Path => ("PATH_NOT_UTF8", false, 2),
         _ => ("INTERNAL_ERROR", false, 5),
     };
+    let details = match error {
+        InterfaceError::Infrastructure(
+            crate::infrastructure::HarnessInfraError::EntityRevisionConflict {
+                changeset_id,
+                entity_kind,
+                entity_id,
+                expected_revision,
+                actual_revision,
+            },
+        ) => serde_json::json!({
+            "changeset_id": changeset_id,
+            "entity_kind": entity_kind,
+            "entity_id": entity_id,
+            "expected_revision": expected_revision,
+            "actual_revision": actual_revision,
+        }),
+        _ => serde_json::json!({}),
+    };
     let envelope = serde_json::json!({
         "protocol_version": PROTOCOL_VERSION,
         "operation": operation,
@@ -925,7 +944,7 @@ pub fn emit_machine_error(operation: &str, error: &InterfaceError) -> i32 {
             "code": code,
             "message": error.to_string(),
             "retryable": retryable,
-            "details": {},
+            "details": details,
         },
     });
     if let Err(write_error) = write_machine_document(&envelope) {

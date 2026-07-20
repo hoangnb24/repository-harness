@@ -139,10 +139,10 @@ verifies its `.sha256` checksum, and installs it at
 Windows. The Rust CLI is the main Harness tool and stable command path.
 
 Then bootstrap the local ignored database. A Harness source checkout builds the
-CLI from that checkout and validates the restored core-state epoch; it refuses
-to fabricate an empty replacement for missing repository state. An installed
-project reuses the verified release binary and initializes its own empty local
-state:
+CLI from that checkout. If its database is missing, bootstrap verifies and
+copies the tracked core snapshot, replays later typed JSONL changesets, checks
+ownership, and atomically installs the result. An installed project reuses the
+verified release binary and initializes its own empty local state:
 
 ```bash
 scripts/bootstrap-harness.sh
@@ -151,6 +151,11 @@ scripts/bootstrap-harness.sh
 ```powershell
 .\scripts\bootstrap-harness.ps1
 ```
+
+After bootstrap, typed mutations of the default database in this source
+repository automatically create one semantic JSONL changeset per CLI
+invocation. Installed projects keep local operational state by default and only
+emit changesets when they explicitly supply `HARNESS_RUN_ID`.
 
 Harness CLI release assets are built and proven before tag promotion by the
 `Harness CLI Release` GitHub Actions workflow. The installer expects each

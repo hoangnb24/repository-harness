@@ -23,7 +23,15 @@ scripts/verify-revision-coherence.sh
 tests/coherence/test-revision-coherence.sh
 tests/coherence/test-core-state-ownership.sh
 tests/core/test-schema-replay-command-contract.sh
+tests/changesets/test-automatic-source-capture.sh
 tests/bootstrap/test-bootstrap-harness.sh
+tests/bootstrap/test-core-state-materialization.sh
+tests/bootstrap/test-fresh-source-checkout.sh
+scripts/verify-core-snapshot.sh
+scripts/verify-materialized-core-parity.sh
+tests/worktrees/test-core-state-conflict-recovery.sh
+tests/snapshot/test-core-snapshot-compaction.sh
+tests/ci/test-core-state-rebuild-gate.sh
 tests/protocol/smoke-native-artifact.sh target/debug/harness-cli
 tests/installer/test-install-harness-modes.sh
 tests/installer/assert-consumer-changeset-trackable.sh

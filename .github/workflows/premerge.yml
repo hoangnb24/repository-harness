@@ -34,6 +34,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Bootstrap tracked core state from a fresh checkout
+        run: |
+          test ! -e harness.db
+          scripts/bootstrap-harness.sh
+          scripts/verify-materialized-core-parity.sh
+
       - name: Run pre-merge contract
         run: scripts/validate-premerge.sh
 
@@ -59,6 +65,12 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Bootstrap tracked core state from a fresh checkout
+        shell: pwsh
+        run: |
+          if (Test-Path harness.db) { throw "checkout unexpectedly contains harness.db" }
+          .\scripts\bootstrap-harness.ps1
 
       - name: Build Windows Harness CLI
         run: cargo build -p harness-cli --locked

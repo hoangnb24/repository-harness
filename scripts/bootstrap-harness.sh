@@ -26,8 +26,9 @@ contract_state() {
   esac
 }
 
-if [[ $source_checkout == 1 && "$db" == "$root/harness.db" && ! -e "$db" ]]; then
-  fail "authoritative core state is unavailable; restore the verified core epoch instead of initializing an empty replacement"
+if [[ $source_checkout == 1 && "$db" == "$root/harness.db" && ! -e "$db" &&
+      (! -f "$root/.harness/core-state/manifest.json" || ! -f "$root/.harness/core-state/harness.db") ]]; then
+  fail "authoritative core state is unavailable; tracked verified core state is missing"
 fi
 
 if [[ $source_checkout == 1 ]]; then
@@ -50,6 +51,11 @@ expected_version=${release_tag#harness-cli-v}
 actual_version=$("$cli" --version | awk '{ print $NF }')
 [[ "$release_tag" == harness-cli-v* && "$actual_version" == "$expected_version" ]] ||
   fail "CLI version $actual_version does not match pinned release $release_tag"
+
+if [[ $source_checkout == 1 && "$db" == "$root/harness.db" && ! -e "$db" ]]; then
+  HARNESS_CLI="$cli" HARNESS_DB_PATH="$db" "$root/scripts/materialize-core-state.sh" >/dev/null ||
+    fail "tracked core-state materialization failed"
+fi
 
 case "$(contract_state)" in
   missing)

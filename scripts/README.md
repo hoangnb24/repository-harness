@@ -24,13 +24,15 @@ scripts/bootstrap-harness.sh
 ```
 
 In this source repository, bootstrap builds the CLI from the checked-out Rust
-source so code and command behavior cannot drift. It refuses to invent an empty
-replacement when the default core database is missing, and it rejects a
-schema-current database that still contains product-owned state. Restore the
-verified core epoch in that case. In an installed consumer it uses the
-checksum-verified prebuilt binary and safely initializes a missing local
-database. Both modes migrate older supported databases and refuse unsupported
-schemas or CLI/release-pin drift.
+source so code and command behavior cannot drift. When the default database is
+missing, it verifies `.harness/core-state/manifest.json` and the read-only
+snapshot, copies the snapshot to a temporary database, skips only the exact
+JSONL files named by the manifest, replays later changesets, verifies ownership,
+and atomically installs the result. A changed snapshot or compacted changeset
+fails without leaving `harness.db`. In an installed consumer bootstrap uses the
+checksum-verified prebuilt binary and safely initializes missing local state.
+Both modes migrate older supported databases and refuse unsupported schemas or
+CLI/release-pin drift.
 
 ```bash
 scripts/bin/harness-cli init          # Create the database
@@ -52,6 +54,8 @@ scripts/bin/harness-cli query matrix --runnable --summary # Show work ready unde
 scripts/bin/harness-cli query matrix --story US-001      # Inspect one exact story
 scripts/bin/harness-cli db changeset apply .harness/changesets/run_123.changeset.jsonl
 scripts/bin/harness-cli db rebuild --from .harness/changesets
+scripts/materialize-core-state.sh   # Restore a missing source harness.db
+scripts/verify-core-snapshot.sh     # Verify the tracked baseline tuple
 scripts/bin/harness-cli migrate       # Apply pending schema migrations
 scripts/bin/harness-cli --version     # Print the installed CLI version
 ```
@@ -90,12 +94,43 @@ to operate on an isolated copied database. `HARNESS_DB_PATH` takes precedence
 over the legacy `HARNESS_DB` override; if neither is set, the CLI uses
 `harness.db` in the repository root.
 
-Set `HARNESS_RUN_ID=<run-id>` during an isolated run to append semantic
-operation records to `.harness/changesets/<run-id>.changeset.jsonl` under the
-resolved repository root. The first write records a `changeset.header`; durable
-write commands append operation records such as `story.update`, `trace.add`,
-and `decision.add`. Normal CLI use without `HARNESS_RUN_ID` writes no
-changeset.
+In this Harness CLI source repository, a typed write to the default
+`harness.db` automatically records semantic operations in one uniquely named
+`.harness/changesets/run_auto_*.changeset.jsonl` file per CLI invocation. The
+caller does not need to begin or finish a run. The first line is a
+`changeset.header`; later lines are typed operations such as `story.update`,
+`trace.add`, and `decision.add`.
+
+Set `HARNESS_RUN_ID=<run-id>` to supply an explicit identity or aggregate the
+operations from several invocations into one run file. Installed consumers and
+isolated `HARNESS_DB_PATH` workflows remain opt-in: without `HARNESS_RUN_ID`,
+they write only their local operational database and do not create a changeset.
+
+Mutable operations record the entity revision they observed. If replay finds a
+different revision, `db changeset apply` stops the entire changeset and reports
+the run ID, entity kind and ID, expected revision, and actual revision. Resolve
+the branch intent, rebase, and rerun the normal domain command; do not edit a
+shared changeset or blindly retry it.
+
+Snapshot publication is an explicit maintenance operation, never part of a
+normal task. `scripts/publish-core-snapshot.sh` refuses an existing tuple,
+requires ownership-clean source state, creates the database through SQLite
+online backup, scans it for machine paths and token-shaped secrets, and binds
+all incorporated JSONL ids and hashes in the manifest.
+
+Infrequent compaction uses compare-and-swap against the manifest the maintainer
+reviewed:
+
+```bash
+current=$(jq -r '.snapshot.logical_sha256' .harness/core-state/manifest.json)
+scripts/publish-core-snapshot.sh --replace --expected-logical-sha "$current"
+```
+
+Replacement verifies the old pair and the candidate pair before activation and
+restores the prior pair after an in-process failure. A stale expected hash makes
+no change. It deliberately retains incorporated JSONL; deleting history needs a
+separate retention decision. Pull-request CI begins without `harness.db`,
+bootstraps the tracked tuple on Linux and Windows, and runs materialized parity.
 
 Requires: the prebuilt Rust CLI at `scripts/bin/harness-cli` on macOS/Linux or
 `scripts/bin/harness-cli.exe` on Windows.

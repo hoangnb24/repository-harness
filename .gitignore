@@ -17,3 +17,6 @@ scripts/bin/harness-cli.exe
 .harness/*
 !.harness/changesets/
 !.harness/changesets/*.changeset.jsonl
+!.harness/core-state/
+!.harness/core-state/harness.db
+!.harness/core-state/manifest.json

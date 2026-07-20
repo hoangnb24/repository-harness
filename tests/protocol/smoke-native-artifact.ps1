@@ -94,11 +94,26 @@ try {
     if ($conflict.error.code -ne "CONFLICT") { throw "Hierarchy cycle was not a stable conflict" }
 
     $changeset = Join-Path $Temp "protocol-smoke.jsonl"
-    '{"base_schema_version":13,"op":"changeset.header","run_id":"protocol_smoke","version":1}' | Set-Content -Encoding utf8NoBOM $changeset
+    '{"base_schema_version":14,"op":"changeset.header","run_id":"protocol_smoke","version":1}' | Set-Content -Encoding utf8NoBOM $changeset
     $status = Invoke-HarnessJson -Arguments @("db", "changeset", "status", $changeset, "--json")
     if ($status.result.applied) { throw "Fresh changeset unexpectedly reported applied" }
     $apply = Invoke-HarnessJson -Arguments @("db", "changeset", "apply", $changeset, "--json")
     if (-not $apply.result.applied -or $apply.result.content_sha256.Length -ne 64) { throw "Changeset apply result is incomplete" }
+
+    $stale = Join-Path $Temp "protocol-stale.jsonl"
+    @(
+        '{"base_schema_version":14,"op":"changeset.header","run_id":"protocol_stale","version":1}'
+        '{"op":"story.update","version":3,"id":"US-A","expected_revision":0,"payload":{"status":"changed"}}'
+    ) | Set-Content -Encoding utf8NoBOM $stale
+    $staleResult = Invoke-HarnessJson -Arguments @("db", "changeset", "apply", $stale, "--json") -ExpectedExit 3
+    if ($staleResult.error.code -ne "CONFLICT" -or
+        $staleResult.error.details.changeset_id -ne "protocol_stale" -or
+        $staleResult.error.details.entity_kind -ne "story" -or
+        $staleResult.error.details.entity_id -ne "US-A" -or
+        $staleResult.error.details.expected_revision -ne 0 -or
+        $staleResult.error.details.actual_revision -ne 2) {
+        throw "Revision conflict envelope is incomplete"
+    }
 
     $SnapshotDir = Join-Path $Temp "path with spaces"
     New-Item -ItemType Directory -Force $SnapshotDir | Out-Null
