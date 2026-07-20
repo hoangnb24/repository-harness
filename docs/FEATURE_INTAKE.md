@@ -1,5 +1,11 @@
 # Feature Intake
 
+> **Compatibility reference — not part of the default workflow.** New work uses
+> `docs/WORKFLOW.md`: bounded changes need no intake record, while complex work
+> uses one Git-native execution plan. Use this document only for historical
+> state, CLI maintenance, or an external orchestrator that explicitly requires
+> intake lanes.
+
 This intake gate applies to change, build, and fix requests before code or
 durable Harness state changes. A new project spec also enters through this gate
 before it becomes product docs, stories, or implementation work.

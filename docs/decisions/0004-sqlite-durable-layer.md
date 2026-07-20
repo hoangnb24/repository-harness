@@ -4,7 +4,8 @@ Date: 2026-05-22
 
 ## Status
 
-Accepted
+Accepted as an optional compatibility control plane. Default-path authority is
+superseded by `0019-repository-centered-default-workflow.md`.
 
 ## Context
 

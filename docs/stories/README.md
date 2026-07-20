@@ -1,5 +1,10 @@
 # Stories
 
+> **Compatibility and historical reference.** New bounded work uses an
+> ephemeral plan. New complex work uses one file under `docs/plans/active/`.
+> Story packets remain for existing CLI state, orchestration consumers, and
+> retained implementation history.
+
 Stories are work packets. They turn product intent into bounded implementation
 and validation work.
 

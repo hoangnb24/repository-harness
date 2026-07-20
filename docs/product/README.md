@@ -1,29 +1,29 @@
 # Product Docs
 
-This directory is intentionally generic and mostly empty in Harness v0.
+This directory contains current consumer-product behavior derived from real
+accepted intent. Harness deliberately ships no fake product domains.
 
-When a user provides a project spec, derive smaller product contract files here
-instead of keeping one large spec as the living plan. Name files by the product
-domains that actually exist in that spec, for example `overview.md`,
-`billing.md`, `workflows.md`, `permissions.md`, or `api-conventions.md`.
+When a user provides a product specification, derive smaller living documents
+here instead of keeping one growing specification as the operating manual. Name
+files after actual product domains, such as `overview.md`, `billing.md`,
+`permissions.md`, or `api-conventions.md`.
 
-Do not create domain files before the spec just to fill the folder. Empty
-structure is healthier than fake product truth.
+## Current Product Contract
 
-## Current Product Contracts
-
-No consumer-project-specific product contract is shipped in this generic
-directory. The upstream `repository-harness` product contract lives in the
-root README, Harness operating documents, versioned orchestration contract,
-story packets, and executable tests.
+No consumer-specific product contract is shipped in this generic directory.
+The upstream `repository-harness` contract lives in the root README, current
+workflow and architecture documents, lasting decisions, optional orchestration
+contract, implementation, and executable tests.
 
 ## Update Rule
 
 When behavior changes:
 
-1. Update the affected product doc.
-2. Update or create the story packet.
-3. Update durable proof status with `scripts/bin/harness-cli story add` or
-   `scripts/bin/harness-cli story update`.
-4. Record a decision if the change affects architecture, scope, risk, or a
-   previously settled product rule.
+1. Update the affected product document when the expected behavior changed.
+2. Update the active execution plan when complex work uses one.
+3. Add a lasting decision only when future work must inherit a consequential
+   product, architecture, data, security, compatibility, or validation choice.
+4. Add or update executable proof that exercises the behavior.
+
+Bounded changes do not require a story packet, proof-matrix row, or Harness CLI
+mutation.

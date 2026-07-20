@@ -1,5 +1,9 @@
 # Design
 
+> **Compatibility template.** New complex or sensitive work uses one execution
+> plan by default. Retain this split packet only for an explicit orchestration
+> contract.
+
 ## Domain Model
 
 Describe entities, value objects, and business rules.

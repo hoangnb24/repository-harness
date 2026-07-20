@@ -1,5 +1,10 @@
 # Harness Components
 
+> **Compatibility reference — not the current default capability assessment.**
+> This Phase 2 taxonomy records the historical control-plane design. Current
+> investment is guided by repository and application legibility, mechanical
+> invariants, observable proof, and reduced human attention.
+
 This taxonomy maps the current `repository-harness` repository to two
 component frameworks used by Phase 2 and updated by Phase 3 active
 observability work:

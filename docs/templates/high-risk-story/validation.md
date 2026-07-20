@@ -1,5 +1,8 @@
 # Validation
 
+> **Compatibility template.** New work records behavior-appropriate proof in
+> one execution plan unless validation has an independent long-term audience.
+
 ## Proof Strategy
 
 Explain what must pass before the story is done.

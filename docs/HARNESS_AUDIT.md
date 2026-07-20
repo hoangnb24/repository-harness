@@ -1,5 +1,10 @@
 # Harness Audit
 
+> **Compatibility reference — not part of the default workflow.** This score
+> audits optional control-plane records, not product quality. Default-path
+> maintenance uses repository-specific mechanical checks and targeted cleanup
+> described in `docs/WORKFLOW.md`.
+
 `scripts/bin/harness-cli audit` detects drift in durable Harness state and
 prints an entropy score. Lower is better.
 

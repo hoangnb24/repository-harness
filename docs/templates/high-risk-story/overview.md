@@ -1,5 +1,9 @@
 # Overview
 
+> **Compatibility template.** New complex or sensitive work uses one execution
+> plan by default. Retain this split packet only for an explicit orchestration
+> contract.
+
 ## Current Behavior
 
 Describe the current product or repo behavior.
@@ -19,4 +23,3 @@ Describe the behavior after the story is complete.
 ## Non-Goals
 
 - Item.
-

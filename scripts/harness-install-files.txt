@@ -17,6 +17,7 @@ docs/README.md
 docs/TEST_MATRIX.md
 docs/TOOL_REGISTRY.md
 docs/TRACE_SPEC.md
+docs/WORKFLOW.md
 docs/WORKTREE_CONFLICTS.md
 docs/decisions/0001-harness-first-development.md
 docs/decisions/0002-post-spec-product-lifecycle.md
@@ -26,12 +27,18 @@ docs/decisions/0005-prebuilt-rust-harness-cli.md
 docs/decisions/0006-phase-4-benchmark-triage.md
 docs/decisions/0007-improvement-proposal-rules.md
 docs/decisions/0011-reproducible-core-state.md
+docs/decisions/0019-repository-centered-default-workflow.md
 docs/decisions/README.md
+docs/demo/README.md
 docs/contracts/harness-orchestration-v1.md
 docs/product/README.md
+docs/plans/README.md
+docs/plans/active/README.md
+docs/plans/completed/README.md
 docs/stories/README.md
 docs/stories/backlog.md
 docs/templates/decision.md
+docs/templates/exec-plan.md
 docs/templates/spec-intake.md
 docs/templates/story.md
 docs/templates/validation-report.md

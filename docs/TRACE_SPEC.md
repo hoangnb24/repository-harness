@@ -1,5 +1,11 @@
 # Trace Specification
 
+> **Compatibility reference — not part of the default workflow.** Manual traces
+> and trace scores remain supported for historical state and explicit evaluation
+> or orchestration consumers. Ordinary work uses Git, plan progress, executable
+> checks, and observable application evidence as described in
+> `docs/WORKFLOW.md`.
+
 The `trace` table records what happened during a Harness task. This document
 defines the expected depth and format for each field so traces are useful for
 review, benchmark scoring, failure attribution, and future harness evolution.
