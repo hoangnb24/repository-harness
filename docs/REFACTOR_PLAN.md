@@ -3,8 +3,8 @@
 Date: 2026-07-16
 
 Status: Direction and Phases 1-5 accepted; Phase 6 evaluation framework is
-available but no longer a mandatory release gate; Phase 7 engineering and the
-proportional V1 release gate are in progress; Phase 8 not started
+optional; Phase 7 engineering and the minimal V1 release gate are in progress;
+Phase 8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
@@ -21,11 +21,12 @@ Decision 0015 is the current Phase 6 custody authority. It separates
 condition-versus-subject identity, and keeps raw runtime/signing material out
 of Git.
 
-Decision 0017 supersedes the release-gate portions of Decisions 0015 and 0016.
-V1 now requires normal premerge, native smoke proof for each platform actually
-claimed as supported, one fixed-condition dogfood comparison without functional
-regression, independent review, and provenance from the actual release
-workflow. P0-P7 and two-pilot evidence remain optional evaluation tools.
+Decision 0018 supersedes Decision 0017's release gate. V1 now requires normal
+premerge, native smoke proof for each platform actually claimed as supported,
+ordinary pull-request approval, and CI-produced downloadable binaries,
+checksums, and attestations. The owner may manually test those artifacts before
+explicit publication. Dogfood, P0-P7, two-pilot, and exact-five evidence remain
+optional evaluation tools.
 
 ## Executive Outcome
 
@@ -505,13 +506,13 @@ The recorded outcomes are honest pre-candidate measurements, not candidate
 improvement evidence. Benchmark P1 is inapplicable and benchmark P6 failed;
 e-inna P0, P1, P3, and P6 failed. Those outcomes do not block Phase 5 because
 this phase freezes authenticated baselines before candidate evaluation.
-Decision 0017 preserves these baselines as historical evidence. It does not
+Decision 0018 preserves these baselines as historical evidence. It does not
 require completing every P0-P7 card or a second pilot before V1 promotion.
 
 ### Phase 6: Capability Evaluation
 
 **Status: framework implemented and available for optional deeper evaluation;
-Decision 0017 replaces it as the mandatory V1 release gate.**
+Decision 0018 replaces it as the mandatory V1 release gate.**
 
 Instantiate and evaluate the selected planning, invariant, feedback,
 capability-improvement, and gardening contracts using the already enrolled
@@ -525,21 +526,21 @@ contracts. Decision 0015 requires externally authenticated pre-candidate
 custody: a clean clone for ordinary cards or an isolated V0 copy for applicable
 conversion cards. It forbids live database mutation and committing raw
 database/archive/key material. None of these documents is a live-card result,
-and the historical records must not be rewritten as one. A release needs the
-smaller dogfood comparison in Decision 0017 instead of the complete card set.
+and the historical records must not be rewritten as one. Decision 0018 removes
+candidate evaluation cards and dogfood from the V1 promotion gate.
 
 ### Phase 7: Portability And Release Proof
 
 **Status: engineering in progress under US-112 and US-113. Promotion remains
-blocked until the proportional gate in Decision 0017 passes.**
+blocked until the minimal gate in Decision 0018 passes.**
 
 Prove fresh, brownfield, nested instructions, docs-only, monorepo-shaped,
 spaces/Unicode, line-ending, platform, custom-update, and bridge fixtures.
-Run one fixed-condition dogfood baseline/candidate comparison. Acceptance:
-authenticated payload/install/update/audit behavior passes on every platform
-claimed as supported, unsupported platforms are stated explicitly, no language
-manifests are interpreted, and Decision 0017's release criteria pass before tag
-promotion.
+Acceptance: authenticated payload/install/update/audit behavior passes on every
+platform claimed as supported, unsupported platforms are stated explicitly, no
+language manifests are interpreted, ordinary pull-request approval exists, and
+Decision 0018's CI artifact/checksum/attestation criteria pass before explicit
+publication.
 
 ### Phase 8: V0 Removal After The Window
 
@@ -553,7 +554,7 @@ SQLite database or changesets, the top-level V1 grammar remains the six
 permanent commands, no known in-window recovery case remains unresolved, and
 retained assets pass availability/integrity verification.
 
-## Proportional Dogfood Protocol
+## Optional Dogfood Protocol
 
 Run one real repository task from a fixed starting revision. Record the prompt,
 expected native checks, baseline outcome, candidate outcome, interventions, and
@@ -566,8 +567,9 @@ validation command; with V1 installed, the agent finds that command through the
 repository map and completes the same task with the same tests passing. That is
 a concrete benefit. Merely installing files is not.
 
-The P0-P7 cards and detailed custody framework remain available for optional
-research or a higher-risk release. They are not mandatory for V1 promotion.
+This comparison, the P0-P7 cards, and the detailed custody framework remain
+available for optional research or a higher-risk release. They are not
+mandatory for V1 promotion.
 
 ## Verification And Exit Criteria
 
@@ -590,14 +592,12 @@ Release promotion requires all of the following:
 - target-owned adopted/mapped files survive install, update, and recovery;
 - all required active roles are ready or the release explicitly remains
   unresolved and is not promoted as ready;
-- one fixed-condition dogfood comparison with no functional regression and one
-  concrete human-attention, context, discoverability, or validation benefit;
 - native build plus install, `audit`, `status`, and `version` smoke checks for
   every platform claimed as supported; unproven platforms are explicitly
   unsupported;
-- independent review of the exact candidate; and
-- release artifact provenance is generated and verified by the actual release
-  workflow before tag promotion.
+- ordinary pull-request approval of the candidate; and
+- CI produces downloadable binaries, SHA-256 checksums, and GitHub/Sigstore
+  attestations for owner testing before explicit publication.
 
 ## Risks, Deferrals, And Authorization
 
@@ -628,10 +628,10 @@ and the exact evidence counts above. US-109 supplies accepted archive-only
 Phase 4 evidence. US-110 supplies accepted authenticated Phase 5 baseline
 evidence at exact `b2dd775`; this accepts honest baseline custody, not any
 candidate improvement. US-111 supplies the implemented optional Phase 6
-framework. Decision 0016 records why US-112 engineering opened. Decision 0017
-and US-113 replace the mandatory P0-P7, two-pilot, exact-five, and sentinel
-diagnostic gates with the proportional release criteria above. Phase 8 remains
-not started.
+framework. Decision 0016 records why US-112 engineering opened. Decision 0018
+and US-113 replace the mandatory P0-P7, two-pilot, dogfood, exact-five,
+separate-review, and sentinel gates with the minimal release criteria above.
+Phase 8 remains not started.
 Primary fast-forward integration and trust-enabled full
 premerge passed on exact `b2dd775`; acceptance documentation was integrated at
 `3a65768`. No

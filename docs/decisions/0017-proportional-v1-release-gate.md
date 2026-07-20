@@ -4,7 +4,7 @@ Date: 2026-07-19
 
 ## Status
 
-Accepted by the repository owner.
+Superseded by Decision 0018.
 
 ## Context
 

@@ -5,7 +5,7 @@
 > authoritative: no bridge target writes, conversion journal, row mapping,
 > `apply`/`resume`/`rollback`, or converted repository mode.
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 framework accepted with live efficacy deferred / Phase 7 engineering opened with acceptance and promotion blocked / Phase 8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted / Phase 6 framework optional / Phase 7 minimal release proof in progress / Phase 8 not started**
 
 ## Domain Model
 

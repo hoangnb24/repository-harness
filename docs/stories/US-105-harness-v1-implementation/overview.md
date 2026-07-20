@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 framework accepted with live efficacy deferred / Phase 7 engineering opened with acceptance and promotion blocked / Phase 8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted / Phase 6 framework optional / Phase 7 minimal release proof in progress / Phase 8 not started**
 
 This is the durable implementation initiative packet for the eight phases in
 `docs/REFACTOR_PLAN.md`. Phase 1 contract, fixture, inventory, and enforcement

@@ -1,6 +1,6 @@
 # US-111 V1 Phase 6 Capability Evaluation Validation
 
-> Decision 0017 supersedes the pending P0-P7 validation as a V1 promotion
+> Decision 0018 supersedes the pending P0-P7 validation as a V1 promotion
 > requirement. Historical results remain unchanged.
 
 Status: **Framework implemented and verified; live P0-P7 validation pending;

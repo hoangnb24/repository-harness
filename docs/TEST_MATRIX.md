@@ -111,10 +111,9 @@ the tracked trusted-owner registry remains empty.
 
 Benchmark P1 is inapplicable and benchmark P6 failed; e-inna P0/P1/P3/P6
 failed. These are baseline measurements rather than candidate improvement
-tests, so they do not block Phase 5. Decision 0016 accepts the implemented
-Phase 6 framework for sequencing and opens Phase 7 engineering; live candidate
-P0-P7 evidence remains deferred and mandatory before Phase 7 acceptance or
-promotion. Primary fast-forward integration and trust-enabled full
+tests, so they do not block Phase 5. Decision 0018 keeps the implemented Phase
+6 framework and live candidate P0-P7 evidence available as optional evaluation;
+they are not V1 promotion gates. Primary fast-forward integration and trust-enabled full
 premerge passed on exact `b2dd775`; acceptance documentation was integrated at
 `3a65768`.
 
@@ -137,10 +136,11 @@ tests/release/test-v1-phase7-release-proof.sh
 scripts/verify-v1-phase7-release-proof.sh --require-promotable  # expected exit 2
 ```
 
-This is fixture-only evidence: all five platform results and authentication
-states are pending, no real platform has passed, deferred Phase 6 live evidence
-is pending, every US-112 proof flag remains unasserted, Phase 7 acceptance/tag/
-publish/signing/promotion remain blocked, and Phase 8 remains closed.
+This is fixture-only diagnostic evidence: its five platform results and
+authentication states remain pending and every US-112 proof flag remains
+unasserted. Decision 0018 instead requires native smoke proof for the four
+initially supported Unix targets, ordinary PR approval, and CI-produced
+artifacts/checksums/attestations before explicit owner publication.
 
 US-112's next bounded slice adds separate non-production build receipts without
 changing that fixture-only schema. A native capture requires a clean exact
@@ -309,8 +309,9 @@ artifact name/digest; only then may platform validation and command parsing
 occur. Valid external test trust permits signed payload planning, and exact
 preview acceptance permits mutation. Failure at any earlier step produces no
 later step or owner-file change. Verified diagnostic provenance sets no
-platform proof flag and cannot replace remote five-runner evidence, deferred
-Phase 6 P0-P7 evidence, acceptance, production signing, or promotion.
+supported-platform proof flag and cannot replace the four Unix native release
+smokes, ordinary PR approval, or explicit owner publication required by
+Decision 0018.
 
 The reviewed corrections add Unix destination-escape adversaries for a linked
 target root, `scripts`, and `scripts/bin`; independently resolved candidate and
@@ -321,9 +322,10 @@ normalized-payload digest recomputation. PowerShell authenticates and validates
 the native Windows artifact, then refuses before destination creation, copy, or
 move. Windows receipts must say
 `controlled-unsupported-before-mutation`, so their presence completes only an
-inventory and leaves five-platform equivalence pending. The diagnostic has no
-promotion or release job; when all diagnostics pass it finishes green, while
-closed receipt authority fields and this story keep release authority blocked.
+inventory. Windows installation remains explicitly unsupported. The diagnostic
+has no promotion or release job; when it passes it supplies downloadable
+artifacts, checksums, and attestations for owner testing, while publication
+remains an explicit owner action.
 
 Authorized full premerge uses only the paired
 `HARNESS_PHASE5_TRUSTED_OWNER_REGISTRY` and

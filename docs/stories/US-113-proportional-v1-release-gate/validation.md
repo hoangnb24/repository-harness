@@ -1,6 +1,6 @@
 # US-113 Proportional V1 Release Gate Validation
 
-Status: **Contract validation passed; release evidence pending**
+Status: **Minimal contract validation passed; platform release evidence pending**
 
 ## Required Checks
 
@@ -10,10 +10,11 @@ Status: **Contract validation passed; release evidence pending**
 
 ## Release Evidence Still Pending
 
-- One fixed-condition dogfood baseline/candidate comparison with no regression.
-- Native build and smoke checks for every platform claimed as supported.
-- Independent review of the exact candidate.
-- Provenance generated and verified by the actual release workflow.
+- Native build and smoke checks for macOS arm64/x64 and Linux arm64/x64.
+- Ordinary pull-request approval of the exact candidate.
+- CI-produced downloadable binaries, SHA-256 checksums, and GitHub/Sigstore
+  attestations for owner testing before explicit publication.
+- Explicit Windows unsupported documentation until native mutation works.
 
 Passing the contract checks proves that the repository describes and enforces
-the smaller gate consistently. It does not itself satisfy those release gates.
+the minimal gate consistently. It does not itself supply native release runs.

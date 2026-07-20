@@ -1,8 +1,8 @@
 # US-112 V1 Phase 7 Portability And Release Proof
 
-> Current release-gate note (Decision 0017): prove only platforms claimed as
-> supported. One dogfood comparison replaces mandatory P0-P7/two-pilot proof;
-> release-time provenance belongs to the actual release workflow.
+> Current release-gate note (Decision 0018): prove only platforms claimed as
+> supported. Dogfood and separate review evidence are optional; ordinary PR
+> approval plus CI binaries/checksums/attestations form the minimal release path.
 
 Status: **In progress: engineering opened / no Phase 7 acceptance or release
 promotion**

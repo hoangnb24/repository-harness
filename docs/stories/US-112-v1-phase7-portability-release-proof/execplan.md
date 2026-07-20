@@ -1,10 +1,11 @@
 # US-112 V1 Phase 7 Portability And Release Proof Exec Plan
 
-> Decision 0017 replaces the sentinel loop and exact-five/P0-P7 promotion gate.
+> Decision 0018 replaces the sentinel, dogfood, separate-review, and
+> exact-five/P0-P7 promotion gates.
 > The diagnostic workflow is optional and manually dispatched.
 
-Status: **In progress: local closed execution slice implemented; remote
-five-platform evidence, acceptance, and promotion pending**
+Status: **In progress: local execution tooling implemented; four supported Unix
+platform release evidence and explicit publication pending**
 
 ## Goal
 
@@ -184,18 +185,19 @@ promotion blocked.
   prefix: the unguarded clone must drift and the guarded clone must remain
   clean, proving the guard is causal without deleting primary-checkout files or
   changing authority.
-- Remaining: choose the initially supported platforms, run their native smoke
-  checks, record one dogfood comparison, obtain review, and implement
-  provenance in the separately authorized actual release workflow. Windows
-  support can follow when safe repository mutation exists.
-- Exact next action: `review Decision 0017 and run the claimed-platform smoke matrix for the exact release candidate`
+- Remaining: run native smoke checks for the four initially supported Unix
+  targets, obtain ordinary pull-request approval, and expose the CI binaries,
+  checksums, and attestations for owner download and testing. Windows support
+  can follow when safe repository mutation exists.
+- Exact next action: `run the four-platform smoke matrix for the exact release candidate`
 - Validation ladder: documentation and JSON checks; focused fixture/proof
   tests; installer/direct-binary tests; five-platform workflow; full premerge;
   stop at the first failed boundary.
-- Decisions and assumptions: Decision 0017 makes the detailed evaluation and
-  exact-five diagnostic optional; unsupported platforms must be explicit.
-- Blockers and owners: dogfood and support claims remain with repository
-  maintainers; production release authority remains with release maintainers.
+- Decisions and assumptions: Decision 0018 makes dogfood, separate review
+  evidence, detailed evaluation, and exact-five diagnostics optional;
+  unsupported platforms must be explicit.
+- Blockers and owners: support claims remain with repository maintainers;
+  explicit publication remains with the repository owner.
 - Working state: this correction starts from published diagnostic head
   `47d3ae1a341e87cd1d76811aa7f21b4fba707fec`; no local compile result or
   execution receipt

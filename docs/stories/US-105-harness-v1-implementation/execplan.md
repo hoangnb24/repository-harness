@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Exec Plan
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 framework accepted with live efficacy deferred / Phase 7 engineering opened with acceptance and promotion blocked / Phase 8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted / Phase 6 framework optional / Phase 7 minimal release proof in progress / Phase 8 not started**
 
 Decision 0014 supersedes every Phase 4 automatic-conversion step below. The
 authoritative replacement is US-109: four bridge commands, append-only archive
@@ -384,23 +384,23 @@ evidence-only commit.
 
 ### Phase 7: Portability And Release Proof
 
-**Engineering dependency:** Decision 0016 framework acceptance and all earlier
-deterministic product proofs remain green for the exact candidate.
+**Engineering dependency:** All earlier deterministic product proofs remain
+green for the exact candidate.
 
-**Acceptance/promotion dependency:** deferred Phase 6 cards pass with valid
-comparable evidence, and the complete Phase 7 proof passes for that same exact
-candidate.
+**Acceptance/promotion dependency:** Decision 0018's premerge, four supported
+Unix platform smokes, ordinary PR approval, and downloadable CI
+binary/checksum/attestation proof pass for the exact candidate.
 
 **Implementation:**
 
 1. Exercise fresh, brownfield, nested-instruction, docs-only, monorepo-shaped,
    spaces/Unicode, line-ending, custom-update, and bridge fixtures.
-2. Build and authenticate exact candidate artifacts for macOS arm64/x64, Linux
-   x64/arm64, and Windows x64.
+2. Build and authenticate exact candidate artifacts for macOS arm64/x64 and
+   Linux x64/arm64. Keep Windows x64 controlled-unsupported.
 3. Prove Bash, PowerShell, and direct-binary behavior is equivalent at the
    manifest/audit boundary and no language manifest is interpreted.
-4. Bind candidate CLI, template, payload-index, and bridge identities to the
-   already-run pilot evidence before promotion.
+4. Make the CI artifacts, checksums, and attestations available for owner
+   download and testing before explicit publication.
 
 **Anticipated files/subsystems:** `scripts/build-*` and installer surfaces,
 release identity/checksum/authentication metadata, `.github/workflows/`,
@@ -408,10 +408,10 @@ release identity/checksum/authentication metadata, `.github/workflows/`,
 and future evidence beneath
 `docs/stories/US-105-harness-v1-implementation/evidence/phase-7/`.
 
-**Acceptance evidence:** five-platform artifact matrix; installer/direct-binary
-smokes; authenticated index/digest proof; platform-equivalent manifest and exit
-outcomes; fixture matrix; candidate identity lock; complete pilot comparison;
-all release criteria and negative conditions checked before any tag promotion.
+**Acceptance evidence:** four supported-platform installer/direct-binary
+smokes; authenticated artifact/checksum/attestation proof; platform-equivalent
+manifest and exit outcomes; fixture matrix; candidate identity lock; ordinary
+PR approval; and explicit owner publication after optional manual testing.
 
 **Logical commit boundary:** release packaging/workflows and exact-candidate
 proof form the final pre-promotion stack. Promotion/tag/publish is a later

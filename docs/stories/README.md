@@ -6,7 +6,7 @@ and validation work.
 ## Active V1 Stories
 
 - `docs/stories/US-113-proportional-v1-release-gate/overview.md` aligns release
-  acceptance with Decision 0017's smaller evidence set.
+  acceptance with Decision 0018's minimal evidence set.
 - `docs/stories/US-112-v1-phase7-portability-release-proof/overview.md` remains
   the platform engineering packet; only platforms with native smoke proof may
   be claimed as supported.

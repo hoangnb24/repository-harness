@@ -33,6 +33,7 @@ ALLOWED_LATER_CHANGESETS = {
     ".harness/changesets/harness_v1_phase7_14_ci_toolchain.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_15_ci_components.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_16_proportional_release_gate.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_17_minimal_release_gate.changeset.jsonl",
 }
 
 
@@ -818,8 +819,8 @@ def proof_phase4_and_phase7_gates() -> None:
     check("safe descriptor-anchored mutation is unavailable until Phase 7" in text(RECOVERY), "non-Unix fail-closed boundary missing")
     phase7 = text(ROOT / "docs/stories/US-112-v1-phase7-portability-release-proof/validation.md")
     check(
-        "no complete five-platform" in phase7
-        and "no acceptance or promotion" in phase7
+        "four supported Unix platform" in phase7
+        and "explicit publication pending" in phase7
         and "github-sigstore-attested" in phase7
         and "production signing remains blocked" in phase7,
         "Phase 7 local execution work opened platform or promotion authority",

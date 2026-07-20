@@ -1,6 +1,6 @@
 # US-105 Repository Harness V1 Implementation Validation
 
-Status: **Implementation in progress / Phases 1-5 accepted at the authenticated baseline gate / Phase 6 framework accepted with live efficacy deferred / Phase 7 engineering opened with acceptance and promotion blocked / Phase 8 not started**
+Status: **Implementation in progress / Phases 1-5 accepted / Phase 6 framework optional / Phase 7 minimal release proof in progress / Phase 8 not started**
 
 Decision 0016 accepts the implemented Decision 0015/US-111 framework for
 sequencing and opens Phase 7 engineering. Candidate improvements still must be
@@ -217,7 +217,7 @@ story=docs/stories/US-105-harness-v1-implementation
 for file in overview.md design.md execplan.md validation.md
 do
   test -s "$story/$file"
-rg -q '^Status: \*\*Implementation in progress / Phases 1-5 accepted .* / Phase 6 framework accepted with live efficacy deferred / Phase 7 engineering opened with acceptance and promotion blocked / Phase 8 not started\*\*$' "$story/$file"
+rg -q '^Status: \*\*Implementation in progress / Phases 1-5 accepted / Phase 6 framework optional / Phase 7 minimal release proof in progress / Phase 8 not started\*\*$' "$story/$file"
 done
 
 for heading in \
@@ -298,8 +298,8 @@ asset sets, and non-reproducible generated fixtures.
 | 3 | Install/update filesystem, idempotency, conflict, and recovery reports. | **Accepted.** Forty-three focused tests (eighteen recovery unit, twenty-five signed integration), all 18 install, 15 update, and 13 committed-update rollback checkpoints, 89 total `harness-core` tests, 181 workspace Rust tests, and 11/11 mechanical proof groups pass. Exact emitted-preview/private-write binding, commit/resume payload reauthentication, root-bound recovery ownership, damaged-evidence probe refusal, crash-resumable reverse rollback, manifest-last durability, safe conflict/race handling, read-only status, idempotency, and monotonic mode/receipt preservation are covered. Independent security and behavior review accepted exact candidate `1f957ce`, integrated as `8e67593` with identical Git tree `9cd22cdb24d2`. |
 | 4 | Bridge range, immutability, export/archive, journal, kill-point, and separation reports. | **Accepted.** Thirteen focused tests and ten mechanical proof groups pass; independent review accepted exact candidate `880cb9b` with identical Git tree `0f81d3f0f4c8`. |
 | 5 | Dogfood, enrollment, signed card, environment, and baseline records. | **Accepted at the authenticated live baseline gate on exact `b2dd775`.** Six proof groups passed and the 42/42 adversarial cases present at that commit were rejected; the corrected current gate rejects four additional GitHub path/hostname aliases for 46/46. Two packets under one stable GitHub identity use distinct repository-scoped owner IDs, canonical repositories, bundles, and external Ed25519 keys; signatures and bundle revisions verified. Benchmark P1 is inapplicable and P6 failed; e-inna P0/P1/P3/P6 failed. These are honest pre-candidate measurements, not Phase 6 acceptance. |
-| 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | **Framework accepted / efficacy deferred:** Decision 0015 and the US-111 implementation are accepted for sequencing by Decision 0016; every live candidate card, total, comparison, and efficacy result remains pending before Phase 7 acceptance/promotion. |
-| 7 | Fixture matrix, five-platform exact artifacts, authentication, identity, and release proof. | **Engineering in progress under US-112:** acceptance and promotion remain blocked on deferred Phase 6 plus complete Phase 7 evidence for the same candidate. |
+| 6 | Candidate P0-P7 results, intervention totals, negative-condition and comparison reports. | **Optional framework:** Decision 0018 removes live cards and comparisons from the V1 promotion gate. |
+| 7 | Fixture matrix, supported-platform exact artifacts, authentication, identity, and release proof. | **Engineering in progress under US-112/US-113:** Decision 0018 requires four Unix platform smokes, ordinary PR approval, and downloadable CI artifacts/checksums/attestations. |
 | 8 | G8 closure/policy evidence, removal ledger, fresh-install/core-grammar/platform regressions. | Not started; depends on Phase 7, G8, and separate removal authorization/validation. |
 
 Planning-packet verification may prove only that these four documents are

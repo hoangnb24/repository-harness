@@ -1,10 +1,11 @@
 # US-112 V1 Phase 7 Portability And Release Proof Validation
 
-> Decision 0017 makes native smoke proof mandatory only for platforms claimed
-> as supported. This packet's broader matrix remains useful diagnostic work.
+> Decision 0018 makes native smoke proof mandatory only for platforms claimed
+> as supported. Dogfood and separate review evidence are optional. This packet's
+> broader matrix remains useful diagnostic work.
 
-Status: **Remote build attempt recorded / no complete five-platform run or
-accepted platform / no acceptance or promotion**
+Status: **Remote diagnostic attempts recorded / four supported Unix platform
+release evidence and explicit publication pending**
 
 ## Proof Strategy
 

@@ -1,6 +1,6 @@
 # US-111 V1 Phase 6 Capability Evaluation Design
 
-> Decision 0017 retains this design for optional deeper evaluation; it is not
+> Decision 0018 retains this design for optional deeper evaluation; it is not
 > the mandatory V1 release gate.
 
 Status: **Framework accepted by owner for sequencing / live candidate efficacy

@@ -1,8 +1,7 @@
 # US-111 V1 Phase 6 Capability Evaluation
 
-> Current release-gate note (Decision 0017): this detailed P0-P7 framework is
-> optional for V1 promotion. The historical framework and baselines remain
-> intact; one fixed-condition dogfood comparison is now required instead.
+> Current release-gate note (Decision 0018): this detailed P0-P7 framework,
+> historical baselines, and dogfood comparison are optional for V1 promotion.
 
 Status: **Framework accepted by owner for sequencing; live candidate efficacy
 deferred; Phase 7 engineering opened without acceptance/promotion; Phase 8 not
