@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-07-20 - PR #51
+
+- feat(workflow): adopt repository-centered default workflow (@hoangnb24)
+- Merge commit: `27411b2c33bc2199fe3dde27a3473ddcdcdfa333`
+- Harness CLI candidate: `harness-cli-v0.1.19` (publication requires platform proof)
+- Changed files: 48 total (first 20 shown)
+  - `AGENTS.md`
+  - `README.md`
+  - `docs/ARCHITECTURE.md`
+  - `docs/CONTEXT_RULES.md`
+  - `docs/FEATURE_INTAKE.md`
+  - `docs/GLOSSARY.md`
+  - `docs/HARNESS.md`
+  - `docs/HARNESS_AUDIT.md`
+  - `docs/HARNESS_BACKLOG.md`
+  - `docs/HARNESS_COMPONENTS.md`
+  - `docs/HARNESS_MATURITY.md`
+  - `docs/IMPROVEMENT_PROTOCOL.md`
+  - `docs/README.md`
+  - `docs/TEST_MATRIX.md`
+  - `docs/TOOL_REGISTRY.md`
+  - `docs/TRACE_SPEC.md`
+  - `docs/WORKFLOW.md`
+  - `docs/decisions/0001-harness-first-development.md`
+  - `docs/decisions/0003-generic-spec-intake-harness.md`
+  - `docs/decisions/0004-sqlite-durable-layer.md`
+  - _… 28 additional file(s) omitted from this entry._
+
 ## 2026-07-20 - PR #50
 
 - feat(core-state): make source state reproducible (@hoangnb24)

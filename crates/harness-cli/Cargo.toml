@@ -1,6 +1,6 @@
 [package]
 name = "harness-cli"
-version = "0.1.18"
+version = "0.1.19"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
