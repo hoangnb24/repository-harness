@@ -39,6 +39,20 @@ if HARNESS_CLI="$cli" HARNESS_SOURCE_DB="$tool_db" "$verify" >"$temp/tool.out" 2
 fi
 grep -Fq 'tool registry contains product-owned providers: web-ui-build' "$temp/tool.out"
 
+reference_db="$temp/reference.db"
+sqlite3 "$db" ".backup '$reference_db'"
+sqlite3 "$reference_db" "INSERT INTO backlog(id,title,current_pain,risk,status) VALUES(19,'Restore core ownership','Old Symphony ownership caused a false alarm.','normal','proposed');"
+HARNESS_CLI="$cli" HARNESS_SOURCE_DB="$reference_db" "$verify" >"$temp/reference.out"
+
+backlog_db="$temp/backlog.db"
+sqlite3 "$db" ".backup '$backlog_db'"
+sqlite3 "$backlog_db" "INSERT INTO backlog(id,title,risk,status) VALUES(9,'Foreign product work','normal','proposed');"
+if HARNESS_CLI="$cli" HARNESS_SOURCE_DB="$backlog_db" "$verify" >"$temp/backlog.out" 2>&1; then
+  echo "ownership gate unexpectedly accepted a Symphony-owned backlog row" >&2
+  exit 1
+fi
+grep -Fq 'active backlog contains Symphony-owned rows: 9' "$temp/backlog.out"
+
 empty_db="$temp/empty.db"
 HARNESS_REPO_ROOT="$root" HARNESS_DB_PATH="$empty_db" "$cli" init >/dev/null
 if HARNESS_CLI="$cli" HARNESS_SOURCE_DB="$empty_db" "$verify" >"$temp/empty.out" 2>&1; then
@@ -47,4 +61,4 @@ if HARNESS_CLI="$cli" HARNESS_SOURCE_DB="$empty_db" "$verify" >"$temp/empty.out"
 fi
 grep -Fq 'required core receipt proxy is missing or invalid: US-093' "$temp/empty.out"
 
-echo "core ownership positive, foreign-story, product-tool, and empty-state fixtures passed"
+echo "core ownership positive, reference-only backlog, foreign ownership, product-tool, and empty-state fixtures passed"

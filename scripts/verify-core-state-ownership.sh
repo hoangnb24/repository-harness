@@ -40,14 +40,15 @@ foreign_tools=$(jq -r '.[] | select(.name == "impeccable" or (.name | startswith
 [[ -z "$foreign_tools" ]] ||
   fail "tool registry contains product-owned providers: $(tr '\n' ' ' <<<"$foreign_tools" | sed 's/ $//')"
 
-foreign_backlog=$(sqlite3 "$db" "
-  SELECT count(*) FROM backlog
-  WHERE status IN ('proposed','accepted') AND lower(
-    coalesce(title,'') || ' ' || coalesce(discovered_while,'') || ' ' ||
-    coalesce(current_pain,'') || ' ' || coalesce(suggested_improvement,'') || ' ' ||
-    coalesce(predicted_impact,'') || ' ' || coalesce(notes,'')
-  ) LIKE '%symphony%';
-")
-[[ "$foreign_backlog" == 0 ]] || fail "active backlog contains Symphony product work"
+jq -r '.records[] | select(.table == "backlog" and .owner == "symphony") | .identity' \
+  "$ownership" | LC_ALL=C sort -u >"$temp/forbidden-backlog.txt"
+sqlite3 "$db" "
+  SELECT CAST(id AS TEXT) FROM backlog
+  WHERE status IN ('proposed','accepted')
+  ORDER BY id;
+" | LC_ALL=C sort -u >"$temp/current-active-backlog.txt"
+leaked_backlog=$(comm -12 "$temp/forbidden-backlog.txt" "$temp/current-active-backlog.txt")
+[[ -z "$leaked_backlog" ]] ||
+  fail "active backlog contains Symphony-owned rows: $(tr '\n' ' ' <<<"$leaked_backlog" | sed 's/ $//')"
 
 echo "core state ownership excludes product work and preserves four receipt proxies"
