@@ -1,5 +1,8 @@
 # US-112 V1 Phase 7 Portability And Release Proof Validation
 
+> Decision 0017 makes native smoke proof mandatory only for platforms claimed
+> as supported. This packet's broader matrix remains useful diagnostic work.
+
 Status: **Remote build attempt recorded / no complete five-platform run or
 accepted platform / no acceptance or promotion**
 
@@ -174,10 +177,9 @@ reachability, non-persisted checkout credentials, exact native tuples, safe
 new external output, missing/duplicate platforms, candidate and input drift,
 artifact/checksum/help substitution, unsupported claims, extra files,
 duplicate keys, command fields, traversal, and symlinks. The workflow resolves
-the candidate identity once. The corrected diagnostic uses a tightly scoped
-push trigger on `refactor/harness-v1` and only when
-`.github/harness-v1-diagnostic-request` changes. It has no arbitrary candidate
-input and no `agent/*` or main authority. Exact repository, push event, branch
+the candidate identity once. The diagnostic now uses bounded manual dispatch
+on `refactor/harness-v1`; sentinel pushes are retired. It has no arbitrary
+candidate input and no `agent/*` or main authority. Exact repository, dispatch event, branch
 ref, workflow ref, candidate SHA, and workflow SHA must agree. Build,
 verify/execute, and collector jobs check out that SHA with credential persistence disabled, verify
 the immutable workflow object/path, upload bounded receipts for five days, and

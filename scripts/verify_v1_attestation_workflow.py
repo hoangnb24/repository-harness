@@ -118,7 +118,12 @@ def verify_text(text: str) -> None:
     require("--build-receipt-directory \"$RECEIPT_OUTPUT\"" in execute, "execution runner cannot repeat signed-bundle verification")
 
     require(text.startswith("name: Repository Harness V1 Proof (Unpromoted)"), "workflow lost its unpromoted identity")
-    require("refs/heads/refactor/harness-v1" in text and "workflow_dispatch:" not in text, "workflow widened its sentinel push authority")
+    require(
+        "refs/heads/refactor/harness-v1" in text
+        and "workflow_dispatch:" in text
+        and ".github/harness-v1-diagnostic-request" not in text,
+        "workflow lost its bounded manual diagnostic authority",
+    )
     for prohibited in (
         "gh release", "git tag", "git push", "cargo publish", "npm publish",
         "softprops/action-gh-release", "ncipollo/release-action", "gpg --sign",

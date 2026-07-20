@@ -2,15 +2,15 @@
 
 Date: 2026-07-16
 
-Status: Direction and Phases 1-5 accepted at the authenticated baseline gate;
-Phase 6 framework accepted by owner with live efficacy experiments deferred;
-Phase 7 engineering in progress with acceptance/promotion blocked; Phase 8 not
-started
+Status: Direction and Phases 1-5 accepted; Phase 6 evaluation framework is
+available but no longer a mandatory release gate; Phase 7 engineering and the
+proportional V1 release gate are in progress; Phase 8 not started
 
 Planning stories: US-103 and US-104; implementation initiative: US-105;
 Phase 2 implementation: US-107; Phase 3 implementation: US-108; Phase 4
 implementation: US-109; Phase 5 baseline acceptance: US-110; Phase 6
-capability evaluation: US-111; Phase 7 portability/release proof: US-112
+capability evaluation: US-111; Phase 7 portability/release proof: US-112;
+proportional release gate: US-113
 
 Decision 0014 is the current Phase 4 authority. It supersedes the plan's former
 automatic conversion/journal design with freeze, archive/export, and normal
@@ -21,11 +21,11 @@ Decision 0015 is the current Phase 6 custody authority. It separates
 condition-versus-subject identity, and keeps raw runtime/signing material out
 of Git.
 
-Decision 0016 accepts the implemented Phase 6 framework for sequencing and
-opens Phase 7 engineering. It does not mark the deferred live experiments as
-passing: Phase 7 acceptance, release comparison, tag, publish, and promotion
-remain blocked until the live P0-P7 obligation and complete Phase 7 proof pass
-for the same candidate.
+Decision 0017 supersedes the release-gate portions of Decisions 0015 and 0016.
+V1 now requires normal premerge, native smoke proof for each platform actually
+claimed as supported, one fixed-condition dogfood comparison without functional
+regression, independent review, and provenance from the actual release
+workflow. P0-P7 and two-pilot evidence remain optional evaluation tools.
 
 ## Executive Outcome
 
@@ -505,14 +505,13 @@ The recorded outcomes are honest pre-candidate measurements, not candidate
 improvement evidence. Benchmark P1 is inapplicable and benchmark P6 failed;
 e-inna P0, P1, P3, and P6 failed. Those outcomes do not block Phase 5 because
 this phase freezes authenticated baselines before candidate evaluation.
-Decision 0016 accepts the implemented Phase 6 framework for sequencing, while
-live candidate cards remain a deferred efficacy obligation before Phase 7
-acceptance or promotion.
+Decision 0017 preserves these baselines as historical evidence. It does not
+require completing every P0-P7 card or a second pilot before V1 promotion.
 
 ### Phase 6: Capability Evaluation
 
-**Status: framework accepted by the repository owner under Decision 0016;
-live candidate cards and efficacy acceptance are deferred and still pending.**
+**Status: framework implemented and available for optional deeper evaluation;
+Decision 0017 replaces it as the mandatory V1 release gate.**
 
 Instantiate and evaluate the selected planning, invariant, feedback,
 capability-improvement, and gardening contracts using the already enrolled
@@ -526,20 +525,21 @@ contracts. Decision 0015 requires externally authenticated pre-candidate
 custody: a clean clone for ordinary cards or an isolated V0 copy for applicable
 conversion cards. It forbids live database mutation and committing raw
 database/archive/key material. None of these documents is a live-card result,
-and owner framework acceptance does not convert it into one.
+and the historical records must not be rewritten as one. A release needs the
+smaller dogfood comparison in Decision 0017 instead of the complete card set.
 
 ### Phase 7: Portability And Release Proof
 
-**Status: engineering in progress under US-112 and Decision 0016. Phase 7
-acceptance, tag, publish, and promotion remain blocked on both the deferred
-Phase 6 live evidence and complete Phase 7 proof for the same candidate.**
+**Status: engineering in progress under US-112 and US-113. Promotion remains
+blocked until the proportional gate in Decision 0017 passes.**
 
 Prove fresh, brownfield, nested instructions, docs-only, monorepo-shaped,
 spaces/Unicode, line-ending, platform, custom-update, and bridge fixtures.
-Compare pilot baseline/candidate outcomes under the protocol. Acceptance:
-authenticated payload/install/update/audit behavior is equivalent across
-supported platforms, no language manifests are interpreted, and release
-criteria are met before tag promotion.
+Run one fixed-condition dogfood baseline/candidate comparison. Acceptance:
+authenticated payload/install/update/audit behavior passes on every platform
+claimed as supported, unsupported platforms are stated explicitly, no language
+manifests are interpreted, and Decision 0017's release criteria pass before tag
+promotion.
 
 ### Phase 8: V0 Removal After The Window
 
@@ -553,47 +553,21 @@ SQLite database or changesets, the top-level V1 grammar remains the six
 permanent commands, no known in-window recovery case remains unresolved, and
 retained assets pass availability/integrity verification.
 
-## Pilot Evaluation Protocol
+## Proportional Dogfood Protocol
 
-This protocol is release-only evidence. It is not an ordinary-task requirement,
-does not create a V1 task database, and does not require target repositories to
-collect evaluation telemetry after a release decision.
+Run one real repository task from a fixed starting revision. Record the prompt,
+expected native checks, baseline outcome, candidate outcome, interventions, and
+evidence locations. The candidate passes when it shows one concrete
+discoverability, context, validation, or human-attention benefit, passes the
+same functional checks, and introduces no data loss or unrelated churn.
 
-Each card fixes the target repository, immutable starting revision, candidate
-CLI/template/bridge identities, prompt, fixtures, acceptance tests, exact model
-identifier, reasoning setting, tool versions, enabled tools, permissions,
-evaluator, intervention log, and evidence locations. Baseline and candidate
-runs use the same card, evaluator, model/reasoning/tools/permissions, target
-revision or documented comparable revision, and acceptance test.
+Example: baseline work needs a maintainer to point the agent to the correct
+validation command; with V1 installed, the agent finds that command through the
+repository map and completes the same task with the same tests passing. That is
+a concrete benefit. Merely installing files is not.
 
-| Card | Scenario | Acceptance test |
-| --- | --- | --- |
-| P0 | Install or brownfield adoption | Manifest/paths are valid, target-owned content is preserved, and unresolved versus ready status is correctly reported. |
-| P1 | V0 conversion, when the pilot has V0 | Export/archive digests, kill-point recovery, and no document move or V0 mutation. |
-| P2 | Ordinary small task | Completes with no durable plan created merely for Harness and no Harness core command. |
-| P3 | Interrupted complex task | A fresh agent resumes from a target durable plan without human reconstruction. |
-| P4 | Native invariant repair | A seeded representative violation fails a named check, an agent repairs it using the output, and the check passes. |
-| P5 | Direct feedback repair | From a clean worktree, the agent uses relevant target feedback: tests/compiler, CI/build status, review comments, rendered docs/links, runtime/UI/observability, deployment checks, or reset/recovery. |
-| P6 | Capability inheritance | A repeated failure or correction becomes a durable target capability that a held-out agent discovers without the original discussion. |
-| P7 | Gardening convergence | First run makes a bounded relevant repair; second run has no repeat drift or unrelated rewrite. |
-
-Interventions use a fixed taxonomy: environment/setup, install, conversion,
-instantiation, clarification, evidence relay, correction, conflict review,
-authorization/permission, evaluator error, and gardening review. Every event
-records actor, timestamp, reason, minutes, and whether it changed the task
-outcome.
-
-Total human attention is the sum of minutes and count of interventions for
-install, migration, template instantiation, conflict review, corrections,
-evidence relay, gardening review, setup, and evaluator work. Report it by card
-and as a pilot total; do not claim a time reduction without these components.
-
-Negative conditions fail the release candidate: a missing starting revision or
-environment record; changed model/reasoning/tools/permissions without rerun;
-an acceptance-test failure; unlogged human evidence relay or correction;
-target-tool execution by audit; data loss or an ambiguous state overwritten;
-candidate functional regression; a required card not applicable without a
-written evaluator finding; or gardening churn outside its bounded scope.
+The P0-P7 cards and detailed custody framework remain available for optional
+research or a higher-risk release. They are not mandatory for V1 promotion.
 
 ## Verification And Exit Criteria
 
@@ -616,14 +590,14 @@ Release promotion requires all of the following:
 - target-owned adopted/mapped files survive install, update, and recovery;
 - all required active roles are ready or the release explicitly remains
   unresolved and is not promoted as ready;
-- at least two enrolled pilots with distinct canonical repositories,
-  repository-scoped owner IDs, and authenticated bundle digests, plus all
-  applicable fixed cards;
-- no functional regression against baseline and a concrete, fully accounted
-  human-attention or context/validation-discovery improvement in at least one
-  pilot;
-- supported platform, upgrade, and candidate-identity checks pass before tag
-  promotion.
+- one fixed-condition dogfood comparison with no functional regression and one
+  concrete human-attention, context, discoverability, or validation benefit;
+- native build plus install, `audit`, `status`, and `version` smoke checks for
+  every platform claimed as supported; unproven platforms are explicitly
+  unsupported;
+- independent review of the exact candidate; and
+- release artifact provenance is generated and verified by the actual release
+  workflow before tag promotion.
 
 ## Risks, Deferrals, And Authorization
 
@@ -653,10 +627,11 @@ mutation refusal. US-108 supplies accepted Phase 3 mutation/recovery evidence
 and the exact evidence counts above. US-109 supplies accepted archive-only
 Phase 4 evidence. US-110 supplies accepted authenticated Phase 5 baseline
 evidence at exact `b2dd775`; this accepts honest baseline custody, not any
-candidate improvement. US-111 supplies the implemented Phase 6 framework;
-Decision 0016 records owner framework acceptance, defers live efficacy, and
-opens US-112 Phase 7 engineering while keeping Phase 7 acceptance and promotion
-closed. Phase 8 remains not started.
+candidate improvement. US-111 supplies the implemented optional Phase 6
+framework. Decision 0016 records why US-112 engineering opened. Decision 0017
+and US-113 replace the mandatory P0-P7, two-pilot, exact-five, and sentinel
+diagnostic gates with the proportional release criteria above. Phase 8 remains
+not started.
 Primary fast-forward integration and trust-enabled full
 premerge passed on exact `b2dd775`; acceptance documentation was integrated at
 `3a65768`. No

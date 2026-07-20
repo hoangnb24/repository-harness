@@ -1,5 +1,8 @@
 # US-112 V1 Phase 7 Portability And Release Proof Exec Plan
 
+> Decision 0017 replaces the sentinel loop and exact-five/P0-P7 promotion gate.
+> The diagnostic workflow is optional and manually dispatched.
+
 Status: **In progress: local closed execution slice implemented; remote
 five-platform evidence, acceptance, and promotion pending**
 
@@ -114,16 +117,14 @@ result payload.
 Cause and effect: a local macOS pass proves that checksum-first Bash install,
 native command execution, Unicode/space/LF/CRLF preservation, and normalized
 manifest/audit/recovery/identity behavior work on that local host. It does not
-prove Windows behavior, remote runner behavior, or platform acceptance. The
-four Unix jobs must produce matching full normalized
-contracts. Windows must record controlled unsupported behavior before
-mutation, so five-platform equivalence remains pending until the safe adapter
-exists. Even a five-receipt inventory cannot replace deferred Phase 6 live
-evidence. Verified diagnostic provenance does not substitute for either gate.
+prove Windows behavior, remote runner behavior, or platform acceptance. Each
+platform claimed as supported must produce its full normalized contract.
+Windows remains explicitly unsupported until a safe adapter exists, but no
+longer blocks other supported-platform claims. Verified diagnostic provenance
+does not substitute for release-time provenance.
 
-The diagnostic workflow is discoverable on `refactor/harness-v1` without
-default-branch installation. A push runs the costly jobs only when the
-dedicated `.github/harness-v1-diagnostic-request` sentinel changes. It accepts
+The optional diagnostic workflow is manually dispatched on
+`refactor/harness-v1`; sentinel pushes no longer run the costly jobs. It accepts
 no candidate input: repository, event, ref, workflow ref, `github.sha`, and
 `github.workflow_sha` must match exactly. The collector recomputes candidate
 and workflow identities from checked-out Git objects, independently verifies
@@ -150,8 +151,8 @@ promotion blocked.
   receipt slices; checksum/platform preflight; external release/trust adapters;
   Bash V1 installer and PowerShell controlled-unsupported installer surface;
   six-command/ten-fixture execution runner;
-  normalized-payload receipt schema/verifier; refactor-branch sentinel
-  diagnostic identity; exact-pinned privileged artifact transport and
+  normalized-payload receipt schema/verifier; bounded manual diagnostic
+  identity; exact-pinned privileged artifact transport and
   GitHub/Sigstore attestation generation;
   pre-execution verification; bounded bundle/verification evidence; Unix
   destination-link adversaries; exact build/execution tuple binding; Windows
@@ -183,18 +184,18 @@ promotion blocked.
   prefix: the unguarded clone must drift and the guarded clone must remain
   clean, proving the guard is causal without deleting primary-checkout files or
   changing authority.
-- Remaining: a successful remote Windows refusal assertion and final receipt
-  collection/equivalence, safe Windows repository mutation, deferred Phase 6
-  live evidence, platform acceptance, review, and any
-  separately authorized release action.
-- Exact next action: `review this child commit; if another remote diagnostic is authorized, advance the sentinel in a normal child and push that exact candidate to refactor/harness-v1`
+- Remaining: choose the initially supported platforms, run their native smoke
+  checks, record one dogfood comparison, obtain review, and implement
+  provenance in the separately authorized actual release workflow. Windows
+  support can follow when safe repository mutation exists.
+- Exact next action: `review Decision 0017 and run the claimed-platform smoke matrix for the exact release candidate`
 - Validation ladder: documentation and JSON checks; focused fixture/proof
   tests; installer/direct-binary tests; five-platform workflow; full premerge;
   stop at the first failed boundary.
-- Decisions and assumptions: framework acceptance opens engineering only;
-  deferred live experiments remain mandatory before acceptance/promotion.
-- Blockers and owners: external pilot custody/signatures remain with repository
-  owners; production release authority remains with release maintainers.
+- Decisions and assumptions: Decision 0017 makes the detailed evaluation and
+  exact-five diagnostic optional; unsupported platforms must be explicit.
+- Blockers and owners: dogfood and support claims remain with repository
+  maintainers; production release authority remains with release maintainers.
 - Working state: this correction starts from published diagnostic head
   `47d3ae1a341e87cd1d76811aa7f21b4fba707fec`; no local compile result or
   execution receipt

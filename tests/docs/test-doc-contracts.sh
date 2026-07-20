@@ -66,6 +66,7 @@ done
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null
 "$root/tests/installer/assert-install-manifest-links.sh" >/dev/null
+"$root/tests/docs/test-proportional-v1-release-gate.sh" >/dev/null
 
 grep -Fq 'run: scripts/validate-premerge.sh' "$root/.github/workflows/premerge.yml" ||
   fail 'pull-request workflow does not use the local validation contract'

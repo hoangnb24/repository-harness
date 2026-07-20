@@ -1,5 +1,8 @@
 # US-111 V1 Phase 6 Capability Evaluation Exec Plan
 
+> Decision 0017 supersedes the plan's mandatory-release role. Remaining P0-P7
+> execution is optional unless a later decision explicitly requires it.
+
 Status: **Framework accepted by owner for sequencing; live efficacy deferred**
 
 ## Goal

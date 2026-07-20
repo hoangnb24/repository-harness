@@ -1,14 +1,9 @@
 name: Repository Harness V1 Proof (Unpromoted)
 
-# Phase 7 captures GitHub/Sigstore-attested non-production native build and
-# deterministic execution receipts. Platform acceptance, release, production
-# signing, and promotion remain blocked.
+# Optional engineering diagnostic. Release provenance belongs to the actual
+# release workflow; this workflow does not gate V1 acceptance or promotion.
 on:
-  push:
-    branches:
-      - refactor/harness-v1
-    paths:
-      - .github/harness-v1-diagnostic-request
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,11 +28,11 @@ jobs:
           CANDIDATE_SHA: ${{ github.sha }}
           WORKFLOW_REVISION: ${{ github.workflow_sha }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
-          PUSH_REF: ${{ github.ref }}
+          DISPATCH_REF: ${{ github.ref }}
         run: |
           test "$REPOSITORY" = hoangnb24/repository-harness
-          test "$EVENT_NAME" = push
-          test "$PUSH_REF" = refs/heads/refactor/harness-v1
+          test "$EVENT_NAME" = workflow_dispatch
+          test "$DISPATCH_REF" = refs/heads/refactor/harness-v1
           test "$WORKFLOW_REF" = hoangnb24/repository-harness/.github/workflows/harness-v1-release.yml@refs/heads/refactor/harness-v1
           [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$WORKFLOW_REVISION" =~ ^[0-9a-f]{40}$ ]]

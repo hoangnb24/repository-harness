@@ -1,5 +1,8 @@
 # US-112 V1 Phase 7 Portability And Release Proof Design
 
+> Decision 0017 supersedes exact-five equivalence as a promotion requirement.
+> A platform without native smoke proof is explicitly unsupported.
+
 Status: **Local execution proof implemented / remote five-platform proof and
 promotion blocked**
 

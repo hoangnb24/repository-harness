@@ -20,13 +20,18 @@ count as the Harness decision log.
 
 ## Current V1 Decisions
 
+- `docs/decisions/0017-proportional-v1-release-gate.md` requires normal
+  premerge, claimed-platform smoke checks, one dogfood comparison, independent
+  review, and release-time provenance. It supersedes the mandatory P0-P7,
+  two-pilot, exact-five, and sentinel release gates below.
 - `docs/decisions/0015-phase6-cold-warm-evaluation-custody.md` fixes
   clean-clone versus isolated-V0-copy custody, evidence identities, external
   trust, sensitive-byte exclusions, and deferred live-card evidence.
 - `docs/decisions/0016-phase6-framework-acceptance-and-phase7-opening.md`
   accepts the Phase 6 framework for sequencing and opens Phase 7 engineering
   while keeping efficacy claims, Phase 7 acceptance, and release promotion
-  blocked on the deferred experiments plus complete portability proof.
+  blocked on the deferred experiments plus complete portability proof. Its
+  promotion rule is superseded by Decision 0017.
 
 Add a decision when:
 

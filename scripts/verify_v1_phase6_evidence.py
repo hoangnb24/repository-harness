@@ -85,6 +85,7 @@ ALLOWED_CHANGED_FILES = {
     ".harness/changesets/harness_v1_phase7_13_windows_progress_suppression.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_14_ci_toolchain.changeset.jsonl",
     ".harness/changesets/harness_v1_phase7_15_ci_components.changeset.jsonl",
+    ".harness/changesets/harness_v1_phase7_16_proportional_release_gate.changeset.jsonl",
     ".harness/changesets/harness_v1_phase5_ci_trust_provisioning.changeset.jsonl",
     "crates/harness-core/src/infrastructure.rs",
     "crates/harness-core/src/main.rs",
@@ -96,6 +97,7 @@ ALLOWED_CHANGED_FILES = {
     "docs/TEST_MATRIX.md",
     "docs/decisions/0015-phase6-cold-warm-evaluation-custody.md",
     "docs/decisions/0016-phase6-framework-acceptance-and-phase7-opening.md",
+    "docs/decisions/0017-proportional-v1-release-gate.md",
     "docs/decisions/README.md",
     "docs/stories/README.md",
     "docs/stories/US-105-harness-v1-implementation/design.md",
@@ -113,6 +115,16 @@ ALLOWED_CHANGED_FILES = {
     "docs/stories/US-112-v1-phase7-portability-release-proof/execplan.md",
     "docs/stories/US-112-v1-phase7-portability-release-proof/overview.md",
     "docs/stories/US-112-v1-phase7-portability-release-proof/validation.md",
+    "docs/stories/US-113-proportional-v1-release-gate/design.md",
+    "docs/stories/US-113-proportional-v1-release-gate/execplan.md",
+    "docs/stories/US-113-proportional-v1-release-gate/overview.md",
+    "docs/stories/US-113-proportional-v1-release-gate/validation.md",
+    "tests/docs/test-doc-contracts.sh",
+    "tests/docs/test-proportional-v1-release-gate.sh",
+    "tests/release/test-v1-build-receipt-workflow.sh",
+    "scripts/verify_v1_attestation_workflow.py",
+    "scripts/verify_v1_phase3_recovery.py",
+    "scripts/verify_v1_phase6_evidence.py",
     "docs/templates/agent-map.md",
     "docs/templates/high-risk-story/execplan.md",
     "docs/templates/high-risk-story/validation.md",
@@ -269,6 +281,10 @@ PHASE7_CI_TOOLCHAIN_CHANGESET = (
 )
 PHASE7_CI_COMPONENTS_CHANGESET = (
     ROOT / ".harness/changesets/harness_v1_phase7_15_ci_components.changeset.jsonl"
+)
+PHASE7_PROPORTIONAL_RELEASE_GATE_CHANGESET = (
+    ROOT
+    / ".harness/changesets/harness_v1_phase7_16_proportional_release_gate.changeset.jsonl"
 )
 PHASE5_CI_TRUST_PROVISIONING_CHANGESET = (
     ROOT
@@ -2427,6 +2443,7 @@ def verify_phase7_opening_gate() -> None:
                 PHASE7_WINDOWS_PROGRESS_SUPPRESSION_CHANGESET,
                 PHASE7_CI_TOOLCHAIN_CHANGESET,
                 PHASE7_CI_COMPONENTS_CHANGESET,
+                PHASE7_PROPORTIONAL_RELEASE_GATE_CHANGESET,
                 PHASE5_CI_TRUST_PROVISIONING_CHANGESET,
             }:
                 shutil.copyfile(changeset, prior_changesets / changeset.name)
@@ -3788,7 +3805,8 @@ def verify_phase7_execution_proof_boundary() -> None:
         and '"${{ steps.python.outputs.python-path }}" scripts/run_v1_phase7_execution_proof.py' in workflow
         and 'test "$CANDIDATE_SHA" = "$WORKFLOW_REVISION"' in workflow
         and "refs/heads/refactor/harness-v1" in workflow
-        and "workflow_dispatch" not in workflow
+        and "workflow_dispatch" in workflow
+        and ".github/harness-v1-diagnostic-request" not in workflow
         and "candidate_ref" not in workflow
         and "--repository-root \"$REPOSITORY_ROOT\"" in workflow
         and "--build-receipt-root \"$BUILD_RECEIPT_ROOT\"" in workflow
