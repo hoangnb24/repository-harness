@@ -41,9 +41,15 @@ install --directory "$fresh" --yes >"$temp/fresh.out"
 git -C "$fresh" init -q
 git -C "$fresh" check-ignore -q harness.db
 cmp -s <(extract_block "$fresh/AGENTS.md") "$root/scripts/agent-harness-block.md"
+[[ -f "$fresh/docs/WORKFLOW.md" ]]
+[[ -f "$fresh/docs/plans/active/README.md" ]]
+[[ -f "$fresh/docs/plans/completed/README.md" ]]
+[[ -f "$fresh/docs/templates/exec-plan.md" ]]
+grep -Fq 'No Harness CLI operation is required.' "$fresh/AGENTS.md"
+! grep -Fq 'query matrix --active --summary' "$fresh/AGENTS.md"
 
 # Claude generation keeps custom instructions and imports only the canonical
-# AGENTS authority instead of restating intake or matrix policy.
+# AGENTS authority instead of restating workflow or compatibility policy.
 claude="$temp/claude"
 mkdir -p "$claude"
 printf '# Local Claude Rules\n\nKeep this Claude-only rule.\n' >"$claude/CLAUDE.md"
@@ -52,6 +58,7 @@ grep -Fq 'Keep this Claude-only rule.' "$claude/CLAUDE.md"
 cmp -s <(extract_block "$claude/CLAUDE.md") "$root/scripts/claude-harness-block.md"
 [[ "$(grep -Fc '@AGENTS.md' "$claude/CLAUDE.md")" == 1 ]]
 ! grep -Fq '@docs/FEATURE_INTAKE.md' "$claude/CLAUDE.md"
+grep -Fq 'No Harness CLI operation is required.' "$claude/AGENTS.md"
 
 # Merge preserves existing project material byte-for-byte while filling gaps.
 merge="$temp/merge"

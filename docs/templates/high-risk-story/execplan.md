@@ -1,5 +1,8 @@
 # Exec Plan
 
+> **Compatibility template.** New work uses `docs/templates/exec-plan.md` and
+> keeps outcome, progress, decisions, recovery, and validation in one file.
+
 ## Goal
 
 What outcome are we trying to produce?
@@ -41,4 +44,3 @@ Pause for human confirmation if:
 - Data migration or deletion risk appears.
 - Validation requirements need to be weakened.
 - Architecture direction changes.
-

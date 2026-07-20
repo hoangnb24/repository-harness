@@ -4,7 +4,9 @@ Date: 2026-05-05
 
 ## Status
 
-Accepted
+Accepted for its stack-neutral consumer boundary. Its mandatory intake, story,
+and proof loop is superseded by
+`0019-repository-centered-default-workflow.md`.
 
 ## Context
 

@@ -1,37 +1,57 @@
 # Documentation Map
 
-This directory holds the project harness and any product contract derived from a
-future user-provided spec.
+The repository is the system of record. Start with a small map and follow only
+the sources relevant to the task.
 
-## Main Files
+## Current Workflow
 
-- `HARNESS.md`: how humans and agents collaborate.
-- `FEATURE_INTAKE.md`: how prompts become tiny, normal, or high-risk work.
-- `ARCHITECTURE.md`: architecture discovery and boundary rules.
-- `TEST_MATRIX.md`: legacy proof map; current proof status is queried with
-  `scripts/bin/harness-cli query matrix`.
-- `HARNESS_BACKLOG.md`: legacy improvement list; current improvement records
-  are stored with `scripts/bin/harness-cli backlog`.
-- `GLOSSARY.md`: shared terms.
-- `WORKTREE_CONFLICTS.md`: revision-conflict diagnosis and agent recovery.
-- `contracts/`: versioned machine-readable contracts for optional external
-  orchestrators.
+- `WORKFLOW.md`: canonical read-only, bounded-change, durable-plan, judgment,
+  validation, and completion behavior.
+- `HARNESS.md`: Harness goals, responsibilities, source hierarchy, and consumer
+  boundary.
+- `CONTEXT_RULES.md`: progressive retrieval and task-triggered context.
 
-## Folders
+## Product And Design Truth
 
-- `product/`: consumer-project product truth, empty until a consumer spec is
-  derived.
-- `stories/`: feature packets and backlog.
-- `decisions/`: durable decisions and tradeoffs.
-- `demo/`: concrete walkthroughs that show how the harness transforms input
-  into agent-ready work.
-- `templates/`: reusable spec-intake, story, plan, decision, and validation
-  formats.
+- Root `README.md`: upstream Harness product and distribution contract.
+- `product/`: consumer product behavior derived from real accepted intent.
+- `ARCHITECTURE.md`: architecture discovery, boundaries, and structural rules.
+- `decisions/`: indexed lasting product and architecture decisions.
+- `GLOSSARY.md`: current and compatibility terminology.
 
-## Current State
+## Work And Operations
 
-The upstream Harness v0 repository contains an implemented Rust CLI, tests,
-installers, and pull-request/release automation. These documents are also
-distributed as a generic template, so they do not imply that an installed
-consumer repository already has application code, a chosen stack, consumer
-tests, deployment automation, or consumer CI.
+- `plans/active/`: complex work currently in progress.
+- `plans/completed/`: retained execution history.
+- `templates/exec-plan.md`: the single default durable-plan template.
+- `WORKTREE_CONFLICTS.md`: source-state conflict diagnosis and recovery.
+- `scripts/README.md`: upstream development, validation, installer, release,
+  snapshot, and compatibility commands.
+- `contracts/`: versioned contracts for optional external orchestrators.
+
+## Compatibility References
+
+The implemented Rust CLI and SQLite control plane remain supported, but their
+lifecycle is not the default repository workflow:
+
+- `FEATURE_INTAKE.md`
+- `TEST_MATRIX.md`
+- `TRACE_SPEC.md`
+- `HARNESS_AUDIT.md`
+- `HARNESS_BACKLOG.md`
+- `HARNESS_COMPONENTS.md`
+- `HARNESS_MATURITY.md`
+- `IMPROVEMENT_PROTOCOL.md`
+- `TOOL_REGISTRY.md`
+- `stories/` and the legacy story templates
+
+These documents may be needed for historical state, CLI maintenance, or
+external orchestration. They cannot make control-plane writes mandatory for an
+ordinary task.
+
+## Consumer Boundary
+
+The upstream repository implements the Harness CLI, installers, tests, and
+release automation. Installed consumers receive the generic workflow and
+knowledge structure but do not receive a fabricated application stack, product
+contract, or validation suite.

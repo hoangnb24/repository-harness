@@ -1,5 +1,10 @@
 # Test Matrix
 
+> **Compatibility reference — not part of the default workflow.** The SQLite
+> matrix remains available to historical and orchestration consumers. Ordinary
+> changes select and run proof from the affected behavior as described in
+> `docs/WORKFLOW.md`; they do not require a matrix row or proof flags.
+
 This file preserves the proof vocabulary and brownfield import shape used by
 Harness consumers. The authoritative operational matrix is stored in SQLite
 and queried with:

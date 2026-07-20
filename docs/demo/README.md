@@ -1,150 +1,117 @@
-# Harness Demo Walkthrough
+# Repository-Centered Workflow Demo
 
-This walkthrough shows the kind of transformation Harness v0 is designed to
-support. It is an example only. It is not an accepted product contract for this
-repository.
+This walkthrough shows how the same repository handles four different requests
+without forcing them through one lifecycle.
 
-## Input
-
-A human brings a small product idea:
+Assume a small team task tracker with this product rule in
+`docs/product/tasks.md`:
 
 ```text
-Build a simple team task tracker where people can create tasks, assign them to
-teammates, change status, and see what is overdue.
-```
-
-Without a harness, an agent might jump directly into framework selection,
-database schema, UI scaffolding, and tests all at once.
-
-Harness v0 asks the agent to slow the work down just enough to make it
-inspectable.
-
-## Intake
-
-The input is classified as a new spec because it introduces a new product idea
-with no existing product contract.
-
-The first output should not be app code. It should be a spec-intake note using
-`docs/templates/spec-intake.md`.
-
-Example intake shape:
-
-```text
-Type: new spec
-Lane: normal
-Reason: creates a new product surface but does not yet touch auth, payments,
-data migration, or external provider behavior.
-Candidate product docs:
-- docs/product/overview.md
-- docs/product/tasks.md
-- docs/product/assignment.md
-Candidate epics:
-- E01 Task capture and status tracking
-- E02 Assignment and ownership
-- E03 Overdue visibility
-Validation shape:
-- Unit proof for task status rules
-- Integration proof for task persistence
-- E2E proof for create, assign, and complete task flow
-```
-
-## Product Contract
-
-After intake, the agent derives small product docs instead of treating the
-original prompt as permanent truth.
-
-Example product contract fragments:
-
-```text
-docs/product/tasks.md
-
-A task has a title, status, assignee, due date, and timestamps.
+A task has a title, status, assignee, and optional due date.
 Supported statuses are todo, in_progress, done, and canceled.
-Only open tasks can become overdue.
+Only an unfinished task whose due date has passed is overdue.
 ```
+
+## 1. Read-Only Question
+
+Request:
 
 ```text
-docs/product/assignment.md
-
-A task may be assigned to one teammate.
-Unassigned tasks remain visible in the team backlog.
-Changing assignee does not change task status.
+When does a task become overdue?
 ```
 
-## Story Packet
+Step by step:
 
-Once the product contract is clear enough, the agent creates a story packet from
-`docs/templates/story.md`.
+1. Read `AGENTS.md`, which points to the repository map.
+2. Open the relevant product contract, `docs/product/tasks.md`.
+3. Answer from that rule and cite the file.
+4. Do not bootstrap a database, create an intake, write a trace, or modify the
+   repository.
 
-Example story:
+Cause and effect: the question needs evidence, not durable workflow state. A
+read-only path makes the answer faster and prevents an explanation from
+silently mutating the project.
+
+## 2. Bounded Change
+
+Request:
 
 ```text
-Story: US-001 Create a task
-Lane: normal
-Product contract: A teammate can create a task with title, optional assignee,
-optional due date, and default status todo.
-Acceptance criteria:
-- Creating a task with a title succeeds.
-- Creating a task without a title fails with a clear validation error.
-- A new task starts in todo status.
-- A created task appears in the team backlog.
-Validation:
-- Unit: task creation rules
-- Integration: persistence and validation boundary
-- E2E: create task from the visible task surface
+Fix the task list so canceled tasks are not marked overdue.
 ```
 
-## Proof Matrix
+Step by step:
 
-The story then appears in the durable proof matrix so behavior and proof stay
-linked:
+1. Read the overdue rule and locate the task-list calculation.
+2. Inspect the nearest tests and repository validation command.
+3. Keep a short working plan in the current session.
+4. Change the calculation to require an unfinished, non-canceled task.
+5. Add or update a regression test for a canceled task with a past due date.
+6. Run the focused test, then the repository's relevant validation gate.
+7. Report the changed behavior and proof.
 
-```bash
-scripts/bin/harness-cli story add --id US-001 --title "Create a task" --lane normal --contract docs/product/tasks.md
-scripts/bin/harness-cli query matrix
-```
+Cause and effect: the scope is local and recoverable from the diff. Creating a
+durable plan or database row would add synchronization work without preserving
+information that Git and the test do not already contain.
 
-Example row:
+## 3. Durable Change
+
+Request:
 
 ```text
-| US-001 Create a task | docs/product/tasks.md | yes | yes | yes | no | planned | none |
+Replace local due-date handling with team time zones across the API, worker,
+UI, and stored data.
 ```
 
-The row should not be marked implemented until proof exists.
+Step by step:
 
-## Decision Record
+1. Inspect the product, architecture, migration, and validation surfaces.
+2. Copy `docs/templates/exec-plan.md` to a descriptive file under
+   `docs/plans/active/`.
+3. Record the goal, non-goals, affected boundaries, phases, risks, rollback,
+   and proof commands.
+4. Commit the plan so another session can resume from repository state alone.
+5. Implement in reviewable groups. After each group, update progress and
+   validation evidence in the plan and commit both the work and its durable
+   memory.
+6. Record a decision under `docs/decisions/` if the time-zone model is an
+   architectural choice future work must inherit.
+7. Run end-to-end proof across the visible application boundary.
+8. Mark the plan complete and move it to `docs/plans/completed/`.
 
-If the team chooses a stack, data model direction, or important product rule,
-the agent records that decision under `docs/decisions/`.
+Cause and effect: this change spans boundaries and may outlive one session. A
+versioned plan prevents chat history from becoming the only record of sequence,
+tradeoffs, recovery, and remaining work.
 
-Example decision:
+## 4. Consequential Ambiguity
+
+Request:
 
 ```text
-Decision: Tasks use a small explicit status set instead of free-form labels.
-
-Reason: status drives overdue behavior, filtering, and validation, so the first
-version needs a predictable state model.
+Simplify task permissions.
 ```
 
-## Implementation
+The repository reveals at least two plausible interpretations:
 
-Only after the contract, story, and proof shape are clear should implementation
-begin.
+- allow every teammate to edit every task; or
+- keep ownership restrictions but simplify the permission code.
 
-For Harness v0, that distinction matters. This repository deliberately does not
-ship with application folders, package scripts, CI, or test commands. Those
-should arrive only when a real story selects a real stack and needs them.
+Step by step:
 
-## Harness Delta
+1. Inspect the current permission contract and callers.
+2. Identify that one interpretation changes who may modify user data.
+3. Pause before editing code.
+4. Present the two choices with concrete effects: access expansion versus an
+   implementation-only refactor.
+5. Continue only when the requested product behavior is authoritative.
 
-A change request also asks whether the harness itself should improve.
+Cause and effect: uncertainty is not solved by adding more process records. It
+is solved by keeping a consequential product decision with the human who owns
+it.
 
-If this demo revealed that many projects need the same intake example, the
-right follow-up might be:
+## What Is Deliberately Absent
 
-```text
-Add a reusable example-spec walkthrough or starter fixture.
-```
-
-Small improvements can be made directly. Larger process changes should be
-recorded with `scripts/bin/harness-cli backlog add`.
+None of these default flows requires a story row, proof matrix, trace score,
+audit record, proposal, or local SQLite database. Those remain available as a
+compatibility control plane when an external orchestrator explicitly needs
+them; they do not sit between a normal request and repository work.

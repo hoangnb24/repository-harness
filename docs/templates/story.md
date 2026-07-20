@@ -1,5 +1,8 @@
 # US-XXX Story Title
 
+> **Compatibility template.** Use `docs/templates/exec-plan.md` for new complex
+> work unless an external orchestrator explicitly requires a story packet.
+
 ## Status
 
 planned

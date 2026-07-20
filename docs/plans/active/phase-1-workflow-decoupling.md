@@ -4,7 +4,8 @@ Date: 2026-07-20
 
 ## Status
 
-Accepted and ready for implementation. No implementation work has started.
+Implementation complete. Focused workflow, installer, documentation, and
+compatibility checks pass; full pre-merge validation is pending.
 
 ## Anchor
 
@@ -178,59 +179,59 @@ replacement.
 
 ### 1. Authority And Source Hierarchy
 
-- [ ] Make the compact agent entrypoint and canonical workflow document the
+- [x] Make the compact agent entrypoint and canonical workflow document the
       current authority.
-- [ ] Preserve the read-only request boundary.
-- [ ] State that compatibility documentation cannot reintroduce mandatory
+- [x] Preserve the read-only request boundary.
+- [x] State that compatibility documentation cannot reintroduce mandatory
       lifecycle steps.
-- [ ] Define how product, design, plan, generated, and historical documents are
+- [x] Define how product, design, plan, generated, and historical documents are
       indexed and retrieved.
 
 ### 2. Default Workflows
 
-- [ ] Document the bounded-change flow.
-- [ ] Document the durable-plan flow.
-- [ ] Document the human-judgment overlay.
-- [ ] Replace lane-driven validation with behavior-driven proof selection.
-- [ ] Require concise final reporting of outcome, changed surfaces, proof, and
+- [x] Document the bounded-change flow.
+- [x] Document the durable-plan flow.
+- [x] Document the human-judgment overlay.
+- [x] Replace lane-driven validation with behavior-driven proof selection.
+- [x] Require concise final reporting of outcome, changed surfaces, proof, and
       unresolved limitations.
 
 ### 3. Durable Plan Structure
 
-- [ ] Add `docs/plans/README.md`.
-- [ ] Add `docs/plans/completed/`.
-- [ ] Add a single reusable execution-plan template.
-- [ ] Define the active-to-completed transition.
-- [ ] Define when a plan decision must be promoted into `docs/decisions/`.
+- [x] Add `docs/plans/README.md`.
+- [x] Add `docs/plans/completed/`.
+- [x] Add a single reusable execution-plan template.
+- [x] Define the active-to-completed transition.
+- [x] Define when a plan decision must be promoted into `docs/decisions/`.
 
 ### 4. Legacy And Compatibility Boundaries
 
-- [ ] Identify every document that presents intake, story, matrix, trace,
+- [x] Identify every document that presents intake, story, matrix, trace,
       scoring, audit, or proposal operations as mandatory.
-- [ ] Add clear compatibility banners or relocate historical guidance without
+- [x] Add clear compatibility banners or relocate historical guidance without
       deleting it.
-- [ ] Keep existing CLI behavior and machine contracts unchanged.
-- [ ] Confirm that external orchestration consumers retain their current paths.
+- [x] Keep existing CLI behavior and machine contracts unchanged.
+- [x] Confirm that external orchestration consumers retain their current paths.
 
 ### 5. Installation And Refresh
 
-- [ ] Make fresh installations use the repository-centered workflow by default.
-- [ ] Provide an explicit, backed-up refresh path for existing agent shims.
-- [ ] Keep existing databases and historical documents untouched during refresh.
-- [ ] Keep Bash, PowerShell, and Claude instruction surfaces equivalent.
+- [x] Make fresh installations use the repository-centered workflow by default.
+- [x] Provide an explicit, backed-up refresh path for existing agent shims.
+- [x] Keep existing databases and historical documents untouched during refresh.
+- [x] Keep Bash, PowerShell, and Claude instruction surfaces equivalent.
 
 ### 6. Validation And Evaluation
 
-- [ ] Update documentation-contract tests to reject stale mandatory lifecycle
+- [x] Update documentation-contract tests to reject stale mandatory lifecycle
       instructions on the default path.
-- [ ] Preserve all existing CLI and orchestration compatibility tests.
-- [ ] Exercise one read-only task.
-- [ ] Exercise one bounded documentation change.
-- [ ] Exercise one bounded code fix with existing expected behavior.
-- [ ] Exercise one user-visible fix requiring application interaction.
-- [ ] Exercise one multi-session change using a durable plan.
-- [ ] Exercise one consequential ambiguous change that must pause for judgment.
-- [ ] Compare required Harness commands, initial Harness context, human
+- [x] Preserve all existing CLI and orchestration compatibility tests.
+- [x] Exercise one read-only task.
+- [x] Exercise one bounded documentation change.
+- [x] Exercise one bounded code fix with existing expected behavior.
+- [x] Exercise one user-visible fix requiring application interaction.
+- [x] Exercise one multi-session change using a durable plan.
+- [x] Exercise one consequential ambiguous change that must pause for judgment.
+- [x] Compare required Harness commands, initial Harness context, human
       intervention, validation quality, and false-completion behavior.
 
 ## Compatibility Strategy
@@ -321,6 +322,12 @@ Passing Harness status or trace scores are explicitly not Phase 1 evidence.
 - 2026-07-20: Decision `0019-repository-centered-default-workflow` governs the
   target behavior. The current default does not change until implementation is
   completed and validated.
+- 2026-07-20: Keep the compatibility CLI in the installer payload, but describe
+  bootstrap and database use as explicit opt-in behavior.
+- 2026-07-20: Evaluate the workflow with deterministic repository fixtures plus
+  the existing control-plane task evaluation. The new fixture exercises real
+  file mutation and a visible executable boundary without pretending to measure
+  model quality.
 
 ## Progress
 
@@ -328,10 +335,38 @@ Passing Harness status or trace scores are explicitly not Phase 1 evidence.
 - [x] Read and adopt OpenAI Harness Engineering as the anchor.
 - [x] Agree on the Phase 1 boundary and reduced workflow.
 - [x] Record the durable direction in decision `0019`.
-- [ ] Begin implementation.
-- [ ] Validate representative tasks and compatibility.
+- [x] Implement the repository workflow, durable-plan lifecycle, documentation
+      hierarchy, compatibility boundaries, and installer payload.
+- [x] Validate representative tasks and focused compatibility paths.
+- [ ] Run the full pre-merge repository contract.
 - [ ] Move this plan to `docs/plans/completed/` with the final result.
 
 ## Result
 
-Not yet implemented.
+Implementation is complete and focused validation passes.
+
+Measured workflow comparison:
+
+| Measure | Previous mandatory path | Phase 1 path | Effect |
+| --- | ---: | ---: | --- |
+| Initial Harness words | 2,413 | 997 | 59% less mandatory context |
+| Harness commands for bounded scenarios | At least bootstrap, intake, matrix, story, and trace operations | 0 | Bookkeeping removed from bounded work |
+| Ambiguous-task intervention | Required by a broad high-risk lane | 1 of 1 consequentially ambiguous scenarios | Judgment tied to consequence, not vocabulary |
+| Durable artifacts for the complex fixture | Multiple lifecycle records and documents | 1 evolving execution plan | One resumable source of task truth |
+
+Focused evidence passed:
+
+```text
+tests/installer/assert-agent-authority-contract.sh
+tests/evals/test-repository-workflow.sh
+tests/installer/assert-install-manifest-links.sh
+tests/docs/test-doc-contracts.sh
+tests/installer/test-install-harness-modes.sh
+tests/evals/test-task-authority.sh
+tests/protocol/smoke-native-artifact.sh target/debug/harness-cli
+git diff --check
+```
+
+The local environment does not provide `pwsh`; the PowerShell assertions are
+covered statically here and remain part of the Windows pre-merge workflow. Full
+repository validation remains before activation and archival.

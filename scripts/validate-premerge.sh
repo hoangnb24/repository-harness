@@ -38,6 +38,7 @@ tests/installer/assert-consumer-changeset-trackable.sh
 tests/maintenance/test-harness-cli-release-classification.sh
 tests/maintenance/test-render-changelog-files.sh
 tests/docs/test-doc-contracts.sh
+tests/evals/test-repository-workflow.sh
 tests/evals/test-task-authority.sh
 tests/release/test-post-merge-release-recovery.sh
 

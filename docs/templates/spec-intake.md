@@ -1,5 +1,8 @@
 # Spec Intake
 
+> **Compatibility template.** The default workflow derives product documents
+> and uses one execution plan when the resulting work needs durable memory.
+
 Date: YYYY-MM-DD
 
 ## Source

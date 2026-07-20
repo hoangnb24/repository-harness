@@ -4,7 +4,9 @@ Date: 2026-05-31
 
 ## Status
 
-Accepted
+Accepted for the legacy benchmark and CLI contract. Mandatory default-path
+recording rules are superseded by
+`0019-repository-centered-default-workflow.md`.
 
 ## Context
 

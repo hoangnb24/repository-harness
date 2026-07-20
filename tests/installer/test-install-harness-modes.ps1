@@ -30,6 +30,10 @@ try {
     Invoke-Install $Fresh
     if (!(Test-Path (Join-Path $Fresh "scripts/bin/harness-cli.exe"))) { throw "fresh CLI missing" }
     if (Test-Path (Join-Path $Fresh "harness.db")) { throw "fresh install initialized local DB" }
+    if (!(Test-Path (Join-Path $Fresh "docs/WORKFLOW.md"))) { throw "fresh workflow missing" }
+    if (!(Test-Path (Join-Path $Fresh "docs/plans/active/README.md"))) { throw "fresh active-plan path missing" }
+    if (!(Test-Path (Join-Path $Fresh "docs/templates/exec-plan.md"))) { throw "fresh execution-plan template missing" }
+    if (!(Get-Content -Raw (Join-Path $Fresh "AGENTS.md")).Contains("No Harness CLI operation is required.")) { throw "fresh default still requires control-plane commands" }
     if ((Get-ChildItem (Join-Path $Fresh "scripts/schema") -Filter "*.sql").Count -ne
         (Get-ChildItem (Join-Path $Root "scripts/schema") -Filter "*.sql").Count) { throw "schema count differs" }
 
@@ -58,7 +62,7 @@ try {
     "local rule`n`n<!-- HARNESS:BEGIN -->`nstale`n<!-- HARNESS:END -->" | Set-Content (Join-Path $Shim "AGENTS.md")
     Invoke-Install $Shim @("Merge", "RefreshAgentShim")
     $ShimText = Get-Content -Raw (Join-Path $Shim "AGENTS.md")
-    if (!$ShimText.Contains("local rule") -or !$ShimText.Contains("query matrix --active --summary") -or $ShimText.Contains("stale")) { throw "shim refresh failed" }
+    if (!$ShimText.Contains("local rule") -or !$ShimText.Contains("No Harness CLI operation is required.") -or $ShimText.Contains("stale")) { throw "shim refresh failed" }
 
     $Dry = Join-Path $Temp "dry"
     & $Installer -Directory $Dry -Yes -DryRun | Out-Null
@@ -78,7 +82,7 @@ try {
         if ((Get-FileHash -Algorithm SHA256 (Join-Path $Upgrade "scripts/bin/harness-cli.exe")).Hash.ToLowerInvariant() -ne $CandidateHash) { throw "candidate upgrade hash differs" }
         if ((Get-Content -Raw (Join-Path $Upgrade "KEEP.txt")).Trim() -ne "consumer-owned") { throw "upgrade changed consumer file" }
         $UpgradeAgents = Get-Content -Raw (Join-Path $Upgrade "AGENTS.md")
-        if (!$UpgradeAgents.Contains("local rule") -or $UpgradeAgents.Contains("stale authority") -or !$UpgradeAgents.Contains("query matrix --active --summary")) { throw "upgrade did not refresh marked AGENTS authority" }
+        if (!$UpgradeAgents.Contains("local rule") -or $UpgradeAgents.Contains("stale authority") -or !$UpgradeAgents.Contains("No Harness CLI operation is required.")) { throw "upgrade did not refresh marked AGENTS authority" }
         if (!(Get-ChildItem (Join-Path $Upgrade ".harness-backup") -Recurse -Filter "AGENTS.md" -File | Select-Object -First 1)) { throw "upgrade AGENTS backup missing" }
         & (Join-Path $Upgrade "scripts/bin/harness-cli.exe") --version | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "upgraded candidate does not execute" }

@@ -1,19 +1,27 @@
 # Scripts
 
-This directory contains harness automation tools.
+This directory contains repository validation, installation, and optional
+compatibility-control-plane tools.
+
+The default workflow is defined by `AGENTS.md` and `docs/WORKFLOW.md`. Normal
+questions and repository changes do not require a database, bootstrap, intake,
+story row, matrix query, trace, score, audit, or proposal. Use the CLI described
+below only when a user or external orchestrator explicitly selects the legacy
+SQLite contract.
 
 ## Harness CLI
 
-The Rust Harness CLI is the primary interface for the durable layer. Installed
-projects use the prebuilt binary at `scripts/bin/harness-cli` on macOS/Linux or
-`scripts/bin/harness-cli.exe` on Windows for normal Harness work.
+The Rust Harness CLI is the primary interface for the optional SQLite durable
+layer. Installed projects receive the prebuilt binary at
+`scripts/bin/harness-cli` on macOS/Linux or `scripts/bin/harness-cli.exe` on
+Windows so compatibility consumers retain a stable command path.
 
 Request authority comes before runtime setup. Answer, explain, review,
 diagnose, plan, and status requests remain read-only: inspect what is already
 present, and do not bootstrap, initialize/migrate, record intake, or trace.
 
-For a change, build, or fix request after a fresh clone or install, bootstrap
-the local ignored runtime before querying or changing state:
+When the compatibility control plane has been explicitly selected, bootstrap
+its local ignored runtime before querying or changing that state:
 
 ```bash
 scripts/bootstrap-harness.sh

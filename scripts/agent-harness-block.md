@@ -1,18 +1,27 @@
 <!-- HARNESS:BEGIN -->
 ## Harness
 
-Choose the request class before any Harness operation.
+Start with the requested outcome, then use the repository as the system of
+record. Read `docs/WORKFLOW.md` and only the product, design, plan,
+code, and validation material relevant to the task.
 
-- When the requested outcome is only an answer, explanation, review, diagnosis,
-  plan, or status report: inspect only the material needed to respond. Keep the
-  task read-only. Do not bootstrap, initialize or migrate a database, record
-  intake, or record a trace.
-- When the user explicitly asks to change, build, fix, or write repository
-  artifacts: first run `scripts/bootstrap-harness.sh`
-  on macOS/Linux or `.\scripts\bootstrap-harness.ps1` on Windows. Then use
-  `docs/FEATURE_INTAKE.md` to classify and record the request, query
-  `scripts/bin/harness-cli query matrix --active --summary` on macOS/Linux or
-  `.\scripts\bin\harness-cli.exe query matrix --active --summary` on Windows,
-  and retrieve only the lane- and task-specific context described in
-  `docs/CONTEXT_RULES.md`.
+- Answers, explanations, reviews, diagnoses, plans, and status reports are
+  read-only. Inspect only what is needed and do not mutate repository or Harness
+  state.
+- For a bounded change, use an ephemeral plan: inspect the affected behavior and
+  existing proof, implement the change, and run behavior-appropriate validation.
+  No Harness CLI operation is required.
+- Create or update one file under `docs/plans/active/` when work spans sessions,
+  needs coordination or an ordered sequence, has meaningful dependencies, or
+  requires explicit recovery steps. Move it to `docs/plans/completed/` only
+  after validation.
+- Pause when product intent is ambiguous, an action is difficult to recover,
+  validation would be weakened, or the request does not authorize the needed
+  action.
+- Claim completion only with relevant executable or observable evidence. Report
+  the outcome, important changed surfaces, validation, and unresolved risks.
+
+SQLite intake, story, trace, scoring, audit, and proposal commands are optional
+compatibility features. Use them only when explicitly requested or required by
+an external orchestrator.
 <!-- HARNESS:END -->

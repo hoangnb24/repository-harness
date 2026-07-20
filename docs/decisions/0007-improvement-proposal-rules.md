@@ -4,7 +4,9 @@ Date: 2026-06-04
 
 ## Status
 
-Accepted
+Accepted for the optional compatibility proposal command. It does not govern
+the default repository workflow under
+`0019-repository-centered-default-workflow.md`.
 
 ## Context
 

@@ -1,5 +1,9 @@
 # Tool Registry
 
+> **Compatibility reference — not required for tool use.** Agents should invoke
+> repository scripts, skills, MCP tools, and application capabilities directly.
+> This registry remains available to compatible CLI and orchestration consumers.
+
 The harness deals with two distinct kinds of "tool". Keep them separate.
 
 | | Capability manifest (outbound) | Inbound tool registry |

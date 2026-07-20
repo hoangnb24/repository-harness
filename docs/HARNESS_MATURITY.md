@@ -1,5 +1,10 @@
 # Harness Maturity Ladder
 
+> **Compatibility reference — not a current product maturity claim.** H0-H5
+> describes the historical control-plane program. The default workflow now
+> evaluates concrete repository legibility, executable constraints, observable
+> validation, and human attention rather than advancement through this ladder.
+
 This ladder defines how `repository-harness` should progress from static
 agent instructions to measurable harness improvement.
 

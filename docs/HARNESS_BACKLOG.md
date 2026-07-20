@@ -1,5 +1,10 @@
 # Harness Backlog
 
+> **Compatibility reference — not part of the default workflow.** Use an
+> ordinary technical-debt entry or make a bounded direct repair. This legacy
+> Markdown shape and the SQLite backlog remain available only for historical or
+> explicit orchestration use.
+
 Use this file when an agent discovers a missing harness capability but should
 not change the operating model immediately.
 

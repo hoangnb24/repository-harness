@@ -1,5 +1,10 @@
 # Improvement Protocol
 
+> **Compatibility reference — not part of the default workflow.** The proposal
+> lifecycle remains supported for historical control-plane state. Current
+> improvement work favors concrete mechanical findings and bounded cleanup
+> changes backed by repository proof.
+
 Phase 5 starts the self-improvement loop:
 
 ```text
