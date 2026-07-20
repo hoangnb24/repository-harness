@@ -1,0 +1,94 @@
+name: CI
+
+# Runs on every push and pull request against the default branch, plus a manual
+# button on the Actions tab.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch/PR to save minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # 1. Lint the installer shell script.
+  shellcheck:
+    name: Shell script lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check (bash -n)
+        run: bash -n scripts/install-harness.sh
+
+      - name: shellcheck
+        run: shellcheck --severity=warning scripts/install-harness.sh scripts/ci/*.sh
+
+  # 1b. The installer's embedded file list must match the repo.
+  installer-manifest:
+    name: Installer manifest check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Manifest consistency
+        run: bash scripts/ci/check-installer-manifest.sh
+
+  # 2. Basic Markdown hygiene: no broken relative links, no stray tabs.
+  markdown-check:
+    name: Markdown link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check relative links resolve
+        run: bash scripts/ci/check-markdown-links.sh
+
+  # 3. Prove the installer actually works, fully offline (local source mode).
+  installer-test:
+    name: Installer smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dry run into an empty directory
+        run: |
+          target="$(mktemp -d)"
+          scripts/install-harness.sh --directory "$target" --yes --dry-run
+
+      - name: Install into an empty directory
+        run: |
+          target="$(mktemp -d)"
+          scripts/install-harness.sh --directory "$target" --yes
+          test -f "$target/AGENTS.md"
+          test -f "$target/docs/HARNESS.md"
+          test -f "$target/scripts/README.md"
+          echo "Installed files:"
+          find "$target" -type f | sort
+
+      - name: Refuse to install over protected paths without a mode
+        run: |
+          target="$(mktemp -d)"
+          scripts/install-harness.sh --directory "$target" --yes
+          # Second run must fail because AGENTS.md/docs/scripts now exist.
+          if scripts/install-harness.sh --directory "$target" --yes; then
+            echo "ERROR: installer should have refused the second run" >&2
+            exit 1
+          fi
+          echo "OK: installer refused to clobber protected paths"
+
+      - name: Merge mode keeps existing files
+        run: |
+          target="$(mktemp -d)"
+          scripts/install-harness.sh --directory "$target" --yes
+          printf 'my own notes\n' > "$target/AGENTS.md"
+          scripts/install-harness.sh --directory "$target" --yes --merge
+          grep -q 'my own notes' "$target/AGENTS.md"
+          echo "OK: merge preserved the existing AGENTS.md"

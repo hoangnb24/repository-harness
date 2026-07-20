@@ -1,0 +1,6 @@
+# Keep line endings deterministic across platforms.
+# Shell scripts and YAML MUST use LF or they break on Linux CI runners
+# (e.g. "bad interpreter: /usr/bin/env bash^M").
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
