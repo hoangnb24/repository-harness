@@ -292,6 +292,17 @@ Seeded full-file-oracle adversaries remove the child setting, weaken it to
 `Continue`, move it to the parent session, move it after installer execution,
 or restore XML output; every variant is rejected.
 
+Remote attempt 6, run `29715474521` at exact candidate
+`3a1f9a35317b551e5814bddcfe8d78d2874d28e3`, built and attested all five
+artifacts. Every native verifier then rejected the valid signed
+`workflow_dispatch` event before executing its artifact because the provenance
+constant and build-receipt schema still required the superseded `push` event.
+The correction aligns both closed contracts with the manual-only diagnostic
+workflow and keeps `push` as a fail-closed adversary. The macOS arm64 artifact
+from that run independently passed its SHA-256 check plus read-only `--help`
+and `version` smoke commands; this does not convert the failed run into release
+proof.
+
 The companion Pre-Merge run `29688588050`, job `88197179137`, completed all
 six live Phase 5 proof groups and all 19 trust adversaries before the Phase 7
 focused gate failed its final status-preservation assertion. Concretely, the

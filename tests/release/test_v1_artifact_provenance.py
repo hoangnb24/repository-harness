@@ -120,6 +120,7 @@ class ProvenanceTests(unittest.TestCase):
         return provenance.verify_signed_bundle(self.artifact, self.bundle, **values)
 
     def test_exact_identity_and_signed_bundle_verify(self) -> None:
+        self.assertEqual(provenance.EXPECTED_EVENT, "workflow_dispatch")
         self.verify()
 
     def test_real_gh_parser_accepts_the_non_conflicting_exact_flag_set(self) -> None:
@@ -262,7 +263,7 @@ class ProvenanceTests(unittest.TestCase):
         mutations = (
             lambda value: value[0]["verificationResult"]["statement"]["subject"][0].update(name="substituted"),
             lambda value: value[0]["verificationResult"]["signature"]["certificate"].update(sourceRepositoryDigest="2" * 40),
-            lambda value: value[0]["verificationResult"]["signature"]["certificate"].update(githubWorkflowTrigger="workflow_dispatch"),
+            lambda value: value[0]["verificationResult"]["signature"]["certificate"].update(githubWorkflowTrigger="push"),
             lambda value: value[0]["verificationResult"].update(verifiedTimestamps=[]),
         )
         for mutation in mutations:

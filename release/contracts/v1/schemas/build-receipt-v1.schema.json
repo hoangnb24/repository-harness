@@ -104,7 +104,7 @@
         "kind": {"const": "github-sigstore-build-provenance"},
         "verification": {"const": "passed-before-execution"},
         "repository": {"const": "hoangnb24/repository-harness"},
-        "event_name": {"const": "push"},
+        "event_name": {"const": "workflow_dispatch"},
         "source_ref": {"const": "refs/heads/refactor/harness-v1"},
         "candidate_sha": {"$ref": "#/$defs/gitObject"},
         "workflow_path": {"const": ".github/workflows/harness-v1-release.yml"},

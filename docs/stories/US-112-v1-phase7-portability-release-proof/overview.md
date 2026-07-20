@@ -17,7 +17,7 @@ The repository now has a GitHub-native provenance gate in addition to the
 fixture, build-receipt, and local execution slices. Three ordered exact-five
 stages build without execution, attest the immutable downloaded bytes in an
 isolated OIDC job, then verify and execute on the native runner. They verify the signed
-bundle against the expected public repository, push event, workflow path/ref,
+bundle against the expected public repository, manual-dispatch event, workflow path/ref,
 candidate/workflow SHA, platform artifact name, and SHA-256. Only successful
 verification can finalize the build receipt or reach an installer/direct
 binary call. The bundle and a closed byte-bound verification record remain in

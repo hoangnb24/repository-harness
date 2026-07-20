@@ -61,7 +61,7 @@ finalizer calls `gh attestation verify` with one exact identity mode
 (`--cert-identity`) plus the expected repository, source ref/digest, signer
 digest, OIDC issuer, hosted-runner
 policy, and retained bundle. It also checks the signed statement subject name,
-SHA-256, push event, workflow path/ref, and transparency-log timestamp. A
+SHA-256, manual-dispatch event, workflow path/ref, and transparency-log timestamp. A
 failure stops before the finalizer invokes `--help`. The execution runner and
 Windows installer guard repeat the same receipt/bundle verification before
 their own execution paths.
