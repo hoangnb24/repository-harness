@@ -25,6 +25,7 @@ tests/coherence/test-core-state-ownership.sh
 tests/core/test-schema-replay-command-contract.sh
 tests/changesets/test-automatic-source-capture.sh
 tests/boundary/test-phase4-control-plane-freeze.sh
+tests/boundary/test-phase5-optional-consumer-split.sh
 tests/bootstrap/test-bootstrap-harness.sh
 tests/bootstrap/test-core-state-materialization.sh
 tests/bootstrap/test-fresh-source-checkout.sh
@@ -39,8 +40,8 @@ tests/installer/assert-consumer-changeset-trackable.sh
 tests/maintenance/test-harness-cli-release-classification.sh
 tests/maintenance/test-render-changelog-files.sh
 tests/docs/test-doc-contracts.sh
-tests/evals/test-repository-workflow.sh
-tests/evals/test-task-authority.sh
+tests/workflow/test-repository-workflow.sh
+tests/workflow/test-task-authority.sh
 tests/release/test-post-merge-release-recovery.sh
 
 git diff --check

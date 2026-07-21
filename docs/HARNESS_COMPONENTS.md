@@ -66,7 +66,8 @@ one Runtime Substrate responsibility.
 | `PHASE2.md` | Task specification | Observability, context selection |
 | `PHASE3.md` | Task specification | Observability, verification, entropy auditing |
 | `PHASE4.md` | Task specification | Verification, observability, task state |
-| `PHASE5.md` | Task specification | Verification, entropy auditing, intervention recording |
+| `PHASE5.md` | Task specification | Ownership and compatibility boundaries |
+| `docs/compatibility/phase-5-evolution-infrastructure-legacy.md` | Historical task specification | Verification, entropy auditing, intervention recording |
 | `crates/harness-cli/Cargo.toml` | Tool access | Verification |
 | `crates/harness-cli/src/main.rs` | Tool access | Tool implementation |
 | `crates/harness-cli/src/domain.rs` | Tool access | Task state, verification |

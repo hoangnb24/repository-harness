@@ -25,6 +25,9 @@ instead of creating permanent plan documents.
 - `phase-4-control-plane-freeze.md`: inventoried SQLite authority and consumers,
   froze accidental upstream lifecycle writes behind explicit compatibility
   intent, and retained tested protocol, history, reconstruction, and recovery.
+- `phase-5-optional-consumer-split.md`: made Symphony the explicit owner of
+  orchestration policy and runtime evidence, kept generic atomic primitives in
+  compatibility, and proved the core installs neither optional consumer.
 
 The Phase 3 entries are completed evidence checkpoints, not a claim that the
 full application runtime/interface loop is complete. Decision 0021 keeps the

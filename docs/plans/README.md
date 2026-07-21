@@ -42,3 +42,5 @@ record consequential source-of-truth, payload, and compatibility transitions.
 Phase 4 is retained because it records the consumer audit, explicit-intent
 boundary, write freeze, and decision to preserve the still-used compatibility
 implementation.
+Phase 5 is retained because it records the final optional-consumer ownership
+boundary and why generic atomic protocol primitives remain in compatibility.

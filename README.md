@@ -160,7 +160,10 @@ Then use `scripts/bin/harness-cli` (or the Windows `.exe`). See
 the [`compatibility index`](docs/compatibility/README.md).
 One independent consumer is
 [Symphony](https://github.com/hoangnb24/symphony); it is not installed as part
-of this repository.
+of this repository. Symphony owns work selection, agent runs, worktrees,
+conflict/retry policy, changeset coordination, PR/review synchronization, and
+its runtime evidence. Harness retains only the generic atomic protocol
+primitives that protect repository state.
 
 ## Repository Structure
 

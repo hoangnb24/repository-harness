@@ -20,6 +20,7 @@ consumer product choices.
 | [0020](https://github.com/hoangnb24/repository-harness/blob/main/docs/decisions/0020-installation-profiles-and-knowledge-boundaries.md) | Active | Installation Profiles And Knowledge Boundaries |
 | [0021](https://github.com/hoangnb24/repository-harness/blob/main/docs/decisions/0021-consumer-first-application-legibility-phase.md) | Active | Consumer-First Application Legibility Phase |
 | [0022](https://github.com/hoangnb24/repository-harness/blob/main/docs/decisions/0022-control-plane-freeze-and-compatibility-runway.md) | Active | Control-Plane Freeze And Compatibility Runway |
+| [0023](https://github.com/hoangnb24/repository-harness/blob/main/docs/decisions/0023-optional-consumer-ownership.md) | Active | Optional Consumer Ownership |
 
 ## Compatibility Decisions
 

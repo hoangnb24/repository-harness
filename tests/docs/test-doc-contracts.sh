@@ -62,6 +62,7 @@ for file in \
   docs/decisions/0020-installation-profiles-and-knowledge-boundaries.md \
   docs/decisions/0021-consumer-first-application-legibility-phase.md \
   docs/decisions/0022-control-plane-freeze-and-compatibility-runway.md \
+  docs/decisions/0023-optional-consumer-ownership.md \
   docs/compatibility/README.md \
   docs/provenance/README.md; do
   [[ -f "$root/$file" ]] || fail "missing source-only artifact: $file"
@@ -121,12 +122,25 @@ require scripts/README.md '`--compatibility-write` flag'
 require docs/compatibility/phase-3-active-observability-legacy.md 'Historical compatibility plan.'
 require docs/compatibility/phase-4-mechanical-verification-legacy.md 'Historical compatibility roadmap.'
 require docs/provenance/README.md 'source evidence, not default task'
+require PHASE5.md '# Reduction Phase 5 — Optional Consumer Split'
+require PHASE5.md 'Complete on 2026-07-21.'
+require PHASE5.md '## Ownership Matrix'
+require PHASE5.md 'tests/boundary/test-phase5-optional-consumer-split.sh'
+require docs/decisions/README.md '0023-optional-consumer-ownership.md'
+require docs/decisions/0023-optional-consumer-ownership.md '`hoangnb24/symphony` owns orchestration policy'
+require README.md 'Symphony owns work selection, agent runs, worktrees'
+require docs/compatibility/README.md 'Phase 5 ownership boundary'
+require docs/compatibility/README.md 'phase-5-evolution-infrastructure-legacy.md'
+require docs/compatibility/phase-5-evolution-infrastructure-legacy.md 'Historical compatibility roadmap.'
+require docs/plans/completed/README.md 'phase-5-optional-consumer-split.md'
+require docs/plans/completed/phase-5-optional-consumer-split.md 'Complete. Symphony remains the independent owner'
 
 for executable in \
   scripts/validate-premerge.sh \
   scripts/verify-revision-coherence.sh \
-  tests/evals/test-repository-workflow.sh \
-  tests/evals/test-task-authority.sh; do
+  tests/boundary/test-phase5-optional-consumer-split.sh \
+  tests/workflow/test-repository-workflow.sh \
+  tests/workflow/test-task-authority.sh; do
   [[ -x "$root/$executable" ]] || fail "documented gate is not executable: $executable"
 done
 
@@ -136,9 +150,10 @@ for required_gate in \
   'cargo clippy --workspace --all-targets --locked -- -D warnings' \
   'scripts/verify-revision-coherence.sh' \
   'tests/boundary/test-phase4-control-plane-freeze.sh' \
+  'tests/boundary/test-phase5-optional-consumer-split.sh' \
   'tests/docs/test-doc-contracts.sh' \
-  'tests/evals/test-repository-workflow.sh' \
-  'tests/evals/test-task-authority.sh' \
+  'tests/workflow/test-repository-workflow.sh' \
+  'tests/workflow/test-task-authority.sh' \
   'tests/release/test-post-merge-release-recovery.sh'; do
   require scripts/validate-premerge.sh "$required_gate"
 done

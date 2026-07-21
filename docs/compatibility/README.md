@@ -26,6 +26,7 @@ profile and requires an immutable release reference.
 - [Phase 4 write-consumer inventory and freeze boundary](phase-4-write-consumer-inventory.md)
 - [Superseded Phase 3 active-observability plan](phase-3-active-observability-legacy.md)
 - [Superseded Phase 4 mechanical-verification roadmap](phase-4-mechanical-verification-legacy.md)
+- [Superseded Phase 5 evolution-infrastructure roadmap](phase-5-evolution-infrastructure-legacy.md)
 - [Feature intake](../FEATURE_INTAKE.md)
 - [Story proof matrix](../TEST_MATRIX.md)
 - [Trace and scoring](../TRACE_SPEC.md)
@@ -40,6 +41,10 @@ profile and requires an immutable release reference.
 ## Runtime And Orchestration
 
 - [Protocol v1](../contracts/harness-orchestration-v1.md)
+- [Phase 5 ownership boundary](../decisions/0023-optional-consumer-ownership.md)
+- [Symphony](https://github.com/hoangnb24/symphony) owns scheduling, agent runs,
+  worktrees, conflict/retry policy, PR/review synchronization, and
+  Symphony-specific runtime evidence.
 - [Upstream CLI and bootstrap operations](../../scripts/README.md)
 - Schema migrations: `scripts/schema/*.sql`
 - Bootstrap: `scripts/bootstrap-harness.sh` or
@@ -47,3 +52,8 @@ profile and requires an immutable release reference.
 
 Existing databases and binaries remain local and are never removed by an
 ordinary core install or refresh.
+
+The protocol supplies consumer-neutral atomic operations; it does not make
+Symphony orchestration policy part of Harness. Trace scoring, benchmark,
+audit, and proposal documents on this index remain legacy compatibility
+material, not a default evaluation workflow.

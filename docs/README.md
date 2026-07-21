@@ -30,6 +30,7 @@ The following material is deliberately outside the default installation:
 
 - [Reduction Phase 3](https://github.com/hoangnb24/repository-harness/blob/main/PHASE3.md): current consumer-first application-legibility target, evidence matrix, and next gate.
 - [Reduction Phase 4](https://github.com/hoangnb24/repository-harness/blob/main/PHASE4.md): completed SQLite control-plane freeze, compatibility boundary, and evidence gates.
+- [Reduction Phase 5](https://github.com/hoangnb24/repository-harness/blob/main/PHASE5.md): completed optional-consumer ownership split between Harness, Symphony, and application evaluation.
 - [CLI compatibility index](https://github.com/hoangnb24/repository-harness/blob/main/docs/compatibility/README.md): SQLite lifecycle, orchestration protocol, bootstrap, schemas, and CLI maintenance.
 - [Historical index](https://github.com/hoangnb24/repository-harness/blob/main/docs/provenance/README.md): superseded decisions, story-era evidence, reviews, and migration provenance.
 - [Upstream repository](https://github.com/hoangnb24/repository-harness): Rust implementation, installer, release, and maintenance truth.
