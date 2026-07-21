@@ -15,8 +15,8 @@ mkdir -p "$assets"
 # Both platform installers consume the same two profile declarations.
 [[ "$(grep -Fc 'PAYLOAD_MANIFEST="scripts/harness-install-files.txt"' "$root/scripts/install-harness.sh")" == 1 ]]
 [[ "$(grep -Fc 'CLI_PAYLOAD_MANIFEST="scripts/harness-cli-install-files.txt"' "$root/scripts/install-harness.sh")" == 1 ]]
-[[ "$(grep -Fc '$script:PayloadManifest = "scripts/harness-install-files.txt"' "$root/scripts/Install-Harness.ps1")" == 1 ]]
-[[ "$(grep -Fc '$script:CliPayloadManifest = "scripts/harness-cli-install-files.txt"' "$root/scripts/Install-Harness.ps1")" == 1 ]]
+[[ "$(grep -Fc '$script:PayloadManifest = "scripts/harness-install-files.txt"' "$root/scripts/install-harness.ps1")" == 1 ]]
+[[ "$(grep -Fc '$script:CliPayloadManifest = "scripts/harness-cli-install-files.txt"' "$root/scripts/install-harness.ps1")" == 1 ]]
 
 python3 - "$root" "$core_manifest" "$cli_manifest" <<'PY'
 import pathlib, sys

@@ -13,7 +13,7 @@ scripts/install-harness.sh --with-cli --yes /path/to/project
 ```
 
 ```powershell
-./scripts/Install-Harness.ps1 -WithCli -Yes -Directory C:\path\to\project
+./scripts/install-harness.ps1 -WithCli -Yes -Directory C:\path\to\project
 ```
 
 That profile adds the lifecycle references, bootstrap scripts, full schema
