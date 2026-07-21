@@ -12,6 +12,10 @@ for platform in macos-arm64 macos-x64 linux-x64 linux-arm64 windows-x64; do
 done
 
 grep -Fq 'run: scripts/validate-premerge.sh' "$release"
+bootstrap_line=$(grep -n 'scripts/bootstrap-harness.sh' "$release" | head -n 1 | cut -d: -f1)
+contract_line=$(grep -n 'run: scripts/validate-premerge.sh' "$release" | head -n 1 | cut -d: -f1)
+[[ -n "$bootstrap_line" && "$bootstrap_line" -lt "$contract_line" ]]
+grep -Fq 'scripts/verify-materialized-core-parity.sh' "$release"
 grep -Fq 'source_sha: ${{ steps.source.outputs.sha }}' "$release"
 grep -Fq 'ref: ${{ needs.verify.outputs.source_sha }}' "$release"
 grep -Fq 'needs: [verify, build]' "$release"
