@@ -127,11 +127,12 @@ fn release_pointer_version_must_match_candidate_reported_version() {
     let workspace = tempfile::tempdir().unwrap();
     let binary = env!("CARGO_BIN_EXE_harness");
     let artifact = platform_artifact();
-    let tag_root = release.path().join("harness-v0.1.5");
+    let candidate_version = next_patch_version();
+    let tag_root = release.path().join(format!("harness-v{candidate_version}"));
     fs::create_dir_all(&tag_root).unwrap();
     fs::write(
         release.path().join("harness-release-tag"),
-        "harness-v0.1.5\n",
+        format!("harness-v{candidate_version}\n"),
     )
     .unwrap();
     let release_binary = tag_root.join(artifact);
@@ -185,17 +186,20 @@ fn update_refuses_to_replace_an_executable_outside_the_selected_repository() {
     let release = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let artifact = platform_artifact();
-    let tag_root = release.path().join("harness-v0.1.5");
+    let candidate_version = next_patch_version();
+    let tag_root = release.path().join(format!("harness-v{candidate_version}"));
     fs::create_dir_all(&tag_root).unwrap();
     fs::write(
         release.path().join("harness-release-tag"),
-        "harness-v0.1.5\n",
+        format!("harness-v{candidate_version}\n"),
     )
     .unwrap();
     let release_binary = tag_root.join(artifact);
     fs::write(
         &release_binary,
-        b"#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'harness 0.1.5'; exit 0; fi\nexit 99\n",
+        format!(
+            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'harness {candidate_version}'; exit 0; fi\nexit 99\n"
+        ),
     )
     .unwrap();
     fs::set_permissions(&release_binary, fs::Permissions::from_mode(0o755)).unwrap();
@@ -259,17 +263,20 @@ fn update_recovers_an_outdated_executable_before_starting_another_core_update() 
     let release = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let artifact = platform_artifact();
-    let tag_root = release.path().join("harness-v0.1.5");
+    let candidate_version = next_patch_version();
+    let tag_root = release.path().join(format!("harness-v{candidate_version}"));
     fs::create_dir_all(&tag_root).unwrap();
     fs::write(
         release.path().join("harness-release-tag"),
-        "harness-v0.1.5\n",
+        format!("harness-v{candidate_version}\n"),
     )
     .unwrap();
     let release_binary = tag_root.join(artifact);
     fs::write(
         &release_binary,
-        b"#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'harness 0.1.5'; exit 0; fi\nexit 99\n",
+        format!(
+            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'harness {candidate_version}'; exit 0; fi\nexit 99\n"
+        ),
     )
     .unwrap();
     fs::set_permissions(&release_binary, fs::Permissions::from_mode(0o755)).unwrap();
@@ -287,7 +294,7 @@ fn update_recovers_an_outdated_executable_before_starting_another_core_update() 
             workspace.path(),
             &InstallationState {
                 schema_version: InstallationState::SCHEMA_VERSION,
-                core_version: "0.1.5".to_owned(),
+                core_version: candidate_version.to_string(),
                 files: vec![BaselineFile {
                     path: path.clone(),
                     content: base.to_vec(),
@@ -345,17 +352,20 @@ fn clean_update_replaces_the_selected_repository_executable() {
     let release = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let artifact = platform_artifact();
-    let tag_root = release.path().join("harness-v0.1.5");
+    let candidate_version = next_patch_version();
+    let tag_root = release.path().join(format!("harness-v{candidate_version}"));
     fs::create_dir_all(&tag_root).unwrap();
     fs::write(
         release.path().join("harness-release-tag"),
-        "harness-v0.1.5\n",
+        format!("harness-v{candidate_version}\n"),
     )
     .unwrap();
     let release_binary = tag_root.join(artifact);
     fs::write(
         &release_binary,
-        b"#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'harness 0.1.5'; fi\nexit 0\n",
+        format!(
+            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'harness {candidate_version}'; fi\nexit 0\n"
+        ),
     )
     .unwrap();
     fs::set_permissions(&release_binary, fs::Permissions::from_mode(0o755)).unwrap();
@@ -410,7 +420,7 @@ fn clean_update_replaces_the_selected_repository_executable() {
         .unwrap();
     assert_eq!(
         String::from_utf8_lossy(&version.stdout).trim(),
-        "harness 0.1.5"
+        format!("harness {candidate_version}")
     );
     assert!(!workspace
         .path()
@@ -447,4 +457,9 @@ fn platform_artifact() -> &'static str {
         ("windows", "x86_64") => "harness-windows-x64.exe",
         (os, arch) => panic!("unsupported test platform: {os}/{arch}"),
     }
+}
+
+fn next_patch_version() -> semver::Version {
+    let current = semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+    semver::Version::new(current.major, current.minor, current.patch + 1)
 }
