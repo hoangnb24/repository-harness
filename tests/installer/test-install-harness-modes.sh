@@ -9,6 +9,7 @@ platform=fixture-platform
 assets="$temp/assets"
 cargo build --quiet --manifest-path "$root/Cargo.toml" -p harness --locked
 harness_core_binary="$root/target/debug/harness"
+harness_core_version=$("$harness_core_binary" --version | awk '{ print $NF; exit }')
 mkdir -p "$assets"
 printf '%s\n' '#!/usr/bin/env sh' 'exit 0' >"$assets/harness-cli-$platform"
 chmod 755 "$assets/harness-cli-$platform"
@@ -16,7 +17,7 @@ chmod 755 "$assets/harness-cli-$platform"
 core_source="$temp/core-source"
 core_assets="$temp/core-assets"
 mkdir -p "$core_source/scripts" "$core_assets"
-printf 'harness-v0.1.0\n' >"$core_source/scripts/harness-release-tag"
+printf 'harness-v%s\n' "$harness_core_version" >"$core_source/scripts/harness-release-tag"
 cp "$harness_core_binary" "$core_assets/harness-fixture-core"
 (cd "$core_assets" && shasum -a 256 harness-fixture-core >harness-fixture-core.sha256)
 
@@ -229,5 +230,59 @@ fi
 [[ ! -e "$failed/scripts/bin/harness-cli" ]]
 grep -Fxq 'scripts/bin/harness' "$failed/.gitignore"
 ! grep -Fxq 'harness.db' "$failed/.gitignore"
+
+# A core conflict retains the candidate without replacing the installed binary.
+# After the resolution is edited, rerunning the installer automatically invokes
+# the same candidate with --continue and replaces the binary only after success.
+conflict="$temp/core-conflict"
+fake_candidate="$temp/fake-harness-candidate"
+mkdir -p "$conflict/.harness-core" "$conflict/scripts/bin"
+printf '{"schema_version":1,"core_version":"0.1.3","files":[]}\n' \
+  >"$conflict/.harness-core/manifest.json"
+printf 'old executable\n' >"$conflict/scripts/bin/harness"
+chmod 755 "$conflict/scripts/bin/harness"
+old_binary_hash=$(shasum -a 256 "$conflict/scripts/bin/harness" | awk '{ print $1 }')
+cat >"$fake_candidate" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = "--version" ]; then
+  echo "harness 0.1.4"
+  exit 0
+fi
+target=""
+continuing=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --directory) target=$2; shift 2 ;;
+    --continue) continuing=1; shift ;;
+    *) shift ;;
+  esac
+done
+if [ "$continuing" -eq 1 ]; then
+  cp "$target/.harness-core/update/resolved/AGENTS.md" "$target/AGENTS.md"
+  rm -rf "$target/.harness-core/update"
+  exit 0
+fi
+mkdir -p "$target/.harness-core/update/resolved"
+printf 'resolved content required\n' >"$target/.harness-core/update/resolved/AGENTS.md"
+printf '{"schema_version":2,"from_version":"0.1.3","to_version":"0.1.4","conflicts":[],"frozen_files":[]}\n' \
+  >"$target/.harness-core/update/session.json"
+exit 2
+EOF
+chmod 755 "$fake_candidate"
+if HARNESS_CORE_BINARY="$fake_candidate" \
+  "$installer" --directory "$conflict" --merge --yes >"$temp/core-conflict.out" 2>&1; then
+  echo "installer unexpectedly reported a conflicted core update as successful" >&2
+  exit 1
+fi
+[[ "$(shasum -a 256 "$conflict/scripts/bin/harness" | awk '{ print $1 }')" == "$old_binary_hash" ]]
+[[ -x "$conflict/.harness-core/update-candidate/harness" ]]
+printf 'human-approved result\n' >"$conflict/.harness-core/update/resolved/AGENTS.md"
+HARNESS_CORE_BINARY="$fake_candidate" \
+  "$installer" --directory "$conflict" --merge --yes >"$temp/core-continue.out"
+grep -Fxq 'human-approved result' "$conflict/AGENTS.md"
+cmp -s "$fake_candidate" "$conflict/scripts/bin/harness"
+[[ ! -e "$conflict/.harness-core/update" ]]
+[[ ! -e "$conflict/.harness-core/update-candidate" ]]
 
 echo "Bash core/CLI profiles, merge, override, shims, upgrade, rollback, and dry-run modes passed"

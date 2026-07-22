@@ -112,6 +112,7 @@ jobs:
         run: |
           root=$(mktemp -d)
           dist/${{ matrix.binary }} install --directory "$root"
+          dist/${{ matrix.binary }} update --candidate --directory "$root" --dry-run
           dist/${{ matrix.binary }} status --directory "$root"
           dist/${{ matrix.binary }} doctor --directory "$root"
       - name: Smoke core lifecycle on Windows
@@ -120,6 +121,7 @@ jobs:
         run: |
           $root = Join-Path $env:RUNNER_TEMP ("harness-smoke-" + [guid]::NewGuid())
           dist/${{ matrix.binary }} install --directory $root
+          dist/${{ matrix.binary }} update --candidate --directory $root --dry-run
           dist/${{ matrix.binary }} status --directory $root
           dist/${{ matrix.binary }} doctor --directory $root
       - uses: actions/upload-artifact@v4

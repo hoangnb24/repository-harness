@@ -50,3 +50,9 @@ three-way merge, transaction, bootstrap, and release boundaries of `harness`.
 The repository-cleanup plan is retained because it records the removal boundary
 between current product proof, published compatibility, and one-time migration
 verification.
+The self-update plan is retained because it records release discovery,
+candidate handoff, executable replacement, conflict staging, human-directed
+agent resolution, and recovery boundaries.
+The self-update hardening plan is retained because it records the application
+orchestration boundary, full-plan freezing, candidate trust, installer
+continuation, and executable-skew recovery added after independent review.

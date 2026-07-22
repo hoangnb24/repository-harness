@@ -40,6 +40,7 @@ fn composition_root_is_the_only_layer_wiring_infrastructure_to_interface() {
     assert!(main.contains("harness::infrastructure"));
     assert!(main.contains("harness::interface"));
     assert!(main.contains("CoreApplication::new"));
+    assert!(main.contains("SelfUpdateApplication::new"));
 }
 
 fn assert_forbidden(root: &Path, forbidden: &[&str]) {

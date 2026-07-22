@@ -116,9 +116,34 @@ scripts/bin/harness status
 scripts/bin/harness doctor
 ```
 
-The updater keeps the installed upstream base under `.harness-core/`, performs
-a three-way merge, stops without writes on conflicts, and backs up changed
-files before activation. On Windows, use `scripts\bin\harness.exe`.
+`update` reads the published core-release pointer, downloads the platform binary
+and checksum from that exact versioned `harness-v*` GitHub release, verifies its
+bytes and version identity, and lets that candidate merge its embedded core.
+It refuses downgrades and replaces only the selected repository's local
+executable. The updater keeps
+the installed upstream base under
+`.harness-core/`, performs a three-way merge, and backs up changed files before
+activation. On Windows, use `scripts\bin\harness.exe`.
+
+An overlapping local/upstream edit stops without changing managed files or the
+installed executable. Harness stages BASE, LOCAL, UPSTREAM, and RESOLVED copies
+under `.harness-core/update/`, freezes all other managed inputs, and retains the
+remotely re-verifiable candidate under `.harness-core/update-candidate/`. After
+an agent explains the semantic choice and
+receives human direction, edit the RESOLVED copy and run:
+
+```bash
+scripts/bin/harness update --continue --dry-run
+scripts/bin/harness update --continue
+```
+
+Use `scripts/bin/harness update --abort` to discard the staged resolution. A
+continuation fails if any managed file or staged input changed after conflict
+detection.
+
+Installations older than the first release containing self-update discovery
+cannot discover that release with their old executable. Refresh those once with
+the platform installer; subsequent releases use `harness update` directly.
 
 For an older installation with a generated, long `AGENTS.md`, refresh it to the
 small marked block:

@@ -692,7 +692,11 @@ stage_harness_core_cli() {
     cp "$SOURCE_ROOT/target/debug/harness" "$CORE_STAGED_BINARY"
   else
     local release_tag base_url binary_url checksum_url checksum_tmp expected actual
-    release_tag="$(read_harness_release_tag)"
+    if [ -n "${CORE_PENDING_VERSION:-}" ]; then
+      release_tag="harness-v$CORE_PENDING_VERSION"
+    else
+      release_tag="$(read_harness_release_tag)"
+    fi
     [[ "$release_tag" =~ ^harness-v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9]+)*$ ]] ||
       fail "invalid Harness core release tag: $release_tag"
     base_url="${HARNESS_CORE_CLI_BASE_URL:-https://github.com/hoangnb24/repository-harness/releases/download/$release_tag}"
@@ -705,20 +709,36 @@ stage_harness_core_cli() {
     actual="$(sha256_file "$CORE_STAGED_BINARY")"
     [ -n "$expected" ] && [ "$expected" = "$actual" ] ||
       fail "Checksum mismatch for $CORE_BINARY_NAME: expected $expected, got $actual"
+    local reported_version
+    chmod 755 "$CORE_STAGED_BINARY"
+    reported_version="$("$CORE_STAGED_BINARY" --version | awk '{ print $NF; exit }')"
+    [ "$reported_version" = "${release_tag#harness-v}" ] ||
+      fail "Harness core release identity mismatch: tag=${release_tag#harness-v}, binary=$reported_version"
   fi
   chmod 755 "$CORE_STAGED_BINARY"
 }
 
 install_harness_core() {
-  stage_harness_core_cli
   local command="install"
   [ -f "$TARGET_DIR/.harness-core/manifest.json" ] && command="update"
+  CORE_PENDING_VERSION=""
+  if [ "$command" = "update" ] && [ -f "$TARGET_DIR/.harness-core/update/session.json" ]; then
+    CORE_PENDING_VERSION="$(sed -n 's/.*"to_version":[[:space:]]*"\([^"]*\)".*/\1/p' "$TARGET_DIR/.harness-core/update/session.json" | head -n 1)"
+    [ -n "$CORE_PENDING_VERSION" ] || fail "could not read pending Harness update version"
+  fi
+  stage_harness_core_cli
   local args=("$command" --directory "$TARGET_DIR")
+  [ "$command" = "update" ] && args+=(--candidate)
+  [ -n "$CORE_PENDING_VERSION" ] && args+=(--continue)
   [ "$DRY_RUN" -eq 1 ] && args+=(--dry-run)
   local runner="$CORE_STAGED_BINARY"
+  local binary_target="" binary_temp=""
   if [ "$DRY_RUN" -eq 0 ]; then
-    local binary_target="$TARGET_DIR/scripts/bin/harness"
-    local binary_temp="$TARGET_DIR/scripts/bin/.harness.$$.tmp"
+    binary_target="$TARGET_DIR/scripts/bin/harness"
+    binary_temp="$TARGET_DIR/scripts/bin/.harness.$$.tmp"
+    [ ! -L "$TARGET_DIR/scripts" ] || fail "refusing symlink for repository scripts directory"
+    [ ! -L "$TARGET_DIR/scripts/bin" ] || fail "refusing symlink for repository scripts/bin directory"
+    [ ! -L "$binary_target" ] || fail "refusing symlink for repository Harness executable"
     mkdir -p "$(dirname "$binary_target")"
     cp "$CORE_STAGED_BINARY" "$binary_temp"
     chmod 755 "$binary_temp"
@@ -726,17 +746,33 @@ install_harness_core() {
       mkdir -p "$BACKUP_DIR/scripts/bin"
       cp -p "$binary_target" "$BACKUP_DIR/scripts/bin/harness"
     fi
-    mv -f "$binary_temp" "$binary_target"
-    runner="$binary_target"
-    merge_core_gitignore "$TARGET_DIR/.gitignore"
-    log "installed scripts/bin/harness ($CORE_PLATFORM)"
   fi
   set +e
   "$runner" "${args[@]}"
   local command_status=$?
   set -e
+  if [ "$command_status" -eq 2 ] && [ "$DRY_RUN" -eq 0 ]; then
+    local retained="$TARGET_DIR/.harness-core/update-candidate/harness"
+    [ ! -L "$TARGET_DIR/.harness-core" ] || fail "refusing symlink for .harness-core"
+    [ ! -L "$TARGET_DIR/.harness-core/update-candidate" ] || fail "refusing symlink for retained candidate directory"
+    [ ! -L "$retained" ] || fail "refusing symlink for retained update candidate"
+    mkdir -p "$(dirname "$retained")"
+    cp "$CORE_STAGED_BINARY" "$retained"
+    chmod 755 "$retained"
+  fi
+  if [ "$command_status" -eq 0 ] && [ "$DRY_RUN" -eq 0 ]; then
+    mv -f "$binary_temp" "$binary_target"
+    rm -rf "$TARGET_DIR/.harness-core/update-candidate"
+    merge_core_gitignore "$TARGET_DIR/.gitignore"
+    log "installed scripts/bin/harness ($CORE_PLATFORM)"
+  elif [ -n "$binary_temp" ]; then
+    rm -f "$binary_temp"
+  fi
   rm -rf "$CORE_STAGE_ROOT"
   CORE_STAGE_ROOT=""
+  if [ "$command_status" -eq 2 ]; then
+    fail "Harness core update needs resolution; edit .harness-core/update/resolved/, then rerun this installer or harness update --continue"
+  fi
   [ "$command_status" -eq 0 ] || fail "harness $command failed with exit code $command_status"
 }
 

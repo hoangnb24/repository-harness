@@ -16,7 +16,7 @@ installer behavior runs separately in `.github/workflows/premerge.yml`.
 
 | Location | Protects | Failure visible to | Invocation | Removal boundary |
 | --- | --- | --- | --- | --- |
-| `crates/harness/tests/` | Core installation, provenance, three-way updates, recovery, and clean architecture | Every default Harness installation | `cargo test --workspace --locked` | Remove only with the Rust `harness` maintenance product |
+| `crates/harness/tests/` | Core installation, latest-release handoff, provenance, agent-resolvable three-way updates, recovery, and clean architecture | Every default Harness installation | `cargo test --workspace --locked` | Remove only with the Rust `harness` maintenance product |
 | `tests/workflow/` | Repository-centered read-only, bounded, durable-plan, and authority behavior | Agents and maintainers using the default workflow | Directly from `scripts/validate-premerge.sh` | Replace only with stronger real-agent outcome evaluation |
 | `tests/docs/test-doc-contracts.sh` | Current authority, documentation indexes, installation boundaries, and validation entry points remain coherent | Contributors and installed-core maintainers | Directly from `scripts/validate-premerge.sh` | Remove only after equivalent link and authority checks exist elsewhere |
 | `tests/boundary/test-phase5-optional-consumer-split.sh` | A fresh core does not install Symphony, SQLite lifecycle, traces, scoring, or evaluation machinery | Default core users | Directly from `scripts/validate-premerge.sh` | Remove when the core/optional-consumer boundary no longer exists |

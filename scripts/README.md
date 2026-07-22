@@ -18,13 +18,30 @@ three-way updates, provenance, status, and diagnostics:
 ```bash
 scripts/bin/harness update --dry-run
 scripts/bin/harness update
+scripts/bin/harness update --continue --dry-run
+scripts/bin/harness update --continue
+scripts/bin/harness update --abort
 scripts/bin/harness status
 scripts/bin/harness doctor
 ```
 
+`update` resolves the published core-release pointer, downloads that exact
+versioned release candidate and SHA-256 sidecar, requires the tag and binary
+versions to agree, then delegates preview or application to the verified
+candidate. Overlapping local/upstream edits create an ignored
+`.harness-core/update/` resolution packet without changing live managed files.
+After an agent obtains human direction and edits the staged RESOLVED copy, use
+`--continue`; use `--abort` to discard the session. Running normal `update`
+instead abandons the pending plan and replans a direct jump from the installed
+version to the latest release; dry-run previews that jump without discarding
+the session.
+
 The platform installers bootstrap a checksum-verified immutable artifact and
-delegate core semantics to this binary. They do not independently merge core
-content.
+delegate core semantics to this binary. They run an update candidate before
+replacing an existing executable. A conflict retains the candidate under
+`.harness-core/update-candidate/`; resolve the packet and rerun the installer to
+continue the pending version and replace the binary only after success.
+Repository executable and retained-candidate paths must not be symlinks.
 
 ## Compatibility Harness CLI
 

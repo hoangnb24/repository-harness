@@ -347,11 +347,25 @@ function Merge-CoreGitignore([string]$Target) {
     Write-Step "updated  .gitignore (appended Harness core binary rules)"
 }
 
+function Assert-NotReparsePoint([string]$Path, [string]$Label) {
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if ($null -ne $item -and (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) {
+        Fail "refusing symlink or reparse point for $Label"
+    }
+}
+
 function Install-HarnessCore {
     $platform = if ($env:HARNESS_CORE_CLI_PLATFORM) { $env:HARNESS_CORE_CLI_PLATFORM } else { "windows-x64" }
     if ($platform -ne "windows-x64") { Fail "Unsupported Windows Harness core platform: $platform" }
     $stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("harness-core-" + [guid]::NewGuid().ToString("N"))
     $staged = Join-Path $stageRoot "harness.exe"
+    $command = if (Test-Path (Join-Path $script:TargetDir ".harness-core/manifest.json")) { "update" } else { "install" }
+    $pendingVersion = $null
+    $sessionPath = Join-Path $script:TargetDir ".harness-core/update/session.json"
+    if ($command -eq "update" -and (Test-Path $sessionPath)) {
+        $pendingVersion = (Get-Content -LiteralPath $sessionPath -Raw | ConvertFrom-Json).to_version
+        if ([string]::IsNullOrWhiteSpace($pendingVersion)) { Fail "could not read pending Harness update version" }
+    }
     New-Item -ItemType Directory -Force -Path $stageRoot | Out-Null
     try {
         if ($env:HARNESS_CORE_BINARY) {
@@ -362,7 +376,7 @@ function Install-HarnessCore {
             if ($LASTEXITCODE -ne 0) { Fail "could not build the local Rust harness CLI" }
             Copy-Item -LiteralPath (Join-Path $script:Source.Root "target/debug/harness.exe") -Destination $staged
         } else {
-            $releaseTag = Get-HarnessReleaseTag
+            $releaseTag = if ($pendingVersion) { "harness-v$pendingVersion" } else { Get-HarnessReleaseTag }
             if ($releaseTag -notmatch '^harness-v[0-9]+\.[0-9]+\.[0-9]+(?:[-.][A-Za-z0-9]+)*$') { Fail "invalid Harness core release tag: $releaseTag" }
             $baseUrl = if ($env:HARNESS_CORE_CLI_BASE_URL) { $env:HARNESS_CORE_CLI_BASE_URL.TrimEnd("/") } else { "https://github.com/hoangnb24/repository-harness/releases/download/$releaseTag" }
             $binaryUrl = "$baseUrl/harness-windows-x64.exe"
@@ -378,30 +392,57 @@ function Install-HarnessCore {
             $expected = ((Get-Content -LiteralPath $checksum -Raw) -split "\s+")[0].ToLowerInvariant()
             $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $staged).Hash.ToLowerInvariant()
             if ([string]::IsNullOrWhiteSpace($expected) -or $expected -ne $actual) { Fail "Checksum mismatch for harness-windows-x64.exe: expected $expected, got $actual" }
+            $reportedVersion = ((& $staged --version) -split "\s+")[-1]
+            if ($LASTEXITCODE -ne 0 -or $reportedVersion -ne $releaseTag.Substring(9)) {
+                Fail "Harness core release identity mismatch: tag=$($releaseTag.Substring(9)), binary=$reportedVersion"
+            }
         }
 
         $runner = $staged
+        $arguments = @($command, "--directory", $script:TargetDir)
+        if ($command -eq "update") { $arguments += "--candidate" }
+        if ($pendingVersion) { $arguments += "--continue" }
+        if ($DryRun) { $arguments += "--dry-run" }
+        $target = $null
+        $targetTemp = $null
         if (!$DryRun) {
             $target = Join-Path $script:TargetDir "scripts/bin/harness.exe"
+            Assert-NotReparsePoint (Join-Path $script:TargetDir "scripts") "repository scripts directory"
+            Assert-NotReparsePoint (Join-Path $script:TargetDir "scripts/bin") "repository scripts/bin directory"
+            Assert-NotReparsePoint $target "repository Harness executable"
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
             $targetTemp = Join-Path (Split-Path -Parent $target) (".harness." + [guid]::NewGuid().ToString("N") + ".tmp")
             Copy-Item -LiteralPath $staged -Destination $targetTemp
             if (Test-Path $target) {
                 $backup = Join-Path $script:BackupDir "scripts/bin/harness.exe"
                 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backup) | Out-Null
-                [System.IO.File]::Replace($targetTemp, $target, $backup)
+                Copy-Item -LiteralPath $target -Destination $backup -Force
+            }
+        }
+        & $runner @arguments
+        $commandStatus = $LASTEXITCODE
+        if ($commandStatus -eq 2 -and !$DryRun) {
+            $retained = Join-Path $script:TargetDir ".harness-core/update-candidate/harness.exe"
+            Assert-NotReparsePoint (Join-Path $script:TargetDir ".harness-core") ".harness-core"
+            Assert-NotReparsePoint (Join-Path $script:TargetDir ".harness-core/update-candidate") "retained candidate directory"
+            Assert-NotReparsePoint $retained "retained update candidate"
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $retained) | Out-Null
+            Copy-Item -LiteralPath $staged -Destination $retained -Force
+        }
+        if ($commandStatus -eq 0 -and !$DryRun) {
+            if (Test-Path $target) {
+                [System.IO.File]::Replace($targetTemp, $target, $null)
             } else {
                 Move-Item -LiteralPath $targetTemp -Destination $target
             }
-            $runner = $target
+            Remove-Item -LiteralPath (Join-Path $script:TargetDir ".harness-core/update-candidate") -Recurse -Force -ErrorAction SilentlyContinue
             Merge-CoreGitignore (Join-Path $script:TargetDir ".gitignore")
             Write-Step "installed scripts/bin/harness.exe ($platform)"
+        } elseif ($targetTemp) {
+            Remove-Item -LiteralPath $targetTemp -Force -ErrorAction SilentlyContinue
         }
-        $command = if (Test-Path (Join-Path $script:TargetDir ".harness-core/manifest.json")) { "update" } else { "install" }
-        $arguments = @($command, "--directory", $script:TargetDir)
-        if ($DryRun) { $arguments += "--dry-run" }
-        & $runner @arguments
-        if ($LASTEXITCODE -ne 0) { Fail "harness $command failed with exit code $LASTEXITCODE" }
+        if ($commandStatus -eq 2) { Fail "Harness core update needs resolution; edit .harness-core/update/resolved/, then rerun this installer or harness update --continue" }
+        if ($commandStatus -ne 0) { Fail "harness $command failed with exit code $commandStatus" }
     } finally {
         Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue
     }

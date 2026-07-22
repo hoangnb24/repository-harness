@@ -34,6 +34,12 @@ instead of creating permanent plan documents.
 - `repository-cleanup.md`: consolidated active and completed phase authority,
   documented test ownership, and removed caller-free E11/cutover verification
   executables while preserving published compatibility paths.
+- `harness-self-update.md`: made the installed core discover and verify its
+  published release candidate and added atomic, agent-resolvable conflict
+  continuation after human direction.
+- `harness-self-update-hardening.md`: unified update policy in the application
+  layer and hardened complete-plan drift, candidate trust, downgrade,
+  installer-continuation, and executable-recovery boundaries.
 
 The Phase 3 entries are completed evidence checkpoints, not a claim that the
 full application runtime/interface loop is complete. Decision 0021 keeps the

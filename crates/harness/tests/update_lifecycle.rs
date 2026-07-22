@@ -1,7 +1,11 @@
 use std::fs;
 
-use harness::application::{CoreApplication, CoreDistributionPort, PortError};
-use harness::domain::{ContentHash, CoreDistribution, DistributionFile, RelativePath};
+use harness::application::{
+    CoreApplication, CoreDistributionPort, InstallationStatePort, PortError,
+};
+use harness::domain::{
+    ContentHash, CoreDistribution, DistributionFile, InstallationCondition, RelativePath,
+};
 use harness::infrastructure::{FileSystemInstallationState, GitThreeWayMerge};
 use sha2::{Digest, Sha256};
 
@@ -111,6 +115,219 @@ fn update_handles_one_sided_add_remove_and_missing_file_rules_atomically() {
         .iter()
         .any(|value| value.path.as_str() == "docs/upstream.md"));
     assert_eq!(fs::read(root.path().join("docs/local.md")).unwrap(), before);
+}
+
+#[test]
+fn overlapping_update_stages_agent_resolution_and_continues_atomically() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("docs/WORKFLOW.md");
+    let version_one = application("1.0.0", b"rule: base\n");
+    version_one.install(root.path(), false).unwrap();
+    fs::write(&path, b"rule: local policy\n").unwrap();
+
+    let version_two = application("2.0.0", b"rule: upstream policy\n");
+    let stopped = version_two.update(root.path(), false).unwrap();
+    assert!(!stopped.applied);
+    assert!(stopped.resolution_staged);
+    assert_eq!(fs::read(&path).unwrap(), b"rule: local policy\n");
+
+    let resolution = root
+        .path()
+        .join(".harness-core/update/resolved/docs/WORKFLOW.md");
+    let staged = fs::read_to_string(&resolution).unwrap();
+    assert!(staged.contains("<<<<<<< LOCAL"));
+    assert!(staged.contains("||||||| BASE"));
+    assert!(staged.contains(">>>>>>> UPSTREAM"));
+
+    let unresolved = version_two.continue_update(root.path(), false).unwrap_err();
+    assert!(unresolved.to_string().contains("conflict markers"));
+    fs::write(&resolution, b"rule: accepted combined policy\n").unwrap();
+
+    let preview = version_two.continue_update(root.path(), true).unwrap();
+    assert!(!preview.applied);
+    assert_eq!(fs::read(&path).unwrap(), b"rule: local policy\n");
+
+    let applied = version_two.continue_update(root.path(), false).unwrap();
+    assert!(applied.applied);
+    assert_eq!(
+        fs::read(&path).unwrap(),
+        b"rule: accepted combined policy\n"
+    );
+    assert!(!root.path().join(".harness-core/update").exists());
+    assert_eq!(
+        FileSystemInstallationState
+            .load(root.path())
+            .unwrap()
+            .unwrap()
+            .core_version,
+        "2.0.0"
+    );
+    assert_eq!(
+        application("1.0.0", b"older\n")
+            .status(root.path())
+            .unwrap()
+            .condition,
+        InstallationCondition::ExecutableOutdated
+    );
+}
+
+#[test]
+fn normal_update_replaces_a_pending_plan_with_the_newer_candidate() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("docs/WORKFLOW.md");
+    application("0.1.4", b"rule: base\n")
+        .install(root.path(), false)
+        .unwrap();
+    fs::write(&path, b"rule: local policy\n").unwrap();
+
+    let version_018 = application("0.1.8", b"rule: 0.1.8 policy\n");
+    let first = version_018.update(root.path(), false).unwrap();
+    assert!(first.resolution_staged);
+    fs::write(
+        root.path()
+            .join(".harness-core/update/resolved/docs/WORKFLOW.md"),
+        b"resolution prepared for 0.1.8\n",
+    )
+    .unwrap();
+
+    let version_020 = application("0.2.0", b"rule: 0.2.0 policy\n");
+    let preview = version_020.update(root.path(), true).unwrap();
+    assert!(!preview.resolution_staged);
+    let retained_session = FileSystemInstallationState
+        .load_resolution(root.path())
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained_session.to_version, "0.1.8");
+    assert_eq!(
+        fs::read(
+            root.path()
+                .join(".harness-core/update/resolved/docs/WORKFLOW.md")
+        )
+        .unwrap(),
+        b"resolution prepared for 0.1.8\n"
+    );
+
+    let restarted = version_020.update(root.path(), false).unwrap();
+    assert!(restarted.resolution_staged);
+    let session = FileSystemInstallationState
+        .load_resolution(root.path())
+        .unwrap()
+        .unwrap();
+    assert_eq!(session.from_version, "0.1.4");
+    assert_eq!(session.to_version, "0.2.0");
+    let fresh_resolution = fs::read_to_string(
+        root.path()
+            .join(".harness-core/update/resolved/docs/WORKFLOW.md"),
+    )
+    .unwrap();
+    assert!(fresh_resolution.contains("0.2.0 policy"));
+    assert!(!fresh_resolution.contains("resolution prepared for 0.1.8"));
+    assert_eq!(fs::read(&path).unwrap(), b"rule: local policy\n");
+}
+
+#[test]
+fn resolution_rejects_workspace_drift_and_can_be_aborted_without_file_changes() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("docs/WORKFLOW.md");
+    application("1.0.0", b"base\n")
+        .install(root.path(), false)
+        .unwrap();
+    fs::write(&path, b"local\n").unwrap();
+    let candidate = application("2.0.0", b"incoming\n");
+    candidate.update(root.path(), false).unwrap();
+    fs::write(&path, b"changed after staging\n").unwrap();
+
+    let error = candidate.continue_update(root.path(), false).unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("changed after conflict detection"));
+    assert!(candidate.abort_update(root.path()).unwrap());
+    assert_eq!(fs::read(&path).unwrap(), b"changed after staging\n");
+    assert!(!root.path().join(".harness-core/update").exists());
+}
+
+#[test]
+fn resolution_rejects_drift_in_a_file_that_was_clean_when_staged() {
+    let root = tempfile::tempdir().unwrap();
+    let version_one = application_with_files(
+        "1.0.0",
+        &[
+            ("docs/conflict.md", b"base conflict\n"),
+            ("docs/clean.md", b"base clean\n"),
+        ],
+    );
+    version_one.install(root.path(), false).unwrap();
+    fs::write(root.path().join("docs/conflict.md"), b"local conflict\n").unwrap();
+
+    let version_two = application_with_files(
+        "2.0.0",
+        &[
+            ("docs/conflict.md", b"incoming conflict\n"),
+            ("docs/clean.md", b"incoming clean\n"),
+        ],
+    );
+    let stopped = version_two.update(root.path(), false).unwrap();
+    assert!(stopped.resolution_staged);
+    fs::write(
+        root.path()
+            .join(".harness-core/update/resolved/docs/conflict.md"),
+        b"human-approved conflict\n",
+    )
+    .unwrap();
+    fs::write(root.path().join("docs/clean.md"), b"changed after review\n").unwrap();
+
+    let error = version_two.continue_update(root.path(), false).unwrap_err();
+    assert!(error.to_string().contains("docs/clean.md"));
+    assert_eq!(
+        fs::read(root.path().join("docs/clean.md")).unwrap(),
+        b"changed after review\n"
+    );
+    assert!(root
+        .path()
+        .join(".harness-core/update/session.json")
+        .is_file());
+}
+
+#[test]
+fn candidate_mode_cannot_downgrade_installed_core_state() {
+    let root = tempfile::tempdir().unwrap();
+    application("2.0.0", b"newer\n")
+        .install(root.path(), false)
+        .unwrap();
+
+    let error = application("1.0.0", b"older\n")
+        .update(root.path(), false)
+        .unwrap_err();
+
+    assert!(error.to_string().contains("refusing to downgrade"));
+    assert_eq!(
+        FileSystemInstallationState
+            .load(root.path())
+            .unwrap()
+            .unwrap()
+            .core_version,
+        "2.0.0"
+    );
+}
+
+#[test]
+fn existing_state_gitignore_is_augmented_without_losing_custom_rules() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir_all(root.path().join(".harness-core")).unwrap();
+    fs::write(
+        root.path().join(".harness-core/.gitignore"),
+        "/custom-local-state/\n",
+    )
+    .unwrap();
+
+    application("1.0.0", b"base\n")
+        .install(root.path(), false)
+        .unwrap();
+
+    let ignore = fs::read_to_string(root.path().join(".harness-core/.gitignore")).unwrap();
+    assert!(ignore.contains("/custom-local-state/"));
+    assert!(ignore.contains("/update/"));
+    assert!(ignore.contains("/update-candidate/"));
 }
 
 fn application(

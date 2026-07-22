@@ -22,6 +22,7 @@ consumer product choices.
 | [0022](https://github.com/hoangnb24/repository-harness/blob/main/docs/decisions/0022-control-plane-freeze-and-compatibility-runway.md) | Active | Control-Plane Freeze And Compatibility Runway |
 | [0023](https://github.com/hoangnb24/repository-harness/blob/main/docs/decisions/0023-optional-consumer-ownership.md) | Active | Optional Consumer Ownership |
 | [0024](https://github.com/hoangnb24/repository-harness/blob/main/docs/decisions/0024-rust-harness-core-maintenance-cli.md) | Accepted target | Rust Harness Core Maintenance CLI |
+| [0025](https://github.com/hoangnb24/repository-harness/blob/main/docs/decisions/0025-latest-release-self-update-and-human-directed-conflicts.md) | Active | Latest-Release Self-Update And Human-Directed Conflicts |
 
 ## Compatibility Decisions
 

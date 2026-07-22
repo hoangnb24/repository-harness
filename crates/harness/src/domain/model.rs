@@ -168,6 +168,29 @@ pub struct UpdateConflict {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolutionConflict {
+    pub path: RelativePath,
+    pub base: Vec<u8>,
+    pub local: Vec<u8>,
+    pub incoming: Vec<u8>,
+    pub resolved: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FrozenWorkspaceFile {
+    pub path: RelativePath,
+    pub content: Option<Vec<u8>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UpdateResolutionSession {
+    pub from_version: String,
+    pub to_version: String,
+    pub conflicts: Vec<ResolutionConflict>,
+    pub frozen_files: Vec<FrozenWorkspaceFile>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InstallReport {
     pub version: String,
     pub dry_run: bool,
@@ -185,6 +208,7 @@ pub struct UpdateReport {
     pub applied: bool,
     pub changes: Vec<PlannedFileChange>,
     pub conflicts: Vec<UpdateConflict>,
+    pub resolution_staged: bool,
     pub backup_path: Option<String>,
     pub recovered_interrupted_transaction: bool,
 }
@@ -194,6 +218,7 @@ pub enum InstallationCondition {
     NotInstalled,
     Current,
     UpdateAvailable,
+    ExecutableOutdated,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -227,7 +252,7 @@ pub struct DoctorReport {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MergeOutcome {
     Clean(Vec<u8>),
-    Conflict(String),
+    Conflict { content: Vec<u8>, detail: String },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

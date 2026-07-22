@@ -9,7 +9,8 @@ use sha2::{Digest, Sha256};
 
 use crate::application::{InstallationStatePort, PortError};
 use crate::domain::{
-    ApplyReceipt, BaselineFile, ContentHash, InstallationState, RelativePath, WorkspaceMutation,
+    ApplyReceipt, BaselineFile, ContentHash, FrozenWorkspaceFile, InstallationState, RelativePath,
+    ResolutionConflict, UpdateResolutionSession, WorkspaceMutation,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -24,6 +25,7 @@ impl InstallationStatePort for FileSystemInstallationState {
         }
         reject_symlink(&state_root, ".harness-core")?;
         fs::create_dir_all(&state_root).map_err(io_error)?;
+        ensure_state_ignore(&state_root)?;
         let lock = acquire_lock(&state_root)?;
         let result = recover_locked(root, &state_root);
         FileExt::unlock(&lock).map_err(io_error)?;
@@ -94,6 +96,7 @@ impl InstallationStatePort for FileSystemInstallationState {
             reject_symlink(&state_root, ".harness-core")?;
         }
         fs::create_dir_all(&state_root).map_err(io_error)?;
+        ensure_state_ignore(&state_root)?;
         let lock = acquire_lock(&state_root)?;
         recover_locked(root, &state_root)?;
         let result = apply_locked(root, &state_root, state, mutations);
@@ -109,6 +112,319 @@ impl InstallationStatePort for FileSystemInstallationState {
         FileExt::unlock(&lock).map_err(io_error)?;
         result
     }
+
+    fn apply_if_unchanged(
+        &self,
+        root: &Path,
+        state: &InstallationState,
+        mutations: &[WorkspaceMutation],
+        expected: &[FrozenWorkspaceFile],
+    ) -> Result<ApplyReceipt, PortError> {
+        ensure_workspace_root(root)?;
+        state
+            .validate()
+            .map_err(|error| PortError::new(error.to_string()))?;
+        let state_root = state_root(root);
+        if state_root.exists() {
+            reject_symlink(&state_root, ".harness-core")?;
+        }
+        fs::create_dir_all(&state_root).map_err(io_error)?;
+        ensure_state_ignore(&state_root)?;
+        let lock = acquire_lock(&state_root)?;
+        recover_locked(root, &state_root)?;
+        let result = verify_frozen_locked(root, expected)
+            .and_then(|_| apply_locked(root, &state_root, state, mutations));
+        let result = match result {
+            Ok(receipt) => Ok(receipt),
+            Err(error) => match recover_locked(root, &state_root) {
+                Ok(_) => Err(error),
+                Err(recovery_error) => Err(PortError::new(format!(
+                    "{error}; automatic recovery also failed: {recovery_error}"
+                ))),
+            },
+        };
+        FileExt::unlock(&lock).map_err(io_error)?;
+        result
+    }
+
+    fn resolution_pending(&self, root: &Path) -> Result<bool, PortError> {
+        if !root.exists() {
+            return Ok(false);
+        }
+        validate_workspace_root(root)?;
+        let state_root = state_root(root);
+        if !state_root.exists() {
+            return Ok(false);
+        }
+        reject_symlink(&state_root, ".harness-core")?;
+        Ok(update_root(&state_root).join("session.json").is_file())
+    }
+
+    fn stage_resolution(
+        &self,
+        root: &Path,
+        session: &UpdateResolutionSession,
+    ) -> Result<(), PortError> {
+        ensure_workspace_root(root)?;
+        let state_root = state_root(root);
+        if state_root.exists() {
+            reject_symlink(&state_root, ".harness-core")?;
+        }
+        fs::create_dir_all(&state_root).map_err(io_error)?;
+        ensure_state_ignore(&state_root)?;
+        let lock = acquire_lock(&state_root)?;
+        let result = stage_resolution_locked(&state_root, session);
+        FileExt::unlock(&lock).map_err(io_error)?;
+        result
+    }
+
+    fn load_resolution(&self, root: &Path) -> Result<Option<UpdateResolutionSession>, PortError> {
+        if !root.exists() {
+            return Ok(None);
+        }
+        validate_workspace_root(root)?;
+        let state_root = state_root(root);
+        if !state_root.exists() {
+            return Ok(None);
+        }
+        reject_symlink(&state_root, ".harness-core")?;
+        load_resolution_session(&state_root)
+    }
+
+    fn clear_resolution(&self, root: &Path) -> Result<bool, PortError> {
+        if !root.exists() {
+            return Ok(false);
+        }
+        validate_workspace_root(root)?;
+        let state_root = state_root(root);
+        if !state_root.exists() {
+            return Ok(false);
+        }
+        reject_symlink(&state_root, ".harness-core")?;
+        let lock = acquire_lock(&state_root)?;
+        let path = update_root(&state_root);
+        let removed = path.exists();
+        if removed {
+            reject_symlink(&path, ".harness-core/update")?;
+        }
+        let result = remove_dir_if_exists(&path).map(|_| removed);
+        FileExt::unlock(&lock).map_err(io_error)?;
+        result
+    }
+}
+
+fn stage_resolution_locked(
+    state_root: &Path,
+    session: &UpdateResolutionSession,
+) -> Result<(), PortError> {
+    if session.conflicts.is_empty() {
+        return Err(PortError::new("cannot stage an empty resolution session"));
+    }
+    let update_root = update_root(state_root);
+    if update_root.exists() {
+        reject_symlink(&update_root, ".harness-core/update")?;
+    }
+    remove_dir_if_exists(&update_root)?;
+    fs::create_dir_all(&update_root).map_err(io_error)?;
+    let mut conflicts = Vec::new();
+    for conflict in &session.conflicts {
+        validate_resolution_path(&update_root, &conflict.path)?;
+        for (directory, content) in [
+            ("base", &conflict.base),
+            ("local", &conflict.local),
+            ("incoming", &conflict.incoming),
+            ("resolved", &conflict.resolved),
+        ] {
+            copy_bytes(
+                content,
+                &update_root.join(directory).join(conflict.path.as_str()),
+            )?;
+        }
+        conflicts.push(ResolutionConflictDto {
+            path: conflict.path.as_str().to_owned(),
+        });
+    }
+    let mut frozen_files = Vec::new();
+    for frozen in &session.frozen_files {
+        validate_resolution_path(&update_root, &frozen.path)?;
+        if let Some(content) = &frozen.content {
+            copy_bytes(
+                content,
+                &update_root.join("frozen").join(frozen.path.as_str()),
+            )?;
+        }
+        frozen_files.push(FrozenWorkspaceFileDto {
+            path: frozen.path.as_str().to_owned(),
+            present: frozen.content.is_some(),
+        });
+    }
+    let dto = ResolutionSessionDto {
+        schema_version: 2,
+        from_version: session.from_version.clone(),
+        to_version: session.to_version.clone(),
+        conflicts,
+        frozen_files,
+    };
+    write_json_atomic(&update_root.join("session.json"), &dto, "resolution")
+}
+
+fn load_resolution_session(
+    state_root: &Path,
+) -> Result<Option<UpdateResolutionSession>, PortError> {
+    let update_root = update_root(state_root);
+    let session_path = update_root.join("session.json");
+    if !session_path.exists() {
+        return Ok(None);
+    }
+    reject_symlink(&update_root, ".harness-core/update")?;
+    reject_symlink(&session_path, ".harness-core/update/session.json")?;
+    let dto: ResolutionSessionDto = read_json(&session_path)?;
+    if dto.schema_version != 2 {
+        return Err(PortError::new(format!(
+            "unsupported update resolution schema: {}",
+            dto.schema_version
+        )));
+    }
+    let mut conflicts = Vec::new();
+    for item in dto.conflicts {
+        let path =
+            RelativePath::parse(item.path).map_err(|error| PortError::new(error.to_string()))?;
+        validate_resolution_path(&update_root, &path)?;
+        conflicts.push(ResolutionConflict {
+            base: read_resolution_file(&update_root, "base", &path)?,
+            local: read_resolution_file(&update_root, "local", &path)?,
+            incoming: read_resolution_file(&update_root, "incoming", &path)?,
+            resolved: read_resolution_file(&update_root, "resolved", &path)?,
+            path,
+        });
+    }
+    let mut frozen_files = Vec::new();
+    for item in dto.frozen_files {
+        let path =
+            RelativePath::parse(item.path).map_err(|error| PortError::new(error.to_string()))?;
+        validate_resolution_path(&update_root, &path)?;
+        let content = if item.present {
+            Some(read_resolution_file(&update_root, "frozen", &path)?)
+        } else {
+            let target = update_root.join("frozen").join(path.as_str());
+            if target.exists() {
+                return Err(PortError::new(format!(
+                    "absent frozen path unexpectedly exists: {path}"
+                )));
+            }
+            None
+        };
+        frozen_files.push(FrozenWorkspaceFile { path, content });
+    }
+    Ok(Some(UpdateResolutionSession {
+        from_version: dto.from_version,
+        to_version: dto.to_version,
+        conflicts,
+        frozen_files,
+    }))
+}
+
+fn read_resolution_file(
+    update_root: &Path,
+    directory: &str,
+    path: &RelativePath,
+) -> Result<Vec<u8>, PortError> {
+    let target = update_root.join(directory).join(path.as_str());
+    validate_resolution_path(update_root, path)?;
+    let metadata = fs::symlink_metadata(&target).map_err(|error| {
+        PortError::new(format!(
+            "could not read {directory} resolution for {path}: {error}"
+        ))
+    })?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(PortError::new(format!(
+            "resolution input is not a regular file: {}",
+            target.display()
+        )));
+    }
+    fs::read(target).map_err(io_error)
+}
+
+fn validate_resolution_path(update_root: &Path, path: &RelativePath) -> Result<(), PortError> {
+    for directory in ["base", "local", "incoming", "resolved", "frozen"] {
+        let mut current = update_root.join(directory);
+        if current.exists() {
+            reject_symlink(&current, directory)?;
+        }
+        for component in path.as_str().split('/') {
+            current.push(component);
+            if current.exists() {
+                reject_symlink(&current, path.as_str())?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn ensure_state_ignore(state_root: &Path) -> Result<(), PortError> {
+    let path = state_root.join(".gitignore");
+    let rules = [
+        "/lock",
+        "/transaction.json",
+        "/base.next-*",
+        "/update/",
+        "/update-candidate/",
+    ];
+    if path.exists() {
+        reject_symlink(&path, ".harness-core/.gitignore")?;
+        let metadata = fs::metadata(&path).map_err(io_error)?;
+        if !metadata.is_file() {
+            return Err(PortError::new(
+                ".harness-core/.gitignore is not a regular file",
+            ));
+        }
+        let mut content = fs::read_to_string(&path).map_err(io_error)?;
+        let mut changed = false;
+        for rule in rules {
+            if !content.lines().any(|line| line.trim() == rule) {
+                if !content.is_empty() && !content.ends_with('\n') {
+                    content.push('\n');
+                }
+                content.push_str(rule);
+                content.push('\n');
+                changed = true;
+            }
+        }
+        if changed {
+            copy_bytes_atomic(content.as_bytes(), &path, "ignore")?;
+        }
+        return Ok(());
+    }
+    copy_bytes(
+        b"/lock\n/transaction.json\n/base.next-*\n/update/\n/update-candidate/\n",
+        &path,
+    )
+}
+
+fn verify_frozen_locked(root: &Path, expected: &[FrozenWorkspaceFile]) -> Result<(), PortError> {
+    for frozen in expected {
+        validate_path(root, &frozen.path)?;
+        let target = root.join(frozen.path.as_str());
+        let actual = if target.exists() {
+            let metadata = fs::symlink_metadata(&target).map_err(io_error)?;
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err(PortError::new(format!(
+                    "workspace changed after conflict detection for {}",
+                    frozen.path
+                )));
+            }
+            Some(fs::read(target).map_err(io_error)?)
+        } else {
+            None
+        };
+        if actual != frozen.content {
+            return Err(PortError::new(format!(
+                "workspace changed after conflict detection for {}",
+                frozen.path
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn apply_locked(
@@ -498,6 +814,10 @@ fn state_root(root: &Path) -> PathBuf {
     root.join(".harness-core")
 }
 
+fn update_root(state_root: &Path) -> PathBuf {
+    state_root.join("update")
+}
+
 fn transaction_id() -> Result<String, PortError> {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -549,6 +869,26 @@ enum TransactionPhase {
 struct JournalFile {
     path: String,
     existed: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ResolutionSessionDto {
+    schema_version: u32,
+    from_version: String,
+    to_version: String,
+    conflicts: Vec<ResolutionConflictDto>,
+    frozen_files: Vec<FrozenWorkspaceFileDto>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ResolutionConflictDto {
+    path: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct FrozenWorkspaceFileDto {
+    path: String,
+    present: bool,
 }
 
 #[cfg(test)]

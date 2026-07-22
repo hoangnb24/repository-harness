@@ -6,8 +6,9 @@ use crate::application::{
 };
 use crate::domain::{
     BaselineFile, ConflictReason, CoreDistribution, DoctorCheck, DoctorReport, FileChangeKind,
-    FileStatus, InstallReport, InstallationCondition, InstallationState, MergeOutcome,
-    PlannedFileChange, StatusReport, UpdateConflict, UpdateReport, WorkspaceMutation,
+    FileStatus, FrozenWorkspaceFile, InstallReport, InstallationCondition, InstallationState,
+    MergeOutcome, PlannedFileChange, ResolutionConflict, StatusReport, UpdateConflict,
+    UpdateReport, UpdateResolutionSession, WorkspaceMutation,
 };
 
 pub struct CoreApplication<D, S, M> {
@@ -91,10 +92,161 @@ where
             .load(root)?
             .ok_or(ApplicationError::NotInstalled)?;
         installed.validate()?;
+        ensure_forward_version(&installed.core_version, &distribution.version)?;
 
+        let plan = self.plan_update(root, &distribution, &installed, &BTreeMap::new())?;
+        if !dry_run {
+            // A normal update means "re-plan from the installed version to the
+            // latest candidate". Only --continue remains pinned to an existing
+            // resolution session.
+            self.state.clear_resolution(root)?;
+            if !plan.conflicts.is_empty() && plan.conflicts.len() == plan.resolution_conflicts.len()
+            {
+                self.state.stage_resolution(
+                    root,
+                    &UpdateResolutionSession {
+                        from_version: installed.core_version.clone(),
+                        to_version: distribution.version.clone(),
+                        conflicts: plan.resolution_conflicts.clone(),
+                        frozen_files: plan.frozen_files.clone(),
+                    },
+                )?;
+            }
+        }
+
+        let mut report = self.finish_update(
+            root,
+            distribution,
+            installed,
+            plan,
+            FinishUpdate {
+                dry_run,
+                recovered,
+                expected: None,
+            },
+        )?;
+        if dry_run {
+            // A normal dry-run previews a fresh latest-version plan but does
+            // not claim that this preview replaced the retained session.
+            report.resolution_staged = false;
+        }
+        Ok(report)
+    }
+
+    pub fn continue_update(
+        &self,
+        root: &Path,
+        dry_run: bool,
+    ) -> Result<UpdateReport, ApplicationError> {
+        let distribution = self.load_distribution()?;
+        let recovered = if dry_run {
+            false
+        } else {
+            self.state.recover_interrupted(root)?
+        };
+        let installed = self
+            .state
+            .load(root)?
+            .ok_or(ApplicationError::NotInstalled)?;
+        installed.validate()?;
+        ensure_forward_version(&installed.core_version, &distribution.version)?;
+        let session = self
+            .state
+            .load_resolution(root)?
+            .ok_or(ApplicationError::NoResolutionPending)?;
+        if session.from_version != installed.core_version
+            || session.to_version != distribution.version
+        {
+            return Err(ApplicationError::ResolutionVersionMismatch {
+                installed: installed.core_version,
+                candidate: distribution.version,
+                session_from: session.from_version,
+                session_to: session.to_version,
+            });
+        }
+        let upstream = distribution
+            .files
+            .iter()
+            .map(|file| (file.path.clone(), file))
+            .collect::<BTreeMap<_, _>>();
+        let baselines = installed
+            .files
+            .iter()
+            .map(|file| (file.path.clone(), file))
+            .collect::<BTreeMap<_, _>>();
+        let expected_paths = upstream
+            .keys()
+            .chain(baselines.keys())
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let frozen_paths = session
+            .frozen_files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<BTreeSet<_>>();
+        if frozen_paths.len() != session.frozen_files.len() || frozen_paths != expected_paths {
+            return Err(ApplicationError::ResolutionPlanMismatch);
+        }
+        for frozen in &session.frozen_files {
+            let current = self.state.read_workspace_file(root, &frozen.path)?;
+            if current != frozen.content {
+                return Err(ApplicationError::ResolutionDrift(frozen.path.clone()));
+            }
+        }
+        let mut resolutions = BTreeMap::new();
+        for conflict in &session.conflicts {
+            let current = self
+                .state
+                .read_workspace_file(root, &conflict.path)?
+                .ok_or_else(|| ApplicationError::ResolutionDrift(conflict.path.clone()))?;
+            let base_matches = baselines
+                .get(&conflict.path)
+                .is_some_and(|base| base.content == conflict.base);
+            let incoming_matches = upstream
+                .get(&conflict.path)
+                .is_some_and(|incoming| incoming.content == conflict.incoming);
+            if current != conflict.local || !base_matches || !incoming_matches {
+                return Err(ApplicationError::ResolutionDrift(conflict.path.clone()));
+            }
+            if contains_conflict_markers(&conflict.resolved) {
+                return Err(ApplicationError::UnresolvedMarkers(conflict.path.clone()));
+            }
+            resolutions.insert(conflict.path.clone(), conflict.resolved.clone());
+        }
+        let plan = self.plan_update(root, &distribution, &installed, &resolutions)?;
+        let report = self.finish_update(
+            root,
+            distribution,
+            installed,
+            plan,
+            FinishUpdate {
+                dry_run,
+                recovered,
+                expected: Some(&session.frozen_files),
+            },
+        )?;
+        if report.applied {
+            self.state.clear_resolution(root)?;
+        }
+        Ok(report)
+    }
+
+    pub fn abort_update(&self, root: &Path) -> Result<bool, ApplicationError> {
+        self.state.clear_resolution(root).map_err(Into::into)
+    }
+
+    fn plan_update(
+        &self,
+        root: &Path,
+        distribution: &CoreDistribution,
+        installed: &InstallationState,
+        resolutions: &BTreeMap<crate::domain::RelativePath, Vec<u8>>,
+    ) -> Result<UpdatePlan, ApplicationError> {
         let mut changes = Vec::new();
         let mut conflicts = Vec::new();
+        let mut resolution_conflicts = Vec::new();
         let mut mutations = Vec::new();
+        let mut frozen_files = Vec::new();
         let upstream = distribution
             .files
             .iter()
@@ -121,8 +273,25 @@ where
                 continue;
             }
             let local = self.state.read_workspace_file(root, &path)?;
+            frozen_files.push(FrozenWorkspaceFile {
+                path: path.clone(),
+                content: local.clone(),
+            });
             match (baselines.get(&path), upstream.get(&path), local) {
                 (Some(base), Some(next), Some(local)) => {
+                    if let Some(resolved) = resolutions.get(&path) {
+                        let kind = if resolved == &local {
+                            FileChangeKind::Preserve
+                        } else {
+                            mutations.push(WorkspaceMutation::Write {
+                                path: path.clone(),
+                                content: resolved.clone(),
+                            });
+                            FileChangeKind::Update
+                        };
+                        changes.push(PlannedFileChange { path, kind });
+                        continue;
+                    }
                     match self.merge_contents(&base.content, &local, &next.content)? {
                         MergeOutcome::Clean(content) => {
                             let kind = if content == local {
@@ -136,11 +305,20 @@ where
                             };
                             changes.push(PlannedFileChange { path, kind });
                         }
-                        MergeOutcome::Conflict(detail) => conflicts.push(UpdateConflict {
-                            path,
-                            reason: ConflictReason::OverlappingChanges,
-                            detail,
-                        }),
+                        MergeOutcome::Conflict { content, detail } => {
+                            resolution_conflicts.push(ResolutionConflict {
+                                path: path.clone(),
+                                base: base.content.clone(),
+                                local,
+                                incoming: next.content.clone(),
+                                resolved: content,
+                            });
+                            conflicts.push(UpdateConflict {
+                                path,
+                                reason: ConflictReason::OverlappingChanges,
+                                detail,
+                            });
+                        }
                     }
                 }
                 (Some(_), Some(_), None) => conflicts.push(UpdateConflict {
@@ -183,24 +361,46 @@ where
             }
         }
 
+        Ok(UpdatePlan {
+            changes,
+            conflicts,
+            resolution_conflicts,
+            mutations,
+            frozen_files,
+        })
+    }
+
+    fn finish_update(
+        &self,
+        root: &Path,
+        distribution: CoreDistribution,
+        installed: InstallationState,
+        plan: UpdatePlan,
+        options: FinishUpdate<'_>,
+    ) -> Result<UpdateReport, ApplicationError> {
         let mut backup_path = None;
-        let applied = conflicts.is_empty() && !dry_run;
+        let applied = plan.conflicts.is_empty() && !options.dry_run;
         if applied {
-            let receipt =
+            let next_state = state_from_distribution(&distribution);
+            let receipt = if let Some(expected) = options.expected {
                 self.state
-                    .apply(root, &state_from_distribution(&distribution), &mutations)?;
+                    .apply_if_unchanged(root, &next_state, &plan.mutations, expected)?
+            } else {
+                self.state.apply(root, &next_state, &plan.mutations)?
+            };
             backup_path = receipt.backup_path;
         }
 
         Ok(UpdateReport {
             from_version: installed.core_version,
             to_version: distribution.version,
-            dry_run,
+            dry_run: options.dry_run,
             applied,
-            changes,
-            conflicts,
+            changes: plan.changes,
+            conflicts: plan.conflicts,
+            resolution_staged: !applied && self.state.resolution_pending(root)?,
             backup_path,
-            recovered_interrupted_transaction: recovered,
+            recovered_interrupted_transaction: options.recovered,
         })
     }
 
@@ -226,11 +426,17 @@ where
                 missing: local.is_none(),
             });
         }
+        let installed_version = semver::Version::parse(&installed.core_version)
+            .map_err(|_| ApplicationError::InvalidCoreVersion(installed.core_version.clone()))?;
+        let target_version = semver::Version::parse(&distribution.version)
+            .map_err(|_| ApplicationError::InvalidCoreVersion(distribution.version.clone()))?;
         Ok(StatusReport {
-            condition: if installed.core_version == distribution.version {
+            condition: if installed_version == target_version {
                 InstallationCondition::Current
-            } else {
+            } else if installed_version < target_version {
                 InstallationCondition::UpdateAvailable
+            } else {
+                InstallationCondition::ExecutableOutdated
             },
             installed_version: Some(installed.core_version),
             target_version: distribution.version,
@@ -248,6 +454,17 @@ where
                 "an interrupted transaction requires recovery by install or update".to_owned()
             } else {
                 "no interrupted transaction".to_owned()
+            },
+        });
+        let resolution_pending = self.state.resolution_pending(root)?;
+        checks.push(DoctorCheck {
+            name: "update_resolution".to_owned(),
+            passed: !resolution_pending,
+            detail: if resolution_pending {
+                "an update conflict awaits human-directed resolution, continuation, or abort"
+                    .to_owned()
+            } else {
+                "no staged update conflict".to_owned()
             },
         });
         checks.push(DoctorCheck {
@@ -312,6 +529,43 @@ where
     }
 }
 
+struct UpdatePlan {
+    changes: Vec<PlannedFileChange>,
+    conflicts: Vec<UpdateConflict>,
+    resolution_conflicts: Vec<ResolutionConflict>,
+    mutations: Vec<WorkspaceMutation>,
+    frozen_files: Vec<FrozenWorkspaceFile>,
+}
+
+struct FinishUpdate<'a> {
+    dry_run: bool,
+    recovered: bool,
+    expected: Option<&'a [FrozenWorkspaceFile]>,
+}
+
+fn ensure_forward_version(installed: &str, candidate: &str) -> Result<(), ApplicationError> {
+    let installed_version = semver::Version::parse(installed)
+        .map_err(|_| ApplicationError::InvalidCoreVersion(installed.to_owned()))?;
+    let candidate_version = semver::Version::parse(candidate)
+        .map_err(|_| ApplicationError::InvalidCoreVersion(candidate.to_owned()))?;
+    if candidate_version < installed_version {
+        return Err(ApplicationError::CoreDowngrade {
+            installed: installed.to_owned(),
+            candidate: candidate.to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn contains_conflict_markers(content: &[u8]) -> bool {
+    content.split(|byte| *byte == b'\n').any(|line| {
+        line.starts_with(b"<<<<<<< ")
+            || line.starts_with(b"||||||| ")
+            || line == b"======="
+            || line.starts_with(b">>>>>>> ")
+    })
+}
+
 fn state_from_distribution(distribution: &CoreDistribution) -> InstallationState {
     InstallationState {
         schema_version: InstallationState::SCHEMA_VERSION,
@@ -334,6 +588,28 @@ pub enum ApplicationError {
     AlreadyInstalled,
     #[error("core is not installed; run `harness install`")]
     NotInstalled,
+    #[error("no update resolution is pending")]
+    NoResolutionPending,
+    #[error("update resolution no longer matches installed/candidate versions (installed={installed}, candidate={candidate}, session={session_from}->{session_to}); abort and restart the update")]
+    ResolutionVersionMismatch {
+        installed: String,
+        candidate: String,
+        session_from: String,
+        session_to: String,
+    },
+    #[error("staged update plan no longer matches the installed/candidate managed paths; abort and restart the update")]
+    ResolutionPlanMismatch,
+    #[error("workspace or staged inputs changed after conflict detection for {0}; abort and restart the update")]
+    ResolutionDrift(crate::domain::RelativePath),
+    #[error("resolution still contains conflict markers for {0}")]
+    UnresolvedMarkers(crate::domain::RelativePath),
+    #[error("invalid Harness core version: {0}")]
+    InvalidCoreVersion(String),
+    #[error("refusing to downgrade installed core {installed} to candidate {candidate}")]
+    CoreDowngrade {
+        installed: String,
+        candidate: String,
+    },
     #[error(transparent)]
     Port(#[from] PortError),
     #[error(transparent)]
@@ -363,6 +639,7 @@ mod tests {
     struct StateFixture {
         installation: RefCell<Option<InstallationState>>,
         files: RefCell<BTreeMap<RelativePath, Vec<u8>>>,
+        resolution: RefCell<Option<UpdateResolutionSession>>,
     }
 
     impl InstallationStatePort for StateFixture {
@@ -409,6 +686,43 @@ mod tests {
             *self.installation.borrow_mut() = Some(state.clone());
             Ok(ApplyReceipt { backup_path: None })
         }
+        fn apply_if_unchanged(
+            &self,
+            root: &Path,
+            state: &InstallationState,
+            mutations: &[WorkspaceMutation],
+            expected: &[FrozenWorkspaceFile],
+        ) -> Result<ApplyReceipt, PortError> {
+            for frozen in expected {
+                if self.files.borrow().get(&frozen.path).cloned() != frozen.content {
+                    return Err(PortError::new(format!(
+                        "workspace changed after conflict detection for {}",
+                        frozen.path
+                    )));
+                }
+            }
+            self.apply(root, state, mutations)
+        }
+        fn resolution_pending(&self, _root: &Path) -> Result<bool, PortError> {
+            Ok(self.resolution.borrow().is_some())
+        }
+        fn stage_resolution(
+            &self,
+            _root: &Path,
+            session: &UpdateResolutionSession,
+        ) -> Result<(), PortError> {
+            *self.resolution.borrow_mut() = Some(session.clone());
+            Ok(())
+        }
+        fn load_resolution(
+            &self,
+            _root: &Path,
+        ) -> Result<Option<UpdateResolutionSession>, PortError> {
+            Ok(self.resolution.borrow().clone())
+        }
+        fn clear_resolution(&self, _root: &Path) -> Result<bool, PortError> {
+            Ok(self.resolution.borrow_mut().take().is_some())
+        }
     }
 
     struct MergeFixture;
@@ -422,7 +736,10 @@ mod tests {
             _local: &[u8],
             _upstream: &[u8],
         ) -> Result<MergeOutcome, PortError> {
-            Ok(MergeOutcome::Conflict("overlap".to_owned()))
+            Ok(MergeOutcome::Conflict {
+                content: b"<<<<<<< local\nlocal\n=======\nincoming\n>>>>>>> upstream\n".to_vec(),
+                detail: "overlap".to_owned(),
+            })
         }
     }
 

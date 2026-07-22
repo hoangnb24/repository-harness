@@ -43,12 +43,46 @@ previous compatibility files. Core files already installed remain usable.
 
 ## Core Update Contract
 
-`harness update --dry-run` reports the planned merge without writing. A normal
-update takes upstream content when the consumer did not change a file, keeps a
-consumer-only edit, and uses Git's three-way text merge when both sides changed.
-An overlapping edit, missing managed file, unsafe path, or corrupt base stops
-the complete update. Successful updates write provenance last and retain prior
-bytes under `.harness-backup/`.
+`harness update --dry-run` resolves the published `harness-v*` core-release
+pointer, downloads and checksum-verifies that exact release candidate, then
+requires its reported version to match that release, then reports the
+candidate's planned merge without writing. A
+normal update takes upstream content when the consumer did not change a file,
+keeps a consumer-only edit, and uses Git's three-way text merge when both sides
+changed. A candidate older than either installed provenance or the executing
+binary is rejected.
+
+An overlapping edit stages an ignored resolution session under
+`.harness-core/update/` with BASE, LOCAL, UPSTREAM, and agent-editable RESOLVED
+copies plus a frozen copy of every other managed input. The remotely
+re-verifiable candidate is retained under `.harness-core/update-candidate/`.
+Managed workspace files, installed provenance, and the executable stay
+unchanged. A normal `harness update` replaces a pending plan and jumps directly
+from the installed version to the latest release; its dry-run previews that
+new plan without removing the existing session. After human direction resolves
+the semantic choice, `harness update --continue --dry-run` previews the accepted
+result for the pinned candidate and `harness update --continue` applies it.
+`harness update --abort` removes only the staged session. Continuation rejects
+unresolved markers, malformed staged inputs, candidate tampering, and drift in
+any managed workspace file.
+
+A missing managed file, unsafe path, corrupt base, or other structural conflict
+also stops the complete update but requires correcting the workspace and
+starting again rather than editing a resolution packet. Successful updates
+write provenance last, retain prior bytes under `.harness-backup/`, and replace
+only the repository-local executing binary after the core-file transaction
+succeeds. A retained candidate lets a later update repair rare core/executable
+version skew. Repository executable and retained-candidate paths must contain
+regular files and directories rather than symlinks.
+
+The first release containing network discovery is a one-time bootstrap
+boundary: older executables must be refreshed with the platform installer once.
+After that transition, installed executables discover later core releases
+themselves.
+
+Installers also execute a candidate before replacing an existing binary. If the
+candidate finds a conflict, resolve the staged file and rerun the installer; it
+continues the exact pending version and replaces the binary only after success.
 
 ## Ownership
 

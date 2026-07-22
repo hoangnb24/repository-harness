@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+use crate::application::ExecutableRecoveryReport;
 use crate::domain::{
     ConflictReason, DoctorReport, FileChangeKind, InstallReport, InstallationCondition,
     StatusReport, UpdateReport,
@@ -68,6 +69,7 @@ pub fn present_update(report: &UpdateReport, json: bool) -> CommandExit {
                 detail: &conflict.detail,
             })
             .collect(),
+        resolution_staged: report.resolution_staged,
         backup_path: report.backup_path.as_deref(),
         recovered_interrupted_transaction: report.recovered_interrupted_transaction,
     };
@@ -95,13 +97,77 @@ pub fn present_update(report: &UpdateReport, json: bool) -> CommandExit {
             })
             .collect::<Vec<_>>()
             .join("\n");
-        format!("Update stopped; no files changed.\n{conflicts}\n")
+        let resolution = if report.resolution_staged {
+            let paths = report
+                .conflicts
+                .iter()
+                .map(|conflict| format!("  .harness-core/update/resolved/{}", conflict.path))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!(
+                "\nResolve after human direction:\n{paths}\nThen run: harness update --continue\nAbort with: harness update --abort\n"
+            )
+        } else {
+            String::new()
+        };
+        format!("Update stopped; no files changed.\n{conflicts}\n{resolution}")
     };
     CommandExit {
         code: if report.conflicts.is_empty() { 0 } else { 2 },
         stdout: render(json, &output, human),
         stderr: String::new(),
     }
+}
+
+pub fn present_abort(removed: bool, json: bool) -> CommandExit {
+    #[derive(Serialize)]
+    struct AbortOutput {
+        operation: &'static str,
+        removed: bool,
+    }
+    success(render(
+        json,
+        &AbortOutput {
+            operation: "update_abort",
+            removed,
+        },
+        if removed {
+            "Staged update resolution aborted; managed files were unchanged.\n".to_owned()
+        } else {
+            "No staged update resolution exists.\n".to_owned()
+        },
+    ))
+}
+
+pub fn present_executable_recovery(report: &ExecutableRecoveryReport, json: bool) -> CommandExit {
+    #[derive(Serialize)]
+    struct RecoveryOutput<'a> {
+        operation: &'static str,
+        executable_version: &'a str,
+        core_version: &'a str,
+        dry_run: bool,
+        applied: bool,
+    }
+    success(render(
+        json,
+        &RecoveryOutput {
+            operation: "executable_recovery",
+            executable_version: &report.executable_version,
+            core_version: &report.core_version,
+            dry_run: report.dry_run,
+            applied: report.applied,
+        },
+        format!(
+            "{} Harness executable {} to match installed core {}.\n",
+            if report.dry_run {
+                "Would recover"
+            } else {
+                "Recovered"
+            },
+            report.executable_version,
+            report.core_version
+        ),
+    ))
 }
 
 pub fn present_status(report: &StatusReport, json: bool) -> CommandExit {
@@ -229,6 +295,7 @@ fn condition(value: &InstallationCondition) -> &'static str {
         InstallationCondition::NotInstalled => "not_installed",
         InstallationCondition::Current => "current",
         InstallationCondition::UpdateAvailable => "update_available",
+        InstallationCondition::ExecutableOutdated => "executable_outdated",
     }
 }
 
@@ -252,6 +319,7 @@ struct UpdateOutput<'a> {
     applied: bool,
     changes: Vec<ChangeOutput<'a>>,
     conflicts: Vec<ConflictOutput<'a>>,
+    resolution_staged: bool,
     backup_path: Option<&'a str>,
     recovered_interrupted_transaction: bool,
 }

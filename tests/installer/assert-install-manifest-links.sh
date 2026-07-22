@@ -65,6 +65,7 @@ def entries(path):
 core_expected = entries(core_manifest)
 core_runtime = {
     ".gitignore",
+    ".harness-core/.gitignore",
     ".harness-core/lock",
     ".harness-core/manifest.json",
     "scripts/bin/harness",

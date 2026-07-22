@@ -25,7 +25,17 @@ impl ThreeWayMergePort for GitThreeWayMerge {
         fs::write(&base_path, base).map_err(io_error)?;
         fs::write(&upstream_path, upstream).map_err(io_error)?;
         let output = Command::new("git")
-            .args(["merge-file", "-p", "--diff3"])
+            .args([
+                "merge-file",
+                "-p",
+                "--diff3",
+                "-L",
+                "LOCAL",
+                "-L",
+                "BASE",
+                "-L",
+                "UPSTREAM",
+            ])
             .arg(&local_path)
             .arg(&base_path)
             .arg(&upstream_path)
@@ -33,9 +43,10 @@ impl ThreeWayMergePort for GitThreeWayMerge {
             .map_err(|error| PortError::new(format!("could not run git merge-file: {error}")))?;
         match output.status.code() {
             Some(0) => Ok(MergeOutcome::Clean(output.stdout)),
-            Some(1) => Ok(MergeOutcome::Conflict(
-                String::from_utf8_lossy(&output.stdout).into_owned(),
-            )),
+            Some(1) => Ok(MergeOutcome::Conflict {
+                content: output.stdout,
+                detail: "local and upstream changes overlap".to_owned(),
+            }),
             _ => Err(PortError::new(format!(
                 "git merge-file failed: {}",
                 String::from_utf8_lossy(&output.stderr).trim()
@@ -64,6 +75,6 @@ mod tests {
             .unwrap();
         assert!(matches!(clean, MergeOutcome::Clean(_)));
         let conflict = merger.merge(b"one\n", b"local\n", b"upstream\n").unwrap();
-        assert!(matches!(conflict, MergeOutcome::Conflict(_)));
+        assert!(matches!(conflict, MergeOutcome::Conflict { .. }));
     }
 }

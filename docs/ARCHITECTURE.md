@@ -27,6 +27,21 @@ writes a durable transaction journal, backs up prior bytes, activates workspace
 files, and commits provenance last. A later mutating command rolls back an
 interrupted apply before starting new work.
 
+`SelfUpdateApplication` owns release identity, monotonic-version, recovery,
+candidate-handoff, and replacement policy through application ports.
+Infrastructure implements network, checksum, process, retained-candidate, and
+platform replacement mechanics; `main.rs` only composes those boundaries.
+Ordinary `harness update` requires the exact release pointer and reported binary
+version to agree and will replace only the selected repository's executing
+binary.
+
+Overlapping merges retain BASE/LOCAL/UPSTREAM/RESOLVED plus the complete frozen
+managed input set under `.harness-core/update/`; the remotely re-verifiable
+candidate remains under `.harness-core/update-candidate/`. An agent may edit
+only RESOLVED after human direction. Continuation verifies every managed input
+and applies under the same state lock. Installers run candidates before binary
+replacement and reuse the same pending-version continuation contract.
+
 The reusable template does not select an application stack for a consumer
 project. The discovery guidance below is for that consumer application after a
 user-provided spec and stack decision exist; it does not describe the upstream
