@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-07-22 - PR #60
+
+- feat(harness): add latest-release self-update (@hoangnb24)
+- Merge commit: `dac022bd81ca411abf50c5056c9dd9989134bafb`
+- Harness CLI candidate: `harness-cli-v0.1.23` (publication requires platform proof)
+- Harness core candidate: `harness-v0.1.5` (publication requires platform proof)
+- Changed files: 35 total (first 20 shown)
+  - `.github/workflows/harness-release.yml`
+  - `Cargo.lock`
+  - `README.md`
+  - `crates/harness/Cargo.toml`
+  - `crates/harness/src/application/mod.rs`
+  - `crates/harness/src/application/ports.rs`
+  - `crates/harness/src/application/self_update.rs`
+  - `crates/harness/src/application/service.rs`
+  - `crates/harness/src/domain/model.rs`
+  - `crates/harness/src/infrastructure/filesystem_state.rs`
+  - `crates/harness/src/infrastructure/git_merge.rs`
+  - `crates/harness/src/infrastructure/mod.rs`
+  - `crates/harness/src/infrastructure/release_handoff.rs`
+  - `crates/harness/src/interface/cli.rs`
+  - `crates/harness/src/interface/mod.rs`
+  - `crates/harness/src/interface/presenter.rs`
+  - `crates/harness/src/main.rs`
+  - `crates/harness/tests/clean_architecture.rs`
+  - `crates/harness/tests/release_update.rs`
+  - `crates/harness/tests/update_lifecycle.rs`
+  - _… 15 additional file(s) omitted from this entry._
+
 ## 2026-07-22 - PR #59
 
 - chore(repo): remove obsolete migration artifacts (@hoangnb24)
