@@ -106,6 +106,19 @@ The default installation downloads a checksum-verified Rust binary named
 not install the optional SQLite compatibility CLI, discover schemas, install
 database bootstrap scripts, or add database ignore rules. It also does not copy
 this upstream repository's README or architecture over consumer-owned truth.
+The core includes the explicit-only `$onboard-repository` and
+`$audit-onboarding-proposal` skills. They never run during installation or
+ordinary tasks.
+
+To map a brownfield repository after installation, ask the agent to run:
+
+```text
+$onboard-repository
+```
+
+The first pass is read-only and returns evidence-backed proposals. Exact user
+approval is required before a later pass may apply selected repository
+guidance.
 
 After installation, preview and apply future core upgrades with:
 
@@ -210,6 +223,10 @@ primitives that protect repository state.
 
 ```text
 project/
+  .agents/
+    skills/
+      onboard-repository/
+      audit-onboarding-proposal/
   AGENTS.md
   docs/
     WORKFLOW.md

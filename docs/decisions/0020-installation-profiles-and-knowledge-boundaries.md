@@ -4,7 +4,8 @@ Date: 2026-07-21
 
 ## Status
 
-Accepted and active.
+Accepted and active. Decision 0026 amends the default core to include the
+explicit-only onboarding skill pair without adding an installation profile.
 
 ## Context
 

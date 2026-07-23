@@ -4,7 +4,9 @@ Date: 2026-07-21
 
 ## Status
 
-Accepted and active.
+Accepted and active. Decision 0026 classifies the explicit-only onboarding
+skill pair as core workflow guidance rather than a generic evaluation
+consumer.
 
 ## Context
 

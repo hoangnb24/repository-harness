@@ -15,6 +15,61 @@ impl CoreDistributionPort for EmbeddedCoreDistribution {
         add(&mut files, "AGENTS.md", &agents)?;
         add(
             &mut files,
+            ".agents/skills/audit-onboarding-proposal/SKILL.md",
+            include_bytes!("../../../../.agents/skills/audit-onboarding-proposal/SKILL.md"),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/audit-onboarding-proposal/agents/openai.yaml",
+            include_bytes!(
+                "../../../../.agents/skills/audit-onboarding-proposal/agents/openai.yaml"
+            ),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py",
+            include_bytes!(
+                "../../../../.agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py"
+            ),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/onboard-repository/SKILL.md",
+            include_bytes!("../../../../.agents/skills/onboard-repository/SKILL.md"),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/onboard-repository/agents/openai.yaml",
+            include_bytes!("../../../../.agents/skills/onboard-repository/agents/openai.yaml"),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/onboard-repository/references/evidence-capsule-v1.md",
+            include_bytes!(
+                "../../../../.agents/skills/onboard-repository/references/evidence-capsule-v1.md"
+            ),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/onboard-repository/references/evidence-capsule-v2.md",
+            include_bytes!(
+                "../../../../.agents/skills/onboard-repository/references/evidence-capsule-v2.md"
+            ),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/onboard-repository/scripts/emit_evidence_bundle.py",
+            include_bytes!(
+                "../../../../.agents/skills/onboard-repository/scripts/emit_evidence_bundle.py"
+            ),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/onboard-repository/scripts/render_patch.py",
+            include_bytes!("../../../../.agents/skills/onboard-repository/scripts/render_patch.py"),
+        )?;
+        add(
+            &mut files,
             "docs/WORKFLOW.md",
             include_bytes!("../../../../docs/WORKFLOW.md"),
         )?;
@@ -85,7 +140,7 @@ mod tests {
     fn embedded_payload_is_generic_and_complete() {
         let distribution = EmbeddedCoreDistribution.current().unwrap();
         distribution.validate().unwrap();
-        assert_eq!(distribution.files.len(), 10);
+        assert_eq!(distribution.files.len(), 19);
         let agents = distribution
             .files
             .iter()
@@ -100,5 +155,28 @@ mod tests {
             .find(|file| file.path.as_str() == "docs/plans/README.md")
             .unwrap();
         assert!(!String::from_utf8_lossy(&plans.content).contains("rust-harness-core"));
+        for skill in [
+            ".agents/skills/onboard-repository/SKILL.md",
+            ".agents/skills/audit-onboarding-proposal/SKILL.md",
+        ] {
+            let skill = distribution
+                .files
+                .iter()
+                .find(|file| file.path.as_str() == skill)
+                .unwrap();
+            assert!(String::from_utf8_lossy(&skill.content).contains("read-only"));
+        }
+        for metadata in [
+            ".agents/skills/onboard-repository/agents/openai.yaml",
+            ".agents/skills/audit-onboarding-proposal/agents/openai.yaml",
+        ] {
+            let metadata = distribution
+                .files
+                .iter()
+                .find(|file| file.path.as_str() == metadata)
+                .unwrap();
+            assert!(String::from_utf8_lossy(&metadata.content)
+                .contains("allow_implicit_invocation: false"));
+        }
     }
 }
