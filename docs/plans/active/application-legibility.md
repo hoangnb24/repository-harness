@@ -1000,7 +1000,14 @@ prove runtime application legibility.
 - 2026-07-23: Two full audits converged after worksheet enforcement, and two
   corrected-reissue audits independently approved the exact pending marker.
   This proves proposal admissibility, not permission to mutate the consumer;
-  application still requires the displayed wording-level user approval.
+  application still required the displayed wording-level user approval.
+- 2026-07-23: The user approved only the exact managed marker replacement. It
+  was applied and committed in the replay worktree, where the obsolete Harness
+  CLI attempt changed from one to zero without another consumer change.
+- 2026-07-23: Decision `0026` promotes the forward-tested, explicit-only
+  `$onboard-repository` and `$audit-onboarding-proposal` pair into the default
+  Harness core. Installation does not invoke the skills; their first-pass and
+  audit safety boundaries remain user-triggered.
 
 ## Durable Evidence
 
@@ -1096,5 +1103,7 @@ only after consumer evidence proves it.
 
 ## Result
 
-Pending. The decision-boundary replay is verified, but the complete runtime and
-interface loop remains unproven.
+The onboarding skill pilot, exact H1 application, and stale-command replay are
+verified, and the reusable skill pair is promoted into the default installer
+payload. The broader application-legibility phase remains active because the
+complete runtime and interface loop is still unproven.

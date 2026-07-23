@@ -297,6 +297,11 @@ manifests; do not duplicate file lists in installer code. Schema migrations are
 members of the CLI profile and are discovered from `scripts/schema/*.sql`, so a
 new migration requires only the SQL file.
 
+The default manifest includes the explicit-only `$onboard-repository` and
+`$audit-onboarding-proposal` skill packages. They are embedded and updated as
+ordinary core files; the installer never invokes them or installs their runtime
+dependencies.
+
 By default the installer downloads the checksum-verified `harness` maintenance
 binary and delegates installation of the repository-centered core. It performs
 no compatibility-CLI download, schema discovery, database bootstrap, or

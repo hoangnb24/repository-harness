@@ -8,6 +8,15 @@ Core is the default. Its exact files are declared in
 `scripts/harness-install-files.txt`:
 
 ```text
+.agents/skills/audit-onboarding-proposal/SKILL.md
+.agents/skills/audit-onboarding-proposal/agents/openai.yaml
+.agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py
+.agents/skills/onboard-repository/SKILL.md
+.agents/skills/onboard-repository/agents/openai.yaml
+.agents/skills/onboard-repository/references/evidence-capsule-v1.md
+.agents/skills/onboard-repository/references/evidence-capsule-v2.md
+.agents/skills/onboard-repository/scripts/emit_evidence_bundle.py
+.agents/skills/onboard-repository/scripts/render_patch.py
 AGENTS.md
 docs/WORKFLOW.md
 docs/README.md
@@ -19,6 +28,12 @@ docs/decisions/README.md
 docs/templates/decision.md
 docs/templates/exec-plan.md
 ```
+
+The installed `$onboard-repository` and `$audit-onboarding-proposal` skills are
+explicit-only. Installation and ordinary repository work never invoke them.
+When requested, the producer inspects and proposes without editing on its first
+pass, while the auditor independently verifies the proposal before an approved
+application.
 
 The platform installer downloads a checksum-verified `harness` binary, places
 it at `scripts/bin/harness` (or `.exe`), and delegates core installation to it.
