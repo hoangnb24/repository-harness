@@ -49,6 +49,15 @@ grep -Fq 'ordinary repository task' "$root/docs/HARNESS.md"
 ! grep -Fq 'query matrix' "$claude_block"
 
 for payload in \
+  .agents/skills/audit-onboarding-proposal/SKILL.md \
+  .agents/skills/audit-onboarding-proposal/agents/openai.yaml \
+  .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py \
+  .agents/skills/onboard-repository/SKILL.md \
+  .agents/skills/onboard-repository/agents/openai.yaml \
+  .agents/skills/onboard-repository/references/evidence-capsule-v1.md \
+  .agents/skills/onboard-repository/references/evidence-capsule-v2.md \
+  .agents/skills/onboard-repository/scripts/emit_evidence_bundle.py \
+  .agents/skills/onboard-repository/scripts/render_patch.py \
   docs/WORKFLOW.md \
   docs/README.md \
   docs/product/README.md \
@@ -60,6 +69,11 @@ for payload in \
   docs/templates/exec-plan.md; do
   grep -Fxq "$payload" "$root/scripts/harness-install-files.txt"
 done
+
+grep -Fq 'allow_implicit_invocation: false' \
+  "$root/.agents/skills/onboard-repository/agents/openai.yaml"
+grep -Fq 'allow_implicit_invocation: false' \
+  "$root/.agents/skills/audit-onboarding-proposal/agents/openai.yaml"
 
 for source_only in scripts/agent-harness-block.md scripts/claude-harness-block.md; do
   ! grep -Fxq "$source_only" "$root/scripts/harness-install-files.txt"

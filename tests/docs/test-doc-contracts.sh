@@ -45,6 +45,15 @@ done
 # Durable planning and decision structure are part of both source and the
 # fresh core. Upstream decisions remain source-only.
 for file in \
+  .agents/skills/audit-onboarding-proposal/SKILL.md \
+  .agents/skills/audit-onboarding-proposal/agents/openai.yaml \
+  .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py \
+  .agents/skills/onboard-repository/SKILL.md \
+  .agents/skills/onboard-repository/agents/openai.yaml \
+  .agents/skills/onboard-repository/references/evidence-capsule-v1.md \
+  .agents/skills/onboard-repository/references/evidence-capsule-v2.md \
+  .agents/skills/onboard-repository/scripts/emit_evidence_bundle.py \
+  .agents/skills/onboard-repository/scripts/render_patch.py \
   docs/README.md \
   docs/product/README.md \
   docs/plans/README.md \

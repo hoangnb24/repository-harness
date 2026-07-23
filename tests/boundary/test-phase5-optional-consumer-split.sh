@@ -16,8 +16,9 @@ HARNESS_CLI_PLATFORM=phase5-fixture \
 grep -Fq 'Harness profile: core' "$temp/install.out"
 ! grep -Fq 'download harness-cli-' "$temp/install.out"
 
-# Inspect the installed result, not only its manifest. No optional consumer or
-# legacy evaluation surface may appear in an ordinary repository.
+# Inspect the installed result, not only its manifest. The explicit-only
+# onboarding skill pair is core workflow guidance; no orchestrator, benchmark,
+# generic evaluation suite, or legacy control-plane surface may appear.
 for path in \
   docs/contracts \
   scripts/bin/harness-cli \
@@ -40,6 +41,12 @@ done
   echo 'Phase 5 core is missing the Harness maintenance CLI' >&2
   exit 1
 }
+[[ -f "$installed/.agents/skills/onboard-repository/SKILL.md" ]]
+[[ -f "$installed/.agents/skills/audit-onboarding-proposal/SKILL.md" ]]
+grep -Fq 'allow_implicit_invocation: false' \
+  "$installed/.agents/skills/onboard-repository/agents/openai.yaml"
+grep -Fq 'allow_implicit_invocation: false' \
+  "$installed/.agents/skills/audit-onboarding-proposal/agents/openai.yaml"
 
 if find "$installed" -type f -print | \
   rg -i '/[^/]*(symphony|orchestrat|evaluation|benchmark|trace-score)[^/]*$' \
@@ -54,7 +61,7 @@ fi
 grep -Fxq 'docs/contracts/harness-orchestration-v1.md' \
   "$root/scripts/harness-cli-install-files.txt"
 grep -Fxq 'docs/TRACE_SPEC.md' "$root/scripts/harness-cli-install-files.txt"
-! grep -Eiq 'symphony|evaluation' "$root/scripts/harness-install-files.txt"
+! grep -Eiq 'symphony|benchmark|trace-score' "$root/scripts/harness-install-files.txt"
 
 if [[ -d "$root/tests/evals" ]] && \
   find "$root/tests/evals" -type f -print -quit | grep -q .; then

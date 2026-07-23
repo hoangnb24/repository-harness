@@ -56,6 +56,14 @@ cmp -s <(extract_block "$fresh/AGENTS.md") "$root/scripts/agent-harness-block.md
 [[ -f "$fresh/docs/plans/active/README.md" ]]
 [[ -f "$fresh/docs/plans/completed/README.md" ]]
 [[ -f "$fresh/docs/templates/exec-plan.md" ]]
+[[ -f "$fresh/.agents/skills/onboard-repository/SKILL.md" ]]
+[[ -f "$fresh/.agents/skills/onboard-repository/scripts/render_patch.py" ]]
+[[ -f "$fresh/.agents/skills/audit-onboarding-proposal/SKILL.md" ]]
+[[ -f "$fresh/.agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py" ]]
+grep -Fq 'allow_implicit_invocation: false' \
+  "$fresh/.agents/skills/onboard-repository/agents/openai.yaml"
+grep -Fq 'allow_implicit_invocation: false' \
+  "$fresh/.agents/skills/audit-onboarding-proposal/agents/openai.yaml"
 grep -Fq 'No control-plane operation is required.' "$fresh/AGENTS.md"
 ! grep -Fq 'Current Upstream Goal' "$fresh/AGENTS.md"
 ! grep -Fq 'query matrix --active --summary' "$fresh/AGENTS.md"
@@ -112,6 +120,8 @@ grep -Fxq 'custom script' "$merge/scripts/custom/keep.txt"
 grep -Fxq 'scripts/bin/harness' "$merge/.gitignore"
 ! grep -Fxq 'harness.db' "$merge/.gitignore"
 [[ -f "$merge/docs/WORKFLOW.md" ]]
+[[ -f "$merge/.agents/skills/onboard-repository/SKILL.md" ]]
+[[ -f "$merge/.agents/skills/audit-onboarding-proposal/SKILL.md" ]]
 [[ ! -e "$merge/docs/ARCHITECTURE.md" ]]
 
 # Core override moves only the paths it owns; an existing scripts tree remains

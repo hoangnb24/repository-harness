@@ -8,6 +8,8 @@ workflow="$root/.github/workflows/post-merge-maintenance.yml"
 printf '%s\n' \
   crates/harness/src/main.rs \
   crates/harness/assets/docs/plans/README.md \
+  .agents/skills/onboard-repository/SKILL.md \
+  .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py \
   docs/WORKFLOW.md \
   scripts/agent-harness-block.md \
   scripts/install-harness.sh \
