@@ -23,6 +23,7 @@ grep -Fq 'No control-plane operation is required.' "$agent_block"
 grep -Fq 'docs/plans/active/' "$agent_block"
 grep -Fq 'identify repository authority for each new externally' "$agent_block"
 grep -Fq 'configurable defaults are not authority' "$agent_block"
+grep -Fq 'explicitly asked to use `$improve-harness`' "$agent_block"
 grep -Fq 'product intent remains ambiguous' "$agent_block"
 grep -Fq 'SQLite intake, story, trace, scoring, audit, and proposal commands are optional' "$agent_block"
 ! grep -Fq '## Current Upstream Goal' "$root/AGENTS.md"
@@ -41,6 +42,8 @@ grep -Fq 'Does The Work Need Human Judgment?' "$workflow"
 grep -Fq 'Add rate limiting' "$workflow"
 grep -Fq 'must stop' "$workflow"
 grep -Fq 'What Proves The Behavior?' "$workflow"
+grep -Fq 'Operate The Application' "$workflow"
+grep -Fq 'Improve The Harness' "$workflow"
 grep -Fq 'No bootstrap, intake, story, matrix, trace, scoring, audit, or proposal command' "$workflow"
 grep -Fq 'ordinary repository task' "$root/docs/HARNESS.md"
 
@@ -52,6 +55,8 @@ for payload in \
   .agents/skills/audit-onboarding-proposal/SKILL.md \
   .agents/skills/audit-onboarding-proposal/agents/openai.yaml \
   .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py \
+  .agents/skills/improve-harness/SKILL.md \
+  .agents/skills/improve-harness/agents/openai.yaml \
   .agents/skills/onboard-repository/SKILL.md \
   .agents/skills/onboard-repository/agents/openai.yaml \
   .agents/skills/onboard-repository/references/evidence-capsule-v1.md \
@@ -65,8 +70,10 @@ for payload in \
   docs/plans/active/README.md \
   docs/plans/completed/README.md \
   docs/decisions/README.md \
+  docs/templates/application-runbook.md \
   docs/templates/decision.md \
-  docs/templates/exec-plan.md; do
+  docs/templates/exec-plan.md \
+  docs/templates/harness-improvement.md; do
   grep -Fxq "$payload" "$root/scripts/harness-install-files.txt"
 done
 
@@ -74,6 +81,8 @@ grep -Fq 'allow_implicit_invocation: false' \
   "$root/.agents/skills/onboard-repository/agents/openai.yaml"
 grep -Fq 'allow_implicit_invocation: false' \
   "$root/.agents/skills/audit-onboarding-proposal/agents/openai.yaml"
+grep -Fq 'allow_implicit_invocation: false' \
+  "$root/.agents/skills/improve-harness/agents/openai.yaml"
 
 for source_only in scripts/agent-harness-block.md scripts/claude-harness-block.md; do
   ! grep -Fxq "$source_only" "$root/scripts/harness-install-files.txt"

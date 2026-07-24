@@ -34,6 +34,16 @@ impl CoreDistributionPort for EmbeddedCoreDistribution {
         )?;
         add(
             &mut files,
+            ".agents/skills/improve-harness/SKILL.md",
+            include_bytes!("../../../../.agents/skills/improve-harness/SKILL.md"),
+        )?;
+        add(
+            &mut files,
+            ".agents/skills/improve-harness/agents/openai.yaml",
+            include_bytes!("../../../../.agents/skills/improve-harness/agents/openai.yaml"),
+        )?;
+        add(
+            &mut files,
             ".agents/skills/onboard-repository/SKILL.md",
             include_bytes!("../../../../.agents/skills/onboard-repository/SKILL.md"),
         )?;
@@ -105,6 +115,11 @@ impl CoreDistributionPort for EmbeddedCoreDistribution {
         )?;
         add(
             &mut files,
+            "docs/templates/application-runbook.md",
+            include_bytes!("../../../../docs/templates/application-runbook.md"),
+        )?;
+        add(
+            &mut files,
             "docs/templates/decision.md",
             include_bytes!("../../../../docs/templates/decision.md"),
         )?;
@@ -112,6 +127,11 @@ impl CoreDistributionPort for EmbeddedCoreDistribution {
             &mut files,
             "docs/templates/exec-plan.md",
             include_bytes!("../../../../docs/templates/exec-plan.md"),
+        )?;
+        add(
+            &mut files,
+            "docs/templates/harness-improvement.md",
+            include_bytes!("../../../../docs/templates/harness-improvement.md"),
         )?;
         Ok(CoreDistribution {
             version: env!("CARGO_PKG_VERSION").to_owned(),
@@ -140,7 +160,7 @@ mod tests {
     fn embedded_payload_is_generic_and_complete() {
         let distribution = EmbeddedCoreDistribution.current().unwrap();
         distribution.validate().unwrap();
-        assert_eq!(distribution.files.len(), 19);
+        assert_eq!(distribution.files.len(), 23);
         let agents = distribution
             .files
             .iter()
@@ -158,17 +178,20 @@ mod tests {
         for skill in [
             ".agents/skills/onboard-repository/SKILL.md",
             ".agents/skills/audit-onboarding-proposal/SKILL.md",
+            ".agents/skills/improve-harness/SKILL.md",
         ] {
             let skill = distribution
                 .files
                 .iter()
                 .find(|file| file.path.as_str() == skill)
                 .unwrap();
-            assert!(String::from_utf8_lossy(&skill.content).contains("read-only"));
+            let skill = String::from_utf8_lossy(&skill.content);
+            assert!(skill.contains("authorized") || skill.contains("read-only"));
         }
         for metadata in [
             ".agents/skills/onboard-repository/agents/openai.yaml",
             ".agents/skills/audit-onboarding-proposal/agents/openai.yaml",
+            ".agents/skills/improve-harness/agents/openai.yaml",
         ] {
             let metadata = distribution
                 .files

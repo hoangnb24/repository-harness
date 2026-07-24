@@ -3,6 +3,8 @@
 .agents/skills/audit-onboarding-proposal/SKILL.md
 .agents/skills/audit-onboarding-proposal/agents/openai.yaml
 .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py
+.agents/skills/improve-harness/SKILL.md
+.agents/skills/improve-harness/agents/openai.yaml
 .agents/skills/onboard-repository/SKILL.md
 .agents/skills/onboard-repository/agents/openai.yaml
 .agents/skills/onboard-repository/references/evidence-capsule-v1.md
@@ -17,5 +19,7 @@ docs/plans/README.md
 docs/plans/active/README.md
 docs/plans/completed/README.md
 docs/decisions/README.md
+docs/templates/application-runbook.md
 docs/templates/decision.md
 docs/templates/exec-plan.md
+docs/templates/harness-improvement.md

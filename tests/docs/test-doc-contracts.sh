@@ -29,7 +29,10 @@ require AGENTS.md 'No control-plane operation is required.'
 require docs/WORKFLOW.md '### Bounded Change'
 require docs/WORKFLOW.md '### Durable Planned Change'
 require docs/WORKFLOW.md '### Does The Work Need Human Judgment?'
+require docs/WORKFLOW.md '### Operate The Application'
+require docs/WORKFLOW.md '### Improve The Harness'
 require AGENTS.md 'configurable defaults are not authority'
+require AGENTS.md 'explicitly asked to use `$improve-harness`'
 require docs/WORKFLOW.md '`Add rate limiting` without a quota'
 require docs/WORKFLOW.md 'must stop'
 require docs/HARNESS.md 'ordinary repository task'
@@ -48,6 +51,8 @@ for file in \
   .agents/skills/audit-onboarding-proposal/SKILL.md \
   .agents/skills/audit-onboarding-proposal/agents/openai.yaml \
   .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py \
+  .agents/skills/improve-harness/SKILL.md \
+  .agents/skills/improve-harness/agents/openai.yaml \
   .agents/skills/onboard-repository/SKILL.md \
   .agents/skills/onboard-repository/agents/openai.yaml \
   .agents/skills/onboard-repository/references/evidence-capsule-v1.md \
@@ -60,8 +65,10 @@ for file in \
   docs/plans/active/README.md \
   docs/plans/completed/README.md \
   docs/decisions/README.md \
+  docs/templates/application-runbook.md \
   docs/templates/decision.md \
-  docs/templates/exec-plan.md; do
+  docs/templates/exec-plan.md \
+  docs/templates/harness-improvement.md; do
   [[ -f "$root/$file" ]] || fail "missing repository artifact: $file"
   grep -Fxq "$file" "$root/scripts/harness-install-files.txt" ||
     fail "installer payload omits: $file"
@@ -81,6 +88,16 @@ done
 for heading in Outcome Context Scope Approach 'Risks And Recovery' Progress Decisions Validation Result; do
   require docs/templates/exec-plan.md "## $heading"
 done
+for heading in Scope Prerequisites Start Readiness 'Deterministic State' Interface \
+  'Runtime Evidence' 'Ownership And Cleanup' Validation Unknowns; do
+  require docs/templates/application-runbook.md "## $heading"
+done
+for heading in Status 'Representative Job' Baseline 'Earliest Gap' \
+  'Correct Owner' Intervention 'Native Validation' 'Fresh Rerun' Decision Result; do
+  require docs/templates/harness-improvement.md "## $heading"
+done
+require .agents/skills/improve-harness/agents/openai.yaml \
+  'allow_implicit_invocation: false'
 
 # Old surfaces remain available but must identify themselves as compatibility
 # references before presenting commands or lifecycle policy.

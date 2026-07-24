@@ -43,10 +43,13 @@ done
 }
 [[ -f "$installed/.agents/skills/onboard-repository/SKILL.md" ]]
 [[ -f "$installed/.agents/skills/audit-onboarding-proposal/SKILL.md" ]]
+[[ -f "$installed/.agents/skills/improve-harness/SKILL.md" ]]
 grep -Fq 'allow_implicit_invocation: false' \
   "$installed/.agents/skills/onboard-repository/agents/openai.yaml"
 grep -Fq 'allow_implicit_invocation: false' \
   "$installed/.agents/skills/audit-onboarding-proposal/agents/openai.yaml"
+grep -Fq 'allow_implicit_invocation: false' \
+  "$installed/.agents/skills/improve-harness/agents/openai.yaml"
 
 if find "$installed" -type f -print | \
   rg -i '/[^/]*(symphony|orchestrat|evaluation|benchmark|trace-score)[^/]*$' \

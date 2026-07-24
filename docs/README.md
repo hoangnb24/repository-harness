@@ -12,6 +12,11 @@ upstream-maintenance material only when the task explicitly needs it.
 - `decisions/`: lasting product and architecture choices.
 - `templates/decision.md`: lasting-decision template.
 - `templates/exec-plan.md`: durable execution-plan template.
+- `templates/application-runbook.md`: optional consumer-owned application
+  operation and proof structure.
+- `templates/harness-improvement.md`: one baseline-to-rerun Harness experiment.
+- `.agents/skills/improve-harness/`: explicit-only workflow for one authorized
+  evidence-backed Harness improvement.
 - `.agents/skills/onboard-repository/`: explicit, read-only-first brownfield
   repository mapping and improvement proposals.
 - `.agents/skills/audit-onboarding-proposal/`: explicit independent proposal
@@ -21,8 +26,8 @@ These files are generic Harness structure. They do not select an application
 stack, replace a consumer README or architecture, fabricate validation
 commands, or require the optional SQLite control-plane lifecycle. The installed
 `harness` binary only maintains this core structure. The skills do not run
-automatically; invoke `$onboard-repository` only when repository onboarding is
-the requested outcome.
+automatically; invoke `$onboard-repository` for requested onboarding and
+`$improve-harness` for an explicitly authorized Harness improvement.
 
 ## Consumer-Owned Truth
 

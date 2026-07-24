@@ -297,6 +297,11 @@ when a maintained operations guide exists. Never put an **Unknown** sentence in
 a patch preview; keep it in the gap report until authority or a user decision
 exists.
 
+When no maintained operational guide exists, use
+`docs/templates/application-runbook.md` only to structure a proposed
+consumer-owned guide. The template supplies headings, not commands or authority:
+omit unsupported instructions from the patch and retain them as unknowns.
+
 Prefer a correction to an existing repository-owned document over a new
 framework. Do not propose generic adapters, hooks, state markers, databases, or
 generated architecture unless the observed failure requires them.

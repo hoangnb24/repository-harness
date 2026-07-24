@@ -41,12 +41,16 @@ try {
     if (!(Test-Path (Join-Path $Fresh "docs/WORKFLOW.md"))) { throw "fresh workflow missing" }
     if (!(Test-Path (Join-Path $Fresh "docs/plans/active/README.md"))) { throw "fresh active-plan path missing" }
     if (!(Test-Path (Join-Path $Fresh "docs/templates/exec-plan.md"))) { throw "fresh execution-plan template missing" }
+    if (!(Test-Path (Join-Path $Fresh "docs/templates/application-runbook.md"))) { throw "fresh application-runbook template missing" }
+    if (!(Test-Path (Join-Path $Fresh "docs/templates/harness-improvement.md"))) { throw "fresh Harness-improvement template missing" }
+    if (!(Test-Path (Join-Path $Fresh ".agents/skills/improve-harness/SKILL.md"))) { throw "fresh Harness-improvement skill missing" }
     if (!(Test-Path (Join-Path $Fresh ".agents/skills/onboard-repository/SKILL.md"))) { throw "fresh onboarding skill missing" }
     if (!(Test-Path (Join-Path $Fresh ".agents/skills/onboard-repository/scripts/render_patch.py"))) { throw "fresh onboarding renderer missing" }
     if (!(Test-Path (Join-Path $Fresh ".agents/skills/audit-onboarding-proposal/SKILL.md"))) { throw "fresh onboarding audit skill missing" }
     if (!(Test-Path (Join-Path $Fresh ".agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py"))) { throw "fresh onboarding validator missing" }
     if (!(Get-Content -Raw (Join-Path $Fresh ".agents/skills/onboard-repository/agents/openai.yaml")).Contains("allow_implicit_invocation: false")) { throw "onboarding skill is not explicit-only" }
     if (!(Get-Content -Raw (Join-Path $Fresh ".agents/skills/audit-onboarding-proposal/agents/openai.yaml")).Contains("allow_implicit_invocation: false")) { throw "onboarding audit skill is not explicit-only" }
+    if (!(Get-Content -Raw (Join-Path $Fresh ".agents/skills/improve-harness/agents/openai.yaml")).Contains("allow_implicit_invocation: false")) { throw "Harness-improvement skill is not explicit-only" }
     if (!(Get-Content -Raw (Join-Path $Fresh "AGENTS.md")).Contains("No control-plane operation is required.")) { throw "fresh default still requires control-plane commands" }
     if ((Get-Content -Raw (Join-Path $Fresh "AGENTS.md")).Contains("Current Upstream Goal")) { throw "fresh default contains upstream repository goal" }
 
@@ -72,6 +76,7 @@ try {
     if (!(Test-Path (Join-Path $Merge "docs/WORKFLOW.md"))) { throw "merge did not fill core payload" }
     if (!(Test-Path (Join-Path $Merge ".agents/skills/onboard-repository/SKILL.md"))) { throw "merge did not fill onboarding skill" }
     if (!(Test-Path (Join-Path $Merge ".agents/skills/audit-onboarding-proposal/SKILL.md"))) { throw "merge did not fill onboarding audit skill" }
+    if (!(Test-Path (Join-Path $Merge ".agents/skills/improve-harness/SKILL.md"))) { throw "merge did not fill Harness-improvement skill" }
     if (Test-Path (Join-Path $Merge "docs/ARCHITECTURE.md")) { throw "core merge installed upstream architecture" }
     if ((Get-Content -Raw (Join-Path $Merge "scripts/bin/harness-cli.exe")).Trim() -ne "existing cli") { throw "core merge changed existing CLI" }
     if ((Get-Content -Raw (Join-Path $Merge "harness.db")).Trim() -ne "existing database") { throw "core merge changed existing database" }

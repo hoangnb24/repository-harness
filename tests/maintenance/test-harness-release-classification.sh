@@ -10,7 +10,10 @@ printf '%s\n' \
   crates/harness/assets/docs/plans/README.md \
   .agents/skills/onboard-repository/SKILL.md \
   .agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py \
+  .agents/skills/improve-harness/SKILL.md \
   docs/WORKFLOW.md \
+  docs/templates/application-runbook.md \
+  docs/templates/harness-improvement.md \
   scripts/agent-harness-block.md \
   scripts/install-harness.sh \
   scripts/install-harness.ps1 \

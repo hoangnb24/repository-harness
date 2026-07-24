@@ -13,6 +13,8 @@ meaningful dependencies or ordering, requires recovery steps, or would be unsafe
 to resume from the diff alone.
 
 Use `docs/templates/exec-plan.md` and place the file under `active/`.
+For an explicitly authorized baseline-to-rerun Harness experiment, use
+`docs/templates/harness-improvement.md` instead.
 
 ## Lifecycle
 
