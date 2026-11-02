@@ -41,6 +41,8 @@ current_files=(
   docs/decisions/0028-authoritative-invariant-encoding.md
   docs/decisions/0029-measured-skills-context-budget-and-approval-frontmatter.md
   docs/research/application-legibility.md
+  docs/research/harness-gap-analysis.md
+  docs/research/harness-requirements-ideas.md
   .github/ISSUE_TEMPLATE/real-world-example.md
 )
 for file in "${current_files[@]}"; do
