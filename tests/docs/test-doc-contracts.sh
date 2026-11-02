@@ -39,6 +39,7 @@ current_files=(
   docs/decisions/0026-explicit-onboarding-skills-in-default-core.md
   docs/decisions/0027-end-protocol-v1-and-focus-repository-protocol.md
   docs/decisions/0028-authoritative-invariant-encoding.md
+  docs/decisions/0029-measured-skills-context-budget-and-approval-frontmatter.md
   docs/research/application-legibility.md
   .github/ISSUE_TEMPLATE/real-world-example.md
 )
@@ -55,6 +56,9 @@ require docs/WORKFLOW.md '## Trust Through Evidence'
 require docs/WORKFLOW.md '## Optional Resources'
 require docs/patterns/encoding-invariants.md '## 1. Establish Authority'
 require docs/patterns/encoding-invariants.md '## 4. Prove Both Directions'
+require docs/patterns/encoding-invariants.md '## 6. Fail Closed On Missing Evidence'
+require docs/patterns/encoding-invariants.md '## 7. Promote Guidance To A Gate Deliberately'
+require docs/templates/decision.md 'approved_by:'
 require docs/patterns/encoding-invariants.md '## 5. Discover And Report Enforcement'
 require docs/patterns/encoding-invariants.md '| Scope | Files, modules, configuration, or runtime objects covered |'
 require docs/patterns/encoding-invariants.md 'Find the repository'
@@ -128,6 +132,16 @@ done
 require .github/workflows/premerge.yml 'run: scripts/validate-premerge.sh'
 require .github/workflows/premerge.yml 'tests/installer/test-install-harness-modes.ps1'
 require .github/workflows/harness-release.yml 'run: scripts/validate-premerge.sh'
+
+# Every distributed skill ends with a machine-countable receipt line.
+while IFS= read -r skill; do
+  name=$(basename "$(dirname "$skill")")
+  rg -Fq -- "HARNESS_SKILL: $name | done|stopped|skipped |" "$root/$skill" ||
+    fail "$skill omits its HARNESS_SKILL receipt instruction"
+done < <(cat "$root/scripts/harness-install-files.txt" \
+  "$root/scripts/engineering-wisdom-install-files.txt" |
+  grep -E '^\.agents/skills/[^/]+/SKILL\.md$' | LC_ALL=C sort -u)
+require .agents/skills/encode-invariant/SKILL.md 'Missing frontmatter means not approved'
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null
 "$root/tests/installer/assert-install-manifest-links.sh" >/dev/null

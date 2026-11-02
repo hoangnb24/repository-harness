@@ -102,6 +102,19 @@ scripts/bin/harness update --continue
 
 Use `scripts/bin/harness update --abort` to discard only the staged resolution.
 
+## Measure Skill Use
+
+```bash
+scripts/bin/harness skill-report ~/.claude/projects/<project>/<session>.jsonl
+```
+
+`skill-report` is read-only and runs only when invoked. It reads the Claude
+Code session files you name and reports, per explicitly invoked skill,
+invocations, `HARNESS_SKILL:` receipts, and input, cache-creation, cache-read,
+and output tokens (`--json` for machines). It prints aggregates only, writes
+nothing, and rejects other session formats. Receipts are self-reported, so the
+report measures format compliance, not whether the work was correct.
+
 ## Optional Skills
 
 Invariant enforcement routes accepted rules through repository-native

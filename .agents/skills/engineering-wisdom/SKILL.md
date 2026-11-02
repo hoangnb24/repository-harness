@@ -76,3 +76,11 @@ Verification: <command, test, measurement, or observation>
 ```
 
 End with unresolved risks or `None`. Do not add a policy checklist by default.
+
+## Receipt
+
+End the final answer with exactly one last line:
+`HARNESS_SKILL: engineering-wisdom | done|stopped|skipped | <artifact path or reason>`.
+Use `stopped` when an authority gate or missing capability stops the work. The
+third field is never empty, for example
+`HARNESS_SKILL: engineering-wisdom | stopped | <missing authority or capability>`.

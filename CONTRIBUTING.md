@@ -20,6 +20,14 @@ understand without adding a parallel control plane.
 4. Keep the change at one product owner.
 5. Select proof that observes the changed behavior.
 
+## Context Budget
+
+`scripts/context-budget.tsv` is the single source of size limits for text
+agents load repeatedly: the entry blocks, skill descriptions, and skill
+bodies. Raising a limit is deliberate: change the number and its reason in the
+same pull request and explain why shortening was not possible. Grandfathered
+skill limits may only decrease.
+
 ## Pull Request
 
 Describe:

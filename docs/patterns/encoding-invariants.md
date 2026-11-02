@@ -17,6 +17,11 @@ current behavior or convention; they do not authorize a new invariant.
 Stop before editing when no accepted authority exists or when two materially
 different boundaries fit the words. Ask for the smallest missing choice.
 
+A decision record counts as authority only when its frontmatter has
+`status: accepted` and a named `approved_by` and `approved_at`; missing markers
+fail closed. The markers prove that someone filled the fields, not that a
+review happened; review history remains the stronger evidence.
+
 Example: “prevent internal imports” is ambiguous until authority identifies the
 protected scope and allowed dependencies. “Packages under `public/` must not
 import packages under `internal/`,” when accepted by the repository owner, is
@@ -87,6 +92,37 @@ A checked-in CI job does not prove that it ran on the current revision. A green
 job does not prove branch protection requires it. Never claim merge blocking
 from workflow text alone. Do not install hooks, select a CI provider, prescribe a
 merge policy, or mutate branch protection as part of encoding a repository rule.
+
+## 6. Fail Closed On Missing Evidence
+
+"No failure seen" is not "checked and clean". A done or merge gate must treat
+missing evidence as failure:
+
+| Situation | Gate result |
+| --- | --- |
+| Validation output is absent | Fail |
+| Validation output is empty or whitespace only | Fail |
+| A recorded blocker or unresolved finding exists | Fail |
+| Non-empty output from the native validation owner and no blocker | Pass |
+
+Prefer evidence produced by the validation command or CI itself over a report
+an agent writes, because a written report proves only that something was
+written. A gate script that nothing invokes is not enforcement; report it at
+the levels in step 5. Wiring a gate into CI or hooks belongs to the repository
+owner, not to Harness.
+
+## 7. Promote Guidance To A Gate Deliberately
+
+Keep a rule as written guidance until all three hold:
+
+1. a real violation was observed and its evidence is recorded;
+2. the cost of a recurrence is high enough to justify maintaining a check; and
+3. the guarded workflow is stable enough that the check will not churn.
+
+Add a gate only in the same change that wires it into the place it actually
+runs and proves both directions. An unwired gate is not added. Use
+`scripts/bin/harness skill-report <session.jsonl>...` receipt compliance and token totals
+as evidence when deciding to promote, keep, or remove guidance.
 
 ## Handback
 

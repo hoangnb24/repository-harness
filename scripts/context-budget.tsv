@@ -1,0 +1,16 @@
+# Context budget: the single source of size limits for always-loaded context.
+# Columns (tab-separated): kind, target, max, reason.
+#   bytes  <path or .agents/skills/*/SKILL.md default>  byte limit
+#   words  <path>+<path>                                combined word limit
+#   chars  skill-description                            frontmatter description limit
+# An exact skill path overrides the */SKILL.md default.
+# Raising a limit is deliberate: edit the number and its reason in the same
+# change (CONTRIBUTING.md). Grandfathered limits may only decrease.
+# Measured 2026-11-02 on branch feat/measure-budget-authority.
+bytes	scripts/agent-harness-block.md	1600	measured 1241; loaded every session
+bytes	scripts/claude-harness-block.md	400	measured 241; loaded every session
+words	scripts/agent-harness-block.md+docs/WORKFLOW.md	1000	entry reading path
+chars	skill-description	320	measured max 298; descriptions load every session
+bytes	.agents/skills/*/SKILL.md	6000	default for skill bodies; move long material to references/
+bytes	.agents/skills/onboard-repository/SKILL.md	27500	grandfathered: measured 27392; may only decrease
+bytes	.agents/skills/audit-onboarding-proposal/SKILL.md	16500	grandfathered: measured 16368; may only decrease

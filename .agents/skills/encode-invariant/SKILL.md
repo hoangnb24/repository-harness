@@ -19,6 +19,11 @@ Cite the accepted source and restate the exact scope, allowed behavior,
 forbidden behavior, and authorized exceptions. Stop before edits if authority
 is absent or materially ambiguous.
 
+When a cited source is a decision record, read its frontmatter. Stop before
+edits unless it has `status: accepted` and a non-empty `approved_by` and
+`approved_at`. Missing frontmatter means not approved; do not infer approval
+from body text.
+
 Do not promote conventions, code patterns, tests, defaults, tool behavior, or
 undocumented preferences into policy. An existing check without accepted
 authority is a mismatch to report, not authority to expand.
@@ -65,3 +70,11 @@ check is not proof of merge blocking.
 Return accepted authority, encoded scope, changed owner, actionable diagnostic,
 positive and negative results, the four enforcement levels, and unresolved
 risks or authority gaps.
+
+## Receipt
+
+End the final answer with exactly one last line:
+`HARNESS_SKILL: encode-invariant | done|stopped|skipped | <artifact path or reason>`.
+Use `stopped` when an authority gate or missing capability stops the work. The
+third field is never empty, for example
+`HARNESS_SKILL: encode-invariant | stopped | <missing authority or capability>`.

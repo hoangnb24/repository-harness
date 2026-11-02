@@ -110,3 +110,11 @@ Return:
 - fresh-rerun status and comparison;
 - `keep`, `revise`, `remove`, or `pending fresh rerun`; and
 - remaining authority, risk, or follow-up.
+
+## Receipt
+
+End the final answer with exactly one last line:
+`HARNESS_SKILL: improve-harness | done|stopped|skipped | <artifact path or reason>`.
+Use `stopped` when an authority gate or missing capability stops the work. The
+third field is never empty, for example
+`HARNESS_SKILL: improve-harness | stopped | <missing authority or capability>`.

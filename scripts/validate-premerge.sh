@@ -24,6 +24,7 @@ tests/installer/assert-install-manifest-links.sh
 tests/installer/test-install-harness-modes.sh
 tests/installer/test-engineering-wisdom-opt-in.sh
 tests/docs/test-doc-contracts.sh
+tests/docs/test-context-budget.sh
 tests/workflow/test-repository-workflow.sh
 tests/maintenance/test-harness-release-classification.sh
 tests/maintenance/test-render-changelog-files.sh

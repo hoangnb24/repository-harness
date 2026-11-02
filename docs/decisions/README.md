@@ -18,6 +18,7 @@ is an available reference, not a required task step.
 | 0026 | Explicit Onboarding Skills In Default Core |
 | 0027 | End Protocol V1 And Focus The Repository Protocol |
 | 0028 | Authoritative Invariant Encoding |
+| 0029 | Measured Skills, Context Budget, And Approval Frontmatter (proposed) |
 
 These decisions describe upstream Harness. Installed consumers begin with an
 empty decision index and add only real consumer choices.

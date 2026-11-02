@@ -15,8 +15,10 @@ Start with the smallest authoritative surface.
 - [`patterns/encoding-invariants.md`](patterns/encoding-invariants.md): turn
   accepted architecture, reliability, security, and quality rules into native
   mechanical validation.
+  It also covers fail-closed evidence gates and when to promote guidance to a
+  gate.
 - `templates/`: optional decision, plan, runbook, and Harness-improvement
-  structures.
+  structures. The decision template carries checkable approval frontmatter.
 
 ## Consumer-Owned Truth
 
@@ -29,7 +31,8 @@ not overwrite those with upstream product assumptions.
 - Root `README.md`: product overview, installation, maintenance, EOL, and
   development.
 - `crates/harness/`: safe core installer/updater.
-- `scripts/`: platform bootstrap, release, and validation entrypoints.
+- `scripts/`: platform bootstrap, release, and validation entrypoints;
+  `context-budget.tsv` holds the context size limits.
 - `tests/`: behavior ownership and repository contract.
 
 ## History

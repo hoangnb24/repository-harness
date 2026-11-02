@@ -511,3 +511,11 @@ claim a new chat contract or add a universal startup script. After the user
 approves exact patch wording, the later pass applies it and produces a
 skill-free documentation patch for a fresh replay. Success is fewer
 undocumented hints and safer command ordering, not merely more documentation.
+
+## Receipt
+
+End the final answer with exactly one last line:
+`HARNESS_SKILL: onboard-repository | done|stopped|skipped | <artifact path or reason>`.
+Use `stopped` when an authority gate or missing capability stops the work. The
+third field is never empty, for example
+`HARNESS_SKILL: onboard-repository | stopped | <missing authority or capability>`.

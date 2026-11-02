@@ -32,9 +32,8 @@ done
 ! grep -Fq 'docs/plans/active/' "$agent_block"
 ! grep -Fq 'docs/patterns/encoding-invariants.md' "$agent_block"
 
-[[ "$(wc -c <"$agent_block" | tr -d ' ')" -le 1600 ]]
-entry_words=$(awk '{ words += NF } END { print words }' "$agent_block" "$workflow")
-[[ "$entry_words" -le 1000 ]]
+# Entry size and word limits live in scripts/context-budget.tsv.
+"$root/scripts/check-context-budget.sh" >/dev/null
 
 required_workflow_text=(
   '## Authority And Scope'

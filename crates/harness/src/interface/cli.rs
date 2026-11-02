@@ -3,9 +3,11 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 use crate::application::{
-    CoreApplication, CoreDistributionPort, InstallationStatePort, SelfUpdateApplication,
-    SelfUpdateExit, ThreeWayMergePort, UpdateCandidatePort,
+    CoreApplication, CoreDistributionPort, InspectionApplication, InspectionError,
+    InstallationStatePort, SelfUpdateApplication, SelfUpdateExit, SessionLogPort,
+    ThreeWayMergePort, UpdateCandidatePort,
 };
+use crate::interface::inspection_presenter::{present_skill_report, EXIT_FAILED, EXIT_USAGE};
 use crate::interface::presenter::{
     present_abort, present_doctor, present_executable_recovery, present_install, present_status,
     present_update, CommandExit,
@@ -65,12 +67,24 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Report skill receipt compliance and token use from Claude Code sessions.
+    ///
+    /// Read-only. Pass session JSONL files explicitly; nothing is scanned or
+    /// written. Prints aggregates only, never prompt or answer text.
+    SkillReport {
+        #[arg(long)]
+        json: bool,
+        /// Claude Code session files (`~/.claude/projects/<project>/<id>.jsonl`).
+        #[arg(required = true)]
+        sessions: Vec<PathBuf>,
+    },
 }
 
-pub fn execute<D, S, M, C, U>(
+pub fn execute<D, S, M, C, U, L>(
     cli: Cli,
     application: &CoreApplication<D, S, M>,
     self_update: &SelfUpdateApplication<C, U>,
+    inspection: &InspectionApplication<L>,
 ) -> CommandExit
 where
     D: CoreDistributionPort,
@@ -78,6 +92,7 @@ where
     M: ThreeWayMergePort,
     C: UpdateCandidatePort,
     U: InstallationStatePort,
+    L: SessionLogPort,
 {
     let result: Result<CommandExit, String> = match cli.command {
         Command::Install {
@@ -144,8 +159,31 @@ where
             .doctor(&directory)
             .map(|report| present_doctor(&report, json))
             .map_err(|error| error.to_string()),
+        Command::SkillReport { json, sessions } => {
+            return inspection
+                .skill_report(&sessions)
+                .map(|report| present_skill_report(&report, json))
+                .unwrap_or_else(present_inspection_error);
+        }
     };
     result.unwrap_or_else(present_error)
+}
+
+fn present_inspection_error(error: InspectionError) -> CommandExit {
+    let (code, fix) = match &error {
+        InspectionError::Usage(_) => (
+            EXIT_USAGE,
+            "Pass Claude Code session JSONL files and rerun.",
+        ),
+        InspectionError::Port(_) => (EXIT_FAILED, "Resolve the I/O problem above and rerun."),
+    };
+    CommandExit {
+        code,
+        stdout: String::new(),
+        stderr: format!(
+            "ERROR: {error}\nWHY: The command cannot produce trustworthy results from this input.\nFIX: {fix}\n"
+        ),
+    }
 }
 
 fn present_error(error: String) -> CommandExit {

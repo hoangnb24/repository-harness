@@ -323,3 +323,11 @@ The audit report is structurally incomplete unless every proposed hunk appears
 in both the worksheet and counterexample pass. When structurally incomplete,
 set `Output correctness: Fail` and return **NO APPLY** for every unverified
 hunk even if its wording appears plausible.
+
+## Receipt
+
+End the final answer with exactly one last line, after the `AUDIT_COMPLETE` marker:
+`HARNESS_SKILL: audit-onboarding-proposal | done|stopped|skipped | <artifact path or reason>`.
+Use `stopped` when an authority gate or missing capability stops the work. The
+third field is never empty, for example
+`HARNESS_SKILL: audit-onboarding-proposal | stopped | <missing authority or capability>`.
